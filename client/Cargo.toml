@@ -1,0 +1,19 @@
+[package]
+name = "stream-log-client"
+authors = ["Jacob Riddle (ElementalAlchemist) <ElementAlchemist7@gmail.com>"]
+version = "0.1.0"
+edition = "2021"
+license = "MPL-2.0"
+
+[dependencies]
+mogwai = "0.5.3"
+ws_stream_wasm = "0.7.3"
+
+[dependencies.web-sys]
+version = "0.3.56"
+features = [
+	"Location",
+	"Storage",
+	"Url",
+	"Window"
+]
