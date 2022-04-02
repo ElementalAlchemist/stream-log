@@ -1,0 +1,9 @@
+[package]
+name = "stream-log-server"
+authors = ["Jacob Riddle (ElementalAlchemist) <ElementAlchemist7@gmail.com>"]
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+knuffel = "2.0.0"
+miette = { version = "4.2.1", features = ["fancy"] }
