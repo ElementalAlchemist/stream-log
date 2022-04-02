@@ -5,5 +5,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+async-h1 = "2.3.3"
+async-std = { version = "1.11.0", features = ["attributes"] }
+http-types = "2.12.0"
 knuffel = "2.0.0"
 miette = { version = "4.2.1", features = ["fancy"] }

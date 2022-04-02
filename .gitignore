@@ -1,5 +1,6 @@
 /client/dist/
 /client/target/
 /server/config.kdl
+/server/static
 /server/target/
 /shared/target/
