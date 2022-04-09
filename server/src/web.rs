@@ -67,7 +67,7 @@ pub async fn handle_request(stream: TcpStream) -> Result<()> {
 	})
 	.await
 	{
-		eprintln!("{}", err);
+		eprintln!("Connection error: {}", err);
 	}
 	Ok(())
 }
