@@ -13,7 +13,7 @@ enum FileData {
 
 pub async fn handle_request(stream: TcpStream) -> Result<()> {
 	println!("New connection: {:?}", stream);
-	if let Err(err) = async_h1::accept(stream.clone(), |req| async move {
+	let accept_result = async_h1::accept(stream.clone(), |req| async move {
 		println!("{:?}", req);
 
 		let get_file = match req.method() {
@@ -65,8 +65,8 @@ pub async fn handle_request(stream: TcpStream) -> Result<()> {
 			},
 		}
 	})
-	.await
-	{
+	.await;
+	if let Err(err) = accept_result {
 		eprintln!("Connection error: {}", err);
 	}
 	Ok(())
