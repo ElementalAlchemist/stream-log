@@ -15,7 +15,11 @@ fn websocket_endpoint() -> String {
 	let web_endpoint = js_location.href().expect("Failed to get current address");
 	let url = Url::new(&web_endpoint).expect("Failed to generate URL instance");
 	url.set_search(""); // Query string is unnecessary and should be cleared
-	url.set_protocol("wss:");
+	if url.protocol() == "http:" {
+		url.set_protocol("ws:");
+	} else {
+		url.set_protocol("wss:");
+	}
 	let url_path = url.pathname();
 	let ws_path = if let Some(path) = url_path.strip_suffix('/') {
 		format!("{}/ws", path)
