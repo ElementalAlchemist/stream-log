@@ -1,6 +1,7 @@
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
 use mogwai::prelude::*;
+use std::panic;
 use stream_log_shared::messages::initial::InitialMessage;
 use web_sys::Url;
 
@@ -35,6 +36,8 @@ fn websocket_endpoint() -> String {
 }
 
 fn main() {
+	panic::set_hook(Box::new(console_error_panic_hook::hook));
+	
 	mogwai::spawn(async {
 		let ws = match WebSocket::open(websocket_endpoint().as_str()) {
 			Ok(ws) => ws,
