@@ -7,7 +7,7 @@ license = "MPL-2.0"
 
 [dependencies]
 mogwai = "0.5.3"
-ws_stream_wasm = "0.7.3"
+gloo-net = { version = "0.1.0", features = ["websocket"] }
 
 [dependencies.web-sys]
 version = "0.3.56"

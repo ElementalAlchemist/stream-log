@@ -1,6 +1,6 @@
 use mogwai::prelude::*;
+use gloo_net::websocket::futures::WebSocket;
 use web_sys::Url;
-use ws_stream_wasm::WsMeta;
 
 /// Gets the URL of the websocket endpoint in a way that adapts to any URL structure at which the application could be
 /// hosted.
@@ -32,12 +32,14 @@ fn websocket_endpoint() -> String {
 
 fn main() {
 	mogwai::spawn(async {
-		let (conn_metadata, conn_stream) = match WsMeta::connect(websocket_endpoint(), None).await {
-			Ok(conn_data) => conn_data,
+		let ws = match WebSocket::open(websocket_endpoint().as_str()) {
+			Ok(ws) => ws,
 			Err(error) => {
 				let error_builder: ViewBuilder<Dom> = builder! {
 					<div class="error">
-						"Unable to load/function: A websocket connection could not be formed."
+						"Unable to load/operate: A websocket connection could not be formed."
+						<br />
+						{error.to_string()}
 					</div>
 				};
 				let error_view: View<Dom> = error_builder.try_into().expect("Failed to convert WS error to DOM");
@@ -45,5 +47,16 @@ fn main() {
 				return;
 			}
 		};
+		let (mut ws_write, mut ws_read) = ws.split();
+		let msg = ws_read.next().await;
+		let response_builder: ViewBuilder<Dom> = builder! {
+			<div class="response">
+				"Response received:"
+				<br />
+				{format!("{:?}", msg)}
+			</div>
+		};
+		let response_view: View<Dom> = response_builder.try_into().expect("Failed to create view for response");
+		response_view.run().expect("Failed to host response view");
 	});
 }

@@ -1,26 +1,33 @@
 use async_std::net::TcpListener;
 use async_std::prelude::*;
+use async_std::sync::Arc;
 use async_std::task;
 use miette::IntoDiagnostic;
+use tide::prelude::*;
+use tide::Body;
+use tide_websockets::WebSocket;
 
 mod config;
-mod file_types;
-mod web;
 use config::parse_config;
-use web::handle_request;
 
 #[async_std::main]
 async fn main() -> miette::Result<()> {
-	let config = parse_config()?;
-	let listener = TcpListener::bind(&config.listen.addr).await.into_diagnostic()?;
-	let mut incoming_listener = listener.incoming();
-	while let Some(stream) = incoming_listener.next().await {
-		let stream = stream.into_diagnostic()?;
-		task::spawn(async {
-			if let Err(err) = handle_request(stream).await {
-				eprintln!("{}", err);
-			}
-		});
-	}
+	let config = Arc::new(parse_config()?);
+
+	tide::log::start();
+
+	let mut app = tide::new();
+	app.at("/ws")
+		.with(WebSocket::new(|request, mut stream| async move {
+			stream.send_string(String::from("Unauthorized")).await?;
+			Ok(())
+		}))
+		.get(|_| async move { Ok("Must be a websocket request") });
+	app.at("/")
+		.get(|_| async { Ok(Body::from_file("static/index.html").await?) })
+		.serve_dir("static/")
+		.into_diagnostic()?;
+	app.listen(&config.listen.addr).await.into_diagnostic()?;
+
 	Ok(())
 }

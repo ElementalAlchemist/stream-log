@@ -12,6 +12,8 @@ pub fn parse_config() -> Result<ConfigDocument> {
 pub struct ConfigDocument {
 	#[knuffel(child, unwrap(argument))]
 	pub google_client_id: String,
+	#[knuffel(child, unwrap(argument))]
+	pub web_root_path: Option<String>,
 	#[knuffel(child)]
 	pub listen: ListenAddr,
 }
