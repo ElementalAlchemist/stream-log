@@ -587,7 +587,17 @@ version = "0.1.0"
 dependencies = [
  "gloo-net",
  "mogwai",
+ "serde_json",
+ "stream-log-shared",
+ "wasm-bindgen",
  "web-sys",
+]
+
+[[package]]
+name = "stream-log-shared"
+version = "0.1.0"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

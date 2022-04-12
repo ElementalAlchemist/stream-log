@@ -1612,8 +1612,16 @@ dependencies = [
  "async-std",
  "knuffel",
  "miette",
+ "stream-log-shared",
  "tide",
  "tide-websockets",
+]
+
+[[package]]
+name = "stream-log-shared"
+version = "0.1.0"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

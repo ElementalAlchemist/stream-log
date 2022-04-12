@@ -8,6 +8,9 @@ license = "MPL-2.0"
 [dependencies]
 mogwai = "0.5.3"
 gloo-net = { version = "0.1.0", features = ["websocket"] }
+stream-log-shared = { path = "../shared" }
+serde_json = "1.0.79"
+wasm-bindgen = "0.2.80"
 
 [dependencies.web-sys]
 version = "0.3.56"

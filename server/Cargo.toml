@@ -9,5 +9,6 @@ license = "MPL-2.0"
 async-std = { version = "1.11.0", features = ["attributes"] }
 knuffel = "2.0.0"
 miette = { version = "4.2.1", features = ["fancy"] }
+stream-log-shared = { path = "../shared" }
 tide = "0.16.0"
 tide-websockets = "0.4.0"
