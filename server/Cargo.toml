@@ -11,4 +11,5 @@ knuffel = "2.0.0"
 miette = { version = "4.2.1", features = ["fancy"] }
 stream-log-shared = { path = "../shared" }
 tide = "0.16.0"
+tide-openidconnect = "0.1.0"
 tide-websockets = "0.4.0"

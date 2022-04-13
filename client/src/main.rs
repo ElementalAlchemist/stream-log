@@ -5,8 +5,6 @@ use std::panic;
 use stream_log_shared::messages::initial::InitialMessage;
 use web_sys::Url;
 
-mod js_def;
-
 /// Gets the URL of the websocket endpoint in a way that adapts to any URL structure at which the application could be
 /// hosted.
 ///
@@ -87,12 +85,17 @@ fn main() {
 			Message::Bytes(_) => unimplemented!(),
 		};
 		let msg_data: InitialMessage = serde_json::from_str(&msg).expect("Message data was of the incorrect type");
-		match msg_data {
-			InitialMessage::Welcome => todo!(),
-			InitialMessage::Unauthorized(unauth_data) => {
-				js_def::launch_google_auth_flow(unauth_data.google_auth_client_id());
-			}
-		}
-		ws_write.close().await;
+		let output = match msg_data {
+			InitialMessage::Welcome => "Welcome! You got mail!",
+			InitialMessage::Unauthorized(_) => "Unauthorized access. Access denied."
+		};
+		let _ = ws_write.close().await;
+		let view_builder: ViewBuilder<Dom> = builder! {
+			<div>
+				{output}
+			</div>
+		};
+		let view: View<Dom> = view_builder.try_into().expect("Failed to convert view to DOM");
+		view.run().expect("Failed to host view");
 	});
 }
