@@ -6,11 +6,18 @@ use tide::http::cookies::SameSite;
 use tide::prelude::*;
 use tide::sessions::{MemoryStore, SessionMiddleware};
 use tide::{Body, Request};
-use tide_openidconnect::{ClientId, ClientSecret, IssuerUrl, OpenIdConnectMiddleware, OpenIdConnectRequestExt, OpenIdConnectRouteExt, RedirectUrl};
+use tide_openidconnect::{
+	ClientId, ClientSecret, IssuerUrl, OpenIdConnectMiddleware, OpenIdConnectRequestExt, OpenIdConnectRouteExt,
+	RedirectUrl,
+};
 use tide_websockets::WebSocket;
 
 mod config;
 use config::parse_config;
+
+#[macro_use]
+extern crate diesel;
+mod schema;
 
 #[async_std::main]
 async fn main() -> miette::Result<()> {
@@ -30,7 +37,7 @@ async fn main() -> miette::Result<()> {
 		issuer_url: IssuerUrl::new(String::from("https://accounts.google.com")).into_diagnostic()?,
 		client_id: ClientId::new(config.google_credentials.client_id.clone()),
 		client_secret: ClientSecret::new(config.google_credentials.secret.clone()),
-		redirect_url: RedirectUrl::new(String::from(config.openid_response_url.clone())).into_diagnostic()?,
+		redirect_url: RedirectUrl::new(config.openid_response_url.clone()).into_diagnostic()?,
 		idp_logout_url: None,
 	};
 	app.with(OpenIdConnectMiddleware::new(&openid_config).await);

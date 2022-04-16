@@ -19,7 +19,7 @@ pub struct ConfigDocument {
 	#[knuffel(child)]
 	pub listen: ListenAddr,
 	#[knuffel(child, unwrap(argument))]
-	pub openid_response_url: String
+	pub openid_response_url: String,
 }
 
 #[derive(Debug, Decode)]
