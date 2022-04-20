@@ -1,5 +1,5 @@
 CREATE TABLE users (
 	id TEXT PRIMARY KEY,
-	google_user_id TEXT UNIQUE,
-	name TEXT UNIQUE
+	google_user_id TEXT UNIQUE NOT NULL,
+	name TEXT UNIQUE NOT NULL
 );

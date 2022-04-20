@@ -7,6 +7,7 @@ license = "MPL-2.0"
 
 [dependencies]
 console_error_panic_hook = "0.1.7"
+futures = "0.3.21"
 mogwai = "0.5.3"
 gloo-net = { version = "0.1.0", features = ["websocket"] }
 stream-log-shared = { path = "../shared" }
@@ -16,6 +17,8 @@ wasm-bindgen = "0.2.80"
 [dependencies.web-sys]
 version = "0.3.56"
 features = [
+	"FormData",
+	"HtmlFormElement",
 	"Location",
 	"Storage",
 	"Url",

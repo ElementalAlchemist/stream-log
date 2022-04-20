@@ -20,6 +20,8 @@ pub struct ConfigDocument {
 	pub listen: ListenAddr,
 	#[knuffel(child, unwrap(argument))]
 	pub openid_response_url: String,
+	#[knuffel(child)]
+	pub database: DatabaseArgs,
 }
 
 #[derive(Debug, Decode)]
@@ -34,4 +36,18 @@ pub struct GoogleCredentials {
 pub struct ListenAddr {
 	#[knuffel(argument)]
 	pub addr: String,
+}
+
+#[derive(Debug, Decode)]
+pub struct DatabaseArgs {
+	#[knuffel(child, unwrap(argument))]
+	pub host: String,
+	#[knuffel(child, unwrap(argument))]
+	pub port: Option<u16>,
+	#[knuffel(child, unwrap(argument))]
+	pub username: String,
+	#[knuffel(child, unwrap(argument))]
+	pub password: String,
+	#[knuffel(child, unwrap(argument))]
+	pub database: String,
 }

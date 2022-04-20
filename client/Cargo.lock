@@ -596,6 +596,7 @@ name = "stream-log-client"
 version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
+ "futures",
  "gloo-net",
  "mogwai",
  "serde_json",

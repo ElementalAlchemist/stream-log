@@ -1,22 +1,26 @@
 use async_std::fs;
-use async_std::sync::Arc;
+use async_std::sync::{Arc, Mutex};
 use miette::IntoDiagnostic;
-use stream_log_shared::messages::initial::{InitialMessage, InitialMessageUnauthorized};
 use tide::http::cookies::SameSite;
-use tide::prelude::*;
 use tide::sessions::{MemoryStore, SessionMiddleware};
-use tide::{Body, Request};
+use tide::Body;
 use tide_openidconnect::{
-	ClientId, ClientSecret, IssuerUrl, OpenIdConnectMiddleware, OpenIdConnectRequestExt, OpenIdConnectRouteExt,
-	RedirectUrl,
+	ClientId, ClientSecret, IssuerUrl, OpenIdConnectMiddleware, OpenIdConnectRouteExt, RedirectUrl,
 };
 use tide_websockets::WebSocket;
 
 mod config;
 use config::parse_config;
 
+mod data_sync;
+use data_sync::connection::handle_connection;
+
+mod database;
+use database::connect_db;
+
 #[macro_use]
 extern crate diesel;
+mod models;
 mod schema;
 
 #[async_std::main]
@@ -24,6 +28,9 @@ async fn main() -> miette::Result<()> {
 	let config = Arc::new(parse_config()?);
 
 	tide::log::start();
+
+	let db_connection = connect_db(&config)?;
+	let db_connection = Arc::new(Mutex::new(db_connection));
 
 	let mut app = tide::new();
 
@@ -42,18 +49,15 @@ async fn main() -> miette::Result<()> {
 	};
 	app.with(OpenIdConnectMiddleware::new(&openid_config).await);
 
-	let ws_config = Arc::clone(&config);
-	app.at("/ws")
-		.authenticated()
-		.with(WebSocket::new(move |request, mut stream| {
-			let config = Arc::clone(&ws_config);
-			async move {
-				let message = InitialMessage::Welcome;
-				stream.send_json(&message).await?;
-				Ok(())
-			}
-		}))
-		.get(|_| async move { Ok("Must be a websocket request") });
+	app.at("/ws").authenticated().get(WebSocket::new({
+		let config = Arc::clone(&config);
+		let db_connection = Arc::clone(&db_connection);
+		move |request, stream| {
+			let config = Arc::clone(&config);
+			let db_connection = Arc::clone(&db_connection);
+			async move { handle_connection(config, db_connection, request, stream).await }
+		}
+	}));
 
 	app.at("/")
 		.authenticated()
