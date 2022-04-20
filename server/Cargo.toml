@@ -10,7 +10,7 @@ async-std = { version = "1.11.0", features = ["attributes"] }
 cuid = "1.2.0"
 diesel = { version = "1.4.4", features = ["postgres"] }
 knuffel = "2.0.0"
-miette = { version = "4.2.1", features = ["fancy"] }
+miette = { version = "4.5.0", features = ["fancy"] }
 stream-log-shared = { path = "../shared" }
 tide = "0.16.0"
 tide-openidconnect = "0.1.0"
