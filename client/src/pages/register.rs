@@ -3,19 +3,19 @@ use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::{Message, WebSocketError};
 use mogwai::prelude::*;
 use std::fmt::Display;
-use stream_log_shared::messages::user::{UserRegistration, UserRegistrationFinalize};
+use stream_log_shared::messages::user_register::{UserRegistration, UserRegistrationFinalize};
 use web_sys::FormData;
 
 pub enum RegistrationError {
 	JsonError(serde_json::Error),
-	WebSocketError(WebSocketError)
+	WebSocketError(WebSocketError),
 }
 
 impl Display for RegistrationError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			Self::JsonError(err) => write!(f, "{}", err),
-			Self::WebSocketError(err) => write!(f, "{}", err)
+			Self::WebSocketError(err) => write!(f, "{}", err),
 		}
 	}
 }

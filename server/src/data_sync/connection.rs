@@ -5,7 +5,7 @@ use async_std::stream::StreamExt;
 use async_std::sync::{Arc, Mutex};
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
-use stream_log_shared::messages::user::{UserData, UserDataLoad};
+use stream_log_shared::messages::initial::{InitialMessage, UserData, UserDataLoad};
 use tide::Request;
 use tide_openidconnect::OpenIdConnectRequestExt;
 use tide_websockets::WebSocketConnection;
@@ -19,7 +19,8 @@ pub async fn handle_connection(
 	let google_user_id = if let Some(id) = request.user_id() {
 		id
 	} else {
-		stream.send_json(&UserDataLoad::MissingId).await?;
+		let message = InitialMessage::new(UserDataLoad::MissingId);
+		stream.send_json(&message).await?;
 		return Ok(());
 	};
 
@@ -34,7 +35,8 @@ pub async fn handle_connection(
 		Ok(mut users) => {
 			if users.len() > 1 {
 				tide::log::error!("Duplicate Google user ID in database: {}", google_user_id);
-				stream.send_json(&UserDataLoad::Error).await?;
+				let message = InitialMessage::new(UserDataLoad::Error);
+				stream.send_json(&message).await?;
 				return Ok(());
 			} else {
 				users.pop()
@@ -42,20 +44,22 @@ pub async fn handle_connection(
 		}
 		Err(error) => {
 			tide::log::error!("Failed to retrive user data from database: {}", error);
-			stream.send_json(&UserDataLoad::Error).await?;
+			let message = InitialMessage::new(UserDataLoad::Error);
+			stream.send_json(&message).await?;
 			return Ok(());
 		}
 	};
 
-	if let Some(user) = user {
+	let message = if let Some(user) = user {
 		let user_data = UserData {
 			id: user.id,
 			username: user.name,
 		};
-		stream.send_json(&UserDataLoad::User(user_data)).await?;
+		InitialMessage::new(UserDataLoad::User(user_data))
 	} else {
-		stream.send_json(&UserDataLoad::NewUser).await?;
-	}
+		InitialMessage::new(UserDataLoad::NewUser)
+	};
+	stream.send_json(&message).await?;
 
 	let response = stream.next().await;
 	tide::log::info!("{:?}", response);

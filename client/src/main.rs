@@ -2,7 +2,8 @@ use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
 use mogwai::prelude::*;
 use std::panic;
-use stream_log_shared::messages::user::UserDataLoad;
+use stream_log_shared::messages::initial::{InitialMessage, UserDataLoad};
+use stream_log_shared::SYNC_VERSION;
 
 mod error;
 use error::{render_error_message, render_error_message_with_details};
@@ -46,8 +47,13 @@ fn main() {
 			Message::Text(txt) => txt,
 			Message::Bytes(_) => unimplemented!(),
 		};
-		let msg_data: UserDataLoad = serde_json::from_str(&msg).expect("Message data was of the incorrect type");
-		match msg_data {
+		let msg_data: InitialMessage = serde_json::from_str(&msg).expect("Message data was of the incorrect type");
+		if msg_data.sync_version != SYNC_VERSION {
+			render_error_message("There was a version mismatch between the client and the server.");
+			return;
+		}
+		let msg_user_data = msg_data.user_data;
+		match msg_user_data {
 			UserDataLoad::User(user_data) => todo!(),
 			UserDataLoad::NewUser => {
 				if let Err(error_msg) = register::run_page(&mut ws_write, &mut ws_read).await {
