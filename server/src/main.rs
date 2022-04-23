@@ -18,6 +18,8 @@ use data_sync::connection::handle_connection;
 mod database;
 use database::connect_db;
 
+mod websocket_msg;
+
 #[macro_use]
 extern crate diesel;
 mod models;
