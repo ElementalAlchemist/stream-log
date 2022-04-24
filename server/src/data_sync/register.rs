@@ -6,6 +6,7 @@ use async_std::sync::{Arc, Mutex};
 use cuid::cuid;
 use diesel::prelude::*;
 use diesel::result::DatabaseErrorKind;
+use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::user_register::{
 	RegistrationResponse, UserRegistration, UsernameCheckResponse, UsernameCheckStatus,
 };
@@ -36,7 +37,10 @@ pub async fn register_user(
 		match registration_data {
 			UserRegistration::CheckUsername(username) => {
 				if username.len() > 64 {
-					let response = UsernameCheckResponse { username, status: UsernameCheckStatus::Unavailable };
+					let response = UsernameCheckResponse {
+						username,
+						status: UsernameCheckStatus::Unavailable,
+					};
 					stream.send_json(&response).await?;
 					continue;
 				}
@@ -62,7 +66,8 @@ pub async fn register_user(
 			}
 			UserRegistration::Finalize(data) => {
 				if data.name.len() > 64 {
-					let response_message: DataMessage<RegistrationResponse> = DataMessage::Ok(RegistrationResponse::UsernameTooLong);
+					let response_message: DataMessage<RegistrationResponse> =
+						DataMessage::Ok(RegistrationResponse::UsernameTooLong);
 					stream.send_json(&response_message).await?;
 					continue;
 				}
@@ -70,7 +75,8 @@ pub async fn register_user(
 					Ok(id) => id,
 					Err(error) => {
 						tide::log::error!("CUID generation error: {}", error);
-						let response_message: DataMessage<RegistrationResponse> = DataMessage::Err(DataError::ServerError);
+						let response_message: DataMessage<RegistrationResponse> =
+							DataMessage::Err(DataError::ServerError);
 						stream.send_json(&response_message).await?;
 						continue;
 					}
@@ -88,7 +94,11 @@ pub async fn register_user(
 				};
 				match insert_result {
 					Ok(data) => {
-						let response_message = DataMessage::Ok(RegistrationResponse::Success);
+						let user_data = UserData {
+							id: data.id.clone(),
+							username: data.name.clone(),
+						};
+						let response_message = DataMessage::Ok(RegistrationResponse::Success(user_data));
 						stream.send_json(&response_message).await?;
 						break Ok(data);
 					}
@@ -103,7 +113,8 @@ pub async fn register_user(
 							}
 						}
 						tide::log::error!("Database error: {}", error);
-						let response_message: DataMessage<RegistrationResponse> = DataMessage::Err(DataError::DatabaseError);
+						let response_message: DataMessage<RegistrationResponse> =
+							DataMessage::Err(DataError::DatabaseError);
 						stream.send_json(&response_message).await?;
 						continue;
 					}

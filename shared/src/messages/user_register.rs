@@ -1,3 +1,4 @@
+use super::user::UserData;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
@@ -25,7 +26,7 @@ pub enum UsernameCheckStatus {
 
 #[derive(Deserialize, Serialize)]
 pub enum RegistrationResponse {
-	Success,
+	Success(UserData),
 	UsernameInUse,
 	UsernameTooLong,
 }

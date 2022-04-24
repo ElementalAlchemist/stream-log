@@ -5,6 +5,7 @@ use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
 use mogwai::prelude::*;
 use mogwai::utils::document;
+use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::user_register::{
 	RegistrationResponse, UserRegistration, UserRegistrationFinalize, UsernameCheckResponse, UsernameCheckStatus,
 };
@@ -40,7 +41,7 @@ impl From<WebSocketReadError> for RegistrationError {
 pub async fn run_page(
 	ws_write: &mut SplitSink<WebSocket, Message>,
 	ws_read: &mut SplitStream<WebSocket>,
-) -> Result<(), WebSocketReadError> {
+) -> Result<UserData, WebSocketReadError> {
 	let (form_tx, mut form_rx) = broadcast::bounded(1);
 	let (username_change_tx, mut username_change_rx) = broadcast::bounded(1);
 	let (username_class_tx, username_class_rx) = broadcast::bounded(1);
@@ -133,7 +134,7 @@ pub async fn run_page(
 				ws_write.send(Message::Text(registration_json)).await?;
 				let response: RegistrationResponse = read_websocket(ws_read).await?;
 				match response {
-					RegistrationResponse::Success => break,
+					RegistrationResponse::Success(data) => break Ok(data),
 					RegistrationResponse::UsernameInUse => {
 						let class_send = username_class_tx.broadcast(String::from(USERNAME_UNAVAILABLE_CLASS));
 						let avail_msg_send = username_avail_desc_tx.broadcast(String::from(USERNAME_UNAVAILABLE_DESC));
@@ -154,5 +155,4 @@ pub async fn run_page(
 			}
 		}
 	}
-	Ok(())
 }

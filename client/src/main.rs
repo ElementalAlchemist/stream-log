@@ -49,9 +49,12 @@ fn main() {
 		match msg_user_data {
 			UserDataLoad::User(user_data) => todo!(),
 			UserDataLoad::NewUser => {
-				if let Err(error_msg) = register::run_page(&mut ws_write, &mut ws_read).await {
-					render_error_message_with_details("Failed to complete user registration", &error_msg);
-					return;
+				match register::run_page(&mut ws_write, &mut ws_read).await {
+					Ok(user) => todo!(),
+					Err(error) => {
+						render_error_message_with_details("Failed to complete user registration", &error);
+						return;
+					}
 				}
 			}
 			UserDataLoad::MissingId => render_error_message("User ID missing. Please reinitiate login workflow."),
