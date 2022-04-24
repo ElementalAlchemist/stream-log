@@ -1,9 +1,9 @@
 use gloo_net::websocket::futures::WebSocket;
-use gloo_net::websocket::Message;
 use mogwai::prelude::*;
 use std::panic;
 use stream_log_shared::messages::initial::{InitialMessage, UserDataLoad};
 use stream_log_shared::SYNC_VERSION;
+use websocket::{read_websocket, WebSocketReadError};
 
 mod error;
 use error::{render_error_message, render_error_message_with_details};
@@ -29,25 +29,18 @@ fn main() {
 			}
 		};
 		let (mut ws_write, mut ws_read) = ws.split();
-		let msg = match ws_read.next().await {
-			Some(Ok(msg)) => msg,
-			Some(Err(error)) => {
-				render_error_message_with_details(
-					"Unable to load/operate: Failed to receive initial websocket message.",
-					error,
-				);
-				return;
-			}
-			None => {
-				render_error_message("Unable to load/operate: Failed to receive initial websocket message (connection closed without content)");
+		let msg_data: InitialMessage = match read_websocket(&mut ws_read).await {
+			Ok(msg) => msg,
+			Err(error) => {
+				match error {
+					WebSocketReadError::ConnectionClosed => render_error_message("Unable to load/operate: Failed to receive initial websocket message (connection closed without content)"),
+					WebSocketReadError::BinaryMessage => render_error_message("Unable to load/operate: Data received in an incorrect format"),
+					WebSocketReadError::JsonError(error) => render_error_message_with_details("Unable to load/operate: Failed to deserialize initial message", error),
+					WebSocketReadError::WebSocketError(error) => render_error_message_with_details("Unable to load/operate: Failed to receive initial websocket message", error)
+				}
 				return;
 			}
 		};
-		let msg = match msg {
-			Message::Text(txt) => txt,
-			Message::Bytes(_) => unimplemented!(),
-		};
-		let msg_data: InitialMessage = serde_json::from_str(&msg).expect("Message data was of the incorrect type");
 		if msg_data.sync_version != SYNC_VERSION {
 			render_error_message("There was a version mismatch between the client and the server.");
 			return;

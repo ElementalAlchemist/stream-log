@@ -599,6 +599,7 @@ dependencies = [
  "futures",
  "gloo-net",
  "mogwai",
+ "serde",
  "serde_json",
  "stream-log-shared",
  "wasm-bindgen",

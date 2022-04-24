@@ -14,17 +14,18 @@ pub struct UserRegistrationFinalize {
 #[derive(Deserialize, Serialize)]
 pub struct UsernameCheckResponse {
 	pub username: String,
-	pub status: UsernameCheckStatus
+	pub status: UsernameCheckStatus,
 }
 
 #[derive(Deserialize, Serialize)]
 pub enum UsernameCheckStatus {
 	Available,
-	Unavailable
+	Unavailable,
 }
 
 #[derive(Deserialize, Serialize)]
 pub enum RegistrationResponse {
 	Success,
-	UsernameInUse
+	UsernameInUse,
+	UsernameTooLong,
 }
