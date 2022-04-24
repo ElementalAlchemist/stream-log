@@ -11,3 +11,8 @@ CREATE TABLE roles (
 	permission_level permission NOT NULL,
 	PRIMARY KEY (user_id, event)
 );
+
+CREATE TABLE default_roles (
+	event TEXT REFERENCES events PRIMARY KEY,
+	permission_level permission NOT NULL
+);
