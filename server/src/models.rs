@@ -1,4 +1,4 @@
-use crate::schema::users;
+use crate::schema::{default_roles, events, roles, users};
 use diesel::{Insertable, Queryable};
 use diesel_derive_enum::DbEnum;
 
@@ -15,6 +15,21 @@ pub struct User {
 	pub name: String,
 }
 
-pub mod schema {
-	pub use super::Permission;
+#[derive(Insertable, Queryable)]
+pub struct Event {
+	pub id: String,
+	pub name: String
+}
+
+#[derive(Insertable, Queryable)]
+pub struct Role {
+	pub user_id: String,
+	pub event: String,
+	pub permission_level: Permission
+}
+
+#[derive(Insertable, Queryable)]
+pub struct DefaultRole {
+	pub event: String,
+	pub permission_level: Permission
 }

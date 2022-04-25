@@ -22,6 +22,7 @@ mod websocket_msg;
 
 #[macro_use]
 extern crate diesel;
+mod diesel_types;
 mod models;
 mod schema;
 
