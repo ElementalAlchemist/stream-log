@@ -22,9 +22,13 @@ mod websocket_msg;
 
 #[macro_use]
 extern crate diesel;
+#[macro_use]
+extern crate diesel_migrations;
 mod diesel_types;
 mod models;
 mod schema;
+
+embed_migrations!();
 
 #[async_std::main]
 async fn main() -> miette::Result<()> {
@@ -33,6 +37,7 @@ async fn main() -> miette::Result<()> {
 	tide::log::start();
 
 	let db_connection = connect_db(&config)?;
+	embedded_migrations::run(&db_connection).into_diagnostic()?;
 	let db_connection = Arc::new(Mutex::new(db_connection));
 
 	let mut app = tide::new();
