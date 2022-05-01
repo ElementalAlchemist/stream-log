@@ -18,18 +18,18 @@ pub struct User {
 #[derive(Insertable, Queryable)]
 pub struct Event {
 	pub id: String,
-	pub name: String
+	pub name: String,
 }
 
 #[derive(Insertable, Queryable)]
 pub struct Role {
 	pub user_id: String,
 	pub event: String,
-	pub permission_level: Permission
+	pub permission_level: Permission,
 }
 
 #[derive(Insertable, Queryable)]
 pub struct DefaultRole {
 	pub event: String,
-	pub permission_level: Permission
+	pub permission_level: Permission,
 }

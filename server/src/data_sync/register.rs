@@ -90,9 +90,20 @@ pub async fn register_user(
 					let db_connection = db_connection.lock().await;
 					db_connection.transaction(|| {
 						let mut default_roles: Vec<DefaultRole> = default_roles::table.load(&*db_connection)?;
-						let user_record: User = diesel::insert_into(users::table).values(&new_user).get_result(&*db_connection)?;
-						let roles: Vec<Role> = default_roles.drain(..).map(|default_role| Role { user_id: user_record.id.clone(), event: default_role.event, permission_level: default_role.permission_level }).collect();
-						diesel::insert_into(roles::table).values(&roles).execute(&*db_connection)?;
+						let user_record: User = diesel::insert_into(users::table)
+							.values(&new_user)
+							.get_result(&*db_connection)?;
+						let roles: Vec<Role> = default_roles
+							.drain(..)
+							.map(|default_role| Role {
+								user_id: user_record.id.clone(),
+								event: default_role.event,
+								permission_level: default_role.permission_level,
+							})
+							.collect();
+						diesel::insert_into(roles::table)
+							.values(&roles)
+							.execute(&*db_connection)?;
 						Ok(user_record)
 					})
 				};

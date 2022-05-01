@@ -1,4 +1,5 @@
 pub mod connection;
+mod event_selection;
 mod register;
 
 pub enum HandleConnectionError {

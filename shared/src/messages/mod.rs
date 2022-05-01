@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+pub mod events;
 pub mod initial;
 pub mod user;
 pub mod user_register;

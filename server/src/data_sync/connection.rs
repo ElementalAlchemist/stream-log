@@ -1,4 +1,6 @@
+use super::event_selection::select_event;
 use super::register::register_user;
+use super::HandleConnectionError;
 use crate::config::ConfigDocument;
 use crate::models::User;
 use crate::schema::users;
@@ -66,8 +68,15 @@ pub async fn handle_connection(
 
 		match register_user(Arc::clone(&db_connection), &mut stream, &google_user_id).await {
 			Ok(user) => user,
-			Err(_) => return Ok(()),
+			Err(HandleConnectionError::ConnectionClosed) => return Ok(()),
+			Err(HandleConnectionError::SendError(error)) => return Err(error),
 		}
+	};
+
+	let event = match select_event(Arc::clone(&db_connection), &mut stream, &user).await {
+		Ok(event) => event,
+		Err(HandleConnectionError::ConnectionClosed) => return Ok(()),
+		Err(HandleConnectionError::SendError(error)) => return Err(error),
 	};
 
 	Ok(())
