@@ -46,21 +46,25 @@ fn main() {
 			return;
 		}
 		let msg_user_data = msg_data.user_data;
-		match msg_user_data {
-			UserDataLoad::User(user_data) => todo!(),
-			UserDataLoad::NewUser => {
-				match register::run_page(&mut ws_write, &mut ws_read).await {
-					Ok(user) => todo!(),
-					Err(error) => {
-						render_error_message_with_details("Failed to complete user registration", &error);
-						return;
-					}
+		let user_data = match msg_user_data {
+			UserDataLoad::User(user_data) => user_data,
+			UserDataLoad::NewUser => match register::run_page(&mut ws_write, &mut ws_read).await {
+				Ok(user) => user,
+				Err(error) => {
+					render_error_message_with_details("Failed to complete user registration", &error);
+					return;
 				}
+			},
+			UserDataLoad::MissingId => {
+				render_error_message("User ID missing. Please reinitiate login workflow.");
+				return;
 			}
-			UserDataLoad::MissingId => render_error_message("User ID missing. Please reinitiate login workflow."),
-			UserDataLoad::Error => render_error_message(
-				"An error occurred reading user data. Please alert an administrator to this issue.",
-			),
-		}
+			UserDataLoad::Error => {
+				render_error_message(
+					"An error occurred reading user data. Please alert an administrator to this issue.",
+				);
+				return;
+			}
+		};
 	});
 }
