@@ -2,9 +2,10 @@ use crate::websocket::{read_websocket, WebSocketReadError};
 use futures::stream::{SplitSink, SplitStream};
 use futures::{join, select};
 use gloo_net::websocket::futures::WebSocket;
-use gloo_net::websocket::Message;
+use gloo_net::websocket::{Message, WebSocketError};
 use mogwai::prelude::*;
 use mogwai::utils::document;
+use std::fmt;
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::user_register::{
 	RegistrationResponse, UserRegistration, UserRegistrationFinalize, UsernameCheckResponse, UsernameCheckStatus,
@@ -23,7 +24,9 @@ const SEND_CHANNEL_ERROR_MSG: &str = "A DOM control channel for registration clo
 /// Types of errors that can occur to prevent successful registration.
 pub enum RegistrationError {
 	WebSocketReadError(WebSocketReadError),
+	WebSocketSendError(WebSocketError),
 	ServerDataError(DataError),
+	MessageTypeError(serde_json::Error),
 }
 
 impl From<DataError> for RegistrationError {
@@ -38,10 +41,33 @@ impl From<WebSocketReadError> for RegistrationError {
 	}
 }
 
+impl From<WebSocketError> for RegistrationError {
+	fn from(error: WebSocketError) -> Self {
+		Self::WebSocketSendError(error)
+	}
+}
+
+impl From<serde_json::Error> for RegistrationError {
+	fn from(error: serde_json::Error) -> Self {
+		Self::MessageTypeError(error)
+	}
+}
+
+impl fmt::Display for RegistrationError {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self {
+			Self::WebSocketReadError(error) => write!(f, "Failed to read from WebSocket: {}", error),
+			Self::WebSocketSendError(error) => write!(f, "Failed to send over the WebSocket: {}", error),
+			Self::ServerDataError(error) => write!(f, "Server failed to process data: {}", error),
+			Self::MessageTypeError(error) => write!(f, "A message of the wrong type was received: {}", error),
+		}
+	}
+}
+
 pub async fn run_page(
 	ws_write: &mut SplitSink<WebSocket, Message>,
 	ws_read: &mut SplitStream<WebSocket>,
-) -> Result<UserData, WebSocketReadError> {
+) -> Result<UserData, RegistrationError> {
 	let (form_tx, mut form_rx) = broadcast::bounded(1);
 	let (username_change_tx, mut username_change_rx) = broadcast::bounded(1);
 	let (username_class_tx, username_class_rx) = broadcast::bounded(1);
