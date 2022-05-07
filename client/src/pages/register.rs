@@ -11,7 +11,7 @@ use stream_log_shared::messages::user_register::{
 	RegistrationResponse, UserRegistration, UserRegistrationFinalize, UsernameCheckResponse, UsernameCheckStatus,
 };
 use stream_log_shared::messages::DataError;
-use web_sys::{FormData, HtmlInputElement};
+use web_sys::{FormData, HtmlButtonElement, HtmlInputElement};
 
 const MAX_USERNAME_LEN: u32 = 64;
 const USERNAME_AVAILABLE_DESC: &str = "This username is available.";
@@ -102,7 +102,7 @@ pub async fn run_page(
 				<span class=("", username_class_rx)>{("", username_avail_desc_rx)}</span>
 			</div>
 			<div>
-				<button type="submit">"Create User"</button>
+				<button type="submit" id="complete_registration">"Create User"</button>
 			</div>
 		</form>
 	};
@@ -152,6 +152,9 @@ pub async fn run_page(
 				username_check_future = username_change_rx.next();
 			}
 			form_data = form_future => {
+				let complete_button = document().get_element_by_id("complete_registration").unwrap();
+				let complete_button: &HtmlButtonElement = complete_button.dyn_ref().unwrap();
+				complete_button.set_disabled(true);
 				let form_data = if let Some(data) = form_data { data } else { continue; };
 				let username = form_data.get("username").as_string().unwrap();
 				let final_data = UserRegistrationFinalize { name: username.clone() };
@@ -167,7 +170,6 @@ pub async fn run_page(
 						let (class_res, avail_msg_res) = join!(class_send, avail_msg_send);
 						class_res.expect(SEND_CHANNEL_ERROR_MSG);
 						avail_msg_res.expect(SEND_CHANNEL_ERROR_MSG);
-						form_future = form_rx.next();
 					}
 					RegistrationResponse::UsernameTooLong => {
 						let class_send = username_class_tx.broadcast(String::from(USERNAME_UNAVAILABLE_CLASS));
@@ -175,9 +177,10 @@ pub async fn run_page(
 						let (class_res, avail_msg_res) = join!(class_send, avail_msg_send);
 						class_res.expect(SEND_CHANNEL_ERROR_MSG);
 						avail_msg_res.expect(SEND_CHANNEL_ERROR_MSG);
-						form_future = form_rx.next();
 					}
 				}
+				form_future = form_rx.next();
+				complete_button.set_disabled(false);
 			}
 		}
 	}
