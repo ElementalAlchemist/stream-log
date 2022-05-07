@@ -5,7 +5,7 @@ pub struct EventSelection {
 	pub available_events: Vec<Event>
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct Event {
 	pub id: String,
 	pub name: String

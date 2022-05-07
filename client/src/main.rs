@@ -9,7 +9,7 @@ mod error;
 use error::{render_error_message, render_error_message_with_details};
 
 mod pages;
-use pages::register;
+use pages::{event_selection, register};
 
 mod websocket;
 use websocket::websocket_endpoint;
@@ -63,6 +63,14 @@ fn main() {
 				render_error_message(
 					"An error occurred reading user data. Please alert an administrator to this issue.",
 				);
+				return;
+			}
+		};
+
+		let selected_event = match event_selection::run_page(&mut ws_write, &mut ws_read).await {
+			Ok(event) => event,
+			Err(error) => {
+				render_error_message_with_details("Failed to complete event selection", &error);
 				return;
 			}
 		};
