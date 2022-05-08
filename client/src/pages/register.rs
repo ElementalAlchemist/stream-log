@@ -7,6 +7,7 @@ use gloo_net::websocket::{Message, WebSocketError};
 use mogwai::prelude::*;
 use mogwai::utils::document;
 use std::fmt;
+use stream_log_shared::messages::DataMessage;
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::user_register::{
 	RegistrationResponse, UserRegistration, UserRegistrationFinalize, UsernameCheckResponse, UsernameCheckStatus,
@@ -128,7 +129,8 @@ pub async fn run_page(
 				let user_check = UserRegistration::CheckUsername(username.clone());
 				let user_check_json = serde_json::to_string(&user_check)?;
 				ws_write.send(Message::Text(user_check_json)).await?;
-				let response: UsernameCheckResponse = read_websocket(ws_read).await?;
+				let response: DataMessage<UsernameCheckResponse> = read_websocket(ws_read).await?;
+				let response = response?;
 				let current_username = document().get_element_by_id("username").unwrap().dyn_ref::<HtmlInputElement>().unwrap().value();
 				if username != current_username {
 					let class_send = username_class_tx.broadcast(String::new());
@@ -169,8 +171,8 @@ pub async fn run_page(
 				let registration = UserRegistration::Finalize(final_data);
 				let registration_json = serde_json::to_string(&registration)?;
 				ws_write.send(Message::Text(registration_json)).await?;
-				let response: RegistrationResponse = read_websocket(ws_read).await?;
-				match response {
+				let response: DataMessage<RegistrationResponse> = read_websocket(ws_read).await?;
+				match response? {
 					RegistrationResponse::Success(data) => break Ok(data),
 					RegistrationResponse::UsernameInUse => {
 						let class_send = username_class_tx.broadcast(String::from(USERNAME_UNAVAILABLE_CLASS));

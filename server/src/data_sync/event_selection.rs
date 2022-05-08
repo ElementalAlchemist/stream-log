@@ -32,9 +32,9 @@ pub async fn select_event(
 						name: event.name.clone(),
 					})
 					.collect();
-				let event_selection = event_messages::EventSelection {
+				let event_selection = DataMessage::Ok(event_messages::EventSelection {
 					available_events: event_selection,
-				};
+				});
 				stream.send_json(&event_selection).await?;
 				results.drain(..).map(|(_, event)| (event.id.clone(), event)).collect()
 			}
