@@ -65,6 +65,12 @@ pub async fn register_user(
 				stream.send_json(&message).await?;
 			}
 			UserRegistration::Finalize(data) => {
+				if data.name.is_empty() {
+					let response_message: DataMessage<RegistrationResponse> =
+						DataMessage::Ok(RegistrationResponse::NoUsernameSpecified);
+					stream.send_json(&response_message).await?;
+					continue;
+				}
 				if data.name.len() > 64 {
 					let response_message: DataMessage<RegistrationResponse> =
 						DataMessage::Ok(RegistrationResponse::UsernameTooLong);

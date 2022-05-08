@@ -29,4 +29,5 @@ pub enum RegistrationResponse {
 	Success(UserData),
 	UsernameInUse,
 	UsernameTooLong,
+	NoUsernameSpecified,
 }

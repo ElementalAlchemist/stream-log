@@ -183,6 +183,9 @@ pub async fn run_page(
 						class_res.expect(SEND_CHANNEL_ERROR_MSG);
 						avail_msg_res.expect(SEND_CHANNEL_ERROR_MSG);
 					}
+					RegistrationResponse::NoUsernameSpecified => {
+						username_class_tx.broadcast(String::from(USERNAME_UNAVAILABLE_CLASS)).await.expect(SEND_CHANNEL_ERROR_MSG);
+					}
 				}
 				form_future = form_rx.next();
 				complete_button.set_disabled(false);

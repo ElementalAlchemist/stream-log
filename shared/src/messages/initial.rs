@@ -1,5 +1,5 @@
-use crate::SYNC_VERSION;
 use super::user::UserData;
+use crate::SYNC_VERSION;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]

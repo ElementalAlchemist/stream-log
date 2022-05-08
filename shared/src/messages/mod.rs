@@ -16,7 +16,7 @@ impl fmt::Display for DataError {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		match self {
 			Self::DatabaseError => write!(f, "A database interaction failed"),
-			Self::ServerError => write!(f, "The server failed to process")
+			Self::ServerError => write!(f, "The server failed to process"),
 		}
 	}
 }
