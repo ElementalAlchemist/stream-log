@@ -152,11 +152,16 @@ pub async fn run_page(
 				username_check_future = username_change_rx.next();
 			}
 			form_data = form_future => {
+				let form_data = if let Some(data) = form_data { data } else { continue; };
+				let username = form_data.get("username").as_string().unwrap();
+				if username.is_empty() {
+					form_future = form_rx.next();
+					continue;
+				}
+
 				let complete_button = document().get_element_by_id("complete_registration").unwrap();
 				let complete_button: &HtmlButtonElement = complete_button.dyn_ref().unwrap();
 				complete_button.set_disabled(true);
-				let form_data = if let Some(data) = form_data { data } else { continue; };
-				let username = form_data.get("username").as_string().unwrap();
 				let final_data = UserRegistrationFinalize { name: username.clone() };
 				let registration = UserRegistration::Finalize(final_data);
 				let registration_json = serde_json::to_string(&registration)?;
