@@ -1,3 +1,4 @@
+use super::dom::run_view;
 use mogwai::prelude::*;
 use std::fmt::Display;
 
@@ -7,7 +8,7 @@ pub fn render_error_message(message: &str) {
 			{message}
 		</div>
 	};
-	error_view.run().expect("Failed to host view");
+	run_view(error_view).expect("Failed to host view");
 }
 
 pub fn render_error_message_with_details(message: &str, error: impl Display) {
@@ -18,5 +19,5 @@ pub fn render_error_message_with_details(message: &str, error: impl Display) {
 			{error.to_string()}
 		</div>
 	};
-	error_view.run().expect("Failed to host view");
+	run_view(error_view).expect("Failed to host view");
 }

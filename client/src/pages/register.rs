@@ -1,3 +1,4 @@
+use crate::dom::run_view;
 use crate::websocket::{read_websocket, WebSocketReadError};
 use futures::stream::{SplitSink, SplitStream};
 use futures::{join, select};
@@ -106,7 +107,9 @@ pub async fn run_page(
 			</div>
 		</form>
 	};
-	page_view.run().expect("Failed to host registration page");
+
+	run_view(page_view).expect("Failed to host registration page");
+
 	let mut form_future = form_rx.next();
 	let mut username_check_future = username_change_rx.next();
 	loop {

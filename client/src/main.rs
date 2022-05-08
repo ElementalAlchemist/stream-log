@@ -5,6 +5,8 @@ use stream_log_shared::messages::initial::{InitialMessage, UserDataLoad};
 use stream_log_shared::SYNC_VERSION;
 use websocket::{read_websocket, WebSocketReadError};
 
+mod dom;
+
 mod error;
 use error::{render_error_message, render_error_message_with_details};
 

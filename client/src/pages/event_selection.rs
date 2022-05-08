@@ -1,3 +1,4 @@
+use crate::dom::run_view;
 use crate::websocket::{read_websocket, WebSocketReadError};
 use futures::stream::{SplitSink, SplitStream};
 use gloo_net::websocket::futures::WebSocket;
@@ -69,7 +70,9 @@ pub async fn run_page(
 			<ul patch:children=event_rx></ul>
 		</div>
 	};
-	event_view.run().expect("Failed to host event selection");
+
+	run_view(event_view).expect("Failed to host event selection");
+
 	let event_selection: DataMessage<EventSelection> = read_websocket(ws_read).await?;
 	let event_selection = event_selection?;
 	for event in event_selection.available_events.iter() {
