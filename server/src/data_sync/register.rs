@@ -144,7 +144,7 @@ pub async fn register_user(
 						if let diesel::result::Error::DatabaseError(DatabaseErrorKind::UniqueViolation, error_info) =
 							&error
 						{
-							if error_info.column_name() == Some("name") {
+							if error_info.constraint_name() == Some("users_name_key") {
 								let response_message = DataMessage::Ok(RegistrationResponse::UsernameInUse);
 								stream.send_json(&response_message).await?;
 								continue;
