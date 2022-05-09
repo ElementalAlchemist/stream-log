@@ -3,6 +3,13 @@ use diesel::{Insertable, Queryable};
 use diesel_derive_enum::DbEnum;
 
 #[derive(DbEnum, Debug, PartialEq)]
+pub enum Approval {
+	Unapproved,
+	Approved,
+	Admin,
+}
+
+#[derive(DbEnum, Debug, PartialEq)]
 pub enum Permission {
 	View,
 	Edit,
@@ -13,6 +20,7 @@ pub struct User {
 	pub id: String,
 	pub google_user_id: String,
 	pub name: String,
+	pub account_level: Approval,
 }
 
 #[derive(Insertable, Queryable)]

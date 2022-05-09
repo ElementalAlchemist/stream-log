@@ -33,6 +33,7 @@ table! {
 		id -> Text,
 		google_user_id -> Text,
 		name -> Text,
+		account_level -> Approval,
 	}
 }
 

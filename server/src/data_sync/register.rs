@@ -1,5 +1,5 @@
 use super::HandleConnectionError;
-use crate::models::{DefaultRole, Role, User};
+use crate::models::{Approval, DefaultRole, Role, User};
 use crate::schema::{default_roles, roles, users};
 use crate::websocket_msg::recv_msg;
 use async_std::sync::{Arc, Mutex};
@@ -87,14 +87,31 @@ pub async fn register_user(
 						continue;
 					}
 				};
-				let new_user = User {
-					id: new_user_id,
-					google_user_id: google_user_id.to_owned(),
-					name: data.name,
-				};
+
 				let user_result: QueryResult<User> = {
 					let db_connection = db_connection.lock().await;
 					db_connection.transaction(|| {
+						let initial_user_check: Vec<String> =
+							users::table.select(users::id).limit(1).load(&*db_connection)?;
+						let has_users = !initial_user_check.is_empty();
+
+						// If this is the first account, it should be an administrator account so that there can be an administrator
+						// (without manual setting the database directly). Otherwise, users should require approval.
+						// This is for the first account, so if something goes wrong, the database can be wiped and started over with no
+						// problem.
+						let account_level = if has_users {
+							Approval::Unapproved
+						} else {
+							Approval::Admin
+						};
+
+						let new_user = User {
+							id: new_user_id,
+							google_user_id: google_user_id.to_owned(),
+							name: data.name,
+							account_level,
+						};
+
 						let mut default_roles: Vec<DefaultRole> = default_roles::table.load(&*db_connection)?;
 						let user_record: User = diesel::insert_into(users::table)
 							.values(&new_user)
