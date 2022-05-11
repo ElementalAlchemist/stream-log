@@ -2,11 +2,21 @@ use crate::schema::{default_roles, events, roles, users};
 use diesel::{Insertable, Queryable};
 use diesel_derive_enum::DbEnum;
 
-#[derive(DbEnum, Debug, PartialEq)]
+#[derive(Clone, Copy, DbEnum, Debug, PartialEq)]
 pub enum Approval {
 	Unapproved,
 	Approved,
 	Admin,
+}
+
+impl From<Approval> for stream_log_shared::messages::user::UserApproval {
+	fn from(level: Approval) -> Self {
+		match level {
+			Approval::Unapproved => Self::Unapproved,
+			Approval::Approved => Self::Approved,
+			Approval::Admin => Self::Admin,
+		}
+	}
 }
 
 #[derive(DbEnum, Debug, PartialEq)]

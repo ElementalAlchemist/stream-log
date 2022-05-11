@@ -58,6 +58,7 @@ pub async fn handle_connection(
 		let user_data = UserData {
 			id: user.id.clone(),
 			username: user.name.clone(),
+			approval_level: user.account_level.into(),
 		};
 		stream
 			.send_json(&InitialMessage::new(UserDataLoad::User(user_data)))

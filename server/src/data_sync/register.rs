@@ -135,6 +135,7 @@ pub async fn register_user(
 						let user_data = UserData {
 							id: data.id.clone(),
 							username: data.name.clone(),
+							approval_level: data.account_level.into(),
 						};
 						let response_message = DataMessage::Ok(RegistrationResponse::Success(user_data));
 						stream.send_json(&response_message).await?;
