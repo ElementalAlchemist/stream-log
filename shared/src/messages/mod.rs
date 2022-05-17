@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
+pub mod admin;
 pub mod events;
 pub mod initial;
 pub mod user;
@@ -22,3 +23,9 @@ impl fmt::Display for DataError {
 }
 
 pub type DataMessage<T> = Result<T, DataError>;
+
+#[derive(Deserialize, Serialize)]
+pub enum PageControl<T> {
+	Event(T),
+	Admin,
+}

@@ -1,3 +1,4 @@
+use super::admin::handle_admin;
 use super::HandleConnectionError;
 use crate::models;
 use crate::schema::{events, roles};
@@ -7,7 +8,7 @@ use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use std::collections::HashMap;
 use stream_log_shared::messages::events as event_messages;
-use stream_log_shared::messages::{DataError, DataMessage};
+use stream_log_shared::messages::{DataError, DataMessage, PageControl};
 use tide_websockets::WebSocketConnection;
 
 pub async fn select_event(
@@ -46,26 +47,35 @@ pub async fn select_event(
 			}
 		}
 	};
-	match recv_msg(stream).await {
-		Ok(text) => {
-			let selected_event: event_messages::Event = match serde_json::from_str(&text) {
-				Ok(event) => event,
-				Err(error) => {
-					tide::log::error!("Received an incorrect message during event selection: {}", error);
-					return Err(HandleConnectionError::ConnectionClosed);
-				}
-			};
-			match available_events.remove(&selected_event.id) {
-				Some(event) => Ok(event),
-				None => {
-					tide::log::info!("User selected an invalid or unauthorized event");
-					Err(HandleConnectionError::ConnectionClosed)
+	loop {
+		match recv_msg(stream).await {
+			Ok(text) => {
+				let selected_event_action: PageControl<event_messages::Event> = match serde_json::from_str(&text) {
+					Ok(event) => event,
+					Err(error) => {
+						tide::log::error!("Received an incorrect message during event selection: {}", error);
+						break Err(HandleConnectionError::ConnectionClosed);
+					}
+				};
+				match selected_event_action {
+					PageControl::Admin => {
+						if user.account_level == models::Approval::Admin {
+							handle_admin(stream, Arc::clone(&db_connection)).await?;
+						}
+					}
+					PageControl::Event(selected_event) => match available_events.remove(&selected_event.id) {
+						Some(event) => break Ok(event),
+						None => {
+							tide::log::info!("User selected an invalid or unauthorized event");
+							break Err(HandleConnectionError::ConnectionClosed);
+						}
+					},
 				}
 			}
-		}
-		Err(error) => {
-			error.log();
-			Err(HandleConnectionError::ConnectionClosed)
+			Err(error) => {
+				error.log();
+				break Err(HandleConnectionError::ConnectionClosed);
+			}
 		}
 	}
 }

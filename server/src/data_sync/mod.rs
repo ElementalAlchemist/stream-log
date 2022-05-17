@@ -1,3 +1,4 @@
+mod admin;
 pub mod connection;
 mod event_selection;
 mod register;

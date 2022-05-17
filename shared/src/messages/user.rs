@@ -7,7 +7,7 @@ pub struct UserData {
 	pub approval_level: UserApproval,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Eq, PartialEq, Serialize)]
 pub enum UserApproval {
 	Unapproved,
 	Approved,
