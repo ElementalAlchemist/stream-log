@@ -1,12 +1,16 @@
+use super::admin;
 use crate::dom::run_view;
+use crate::user_info_bar::ClickTarget;
 use crate::websocket::{read_websocket, WebSocketReadError};
+use futures::select;
 use futures::stream::{SplitSink, SplitStream};
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::{Message, WebSocketError};
 use mogwai::prelude::*;
 use std::fmt;
 use stream_log_shared::messages::events::{Event, EventSelection};
-use stream_log_shared::messages::{DataError, DataMessage};
+use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::{DataError, DataMessage, PageControl};
 
 pub enum EventSelectionError {
 	WebSocketRead(WebSocketReadError),
@@ -61,17 +65,18 @@ impl fmt::Display for EventSelectionError {
 pub async fn run_page(
 	ws_write: &mut SplitSink<WebSocket, Message>,
 	ws_read: &mut SplitStream<WebSocket>,
+	user: &UserData,
 ) -> Result<Event, EventSelectionError> {
 	let (mut event_tx, event_rx) = mogwai::channel::mpsc::channel(1);
 	let (select_tx, mut select_rx) = mogwai::channel::broadcast::bounded(1);
-	let event_view = view! {
+	let event_view = builder! {
 		<div id="event_selector">
 			<h1>"Event Selection"</h1>
 			<ul patch:children=event_rx></ul>
 		</div>
 	};
 
-	run_view(event_view).expect("Failed to host event selection");
+	let view_data = run_view(event_view, Some(user), &[]).expect("Failed to host event selection");
 
 	let event_selection: DataMessage<EventSelection> = read_websocket(ws_read).await?;
 	let event_selection = event_selection?;
@@ -92,8 +97,26 @@ pub async fn run_page(
 		};
 		event_tx.send(ListPatch::push(event_builder)).await?;
 	}
-	let selection: Event = select_rx.next().await.unwrap();
-	let selection_json = serde_json::to_string(&selection)?;
-	ws_write.send(Message::Text(selection_json)).await?;
-	Ok(selection)
+	let mut user_bar_click_channel = view_data.user_bar_click_channel.unwrap();
+	let mut selection_future = select_rx.next();
+	let mut user_click_future = user_bar_click_channel.next();
+	loop {
+		select! {
+			click_target = user_click_future => {
+				if let Some(ClickTarget::Admin) = click_target {
+					let page_switch_message: PageControl<Event> = PageControl::Admin;
+					let page_switch_json = serde_json::to_string(&page_switch_message)?;
+					ws_write.send(Message::Text(page_switch_json)).await?;
+					admin::run_page(ws_write, ws_read, user).await;
+				}
+			}
+			selection = selection_future => {
+				let selection = selection.unwrap();
+				let selection_message = PageControl::Event(selection.clone());
+				let selection_json = serde_json::to_string(&selection_message)?;
+				ws_write.send(Message::Text(selection_json)).await?;
+				return Ok(selection);
+			}
+		}
+	}
 }

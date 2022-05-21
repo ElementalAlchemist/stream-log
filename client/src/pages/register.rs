@@ -7,12 +7,12 @@ use gloo_net::websocket::{Message, WebSocketError};
 use mogwai::prelude::*;
 use mogwai::utils::document;
 use std::fmt;
-use stream_log_shared::messages::DataMessage;
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::user_register::{
 	RegistrationResponse, UserRegistration, UserRegistrationFinalize, UsernameCheckResponse, UsernameCheckStatus,
 };
 use stream_log_shared::messages::DataError;
+use stream_log_shared::messages::DataMessage;
 use web_sys::{FormData, HtmlButtonElement, HtmlInputElement};
 
 const MAX_USERNAME_LEN: u32 = 64;
@@ -74,7 +74,7 @@ pub async fn run_page(
 	let (username_change_tx, mut username_change_rx) = broadcast::bounded(1);
 	let (username_class_tx, username_class_rx) = broadcast::bounded(1);
 	let (username_avail_desc_tx, username_avail_desc_rx) = broadcast::bounded(1);
-	let page_view: View<Dom> = view! {
+	let page_view = builder! {
 		<form id="registration" on:submit=form_tx.sink().contra_map(|dom_event: DomEvent| {
 			let browser_event = dom_event.browser_event().unwrap();
 			browser_event.prevent_default();
@@ -109,7 +109,7 @@ pub async fn run_page(
 		</form>
 	};
 
-	run_view(page_view).expect("Failed to host registration page");
+	run_view(page_view, None, &[]).expect("Failed to host registration page");
 
 	let mut form_future = form_rx.next();
 	let mut username_check_future = username_change_rx.next();

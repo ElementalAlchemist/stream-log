@@ -13,6 +13,8 @@ use error::{render_error_message, render_error_message_with_details};
 mod pages;
 use pages::{event_selection, register};
 
+mod user_info_bar;
+
 mod websocket;
 use websocket::websocket_endpoint;
 
@@ -69,7 +71,7 @@ fn main() {
 			}
 		};
 
-		let selected_event = match event_selection::run_page(&mut ws_write, &mut ws_read).await {
+		let selected_event = match event_selection::run_page(&mut ws_write, &mut ws_read, &user_data).await {
 			Ok(event) => event,
 			Err(error) => {
 				render_error_message_with_details("Failed to complete event selection", &error);

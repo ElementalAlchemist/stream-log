@@ -33,6 +33,10 @@ pub async fn handle_admin(
 			}
 		};
 		match incoming_msg {
+			AdminAction::DashboardInfo => todo!(),
+			AdminAction::UnapprovedUserList => todo!(),
+			AdminAction::ApproveUser(user) => todo!(),
+			AdminAction::DenyUser(user) => todo!(),
 			AdminAction::ListEvents => {
 				let events: QueryResult<Vec<EventDb>> = {
 					let db_connection = db_connection.lock().await;
