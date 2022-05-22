@@ -11,42 +11,49 @@ use stream_log_shared::messages::events as event_messages;
 use stream_log_shared::messages::{DataError, DataMessage, PageControl};
 use tide_websockets::WebSocketConnection;
 
+async fn send_events(
+	db_connection: &Arc<Mutex<PgConnection>>,
+	stream: &mut WebSocketConnection,
+	user: &models::User,
+) -> Result<HashMap<String, models::Event>, HandleConnectionError> {
+	let user_events: QueryResult<Vec<(models::Role, models::Event)>> = {
+		let db_connection = db_connection.lock().await;
+		roles::table
+			.filter(roles::user_id.eq(&user.id))
+			.inner_join(events::table)
+			.load(&*db_connection)
+	};
+	let events = match user_events {
+		Ok(mut results) => {
+			let event_selection: Vec<event_messages::Event> = results
+				.iter()
+				.map(|(_, event)| event_messages::Event {
+					id: event.id.clone(),
+					name: event.name.clone(),
+				})
+				.collect();
+			let event_selection = DataMessage::Ok(event_messages::EventSelection {
+				available_events: event_selection,
+			});
+			stream.send_json(&event_selection).await?;
+			results.drain(..).map(|(_, event)| (event.id.clone(), event)).collect()
+		}
+		Err(error) => {
+			tide::log::error!("Database error: {}", error);
+			let message: DataMessage<event_messages::EventSelection> = DataMessage::Err(DataError::DatabaseError);
+			stream.send_json(&message).await?;
+			HashMap::new()
+		}
+	};
+	Ok(events)
+}
+
 pub async fn select_event(
 	db_connection: Arc<Mutex<PgConnection>>,
 	stream: &mut WebSocketConnection,
 	user: &models::User,
 ) -> Result<models::Event, HandleConnectionError> {
-	let mut available_events = {
-		let user_events: QueryResult<Vec<(models::Role, models::Event)>> = {
-			let db_connection = db_connection.lock().await;
-			roles::table
-				.filter(roles::user_id.eq(&user.id))
-				.inner_join(events::table)
-				.load(&*db_connection)
-		};
-		match user_events {
-			Ok(mut results) => {
-				let event_selection: Vec<event_messages::Event> = results
-					.iter()
-					.map(|(_, event)| event_messages::Event {
-						id: event.id.clone(),
-						name: event.name.clone(),
-					})
-					.collect();
-				let event_selection = DataMessage::Ok(event_messages::EventSelection {
-					available_events: event_selection,
-				});
-				stream.send_json(&event_selection).await?;
-				results.drain(..).map(|(_, event)| (event.id.clone(), event)).collect()
-			}
-			Err(error) => {
-				tide::log::error!("Database error: {}", error);
-				let message: DataMessage<event_messages::EventSelection> = DataMessage::Err(DataError::DatabaseError);
-				stream.send_json(&message).await?;
-				HashMap::new()
-			}
-		}
-	};
+	let mut available_events = send_events(&db_connection, stream, user).await?;
 	loop {
 		match recv_msg(stream).await {
 			Ok(text) => {
@@ -61,6 +68,7 @@ pub async fn select_event(
 					PageControl::Admin => {
 						if user.account_level == models::Approval::Admin {
 							handle_admin(stream, Arc::clone(&db_connection)).await?;
+							available_events = send_events(&db_connection, stream, user).await?;
 						}
 					}
 					PageControl::Event(selected_event) => match available_events.remove(&selected_event.id) {

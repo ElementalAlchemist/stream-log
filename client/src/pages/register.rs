@@ -1,4 +1,5 @@
 use crate::dom::run_view;
+use crate::user_info_bar::{UserBarBuildData, UserClickTarget};
 use crate::websocket::{read_websocket, WebSocketReadError};
 use futures::stream::{SplitSink, SplitStream};
 use futures::{join, select};
@@ -109,7 +110,8 @@ pub async fn run_page(
 		</form>
 	};
 
-	run_view(page_view, None, &[]).expect("Failed to host registration page");
+	let user_bar_build_data: Option<UserBarBuildData<UserClickTarget>> = None;
+	run_view(page_view, user_bar_build_data).expect("Failed to host registration page");
 
 	let mut form_future = form_rx.next();
 	let mut username_check_future = username_change_rx.next();

@@ -29,3 +29,9 @@ pub enum PageControl<T> {
 	Event(T),
 	Admin,
 }
+
+#[derive(Deserialize, Serialize)]
+pub enum SubPageControl<T> {
+	Event(T),
+	ReturnFromPage,
+}

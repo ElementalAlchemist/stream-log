@@ -1,4 +1,5 @@
 use super::dom::run_view;
+use super::user_info_bar::{UserBarBuildData, UserClickTarget};
 use mogwai::prelude::*;
 use std::fmt::Display;
 
@@ -8,7 +9,8 @@ pub fn render_error_message(message: &str) {
 			{message}
 		</div>
 	};
-	run_view(error_view, None, &[]).expect("Failed to host view");
+	let user_bar_build_data: Option<UserBarBuildData<UserClickTarget>> = None;
+	run_view(error_view, user_bar_build_data).expect("Failed to host view");
 }
 
 pub fn render_error_message_with_details(message: &str, error: impl Display) {
@@ -19,5 +21,6 @@ pub fn render_error_message_with_details(message: &str, error: impl Display) {
 			{error.to_string()}
 		</div>
 	};
-	run_view(error_view, None, &[]).expect("Failed to host view");
+	let user_bar_build_data: Option<UserBarBuildData<UserClickTarget>> = None;
+	run_view(error_view, user_bar_build_data).expect("Failed to host view");
 }
