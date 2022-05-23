@@ -19,11 +19,7 @@ where
 		node.remove();
 	}
 
-	let user_bar = if let Some(user_bar_build_data) = user_bar_build_data {
-		Some(user_bar(user_bar_build_data))
-	} else {
-		None
-	};
+	let user_bar = user_bar_build_data.map(user_bar);
 
 	let full_view = view! {
 		<div id="root">

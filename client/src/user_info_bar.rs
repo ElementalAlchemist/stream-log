@@ -33,11 +33,6 @@ pub struct UserBarBuildData<'a, T> {
 	pub click_tx: Sender<T>,
 }
 
-pub struct UserBar {
-	pub view: ViewBuilder<Dom>,
-	pub click_channel: mpsc::Receiver<UserClickTarget>,
-}
-
 pub fn user_bar<T>(build_data: UserBarBuildData<T>) -> ViewBuilder<Dom>
 where
 	T: UserBarClick + Unpin + Sync + Send + 'static,
