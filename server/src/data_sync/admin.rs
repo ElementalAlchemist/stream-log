@@ -1,11 +1,11 @@
 use super::HandleConnectionError;
-use crate::models::Event as EventDb;
-use crate::schema::events;
+use crate::models::{Event as EventDb, PermissionGroup as PermissionGroupDb};
+use crate::schema::{events, permission_groups};
 use crate::websocket_msg::recv_msg;
 use async_std::sync::{Arc, Mutex};
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
-use stream_log_shared::messages::admin::{AdminAction, EventList};
+use stream_log_shared::messages::admin::{AdminAction, EventList, PermissionGroup, PermissionGroupList};
 use stream_log_shared::messages::events::Event as EventWs;
 use stream_log_shared::messages::{DataError, DataMessage, SubPageControl};
 use tide_websockets::WebSocketConnection;
@@ -91,6 +91,29 @@ pub async fn handle_admin(
 						tide::log::error!("Database error: {}", error);
 						break Err(HandleConnectionError::ConnectionClosed);
 					}
+				}
+				AdminAction::ListPermissionGroups => {
+					let groups: QueryResult<Vec<PermissionGroupDb>> = {
+						let db_connection = db_connection.lock().await;
+						permission_groups::table.load(&*db_connection)
+					};
+					let permission_groups: Vec<PermissionGroup> = match groups {
+						Ok(mut groups) => groups
+							.drain(..)
+							.map(|group| PermissionGroup {
+								id: group.id,
+								name: group.name,
+							})
+							.collect(),
+						Err(error) => {
+							tide::log::error!("Database error: {}", error);
+							let message: DataMessage<EventList> = DataMessage::Err(DataError::DatabaseError);
+							stream.send_json(&message).await?;
+							continue;
+						}
+					};
+					let group_list = PermissionGroupList { permission_groups };
+					stream.send_json(&group_list).await?;
 				}
 			},
 			SubPageControl::ReturnFromPage => return Ok(()),

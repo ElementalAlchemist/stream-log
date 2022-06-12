@@ -7,6 +7,7 @@ pub enum AdminAction {
 	AddEvent(NewEvent),
 	EditEvent(Event),
 	ListEvents,
+	ListPermissionGroups,
 }
 
 /// Information required for adding a new event
@@ -19,4 +20,16 @@ pub struct NewEvent {
 #[derive(Deserialize, Serialize)]
 pub struct EventList {
 	pub events: Vec<Event>,
+}
+
+// Response to permission group list containing a list of permission groups
+#[derive(Deserialize, Serialize)]
+pub struct PermissionGroupList {
+	pub permission_groups: Vec<PermissionGroup>,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct PermissionGroup {
+	pub id: String,
+	pub name: String,
 }

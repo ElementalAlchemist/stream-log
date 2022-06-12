@@ -1,4 +1,4 @@
-use crate::schema::{events, users};
+use crate::schema::{events, permission_groups, users};
 use diesel::{Insertable, Queryable};
 use diesel_derive_enum::DbEnum;
 
@@ -18,6 +18,12 @@ pub struct User {
 
 #[derive(Insertable, Queryable)]
 pub struct Event {
+	pub id: String,
+	pub name: String,
+}
+
+#[derive(Insertable, Queryable)]
+pub struct PermissionGroup {
 	pub id: String,
 	pub name: String,
 }
