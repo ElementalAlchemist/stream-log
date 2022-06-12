@@ -1,4 +1,4 @@
-CREATE TYPE approval AS ENUM ('unapproved', 'approved', 'admin');
+CREATE TYPE approval AS ENUM ('unapproved', 'denied', 'approved', 'admin');
 
 CREATE TABLE users (
 	id TEXT PRIMARY KEY,

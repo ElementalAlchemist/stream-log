@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 /// Request for information in admin workflows
 #[derive(Deserialize, Serialize)]
 pub enum AdminAction {
-	DashboardInfo,
+	MenuInfo,
 	UnapprovedUserList,
 	ApproveUser(UserData),
 	DenyUser(UserData),
@@ -20,10 +20,16 @@ pub struct NewEvent {
 	pub name: String,
 }
 
-/// Response for information to show on the dashboard
+/// Response for information to show on the menu
 #[derive(Deserialize, Serialize)]
-pub struct DashboardInfo {
-	pub first_unapproved_users: Vec<UserData>,
+pub struct MenuInfo {
+	pub unapproved_user_count: u64,
+}
+
+/// Response for list of unapprofed users
+#[derive(Deserialize, Serialize)]
+pub struct UnapprovedUsers {
+	pub users: Vec<UserData>,
 }
 
 /// Response to event list containing a list of events

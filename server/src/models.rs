@@ -5,6 +5,7 @@ use diesel_derive_enum::DbEnum;
 #[derive(Clone, Copy, DbEnum, Debug, PartialEq)]
 pub enum Approval {
 	Unapproved,
+	Denied,
 	Approved,
 	Admin,
 }
@@ -13,6 +14,7 @@ impl From<Approval> for stream_log_shared::messages::user::UserApproval {
 	fn from(level: Approval) -> Self {
 		match level {
 			Approval::Unapproved => Self::Unapproved,
+			Approval::Denied => Self::Unapproved,
 			Approval::Approved => Self::Approved,
 			Approval::Admin => Self::Admin,
 		}

@@ -1,18 +1,17 @@
 use crate::dom::run_view;
+use crate::error::PageError;
 use crate::user_info_bar::{UserBarBuildData, UserClickTarget};
-use crate::websocket::{read_websocket, WebSocketReadError};
+use crate::websocket::read_websocket;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{join, select};
 use gloo_net::websocket::futures::WebSocket;
-use gloo_net::websocket::{Message, WebSocketError};
+use gloo_net::websocket::Message;
 use mogwai::prelude::*;
 use mogwai::utils::document;
-use std::fmt;
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::user_register::{
 	RegistrationResponse, UserRegistration, UserRegistrationFinalize, UsernameCheckResponse, UsernameCheckStatus,
 };
-use stream_log_shared::messages::DataError;
 use stream_log_shared::messages::DataMessage;
 use web_sys::{FormData, HtmlButtonElement, HtmlInputElement};
 
@@ -24,53 +23,10 @@ const USERNAME_AVAILABLE_CLASS: &str = "username-available";
 const USERNAME_UNAVAILABLE_CLASS: &str = "username-unavailable";
 const SEND_CHANNEL_ERROR_MSG: &str = "A DOM control channel for registration closed unexpectedly.";
 
-/// Types of errors that can occur to prevent successful registration.
-pub enum RegistrationError {
-	WebSocketRead(WebSocketReadError),
-	WebSocketSend(WebSocketError),
-	ServerData(DataError),
-	MessageType(serde_json::Error),
-}
-
-impl From<DataError> for RegistrationError {
-	fn from(error: DataError) -> Self {
-		Self::ServerData(error)
-	}
-}
-
-impl From<WebSocketReadError> for RegistrationError {
-	fn from(error: WebSocketReadError) -> Self {
-		Self::WebSocketRead(error)
-	}
-}
-
-impl From<WebSocketError> for RegistrationError {
-	fn from(error: WebSocketError) -> Self {
-		Self::WebSocketSend(error)
-	}
-}
-
-impl From<serde_json::Error> for RegistrationError {
-	fn from(error: serde_json::Error) -> Self {
-		Self::MessageType(error)
-	}
-}
-
-impl fmt::Display for RegistrationError {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		match self {
-			Self::WebSocketRead(error) => write!(f, "Failed to read from WebSocket: {}", error),
-			Self::WebSocketSend(error) => write!(f, "Failed to send over the WebSocket: {}", error),
-			Self::ServerData(error) => write!(f, "Server failed to process data: {}", error),
-			Self::MessageType(error) => write!(f, "A message of the wrong type was received: {}", error),
-		}
-	}
-}
-
 pub async fn run_page(
 	ws_write: &mut SplitSink<WebSocket, Message>,
 	ws_read: &mut SplitStream<WebSocket>,
-) -> Result<UserData, RegistrationError> {
+) -> Result<UserData, PageError> {
 	let (form_tx, mut form_rx) = broadcast::bounded(1);
 	let (username_change_tx, mut username_change_rx) = broadcast::bounded(1);
 	let (username_class_tx, username_class_rx) = broadcast::bounded(1);
