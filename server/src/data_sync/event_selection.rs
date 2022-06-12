@@ -1,7 +1,7 @@
 use super::admin::handle_admin;
 use super::HandleConnectionError;
 use crate::models;
-use crate::schema::{events, roles};
+use crate::schema::{events, permission_events, permission_groups, user_permissions};
 use crate::websocket_msg::recv_msg;
 use async_std::sync::{Arc, Mutex};
 use diesel::pg::PgConnection;
@@ -16,18 +16,21 @@ async fn send_events(
 	stream: &mut WebSocketConnection,
 	user: &models::User,
 ) -> Result<HashMap<String, models::Event>, HandleConnectionError> {
-	let user_events: QueryResult<Vec<(models::Role, models::Event)>> = {
+	let user_events: QueryResult<Vec<models::Event>> = {
 		let db_connection = db_connection.lock().await;
-		roles::table
-			.filter(roles::user_id.eq(&user.id))
-			.inner_join(events::table)
+		user_permissions::table
+			.filter(user_permissions::user_id.eq(&user.id))
+			.inner_join(permission_groups::table)
+			.inner_join(permission_events::table.on(permission_groups::id.eq(permission_events::permission_group)))
+			.inner_join(events::table.on(permission_events::event.eq(events::id)))
+			.select(events::table.default_selection())
 			.load(&*db_connection)
 	};
 	let events = match user_events {
 		Ok(mut results) => {
 			let event_selection: Vec<event_messages::Event> = results
 				.iter()
-				.map(|(_, event)| event_messages::Event {
+				.map(|event| event_messages::Event {
 					id: event.id.clone(),
 					name: event.name.clone(),
 				})
@@ -36,7 +39,7 @@ async fn send_events(
 				available_events: event_selection,
 			});
 			stream.send_json(&event_selection).await?;
-			results.drain(..).map(|(_, event)| (event.id.clone(), event)).collect()
+			results.drain(..).map(|event| (event.id.clone(), event)).collect()
 		}
 		Err(error) => {
 			tide::log::error!("Database error: {}", error);
@@ -66,7 +69,7 @@ pub async fn select_event(
 				};
 				match selected_event_action {
 					PageControl::Admin => {
-						if user.account_level == models::Approval::Admin {
+						if user.is_admin {
 							handle_admin(stream, Arc::clone(&db_connection)).await?;
 							available_events = send_events(&db_connection, stream, user).await?;
 						}

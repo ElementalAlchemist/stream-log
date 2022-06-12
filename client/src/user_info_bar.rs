@@ -1,7 +1,7 @@
 use mogwai::channel::mpsc::Sender;
 use mogwai::prelude::*;
 use std::marker::Unpin;
-use stream_log_shared::messages::user::{UserApproval, UserData};
+use stream_log_shared::messages::user::UserData;
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub enum UserClickTarget {
@@ -45,7 +45,7 @@ where
 				{&build_data.user.username}
 			</span>
 			{
-				if !build_data.suppress_parts.contains(&SuppressibleUserBarParts::Admin) && build_data.user.approval_level == UserApproval::Admin {
+				if !build_data.suppress_parts.contains(&SuppressibleUserBarParts::Admin) && build_data.user.is_admin {
 					let click_tx = build_data.click_tx;
 					Some(
 						builder! {

@@ -1,6 +1,6 @@
 use super::HandleConnectionError;
-use crate::models::{Approval, DefaultRole, Role, User};
-use crate::schema::{default_roles, roles, users};
+use crate::models::User;
+use crate::schema::users;
 use crate::websocket_msg::recv_msg;
 use async_std::sync::{Arc, Mutex};
 use cuid::cuid;
@@ -99,34 +99,16 @@ pub async fn register_user(
 						// (without manual setting the database directly). Otherwise, users should require approval.
 						// This is for the first account, so if something goes wrong, the database can be wiped and started over with no
 						// problem.
-						let account_level = if has_users {
-							Approval::Unapproved
-						} else {
-							Approval::Admin
-						};
-
 						let new_user = User {
 							id: new_user_id,
 							google_user_id: google_user_id.to_owned(),
 							name: data.name,
-							account_level,
+							is_admin: !has_users,
 						};
 
-						let mut default_roles: Vec<DefaultRole> = default_roles::table.load(&*db_connection)?;
 						let user_record: User = diesel::insert_into(users::table)
 							.values(&new_user)
 							.get_result(&*db_connection)?;
-						let roles: Vec<Role> = default_roles
-							.drain(..)
-							.map(|default_role| Role {
-								user_id: user_record.id.clone(),
-								event: default_role.event,
-								permission_level: default_role.permission_level,
-							})
-							.collect();
-						diesel::insert_into(roles::table)
-							.values(&roles)
-							.execute(&*db_connection)?;
 						Ok(user_record)
 					})
 				};
@@ -135,7 +117,7 @@ pub async fn register_user(
 						let user_data = UserData {
 							id: data.id.clone(),
 							username: data.name.clone(),
-							approval_level: data.account_level.into(),
+							is_admin: data.is_admin,
 						};
 						let response_message = DataMessage::Ok(RegistrationResponse::Success(user_data));
 						stream.send_json(&response_message).await?;

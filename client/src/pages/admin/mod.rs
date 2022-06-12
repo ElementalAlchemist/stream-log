@@ -3,7 +3,6 @@ use futures::stream::{SplitSink, SplitStream};
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
 
-mod account_approval;
 mod event_edit;
 mod menu;
 

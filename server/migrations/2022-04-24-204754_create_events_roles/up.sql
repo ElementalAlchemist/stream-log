@@ -5,14 +5,14 @@ CREATE TABLE events (
 	name TEXT UNIQUE NOT NULL
 );
 
-CREATE TABLE roles (
-	user_id TEXT REFERENCES users,
-	event TEXT REFERENCES events,
-	permission_level permission NOT NULL,
-	PRIMARY KEY (user_id, event)
+CREATE TABLE permission_groups (
+	id TEXT PRIMARY KEY,
+	name TEXT UNIQUE NOT NULL
 );
 
-CREATE TABLE default_roles (
-	event TEXT REFERENCES events PRIMARY KEY,
-	permission_level permission NOT NULL
+CREATE TABLE permission_events (
+	permission_group TEXT REFERENCES permission_groups,
+	event TEXT REFERENCES events,
+	level permission NOT NULL,
+	PRIMARY KEY (permission_group, event)
 );
