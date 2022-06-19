@@ -1,4 +1,5 @@
 use super::events::Event;
+use super::permissions::PermissionLevel;
 use super::user::UserData;
 use serde::{Deserialize, Serialize};
 
@@ -30,14 +31,8 @@ pub struct EventList {
 	pub events: Vec<Event>,
 }
 
-// Response to permission group list containing a list of permission groups
-#[derive(Deserialize, Serialize)]
-pub struct PermissionGroupList {
-	pub permission_groups: Vec<PermissionGroup>,
-}
-
 /// A single permission group
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct PermissionGroup {
 	pub id: String,
 	pub name: String,
@@ -48,6 +43,21 @@ pub struct PermissionGroup {
 pub struct PermissionGroupEvent {
 	pub group: PermissionGroup,
 	pub event: Event,
+}
+
+/// A description of an event and its permission level, to be used with a permission group
+/// to describe the event's permission level in the group
+#[derive(Deserialize, Serialize)]
+pub struct EventPermission {
+	pub event: Event,
+	pub level: PermissionLevel,
+}
+
+/// List item in response to list permission groups
+#[derive(Deserialize, Serialize)]
+pub struct PermissionGroupWithEvents {
+	pub group: PermissionGroup,
+	pub events: Vec<EventPermission>,
 }
 
 /// A pairing of a permission group and a user

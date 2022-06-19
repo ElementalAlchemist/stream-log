@@ -10,7 +10,8 @@ use diesel::prelude::*;
 use diesel::result::DatabaseErrorKind;
 use std::collections::HashMap;
 use stream_log_shared::messages::admin::{
-	AdminAction, EventList, PermissionGroup, PermissionGroupEvent, PermissionGroupList, UserDataPermissions,
+	AdminAction, EventList, EventPermission, PermissionGroup, PermissionGroupEvent, PermissionGroupWithEvents,
+	UserDataPermissions,
 };
 use stream_log_shared::messages::events::Event as EventWs;
 use stream_log_shared::messages::user::UserData;
@@ -100,27 +101,59 @@ pub async fn handle_admin(
 					}
 				}
 				AdminAction::ListPermissionGroups => {
-					let groups: QueryResult<Vec<PermissionGroupDb>> = {
+					let group_data: QueryResult<Vec<(_, _, _, Option<String>, Option<Permission>)>> = {
 						let db_connection = db_connection.lock().await;
-						permission_groups::table.load(&*db_connection)
+						let events_data_table = permission_events::table.inner_join(events::table);
+						permission_groups::table
+							.left_outer_join(events_data_table)
+							.select((
+								permission_groups::id,
+								permission_groups::name,
+								permission_events::event.nullable(),
+								events::name.nullable(),
+								permission_events::level.nullable(),
+							))
+							.load(&*db_connection)
 					};
-					let permission_groups: Vec<PermissionGroup> = match groups {
-						Ok(mut groups) => groups
-							.drain(..)
-							.map(|group| PermissionGroup {
-								id: group.id,
-								name: group.name,
-							})
-							.collect(),
+					let group_data: Vec<PermissionGroupWithEvents> = match group_data {
+						Ok(groups) => {
+							let mut permission_group_events: HashMap<PermissionGroup, Vec<EventPermission>> =
+								HashMap::new();
+							for (group_id, group_name, event_id, event_name, event_permission) in groups {
+								let permission_group = PermissionGroup {
+									id: group_id,
+									name: group_name,
+								};
+								let group_entry = permission_group_events.entry(permission_group).or_default();
+								if let Some(event_id) = event_id {
+									let event_name = event_name.unwrap();
+									let event_permission = event_permission.unwrap();
+									let event = EventWs {
+										id: event_id,
+										name: event_name,
+									};
+									let event_permission_data = EventPermission {
+										event,
+										level: event_permission.into(),
+									};
+									group_entry.push(event_permission_data);
+								}
+							}
+							permission_group_events
+								.drain()
+								.map(|(group, events)| PermissionGroupWithEvents { group, events })
+								.collect()
+						}
 						Err(error) => {
 							tide::log::error!("Database error: {}", error);
-							let message: DataMessage<EventList> = DataMessage::Err(DataError::DatabaseError);
+							let message: DataMessage<Vec<PermissionGroupWithEvents>> =
+								DataMessage::Err(DataError::DatabaseError);
 							stream.send_json(&message).await?;
 							continue;
 						}
 					};
-					let group_list = PermissionGroupList { permission_groups };
-					stream.send_json(&group_list).await?;
+					let message: DataMessage<Vec<PermissionGroupWithEvents>> = DataMessage::Ok(group_data);
+					stream.send_json(&message).await?;
 				}
 				AdminAction::CreatePermissionGroup(group_name) => {
 					let db_connection = db_connection.lock().await;
