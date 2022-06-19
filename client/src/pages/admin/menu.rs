@@ -9,6 +9,8 @@ use stream_log_shared::messages::admin::AdminAction;
 use stream_log_shared::messages::SubPageControl;
 
 enum AdminMenuItem {
+	Users,
+	PermissionGroups,
 	Events,
 	Exit,
 }
@@ -24,6 +26,22 @@ pub async fn run_menu(
 			<div id="admin-menu">
 				<h1>"Administration"</h1>
 				<ul id="admin-menu-links">
+					<li>
+						<a
+							class="click"
+							on:click=click_tx.sink().contra_map(|_| AdminMenuItem::Users)
+						>
+							"User Permissions"
+						</a>
+					</li>
+					<li>
+						<a
+							class="click"
+							on:click=click_tx.sink().contra_map(|_| AdminMenuItem::PermissionGroups)
+						>
+							"Permission Groups"
+						</a>
+					</li>
 					<li>
 						<a
 							class="click"
@@ -49,6 +67,8 @@ pub async fn run_menu(
 
 		let clicked_option = click_rx.next().await.unwrap();
 		match clicked_option {
+			AdminMenuItem::Users => todo!(),
+			AdminMenuItem::PermissionGroups => todo!(),
 			AdminMenuItem::Events => todo!(),
 			AdminMenuItem::Exit => {
 				let request: SubPageControl<AdminAction> = SubPageControl::ReturnFromPage;
