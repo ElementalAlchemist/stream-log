@@ -1,14 +1,17 @@
-use super::event_selection::select_event;
+use super::admin::handle_admin;
+use super::event_selection::send_events;
 use super::register::register_user;
 use super::HandleConnectionError;
 use crate::config::ConfigDocument;
 use crate::models::User;
 use crate::schema::users;
+use crate::websocket_msg::recv_msg;
 use async_std::sync::{Arc, Mutex};
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use stream_log_shared::messages::initial::{InitialMessage, UserDataLoad};
 use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::RequestMessage;
 use tide::Request;
 use tide_openidconnect::OpenIdConnectRequestExt;
 use tide_websockets::WebSocketConnection;
@@ -54,31 +57,61 @@ pub async fn handle_connection(
 		}
 	};
 
-	let user = if let Some(user) = user {
-		let user_data = UserData {
-			id: user.id.clone(),
-			username: user.name.clone(),
-			is_admin: user.is_admin,
-		};
-		stream
-			.send_json(&InitialMessage::new(UserDataLoad::User(user_data)))
-			.await?;
-		user
-	} else {
-		stream.send_json(&InitialMessage::new(UserDataLoad::NewUser)).await?;
-
-		match register_user(Arc::clone(&db_connection), &mut stream, &openid_user_id).await {
-			Ok(user) => user,
-			Err(HandleConnectionError::ConnectionClosed) => return Ok(()),
-			Err(HandleConnectionError::SendError(error)) => return Err(error),
+	match user {
+		Some(user) => {
+			let user_data = UserData {
+				id: user.id.clone(),
+				username: user.name.clone(),
+				is_admin: user.is_admin,
+			};
+			let message = InitialMessage::new(UserDataLoad::User(user_data));
+			stream.send_json(&message).await?;
+			if let Err(HandleConnectionError::SendError(error)) =
+				process_messages(Arc::clone(&config), Arc::clone(&db_connection), &mut stream, &user).await
+			{
+				return Err(error);
+			}
 		}
-	};
-
-	let event = match select_event(Arc::clone(&db_connection), &mut stream, &user).await {
-		Ok(event) => event,
-		Err(HandleConnectionError::ConnectionClosed) => return Ok(()),
-		Err(HandleConnectionError::SendError(error)) => return Err(error),
-	};
+		None => {
+			let message = InitialMessage::new(UserDataLoad::NewUser);
+			stream.send_json(&message).await?;
+			if let Err(HandleConnectionError::SendError(error)) =
+				register_user(Arc::clone(&db_connection), &mut stream, &openid_user_id).await
+			{
+				return Err(error);
+			}
+		}
+	}
 
 	Ok(())
+}
+
+async fn process_messages(
+	config: Arc<ConfigDocument>,
+	db_connection: Arc<Mutex<PgConnection>>,
+	stream: &mut WebSocketConnection,
+	user: &User,
+) -> Result<(), HandleConnectionError> {
+	loop {
+		let incoming_msg = match recv_msg(stream).await {
+			Ok(msg) => msg,
+			Err(error) => {
+				error.log();
+				return Err(HandleConnectionError::ConnectionClosed);
+			}
+		};
+		let incoming_msg: RequestMessage = match serde_json::from_str(&incoming_msg) {
+			Ok(msg) => msg,
+			Err(error) => {
+				tide::log::error!("Received an invalid request message: {}", error);
+				return Err(HandleConnectionError::ConnectionClosed);
+			}
+		};
+
+		match incoming_msg {
+			RequestMessage::ListAvailableEvents => send_events(&db_connection, stream, user).await?,
+			RequestMessage::SwitchToEvent(event) => todo!(),
+			RequestMessage::Admin(action) => handle_admin(stream, Arc::clone(&db_connection), user, action).await?,
+		}
+	}
 }

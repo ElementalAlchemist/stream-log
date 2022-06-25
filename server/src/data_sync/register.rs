@@ -18,7 +18,7 @@ pub async fn register_user(
 	db_connection: Arc<Mutex<PgConnection>>,
 	stream: &mut WebSocketConnection,
 	openid_user_id: &str,
-) -> Result<User, HandleConnectionError> {
+) -> Result<(), HandleConnectionError> {
 	loop {
 		let response = match recv_msg(stream).await {
 			Ok(resp) => resp,
@@ -121,7 +121,7 @@ pub async fn register_user(
 						};
 						let response_message = DataMessage::Ok(RegistrationResponse::Success(user_data));
 						stream.send_json(&response_message).await?;
-						break Ok(data);
+						break Ok(());
 					}
 					Err(error) => {
 						if let diesel::result::Error::DatabaseError(DatabaseErrorKind::UniqueViolation, error_info) =

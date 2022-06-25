@@ -8,6 +8,9 @@ pub mod permissions;
 pub mod user;
 pub mod user_register;
 
+use admin::AdminAction;
+use events::Event;
+
 #[derive(Deserialize, Serialize)]
 pub enum DataError {
 	DatabaseError,
@@ -26,13 +29,8 @@ impl fmt::Display for DataError {
 pub type DataMessage<T> = Result<T, DataError>;
 
 #[derive(Deserialize, Serialize)]
-pub enum PageControl<T> {
-	Event(T),
-	Admin,
-}
-
-#[derive(Deserialize, Serialize)]
-pub enum SubPageControl<T> {
-	Event(T),
-	ReturnFromPage,
+pub enum RequestMessage {
+	ListAvailableEvents,
+	SwitchToEvent(Event),
+	Admin(AdminAction),
 }
