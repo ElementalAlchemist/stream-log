@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Permission level available for sending over the socket
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Copy, Deserialize, Serialize)]
 pub enum PermissionLevel {
 	View,
 	Edit,

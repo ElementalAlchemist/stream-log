@@ -10,8 +10,7 @@ use diesel::prelude::*;
 use diesel::result::DatabaseErrorKind;
 use std::collections::HashMap;
 use stream_log_shared::messages::admin::{
-	AdminAction, EventList, EventPermission, PermissionGroup, PermissionGroupEvent, PermissionGroupWithEvents,
-	UserDataPermissions,
+	AdminAction, EventPermission, PermissionGroup, PermissionGroupEvent, PermissionGroupWithEvents, UserDataPermissions,
 };
 use stream_log_shared::messages::events::Event as EventWs;
 use stream_log_shared::messages::user::UserData;
@@ -57,13 +56,13 @@ pub async fn handle_admin(
 							.collect(),
 						Err(error) => {
 							tide::log::error!("Database error: {}", error);
-							let message: DataMessage<EventList> = DataMessage::Err(DataError::DatabaseError);
+							let message: DataMessage<Vec<EventWs>> = DataMessage::Err(DataError::DatabaseError);
 							stream.send_json(&message).await?;
 							continue;
 						}
 					};
-					let event_list = EventList { events };
-					stream.send_json(&event_list).await?;
+					let message = DataMessage::Ok(events);
+					stream.send_json(&message).await?;
 				}
 				AdminAction::AddEvent(new_event) => {
 					let id = match cuid::cuid() {

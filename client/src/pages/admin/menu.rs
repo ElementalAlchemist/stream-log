@@ -1,3 +1,4 @@
+use super::permission_groups;
 use crate::dom::run_view;
 use crate::error::PageError;
 use crate::user_info_bar::{UserBarBuildData, UserClickTarget};
@@ -68,7 +69,7 @@ pub async fn run_menu(
 		let clicked_option = click_rx.next().await.unwrap();
 		match clicked_option {
 			AdminMenuItem::Users => todo!(),
-			AdminMenuItem::PermissionGroups => todo!(),
+			AdminMenuItem::PermissionGroups => permission_groups::run_page(ws_write, ws_read).await?,
 			AdminMenuItem::Events => todo!(),
 			AdminMenuItem::Exit => {
 				let request: SubPageControl<AdminAction> = SubPageControl::ReturnFromPage;

@@ -25,14 +25,8 @@ pub struct NewEvent {
 	pub name: String,
 }
 
-/// Response to event list containing a list of events
-#[derive(Deserialize, Serialize)]
-pub struct EventList {
-	pub events: Vec<Event>,
-}
-
 /// A single permission group
-#[derive(Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct PermissionGroup {
 	pub id: String,
 	pub name: String,
@@ -47,14 +41,14 @@ pub struct PermissionGroupEvent {
 
 /// A description of an event and its permission level, to be used with a permission group
 /// to describe the event's permission level in the group
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct EventPermission {
 	pub event: Event,
 	pub level: PermissionLevel,
 }
 
 /// List item in response to list permission groups
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct PermissionGroupWithEvents {
 	pub group: PermissionGroup,
 	pub events: Vec<EventPermission>,
