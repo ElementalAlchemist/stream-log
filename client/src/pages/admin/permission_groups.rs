@@ -87,13 +87,11 @@ fn list_item_view(group_data: PermissionGroupWithEvents, action_tx: &mpsc::Sende
 			</div>
 			<form
 				class="admin-permission-group-rename"
-				on:submit=action_tx.sink().contra_map({
-					let group = group_data.group.clone();
-					move |event: DomEvent| {
+				on:submit=action_tx.sink().contra_map(|event: DomEvent| {
 						event.browser_event().unwrap().prevent_default();
-						PageAction::Rename(group.clone())
+						PageAction::Rename(group_data.group.clone())
 					}
-				})
+				)
 			>
 				<input
 					type="text"
