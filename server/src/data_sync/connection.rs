@@ -20,7 +20,7 @@ pub async fn handle_connection(
 	request: Request<()>,
 	mut stream: WebSocketConnection,
 ) -> tide::Result<()> {
-	let google_user_id = if let Some(id) = request.user_id() {
+	let openid_user_id = if let Some(id) = request.user_id() {
 		id
 	} else {
 		let message = InitialMessage::new(UserDataLoad::MissingId);
@@ -31,14 +31,14 @@ pub async fn handle_connection(
 	let results = {
 		let connection = db_connection.lock().await;
 		users::table
-			.filter(users::google_user_id.eq(&google_user_id))
+			.filter(users::openid_user_id.eq(&openid_user_id))
 			.load::<User>(&*connection)
 	};
 
 	let user = match results {
 		Ok(mut users) => {
 			if users.len() > 1 {
-				tide::log::error!("Duplicate Google user ID in database: {}", google_user_id);
+				tide::log::error!("Duplicate OpenID user ID in database: {}", openid_user_id);
 				let message = InitialMessage::new(UserDataLoad::Error);
 				stream.send_json(&message).await?;
 				return Ok(());
@@ -67,7 +67,7 @@ pub async fn handle_connection(
 	} else {
 		stream.send_json(&InitialMessage::new(UserDataLoad::NewUser)).await?;
 
-		match register_user(Arc::clone(&db_connection), &mut stream, &google_user_id).await {
+		match register_user(Arc::clone(&db_connection), &mut stream, &openid_user_id).await {
 			Ok(user) => user,
 			Err(HandleConnectionError::ConnectionClosed) => return Ok(()),
 			Err(HandleConnectionError::SendError(error)) => return Err(error),

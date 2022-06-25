@@ -11,25 +11,27 @@ pub fn parse_config() -> Result<ConfigDocument> {
 #[derive(Debug, Decode)]
 pub struct ConfigDocument {
 	#[knuffel(child)]
-	pub google_credentials: GoogleCredentials,
+	pub openid: OpenIdConfig,
 	#[knuffel(child, unwrap(argument))]
 	pub session_secret_key_file: String,
 	#[knuffel(child, unwrap(argument))]
 	pub web_root_path: Option<String>,
 	#[knuffel(child)]
 	pub listen: ListenAddr,
-	#[knuffel(child, unwrap(argument))]
-	pub openid_response_url: String,
 	#[knuffel(child)]
 	pub database: DatabaseArgs,
 }
 
 #[derive(Debug, Decode)]
-pub struct GoogleCredentials {
+pub struct OpenIdConfig {
+	#[knuffel(child, unwrap(argument))]
+	pub endpoint: String,
 	#[knuffel(child, unwrap(argument))]
 	pub client_id: String,
 	#[knuffel(child, unwrap(argument))]
 	pub secret: String,
+	#[knuffel(child, unwrap(argument))]
+	pub response_url: String,
 }
 
 #[derive(Debug, Decode)]

@@ -40,7 +40,7 @@ table! {
 
 	users (id) {
 		id -> Text,
-		google_user_id -> Text,
+		openid_user_id -> Text,
 		name -> Text,
 		is_admin -> Bool,
 	}

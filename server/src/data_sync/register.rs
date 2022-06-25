@@ -17,7 +17,7 @@ use tide_websockets::WebSocketConnection;
 pub async fn register_user(
 	db_connection: Arc<Mutex<PgConnection>>,
 	stream: &mut WebSocketConnection,
-	google_user_id: &str,
+	openid_user_id: &str,
 ) -> Result<User, HandleConnectionError> {
 	loop {
 		let response = match recv_msg(stream).await {
@@ -101,7 +101,7 @@ pub async fn register_user(
 						// problem.
 						let new_user = User {
 							id: new_user_id,
-							google_user_id: google_user_id.to_owned(),
+							openid_user_id: openid_user_id.to_owned(),
 							name: data.name,
 							is_admin: !has_users,
 						};

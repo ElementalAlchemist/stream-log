@@ -49,10 +49,10 @@ async fn main() -> miette::Result<()> {
 	app.with(session_middleware);
 
 	let openid_config = tide_openidconnect::Config {
-		issuer_url: IssuerUrl::new(String::from("https://accounts.google.com")).into_diagnostic()?,
-		client_id: ClientId::new(config.google_credentials.client_id.clone()),
-		client_secret: ClientSecret::new(config.google_credentials.secret.clone()),
-		redirect_url: RedirectUrl::new(config.openid_response_url.clone()).into_diagnostic()?,
+		issuer_url: IssuerUrl::new(config.openid.endpoint.clone()).into_diagnostic()?,
+		client_id: ClientId::new(config.openid.client_id.clone()),
+		client_secret: ClientSecret::new(config.openid.secret.clone()),
+		redirect_url: RedirectUrl::new(config.openid.response_url.clone()).into_diagnostic()?,
 		idp_logout_url: None,
 	};
 	app.with(OpenIdConnectMiddleware::new(&openid_config).await);
