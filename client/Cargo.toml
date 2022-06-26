@@ -8,24 +8,14 @@ license = "MPL-2.0"
 [dependencies]
 console_error_panic_hook = "0.1.7"
 futures = "0.3.21"
-mogwai = "0.5.3"
 gloo-net = { version = "0.2.1", features = ["websocket"] }
-stream-log-shared = { path = "../shared" }
 serde = "1.0.137"
 serde_json = "1.0.81"
-wasm-bindgen = "0.2.81"
+stream-log-shared = { path = "../shared" }
+sycamore = { version = "0.8.0-beta.6", features = ["suspense"] }
 
 [dependencies.web-sys]
 version = "0.3.58"
 features = [
-	"Element",
-	"FormData",
-	"HtmlButtonElement",
-	"HtmlFormElement",
-	"HtmlInputElement",
-	"Location",
-	"Node",
-	"Storage",
-	"Url",
-	"Window"
+	"Url"
 ]

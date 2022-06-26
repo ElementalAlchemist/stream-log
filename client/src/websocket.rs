@@ -1,7 +1,7 @@
-use futures::stream::SplitStream;
+use futures::stream::{SplitSink, SplitStream};
+use futures::StreamExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::{Message, WebSocketError};
-use mogwai::prelude::*;
 use serde::de::DeserializeOwned;
 use std::fmt::Display;
 use web_sys::Url;
@@ -84,4 +84,9 @@ pub async fn read_websocket<T: DeserializeOwned>(
 		Message::Bytes(_) => return Err(WebSocketReadError::BinaryMessage),
 	};
 	Ok(serde_json::from_str(&msg)?)
+}
+
+pub struct WebSocketHandle {
+	write: SplitSink<WebSocket, Message>,
+	read: SplitStream<WebSocket>,
 }

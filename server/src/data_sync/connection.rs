@@ -86,6 +86,7 @@ pub async fn handle_connection(
 	Ok(())
 }
 
+/// Handles messages from a user throughout the connection
 async fn process_messages(
 	config: Arc<ConfigDocument>,
 	db_connection: Arc<Mutex<PgConnection>>,
