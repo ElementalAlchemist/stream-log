@@ -1,5 +1,6 @@
 use futures::StreamExt;
 use gloo_net::websocket::futures::WebSocket;
+use std::collections::HashSet;
 use stream_log_shared::messages::initial::{InitialMessage, UserDataLoad};
 use stream_log_shared::SYNC_VERSION;
 use sycamore::futures::spawn_local_scoped;
@@ -11,7 +12,7 @@ mod pages;
 mod user_info_bar;
 mod websocket;
 use pages::error::error_message_view;
-use user_info_bar::render_user_info_bar;
+use user_info_bar::UserInfoProps;
 use websocket::read_websocket;
 
 use app::App;
@@ -20,7 +21,12 @@ fn main() {
 	console_error_panic_hook::set_once();
 
 	sycamore::render(|ctx| {
-		let user_bar_signal = create_signal(ctx, render_user_info_bar(ctx, None, &[]));
+		let user_signal = create_rc_signal(None);
+		let suppress_user_bar_parts_signal = create_rc_signal(HashSet::new());
+		let user_bar = UserInfoProps {
+			user_signal,
+			suppress_parts_signal: suppress_user_bar_parts_signal,
+		};
 		let ws = WebSocket::open(websocket_endpoint().as_str());
 		let ws = match ws {
 			Ok(ws) => ws,
@@ -31,7 +37,7 @@ fn main() {
 					Some(error),
 				);
 				let app_signal = create_signal(ctx, view);
-				return view! { ctx, App { page: app_signal, user_bar: user_bar_signal }};
+				return view! { ctx, App { page: app_signal, user_bar }};
 			}
 		};
 
@@ -85,6 +91,6 @@ fn main() {
 			}
 		});
 
-		view! { ctx, App { page: render_signal, user_bar: user_bar_signal } }
+		view! { ctx, App { page: render_signal, user_bar } }
 	});
 }

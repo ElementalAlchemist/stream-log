@@ -1,20 +1,45 @@
+use std::collections::HashSet;
 use stream_log_shared::messages::user::UserData;
 use sycamore::prelude::*;
 
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub enum SuppressibleUserBarParts {
 	Admin,
 }
 
-pub fn render_user_info_bar<G: Html>(
-	ctx: Scope,
-	user: Option<&UserData>,
-	suppress_user_bar_parts: &[SuppressibleUserBarParts],
-) -> View<G> {
-	if let Some(user) = user {
-		// TODO: Do an initial user bar render with signals to control the suppressible parts
-		todo!()
-	} else {
-		view! { ctx, }
+#[derive(Prop)]
+pub struct UserInfoProps {
+	pub user_signal: RcSignal<Option<UserData>>,
+	pub suppress_parts_signal: RcSignal<HashSet<SuppressibleUserBarParts>>,
+}
+
+#[component]
+pub fn UserInfoBar<G: Html>(ctx: Scope, user_info_props: UserInfoProps) -> View<G> {
+	view! {
+		ctx,
+		div(id="user") {
+			(if let Some(user) = (*user_info_props.user_signal.get()).clone() {
+				let suppress_parts = user_info_props.suppress_parts_signal.get();
+				view! {
+					ctx,
+					span(id="user_greeting") {
+						"Hi, "
+						(user.username)
+					}
+					(if user.is_admin && !suppress_parts.contains(&SuppressibleUserBarParts::Admin) {
+						view! {
+							ctx,
+							a(id="user_admin_link", on:click=|_| todo!()) {
+								"Admin"
+							}
+						}
+					} else {
+						view! { ctx, }
+					})
+				}
+			} else {
+				view! { ctx, }
+			})
+		}
 	}
 }
