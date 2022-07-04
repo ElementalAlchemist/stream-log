@@ -4,11 +4,9 @@ use stream_log_shared::SYNC_VERSION;
 use sycamore::futures::spawn_local;
 use websocket::websocket_endpoint;
 
-mod error;
 mod pages;
 mod user_info_bar;
 mod websocket;
-use error::PageError;
 use pages::error::error_message_view;
 use pages::register::handle_registration_page;
 use websocket::read_websocket;
@@ -48,7 +46,7 @@ fn main() {
 
 		if initial_message.sync_version != SYNC_VERSION {
 			sycamore::render(|ctx| {
-				let no_error: Option<PageError> = None;
+				let no_error: Option<String> = None;
 				error_message_view(ctx, String::from("A mismatch in communication protocols occurred between the client and the server. Please refresh the page. If the problem persists, please contact an administrator."), no_error)
 			});
 			return;
@@ -59,7 +57,7 @@ fn main() {
 			UserDataLoad::NewUser => handle_registration_page(ws).await,
 			UserDataLoad::MissingId => {
 				sycamore::render(|ctx| {
-					let no_error: Option<PageError> = None;
+					let no_error: Option<String> = None;
 					error_message_view(
 						ctx,
 						String::from("An error occurred reading user data. Please log in again."),
@@ -69,7 +67,7 @@ fn main() {
 			}
 			UserDataLoad::Error => {
 				sycamore::render(|ctx| {
-					let no_error: Option<PageError> = None;
+					let no_error: Option<String> = None;
 					error_message_view(
 						ctx,
 						String::from(
