@@ -1,4 +1,3 @@
-use futures::stream::{SplitSink, SplitStream};
 use futures::StreamExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::{Message, WebSocketError};
@@ -72,9 +71,7 @@ pub fn websocket_endpoint() -> String {
 /// Errors occur in a variety of situations: when the connection unexpectedly closes,
 /// when we unexpectedly get binary data, when there's an error reading from the connection,
 /// and when the text can't be deserialized appropriately as JSON.
-pub async fn read_websocket<T: DeserializeOwned>(
-	read_stream: &mut SplitStream<WebSocket>,
-) -> Result<T, WebSocketReadError> {
+pub async fn read_websocket<T: DeserializeOwned>(read_stream: &mut WebSocket) -> Result<T, WebSocketReadError> {
 	let msg = match read_stream.next().await {
 		Some(data) => data?,
 		None => return Err(WebSocketReadError::ConnectionClosed),
@@ -84,9 +81,4 @@ pub async fn read_websocket<T: DeserializeOwned>(
 		Message::Bytes(_) => return Err(WebSocketReadError::BinaryMessage),
 	};
 	Ok(serde_json::from_str(&msg)?)
-}
-
-pub struct WebSocketHandle {
-	write: SplitSink<WebSocket, Message>,
-	read: SplitStream<WebSocket>,
 }
