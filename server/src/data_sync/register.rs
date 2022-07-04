@@ -8,7 +8,7 @@ use diesel::prelude::*;
 use diesel::result::DatabaseErrorKind;
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::user_register::{
-	RegistrationResponse, UserRegistration, UsernameCheckResponse, UsernameCheckStatus,
+	RegistrationResponse, UserRegistration, UsernameCheckResponse, UsernameCheckStatus, USERNAME_LENGTH_LIMIT
 };
 use stream_log_shared::messages::{DataError, DataMessage};
 use tide_websockets::WebSocketConnection;
@@ -71,7 +71,7 @@ pub async fn register_user(
 					stream.send_json(&response_message).await?;
 					continue;
 				}
-				if data.name.len() > 64 {
+				if data.name.len() > USERNAME_LENGTH_LIMIT {
 					let response_message: DataMessage<RegistrationResponse> =
 						DataMessage::Ok(RegistrationResponse::UsernameTooLong);
 					stream.send_json(&response_message).await?;

@@ -10,6 +10,7 @@ mod user_info_bar;
 mod websocket;
 use error::PageError;
 use pages::error::error_message_view;
+use pages::register::handle_registration_page;
 use websocket::read_websocket;
 
 fn main() {
@@ -55,7 +56,7 @@ fn main() {
 
 		match initial_message.user_data {
 			UserDataLoad::User(user_data) => todo!(),
-			UserDataLoad::NewUser => todo!(),
+			UserDataLoad::NewUser => handle_registration_page(ws).await,
 			UserDataLoad::MissingId => {
 				sycamore::render(|ctx| {
 					let no_error: Option<PageError> = None;

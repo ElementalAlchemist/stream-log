@@ -1,6 +1,8 @@
 use super::user::UserData;
 use serde::{Deserialize, Serialize};
 
+pub const USERNAME_LENGTH_LIMIT: usize = 64;
+
 #[derive(Deserialize, Serialize)]
 pub enum UserRegistration {
 	CheckUsername(String),
