@@ -75,10 +75,17 @@ pub async fn handle_connection(
 		None => {
 			let message = InitialMessage::new(UserDataLoad::NewUser);
 			stream.send_json(&message).await?;
-			if let Err(HandleConnectionError::SendError(error)) =
-				register_user(Arc::clone(&db_connection), &mut stream, &openid_user_id).await
-			{
-				return Err(error);
+			let user = match register_user(Arc::clone(&db_connection), &mut stream, &openid_user_id).await {
+				Ok(user) => user,
+				Err(HandleConnectionError::SendError(error)) => return Err(error),
+				Err(_) => return Ok(()),
+			};
+			if user.is_admin {
+				if let Err(HandleConnectionError::SendError(error)) =
+					process_messages(Arc::clone(&config), Arc::clone(&db_connection), &mut stream, &user).await
+				{
+					return Err(error);
+				}
 			}
 		}
 	}

@@ -8,7 +8,7 @@ use diesel::prelude::*;
 use diesel::result::DatabaseErrorKind;
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::user_register::{
-	RegistrationResponse, UserRegistration, UsernameCheckResponse, UsernameCheckStatus, USERNAME_LENGTH_LIMIT
+	RegistrationResponse, UserRegistration, UsernameCheckResponse, UsernameCheckStatus, USERNAME_LENGTH_LIMIT,
 };
 use stream_log_shared::messages::{DataError, DataMessage};
 use tide_websockets::WebSocketConnection;
@@ -18,7 +18,7 @@ pub async fn register_user(
 	db_connection: Arc<Mutex<PgConnection>>,
 	stream: &mut WebSocketConnection,
 	openid_user_id: &str,
-) -> Result<(), HandleConnectionError> {
+) -> Result<User, HandleConnectionError> {
 	loop {
 		let response = match recv_msg(stream).await {
 			Ok(resp) => resp,
@@ -96,7 +96,7 @@ pub async fn register_user(
 						let has_users = !initial_user_check.is_empty();
 
 						// If this is the first account, it should be an administrator account so that there can be an administrator
-						// (without manual setting the database directly). Otherwise, users should require approval.
+						// (without manually setting the database directly). Otherwise, users should require approval.
 						// This is for the first account, so if something goes wrong, the database can be wiped and started over with no
 						// problem.
 						let new_user = User {
@@ -121,7 +121,7 @@ pub async fn register_user(
 						};
 						let response_message = DataMessage::Ok(RegistrationResponse::Success(user_data));
 						stream.send_json(&response_message).await?;
-						break Ok(());
+						break Ok(data);
 					}
 					Err(error) => {
 						if let diesel::result::Error::DatabaseError(DatabaseErrorKind::UniqueViolation, error_info) =
