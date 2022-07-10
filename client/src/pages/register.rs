@@ -1,4 +1,5 @@
 use super::error::error_message_view;
+use super::register_complete::handle_registration_complete;
 use crate::websocket::read_websocket;
 use futures::channel::mpsc;
 use futures::{SinkExt, StreamExt};
@@ -186,7 +187,13 @@ pub async fn handle_registration_page(mut ws: WebSocket) {
 							}
 						};
 						match response {
-							RegistrationResponse::Success(user) => todo!(),
+							RegistrationResponse::Success(user) => {
+								if user.is_admin {
+									todo!();
+								} else {
+									handle_registration_complete();
+								}
+							}
 							RegistrationResponse::NoUsernameSpecified => username_empty_signal.set(true),
 							RegistrationResponse::UsernameInUse => username_in_use_signal.set(true),
 							RegistrationResponse::UsernameTooLong => username_too_long_signal.set(true),
