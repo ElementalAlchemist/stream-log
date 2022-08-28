@@ -7,15 +7,15 @@ license = "MPL-2.0"
 
 [dependencies]
 console_error_panic_hook = "0.1.7"
-futures = "0.3.21"
-gloo-net = { version = "0.2.3", features = ["websocket"] }
-serde = "1.0.138"
-serde_json = "1.0.82"
+futures = "0.3.23"
+gloo-net = { version = "0.2.4", features = ["websocket"] }
+serde = "1.0.144"
+serde_json = "1.0.85"
 stream-log-shared = { path = "../shared" }
-sycamore = { version = "0.8.0-beta.7", features = ["suspense"] }
+sycamore = { version = "0.8.0", features = ["suspense"] }
 
 [dependencies.web-sys]
-version = "0.3.58"
+version = "0.3.59"
 features = [
 	"Url"
 ]
