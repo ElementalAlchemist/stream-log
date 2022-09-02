@@ -1,14 +1,20 @@
 use super::error::error_message_view;
+use crate::user_info_bar::{SuppressibleUserBarParts, UserInfoBar};
 use crate::websocket::read_websocket;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
+use std::collections::HashSet;
 use stream_log_shared::messages::events::{Event, EventSelection};
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::{DataMessage, RequestMessage};
 use sycamore::prelude::*;
 
-pub async fn handle_event_selection_page(user: &UserData, ws: &mut WebSocket) {
+pub async fn handle_event_selection_page(
+	user_data: RcSignal<Option<UserData>>,
+	ws: &mut WebSocket,
+	suppressible_user_bar_parts: RcSignal<HashSet<SuppressibleUserBarParts>>,
+) {
 	// TODO: Accept user as UserData, or as the RcSignal taken by the user info bar?
 	let message = RequestMessage::ListAvailableEvents;
 	let message_json = match serde_json::to_string(&message) {
@@ -86,6 +92,7 @@ pub async fn handle_event_selection_page(user: &UserData, ws: &mut WebSocket) {
 
 		view! {
 			ctx,
+			UserInfoBar(user_signal=user_data, suppress_parts_signal=suppressible_user_bar_parts)
 			h1 { "Select an event" }
 			ul { (event_views) }
 		}
