@@ -3,7 +3,7 @@ use crate::websocket::read_websocket;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
-use stream_log_shared::messages::events::EventSelection;
+use stream_log_shared::messages::events::{Event, EventSelection};
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::{DataMessage, RequestMessage};
 use sycamore::prelude::*;
@@ -54,19 +54,22 @@ pub async fn handle_event_selection_page(user: &UserData, ws: &mut WebSocket) {
 	};
 
 	sycamore::render(|ctx| {
+		let event_signal: &Signal<Option<Event>> = create_signal(ctx, None);
+
 		let event_views = View::new_fragment(
 			event_list
 				.available_events
 				.iter()
 				.map(|event| {
+					let event = event.clone();
 					let event_name = event.name.clone();
 					view! {
 						ctx,
 						li {
 							a(
 								class="click",
-								on:click=|_| {
-									// TODO
+								on:click=move |_| {
+									event_signal.set(Some(event.clone()));
 								}
 							) {
 								(event_name)
@@ -76,6 +79,10 @@ pub async fn handle_event_selection_page(user: &UserData, ws: &mut WebSocket) {
 				})
 				.collect(),
 		);
+
+		create_effect(ctx, || {
+			todo!() // Switch to the event page
+		});
 
 		view! {
 			ctx,
