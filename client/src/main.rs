@@ -1,13 +1,16 @@
 use gloo_net::websocket::futures::WebSocket;
+use std::collections::HashSet;
 use stream_log_shared::messages::initial::{InitialMessage, UserDataLoad};
 use stream_log_shared::SYNC_VERSION;
 use sycamore::futures::spawn_local;
+use sycamore::prelude::*;
 use websocket::websocket_endpoint;
 
 mod pages;
 mod user_info_bar;
 mod websocket;
 use pages::error::error_message_view;
+use pages::event_selection::handle_event_selection_page;
 use pages::register::handle_registration_page;
 use websocket::read_websocket;
 
@@ -53,7 +56,11 @@ fn main() {
 		}
 
 		match initial_message.user_data {
-			UserDataLoad::User(user_data) => todo!(),
+			UserDataLoad::User(user_data) => {
+				let user_signal = create_rc_signal(Some(user_data));
+				let suppressible_user_bar_parts = create_rc_signal(HashSet::new());
+				handle_event_selection_page(user_signal, &mut ws, suppressible_user_bar_parts).await;
+			}
 			UserDataLoad::NewUser => handle_registration_page(ws).await,
 			UserDataLoad::MissingId => {
 				sycamore::render(|ctx| {
