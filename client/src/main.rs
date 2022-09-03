@@ -7,7 +7,6 @@ use sycamore::prelude::*;
 use websocket::websocket_endpoint;
 
 mod pages;
-mod user_info_bar;
 mod websocket;
 use pages::error::error_message_view;
 use pages::event_selection::handle_event_selection_page;

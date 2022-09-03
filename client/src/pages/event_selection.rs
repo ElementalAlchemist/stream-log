@@ -1,5 +1,5 @@
+use super::components::user_info_bar::{SuppressibleUserBarParts, UserInfoBar};
 use super::error::error_message_view;
-use crate::user_info_bar::{SuppressibleUserBarParts, UserInfoBar};
 use crate::websocket::read_websocket;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
