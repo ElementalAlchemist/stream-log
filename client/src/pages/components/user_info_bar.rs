@@ -8,38 +8,37 @@ pub enum SuppressibleUserBarParts {
 }
 
 #[derive(Prop)]
-pub struct UserInfoProps {
-	pub user_signal: RcSignal<Option<UserData>>,
-	pub suppress_parts_signal: RcSignal<HashSet<SuppressibleUserBarParts>>,
+pub struct UserInfoProps<'a> {
+	pub user_data: Option<&'a UserData>,
+	pub suppress_parts: HashSet<SuppressibleUserBarParts>
 }
 
 #[component]
-pub fn UserInfoBar<G: Html>(ctx: Scope, user_info_props: UserInfoProps) -> View<G> {
-	view! {
-		ctx,
-		div(id="user") {
-			(if let Some(user) = (*user_info_props.user_signal.get()).clone() {
-				let suppress_parts = user_info_props.suppress_parts_signal.get();
-				view! {
-					ctx,
-					span(id="user_greeting") {
-						"Hi, "
-						(user.username)
-					}
-					(if user.is_admin && !suppress_parts.contains(&SuppressibleUserBarParts::Admin) {
-						view! {
-							ctx,
-							a(id="user_admin_link", on:click=|_| todo!()) {
-								"Admin"
-							}
-						}
-					} else {
-						view! { ctx, }
-					})
+pub fn UserInfoBar<'a, G: Html>(ctx: Scope, user_info_props: UserInfoProps<'a>) -> View<G> {
+	if let Some(user) = user_info_props.user_data {
+		let username = user.username.clone();
+		let is_admin = user.is_admin;
+		let suppress_parts = user_info_props.suppress_parts;
+		view! {
+			ctx,
+			div(id="user") {
+				span(id="user_greeting") {
+					"Hi, "
+					(username)
 				}
-			} else {
-				view! { ctx, }
-			})
+				(if is_admin && !suppress_parts.contains(&SuppressibleUserBarParts::Admin) {
+					view! {
+						ctx,
+						a(id="user_admin_link", on:click=|_| todo!()) {
+							"Admin"
+						}
+					}
+				} else {
+					view! { ctx, }
+				})
+			}
 		}
+	} else {
+		view! { ctx, }
 	}
 }

@@ -10,12 +10,7 @@ use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::{DataMessage, RequestMessage};
 use sycamore::prelude::*;
 
-pub async fn handle_event_selection_page(
-	user_data: RcSignal<Option<UserData>>,
-	ws: &mut WebSocket,
-	suppressible_user_bar_parts: RcSignal<HashSet<SuppressibleUserBarParts>>,
-) {
-	// TODO: Accept user as UserData, or as the RcSignal taken by the user info bar?
+pub async fn handle_event_selection_page(user_data: &UserData, ws: &mut WebSocket) {
 	let message = RequestMessage::ListAvailableEvents;
 	let message_json = match serde_json::to_string(&message) {
 		Ok(msg) => msg,
@@ -92,7 +87,7 @@ pub async fn handle_event_selection_page(
 
 		view! {
 			ctx,
-			UserInfoBar(user_signal=user_data, suppress_parts_signal=suppressible_user_bar_parts)
+			UserInfoBar(user_data=Some(user_data), suppress_parts=HashSet::new())
 			h1 { "Select an event" }
 			ul { (event_views) }
 		}

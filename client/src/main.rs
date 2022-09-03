@@ -56,9 +56,7 @@ fn main() {
 
 		match initial_message.user_data {
 			UserDataLoad::User(user_data) => {
-				let user_signal = create_rc_signal(Some(user_data));
-				let suppressible_user_bar_parts = create_rc_signal(HashSet::new());
-				handle_event_selection_page(user_signal, &mut ws, suppressible_user_bar_parts).await;
+				handle_event_selection_page(&user_data, &mut ws).await;
 			}
 			UserDataLoad::NewUser => handle_registration_page(ws).await,
 			UserDataLoad::MissingId => {
