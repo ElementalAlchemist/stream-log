@@ -1,4 +1,4 @@
-use super::components::user_info_bar::{SuppressibleUserBarParts, UserInfoBar};
+use super::components::user_info_bar::UserInfoBar;
 use super::error::error_message_view;
 use crate::websocket::read_websocket;
 use futures::SinkExt;

@@ -10,11 +10,11 @@ pub enum SuppressibleUserBarParts {
 #[derive(Prop)]
 pub struct UserInfoProps<'a> {
 	pub user_data: Option<&'a UserData>,
-	pub suppress_parts: HashSet<SuppressibleUserBarParts>
+	pub suppress_parts: HashSet<SuppressibleUserBarParts>,
 }
 
 #[component]
-pub fn UserInfoBar<'a, G: Html>(ctx: Scope, user_info_props: UserInfoProps<'a>) -> View<G> {
+pub fn UserInfoBar<G: Html>(ctx: Scope, user_info_props: UserInfoProps) -> View<G> {
 	if let Some(user) = user_info_props.user_data {
 		let username = user.username.clone();
 		let is_admin = user.is_admin;

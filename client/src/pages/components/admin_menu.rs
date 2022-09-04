@@ -1,7 +1,7 @@
 use sycamore::prelude::*;
 
 #[component]
-pub fn AdminMenuK<G: Html>(ctx: Scope) -> View<G> {
+pub fn AdminMenu<G: Html>(ctx: Scope) -> View<G> {
 	view! {
 		ctx,
 		ul(id="admin_menu") {

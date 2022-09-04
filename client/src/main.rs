@@ -1,9 +1,7 @@
 use gloo_net::websocket::futures::WebSocket;
-use std::collections::HashSet;
 use stream_log_shared::messages::initial::{InitialMessage, UserDataLoad};
 use stream_log_shared::SYNC_VERSION;
 use sycamore::futures::spawn_local;
-use sycamore::prelude::*;
 use websocket::websocket_endpoint;
 
 mod pages;
