@@ -1,11 +1,10 @@
-use super::components::user_info_bar::{handle_user_bar_click, UserBarClick, UserInfoBar};
+use super::components::user_info_bar::{handle_admin_menu_click, UserBarAdminMenuClick, UserInfoBar};
 use super::error::error_message_view;
 use crate::websocket::read_websocket;
 use futures::channel::mpsc;
 use futures::{SinkExt, StreamExt};
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
-use std::collections::HashSet;
 use stream_log_shared::messages::events::{Event, EventSelection};
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::{DataMessage, RequestMessage};
@@ -13,7 +12,7 @@ use sycamore::prelude::*;
 
 #[derive(Clone)]
 enum PageEvent {
-	UserBar(UserBarClick),
+	UserBar(UserBarAdminMenuClick),
 }
 
 pub async fn handle_event_selection_page(user_data: &UserData, ws: &mut WebSocket) {
@@ -64,7 +63,7 @@ pub async fn handle_event_selection_page(user_data: &UserData, ws: &mut WebSocke
 
 	sycamore::render(|ctx| {
 		let event_signal: &Signal<Option<Event>> = create_signal(ctx, None);
-		let user_bar_click_signal: RcSignal<Option<UserBarClick>> = create_rc_signal(None);
+		let user_bar_click_signal: RcSignal<Option<UserBarAdminMenuClick>> = create_rc_signal(None);
 
 		let event_views = View::new_fragment(
 			event_list
@@ -114,7 +113,7 @@ pub async fn handle_event_selection_page(user_data: &UserData, ws: &mut WebSocke
 
 		view! {
 			ctx,
-			UserInfoBar(user_data=Some(user_data), suppress_parts=HashSet::new(), click_signal=user_bar_click_signal)
+			UserInfoBar(user_data=Some(user_data), click_signal=user_bar_click_signal)
 			h1 { "Select an event" }
 			ul { (event_views) }
 		}
@@ -122,7 +121,7 @@ pub async fn handle_event_selection_page(user_data: &UserData, ws: &mut WebSocke
 
 	while let Some(page_event) = page_event_rx.next().await {
 		match page_event {
-			PageEvent::UserBar(user_bar_click) => handle_user_bar_click(user_bar_click, user_data, ws).await,
+			PageEvent::UserBar(admin_click) => handle_admin_menu_click(admin_click, user_data, ws).await,
 		}
 	}
 
