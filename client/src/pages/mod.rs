@@ -1,3 +1,4 @@
+pub mod admin;
 pub mod components;
 pub mod error;
 pub mod event_selection;
