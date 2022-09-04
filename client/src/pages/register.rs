@@ -1,4 +1,5 @@
 use super::error::error_message_view;
+use super::event_selection::handle_event_selection_page;
 use super::register_complete::handle_registration_complete;
 use crate::websocket::read_websocket;
 use futures::channel::mpsc;
@@ -189,7 +190,7 @@ pub async fn handle_registration_page(mut ws: WebSocket) {
 						match response {
 							RegistrationResponse::Success(user) => {
 								if user.is_admin {
-									todo!();
+									handle_event_selection_page(&user, &mut ws).await;
 								} else {
 									handle_registration_complete();
 								}
