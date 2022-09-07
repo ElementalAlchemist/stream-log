@@ -90,7 +90,7 @@ pub async fn handle_event_selection_page(user_data: &UserData, ws: &mut WebSocke
 		);
 
 		create_effect(ctx, || {
-			todo!() // Switch to the event page
+			// TODO: Switch to the event page
 		});
 
 		create_effect(ctx, {
