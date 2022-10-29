@@ -1,3 +1,4 @@
+use crate::pages::admin::manage_events::handle_admin_manage_events_page;
 use gloo_net::websocket::futures::WebSocket;
 use stream_log_shared::messages::user::UserData;
 use sycamore::prelude::*;
@@ -97,7 +98,7 @@ pub fn UserInfoBar<G: Html>(ctx: Scope, user_info_props: UserInfoProps) -> View<
 /// complete.
 pub async fn handle_admin_menu_click(target: UserBarAdminMenuClick, user: &UserData, ws: &mut WebSocket) {
 	match target {
-		UserBarAdminMenuClick::EditEvents => todo!(),
+		UserBarAdminMenuClick::EditEvents => handle_admin_manage_events_page(ws).await,
 		UserBarAdminMenuClick::EditUsers => todo!(),
 		UserBarAdminMenuClick::EditPermissionGroups => todo!(),
 		UserBarAdminMenuClick::AssignUsersToPermissionGroups => todo!(),
