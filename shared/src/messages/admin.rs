@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 /// Request for information in admin workflows
 #[derive(Deserialize, Serialize)]
 pub enum AdminAction {
-	AddEvent(NewEvent),
 	EditEvents(Vec<Event>),
 	ListEvents,
 	ListPermissionGroups,
@@ -17,12 +16,6 @@ pub enum AdminAction {
 	AddUserToPermissionGroup(PermissionGroupUser),
 	RemoveUserFromPermissionGroup(PermissionGroupUser),
 	ListUsers,
-}
-
-/// Information required for adding a new event
-#[derive(Deserialize, Serialize)]
-pub struct NewEvent {
-	pub name: String,
 }
 
 /// A single permission group

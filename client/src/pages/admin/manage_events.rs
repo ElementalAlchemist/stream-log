@@ -5,6 +5,8 @@ use futures::{SinkExt, StreamExt};
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
 use std::collections::HashMap;
+use std::rc::Rc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use stream_log_shared::messages::admin::AdminAction;
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::{DataMessage, RequestMessage};
@@ -63,11 +65,15 @@ pub async fn handle_admin_manage_events_page(ws: &mut WebSocket) {
 	sycamore::render(|ctx| {
 		let event_list = create_signal(ctx, event_list);
 		let updated_names: RcSignal<HashMap<String, String>> = create_rc_signal(HashMap::new());
+		let new_names: RcSignal<Vec<String>> = create_rc_signal(Vec::new());
+		let next_new_index: Rc<AtomicUsize> = Rc::new(AtomicUsize::new(0));
+
 		let submit_button_ref = create_node_ref(ctx);
 		let cancel_button_ref = create_node_ref(ctx);
 
 		let form_submission_handler = {
 			let updated_names = updated_names.clone();
+			let new_names = new_names.clone();
 			let finish_tx = finish_tx.clone();
 			move |event: WebEvent| {
 				event.prevent_default();
@@ -87,6 +93,15 @@ pub async fn handle_admin_manage_events_page(ws: &mut WebSocket) {
 						name: name.clone(),
 					};
 					changes.push(new_event);
+				}
+				for name in new_names.get().iter() {
+					if !name.is_empty() {
+						let new_event = Event {
+							id: String::new(),
+							name: name.clone(),
+						};
+						changes.push(new_event);
+					}
 				}
 				if let Err(error) = finish_tx.unbounded_send(changes) {
 					sycamore::render(|ctx| {
@@ -120,6 +135,20 @@ pub async fn handle_admin_manage_events_page(ws: &mut WebSocket) {
 			}
 		};
 
+		let add_row_handler = {
+			let next_new_index = Rc::clone(&next_new_index);
+			let new_names = new_names.clone();
+			move |_: WebEvent| {
+				let index = next_new_index.fetch_add(1, Ordering::AcqRel);
+				new_names.modify().push(String::new());
+				let id = format!("+{}", index);
+				event_list.modify().push(Event {
+					id,
+					name: String::new(),
+				});
+			}
+		};
+
 		view! {
 			ctx,
 			h1 { "Manage Events" }
@@ -138,12 +167,16 @@ pub async fn handle_admin_manage_events_page(ws: &mut WebSocket) {
 								let input_name = format!("event-name-{}", event.id);
 								let field_change_handler = {
 									let id = event.id.clone();
+									let new_names = new_names.clone();
 									move |change_event: WebEvent| {
 										let mut names_map = updated_names.modify();
 										let event_target = change_event.target().unwrap();
 										let field: &HtmlInputElement = event_target.dyn_ref().unwrap();
 										let new_value = field.value();
-										if new_value.is_empty() {
+										if let Some(index) = id.strip_prefix('+') {
+											let index: usize = index.parse().unwrap();
+											new_names.modify()[index] = new_value;
+										} else if new_value.is_empty() {
 											names_map.remove(&id.clone());
 										} else {
 											names_map.insert(id.clone(), new_value);
@@ -166,6 +199,7 @@ pub async fn handle_admin_manage_events_page(ws: &mut WebSocket) {
 				div {
 					button(id="admin_manage_events_submit", ref=submit_button_ref) { "Update Names" }
 					button(type="button", on:click=cancel_form_handler, ref=cancel_button_ref) { "Cancel" }
+					button(type="button", id="admin_manage_events_new_row", on:click=add_row_handler) { "Add New Event" }
 				}
 			}
 		}
@@ -188,7 +222,7 @@ pub async fn handle_admin_manage_events_page(ws: &mut WebSocket) {
 	};
 
 	if !changes.is_empty() {
-		let message = AdminAction::EditEvents(changes);
+		let message = RequestMessage::Admin(AdminAction::EditEvents(changes));
 		let message_json = match serde_json::to_string(&message) {
 			Ok(msg) => msg,
 			Err(error) => {

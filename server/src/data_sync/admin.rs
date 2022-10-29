@@ -6,7 +6,7 @@ use crate::schema::{events, permission_events, permission_groups, user_permissio
 use async_std::sync::{Arc, Mutex};
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
-use diesel::result::DatabaseErrorKind;
+use diesel::result::{DatabaseErrorKind, Error as QueryError};
 use std::collections::HashMap;
 use stream_log_shared::messages::admin::{
 	AdminAction, EventPermission, PermissionGroup, PermissionGroupEvent, PermissionGroupWithEvents, UserDataPermissions,
@@ -50,41 +50,39 @@ pub async fn handle_admin(
 			let message = DataMessage::Ok(events);
 			stream.send_json(&message).await?;
 		}
-		AdminAction::AddEvent(new_event) => {
-			let id = match cuid::cuid() {
-				Ok(id) => id,
-				Err(error) => {
-					tide::log::error!("Failed to generate CUID: {}", error);
-					return Err(HandleConnectionError::ConnectionClosed);
-				}
-			};
-			let event = EventDb {
-				id,
-				name: new_event.name,
-			};
-			let insert_result = {
-				let db_connection = db_connection.lock().await;
-				diesel::insert_into(events::table)
-					.values(&event)
-					.execute(&*db_connection)
-			};
-			if let Err(error) = insert_result {
-				tide::log::error!("Database error: {}", error);
-				return Err(HandleConnectionError::ConnectionClosed);
-			}
-		}
 		AdminAction::EditEvents(events) => {
 			let update_result = {
 				let db_connection = db_connection.lock().await;
-				let mut result: QueryResult<usize> = Ok(0);
-				for event in events.iter() {
-					result = result.and(
-						diesel::update(events::table.filter(events::id.eq(&event.id)))
-							.set(events::name.eq(&event.name))
-							.execute(&*db_connection),
-					);
-				}
-				result
+				let tx_result: QueryResult<()> = db_connection.transaction(|| {
+					let mut new_events: Vec<EventDb> = Vec::new();
+					for event in events.iter() {
+						if event.id.is_empty() {
+							let id = match cuid::cuid() {
+								Ok(id) => id,
+								Err(error) => {
+									tide::log::error!("Failed to generate CUID: {}", error);
+									return Err(QueryError::RollbackTransaction);
+								}
+							};
+							let event = EventDb {
+								id,
+								name: event.name.clone(),
+							};
+							new_events.push(event);
+						} else {
+							diesel::update(events::table.filter(events::id.eq(&event.id)))
+								.set(events::name.eq(&event.name))
+								.execute(&*db_connection)?;
+						}
+					}
+					if !new_events.is_empty() {
+						diesel::insert_into(events::table)
+							.values(&new_events)
+							.execute(&*db_connection)?;
+					}
+					Ok(())
+				});
+				tx_result
 			};
 			if let Err(error) = update_result {
 				tide::log::error!("Database error: {}", error);
