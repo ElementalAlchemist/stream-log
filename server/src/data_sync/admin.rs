@@ -73,12 +73,18 @@ pub async fn handle_admin(
 				return Err(HandleConnectionError::ConnectionClosed);
 			}
 		}
-		AdminAction::EditEvent(event) => {
+		AdminAction::EditEvents(events) => {
 			let update_result = {
 				let db_connection = db_connection.lock().await;
-				diesel::update(events::table.filter(events::id.eq(event.id)))
-					.set(events::name.eq(event.name))
-					.execute(&*db_connection)
+				let mut result: QueryResult<usize> = Ok(0);
+				for event in events.iter() {
+					result = result.and(
+						diesel::update(events::table.filter(events::id.eq(&event.id)))
+							.set(events::name.eq(&event.name))
+							.execute(&*db_connection),
+					);
+				}
+				result
 			};
 			if let Err(error) = update_result {
 				tide::log::error!("Database error: {}", error);

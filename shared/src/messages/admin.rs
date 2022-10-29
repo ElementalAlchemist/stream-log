@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Deserialize, Serialize)]
 pub enum AdminAction {
 	AddEvent(NewEvent),
-	EditEvent(Event),
+	EditEvents(Vec<Event>),
 	ListEvents,
 	ListPermissionGroups,
 	CreatePermissionGroup(String),
