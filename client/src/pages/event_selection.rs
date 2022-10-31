@@ -1,144 +1,93 @@
-use super::components::user_info_bar::{handle_admin_menu_click, UserBarAdminMenuClick, UserInfoBar};
-use super::error::error_message_view;
+use super::error::ErrorData;
 use crate::websocket::read_websocket;
-use futures::channel::mpsc;
-use futures::{SinkExt, StreamExt};
+use futures::lock::Mutex;
+use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
-use stream_log_shared::messages::events::{Event, EventSelection};
-use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::events::EventSelection;
 use stream_log_shared::messages::{DataMessage, RequestMessage};
 use sycamore::prelude::*;
+use sycamore_router::navigate;
 
-#[derive(Clone)]
-enum PageEvent {
-	UserBar(UserBarAdminMenuClick),
-}
+#[component]
+pub async fn EventSelectionView<G: Html>(ctx: Scope<'_>) -> View<G> {
+	let message = RequestMessage::ListAvailableEvents;
+	let message_json = match serde_json::to_string(&message) {
+		Ok(msg) => msg,
+		Err(error) => {
+			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
+			error_signal.set(Some(ErrorData::new_with_error(
+				String::from("Failed to serialize event list request (critical internal error)"),
+				error,
+			)));
+			navigate("/error");
+			return view! { ctx, };
+		}
+	};
 
-pub async fn handle_event_selection_page(user_data: &UserData, ws: &mut WebSocket) {
-	'page: loop {
-		let message = RequestMessage::ListAvailableEvents;
-		let message_json = match serde_json::to_string(&message) {
-			Ok(msg) => msg,
-			Err(error) => {
-				sycamore::render(|ctx| {
-					error_message_view(
-						ctx,
-						String::from("Failed to serialize event list request (critical internal error)"),
-						Some(error),
-					)
-				});
-				return;
-			}
-		};
+	let event_list_response: DataMessage<EventSelection> = {
+		let ws_context: &Mutex<WebSocket> = use_context(ctx);
+		let mut ws = ws_context.lock().await;
 		if let Err(error) = ws.send(Message::Text(message_json)).await {
-			sycamore::render(|ctx| {
-				error_message_view(ctx, String::from("Failed to send event list request"), Some(error))
-			});
-			return;
+			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
+			error_signal.set(Some(ErrorData::new_with_error(
+				String::from("Failed to send event list request"),
+				error,
+			)));
+			navigate("/error");
+			return view! { ctx, };
 		}
 
-		let event_list_response: DataMessage<EventSelection> = match read_websocket(ws).await {
+		match read_websocket(&mut ws).await {
 			Ok(msg) => msg,
 			Err(error) => {
-				sycamore::render(|ctx| {
-					error_message_view(ctx, String::from("Failed to receive event list response"), Some(error))
-				});
-				return;
+				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
+				error_signal.set(Some(ErrorData::new_with_error(
+					String::from("Failed to receive event list response"),
+					error,
+				)));
+				navigate("/error");
+				return view! { ctx, };
 			}
-		};
+		}
+	};
 
-		let event_list = match event_list_response {
-			Ok(list) => list,
-			Err(error) => {
-				sycamore::render(|ctx| {
-					error_message_view(
-						ctx,
-						String::from("A server error occurred generating the event list"),
-						Some(error),
-					)
-				});
-				return;
-			}
-		};
+	let event_list = match event_list_response {
+		Ok(list) => list,
+		Err(error) => {
+			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
+			error_signal.set(Some(ErrorData::new_with_error(
+				String::from("A server error occurred generating the event list"),
+				error,
+			)));
+			navigate("/error");
+			return view! { ctx, };
+		}
+	};
 
-		let (page_event_tx, mut page_event_rx) = mpsc::unbounded();
-
-		sycamore::render(|ctx| {
-			let event_signal: &Signal<Option<Event>> = create_signal(ctx, None);
-			let user_bar_click_signal: RcSignal<Option<UserBarAdminMenuClick>> = create_rc_signal(None);
-
-			let event_views = View::new_fragment(
-				event_list
-					.available_events
-					.iter()
-					.map(|event| {
-						let event = event.clone();
-						let event_name = event.name.clone();
-						view! {
-							ctx,
-							li {
-								a(
-									class="click",
-									on:click=move |_| {
-										event_signal.set(Some(event.clone()));
-									}
-								) {
-									(event_name)
-								}
-							}
-						}
-					})
-					.collect(),
-			);
-
-			create_effect(ctx, || {
-				// TODO: Switch to the event page
-			});
-
-			create_effect(ctx, {
-				let user_bar_click_signal = user_bar_click_signal.clone();
-				let page_event_tx = page_event_tx.clone();
-				move || {
-					if let Some(event) = *user_bar_click_signal.get() {
-						if let Err(error) = page_event_tx.unbounded_send(PageEvent::UserBar(event)) {
-							sycamore::render(|ctx| {
-								error_message_view(
-									ctx,
-									String::from("An internal page communication error occurred"),
-									Some(error),
-								)
-							});
+	let event_views = View::new_fragment(
+		event_list
+			.available_events
+			.iter()
+			.map(|event| {
+				let event = event.clone();
+				let event_name = event.name.clone();
+				let event_url = format!("/log/{}", event.id);
+				view! {
+					ctx,
+					li {
+						a(href=event_url) {
+							(event_name)
 						}
 					}
 				}
-			});
+			})
+			.collect(),
+	);
 
-			view! {
-				ctx,
-				UserInfoBar(user_data=Some(user_data), click_signal=user_bar_click_signal)
-				h1 { "Select an event" }
-				ul { (event_views) }
-			}
-		});
-
-		while let Some(page_event) = page_event_rx.next().await {
-			match page_event {
-				PageEvent::UserBar(admin_click) => {
-					handle_admin_menu_click(admin_click, user_data, ws).await;
-					continue 'page;
-				}
-			}
-		}
-		break;
+	view! {
+		ctx,
+		h1 { "Select an event" }
+		ul { (event_views) }
 	}
-
-	let no_error: Option<String> = None;
-	sycamore::render(|ctx| {
-		error_message_view(
-			ctx,
-			String::from("Internal view communication ended prematurely"),
-			no_error,
-		)
-	});
 }

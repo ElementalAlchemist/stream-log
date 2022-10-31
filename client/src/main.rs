@@ -1,83 +1,152 @@
+use futures::lock::Mutex;
 use gloo_net::websocket::futures::WebSocket;
 use stream_log_shared::messages::initial::{InitialMessage, UserDataLoad};
 use stream_log_shared::SYNC_VERSION;
-use sycamore::futures::spawn_local;
+use sycamore::prelude::*;
+use sycamore::suspense::Suspense;
+use sycamore_router::{HistoryIntegration, Route, Router};
 use websocket::websocket_endpoint;
 
+mod components;
 mod pages;
 mod websocket;
-use pages::error::error_message_view;
-use pages::event_selection::handle_event_selection_page;
-use pages::register::handle_registration_page;
+use components::user_info_bar::UserInfoBar;
+use pages::admin::manage_events::AdminManageEventsView;
+use pages::error::{ErrorData, ErrorView};
+use pages::event_selection::EventSelectionView;
+use pages::not_found::NotFoundView;
+use pages::register::RegistrationView;
+use pages::register_complete::RegistrationCompleteView;
 use websocket::read_websocket;
+
+#[derive(Route)]
+enum AppRoutes {
+	#[to("/")]
+	DefaultRedirect,
+	#[to("/register")]
+	Register,
+	#[to("/register_complete")]
+	RegistrationComplete,
+	#[to("/events")]
+	EventSelection,
+	#[to("/log/<id>")]
+	EventLog(String),
+	#[to("/admin/events")]
+	AdminEventManager,
+	#[to("/admin/users")]
+	AdminUserManager,
+	#[to("/admin/groups")]
+	AdminPermissionGroupManager,
+	#[to("/admin/assign_groups")]
+	AdminUserGroupAssignmentManager,
+	#[to("/error")]
+	Error,
+	#[not_found]
+	NotFound,
+}
+
+#[component]
+async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
+	let error_data: Option<ErrorData> = None;
+	provide_context_ref(ctx, create_signal(ctx, error_data));
+
+	let ws = WebSocket::open(websocket_endpoint().as_str());
+	let mut ws = match ws {
+		Ok(ws) => ws,
+		Err(error) => {
+			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
+			error_signal.set(Some(ErrorData::new_with_error(
+				String::from("Unable to load/operate: Failed to form a websocket connection"),
+				error,
+			)));
+			return view! { ctx, ErrorView };
+		}
+	};
+
+	let initial_message: InitialMessage = match read_websocket(&mut ws).await {
+		Ok(msg) => msg,
+		Err(error) => {
+			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
+			error_signal.set(Some(ErrorData::new_with_error(
+				String::from("Unable to load/operate: Failed to read initial info message"),
+				error,
+			)));
+			return view! { ctx, ErrorView };
+		}
+	};
+
+	if initial_message.sync_version != SYNC_VERSION {
+		let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
+		error_signal.set(Some(ErrorData::new(String::from("A mismatch in communication protocols occurred between the lient and the server. Please refresh the page. If the problem persists, please contact an administrator."))));
+		return view! { ctx, ErrorView };
+	}
+
+	let user_data = match initial_message.user_data {
+		UserDataLoad::User(user_data) => Some(user_data),
+		UserDataLoad::NewUser => None,
+		UserDataLoad::MissingId => {
+			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
+			error_signal.set(Some(ErrorData::new(String::from(
+				"An error occurred reading user data. Please log in again.",
+			))));
+			return view! { ctx, ErrorView };
+		}
+		UserDataLoad::Error => {
+			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
+			error_signal.set(Some(ErrorData::new(String::from(
+				"An error occurred with logging in. Please contact an administrator regarding this issue.",
+			))));
+			return view! { ctx, ErrorView };
+		}
+	};
+	provide_context_ref(ctx, create_signal(ctx, user_data));
+
+	// Assuming the WASM client for this might multithread at any point in the future is probably way overkill.
+	// That said, we need to await for any websocket operations anyway, so a locking wrapper doesn't hurt us.
+	// Since contention is unlikely, this shouldn't introduce any significant delay.
+	let ws = Mutex::new(ws);
+	provide_context(ctx, ws);
+
+	view! {
+		ctx,
+		UserInfoBar
+		Router(
+			integration=HistoryIntegration::new(),
+			view=|ctx, route: &ReadSignal<AppRoutes>| {
+				view! {
+					ctx,
+					(match route.get().as_ref() {
+						AppRoutes::DefaultRedirect => todo!(),
+						AppRoutes::Register => view! { ctx, RegistrationView },
+						AppRoutes::RegistrationComplete => view! { ctx, RegistrationCompleteView },
+						AppRoutes::EventSelection => view! { ctx, EventSelectionView },
+						AppRoutes::EventLog(id) => todo!(),
+						AppRoutes::AdminEventManager => view! { ctx, AdminManageEventsView },
+						AppRoutes::AdminUserManager => todo!(),
+						AppRoutes::AdminPermissionGroupManager => todo!(),
+						AppRoutes::AdminUserGroupAssignmentManager => todo!(),
+						AppRoutes::Error => view! { ctx, ErrorView },
+						AppRoutes::NotFound => view! { ctx, NotFoundView }
+					})
+				}
+			}
+		)
+	}
+}
 
 fn main() {
 	console_error_panic_hook::set_once();
 
-	spawn_local(async {
-		let ws = WebSocket::open(websocket_endpoint().as_str());
-		let mut ws = match ws {
-			Ok(ws) => ws,
-			Err(error) => {
-				sycamore::render(|ctx| {
-					error_message_view(
-						ctx,
-						String::from("Unable to load/operate: Failed to form a websocket connection"),
-						Some(error),
-					)
-				});
-				return;
-			}
-		};
-
-		let initial_message: InitialMessage = match read_websocket(&mut ws).await {
-			Ok(msg) => msg,
-			Err(error) => {
-				sycamore::render(|ctx| {
-					error_message_view(
-						ctx,
-						String::from("Unable to load/operate: Failed to read initial info message"),
-						Some(error),
-					)
-				});
-				return;
-			}
-		};
-
-		if initial_message.sync_version != SYNC_VERSION {
-			sycamore::render(|ctx| {
-				let no_error: Option<String> = None;
-				error_message_view(ctx, String::from("A mismatch in communication protocols occurred between the client and the server. Please refresh the page. If the problem persists, please contact an administrator."), no_error)
-			});
-			return;
-		}
-
-		match initial_message.user_data {
-			UserDataLoad::User(user_data) => {
-				handle_event_selection_page(&user_data, &mut ws).await;
-			}
-			UserDataLoad::NewUser => handle_registration_page(ws).await,
-			UserDataLoad::MissingId => {
-				sycamore::render(|ctx| {
-					let no_error: Option<String> = None;
-					error_message_view(
-						ctx,
-						String::from("An error occurred reading user data. Please log in again."),
-						no_error,
-					)
-				});
-			}
-			UserDataLoad::Error => {
-				sycamore::render(|ctx| {
-					let no_error: Option<String> = None;
-					error_message_view(
-						ctx,
-						String::from(
-							"An error occurred with logging in. Please contact an administrator regarding this issue.",
-						),
-						no_error,
-					)
-				});
+	sycamore::render(|ctx| {
+		view! {
+			ctx,
+			Suspense(
+				fallback=view! {
+					ctx,
+					"Causing the enloadening..."
+				}
+			) {
+				App
 			}
 		}
 	});
