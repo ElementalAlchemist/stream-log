@@ -17,6 +17,7 @@ use pages::event_selection::EventSelectionView;
 use pages::not_found::NotFoundView;
 use pages::register::RegistrationView;
 use pages::register_complete::RegistrationCompleteView;
+use pages::start_redirect::StartRedirectView;
 use websocket::read_websocket;
 
 #[derive(Route)]
@@ -116,7 +117,7 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 				view! {
 					ctx,
 					(match route.get().as_ref() {
-						AppRoutes::DefaultRedirect => todo!(),
+						AppRoutes::DefaultRedirect => view! { ctx, StartRedirectView },
 						AppRoutes::Register => view! { ctx, RegistrationView },
 						AppRoutes::RegistrationComplete => view! { ctx, RegistrationCompleteView },
 						AppRoutes::EventSelection => view! { ctx, EventSelectionView },
