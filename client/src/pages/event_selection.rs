@@ -1,4 +1,4 @@
-use super::error::ErrorData;
+use super::error::{ErrorData, ErrorView};
 use crate::websocket::read_websocket;
 use futures::lock::Mutex;
 use futures::SinkExt;
@@ -7,7 +7,6 @@ use gloo_net::websocket::Message;
 use stream_log_shared::messages::events::EventSelection;
 use stream_log_shared::messages::{DataMessage, RequestMessage};
 use sycamore::prelude::*;
-use sycamore_router::navigate;
 
 #[component]
 pub async fn EventSelectionView<G: Html>(ctx: Scope<'_>) -> View<G> {
@@ -22,7 +21,6 @@ pub async fn EventSelectionView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				String::from("Failed to serialize event list request (critical internal error)"),
 				error,
 			)));
-			navigate("/error");
 			return view! { ctx, };
 		}
 	};
@@ -36,8 +34,7 @@ pub async fn EventSelectionView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				String::from("Failed to send event list request"),
 				error,
 			)));
-			navigate("/error");
-			return view! { ctx, };
+			return view! { ctx, ErrorView };
 		}
 
 		match read_websocket(&mut ws).await {
@@ -48,8 +45,7 @@ pub async fn EventSelectionView<G: Html>(ctx: Scope<'_>) -> View<G> {
 					String::from("Failed to receive event list response"),
 					error,
 				)));
-				navigate("/error");
-				return view! { ctx, };
+				return view! { ctx, ErrorView };
 			}
 		}
 	};
@@ -62,8 +58,7 @@ pub async fn EventSelectionView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				String::from("A server error occurred generating the event list"),
 				error,
 			)));
-			navigate("/error");
-			return view! { ctx, };
+			return view! { ctx, ErrorView };
 		}
 	};
 

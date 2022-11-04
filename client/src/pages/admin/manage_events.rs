@@ -1,4 +1,4 @@
-use crate::pages::error::ErrorData;
+use crate::pages::error::{ErrorData, ErrorView};
 use crate::websocket::read_websocket;
 use futures::lock::Mutex;
 use futures::SinkExt;
@@ -30,7 +30,6 @@ async fn get_event_list(ctx: Scope<'_>) -> Result<Vec<Event>, ()> {
 				String::from("Failed to serialize request for event list"),
 				error,
 			)));
-			navigate("/error");
 			return Err(());
 		}
 	};
@@ -40,7 +39,6 @@ async fn get_event_list(ctx: Scope<'_>) -> Result<Vec<Event>, ()> {
 			String::from("Failed to send request for event list"),
 			error,
 		)));
-		navigate("/error");
 		return Err(());
 	}
 
@@ -53,7 +51,6 @@ async fn get_event_list(ctx: Scope<'_>) -> Result<Vec<Event>, ()> {
 				String::from("Failed to receive event list"),
 				error,
 			)));
-			navigate("/error");
 			return Err(());
 		}
 	};
@@ -65,7 +62,6 @@ async fn get_event_list(ctx: Scope<'_>) -> Result<Vec<Event>, ()> {
 				String::from("Failed to generate the event list"),
 				error,
 			)));
-			navigate("/error");
 			Err(())
 		}
 	}
@@ -79,19 +75,19 @@ pub async fn AdminManageEventsView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	match user_signal.get().as_ref() {
 		Some(user) => {
 			if !user.is_admin {
-				navigate("/");
+				spawn_local_scoped(ctx, async { navigate("/") });
 				return view! { ctx, };
 			}
 		}
 		None => {
-			navigate("/");
+			spawn_local_scoped(ctx, async { navigate("/") });
 			return view! { ctx, };
 		}
 	}
 
 	let event_list = match get_event_list(ctx).await {
 		Ok(events) => events,
-		Err(_) => return view! { ctx, },
+		Err(_) => return view! { ctx, ErrorView },
 	};
 
 	let event_list = create_signal(ctx, event_list);
