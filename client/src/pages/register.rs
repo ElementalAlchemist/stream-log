@@ -22,6 +22,8 @@ enum PageTask {
 
 #[component]
 pub async fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
+	log::debug!("Activating registration page");
+
 	let username_signal = create_signal(ctx, String::new());
 	let username_in_use_signal = create_signal(ctx, false);
 	let username_empty_signal = create_signal(ctx, false); // This shouldn't be visible until some user entry happens

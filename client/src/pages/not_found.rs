@@ -2,6 +2,8 @@ use sycamore::prelude::*;
 
 #[component]
 pub fn NotFoundView<G: Html>(ctx: Scope) -> View<G> {
+	log::debug!("Activating fallback page for unknown location");
+
 	view! {
 		ctx,
 		h1 { "Not found!" }

@@ -73,6 +73,8 @@ async fn get_event_list(ctx: Scope<'_>) -> Result<Vec<Event>, ()> {
 
 #[component]
 pub async fn AdminManageEventsView<G: Html>(ctx: Scope<'_>) -> View<G> {
+	log::debug!("Activating admin events management page");
+
 	let user_signal: &Signal<Option<UserData>> = use_context(ctx);
 	match user_signal.get().as_ref() {
 		Some(user) => {

@@ -2,6 +2,8 @@ use sycamore::prelude::*;
 
 #[component]
 pub fn RegistrationCompleteView<G: Html>(ctx: Scope) -> View<G> {
+	log::debug!("Activating registration complete page");
+
 	view! {
 		ctx,
 		div(id="register_complete") {

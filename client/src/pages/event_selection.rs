@@ -11,6 +11,8 @@ use sycamore_router::navigate;
 
 #[component]
 pub async fn EventSelectionView<G: Html>(ctx: Scope<'_>) -> View<G> {
+	log::debug!("Activating event selection page");
+
 	let message = RequestMessage::ListAvailableEvents;
 	let message_json = match serde_json::to_string(&message) {
 		Ok(msg) => msg,

@@ -20,7 +20,7 @@ use pages::register_complete::RegistrationCompleteView;
 use pages::start_redirect::StartRedirectView;
 use websocket::read_websocket;
 
-#[derive(Route)]
+#[derive(Debug, Route)]
 enum AppRoutes {
 	#[to("/")]
 	DefaultRedirect,
@@ -114,6 +114,7 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 		Router(
 			integration=HistoryIntegration::new(),
 			view=|ctx, route: &ReadSignal<AppRoutes>| {
+				log::info!("Navigating to route: {:?}", route.get());
 				view! {
 					ctx,
 					(match route.get().as_ref() {
@@ -137,6 +138,7 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 fn main() {
 	console_error_panic_hook::set_once();
+	wasm_logger::init(wasm_logger::Config::default());
 
 	sycamore::render(|ctx| {
 		view! {

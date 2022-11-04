@@ -23,6 +23,8 @@ impl ErrorData {
 
 #[component]
 pub fn ErrorView<G: Html>(ctx: Scope) -> View<G> {
+	log::debug!("Activating error page");
+
 	let error_data: &Option<ErrorData> = use_context(ctx);
 
 	let error_message = if let Some(error) = error_data.clone() {
