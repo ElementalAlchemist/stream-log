@@ -3,7 +3,7 @@ use async_std::sync::{Arc, Mutex};
 use miette::IntoDiagnostic;
 use tide::http::cookies::SameSite;
 use tide::sessions::{MemoryStore, SessionMiddleware};
-use tide::Body;
+use tide::{Body, Server};
 use tide_openidconnect::{
 	ClientId, ClientSecret, IssuerUrl, OpenIdConnectMiddleware, OpenIdConnectRouteExt, RedirectUrl,
 };
@@ -29,6 +29,13 @@ mod models;
 mod schema;
 
 embed_migrations!();
+
+fn establish_alternate_route(app: &mut Server<()>, path: &str) -> miette::Result<()> {
+	app.at(path)
+		.authenticated()
+		.serve_file("static/index.html")
+		.into_diagnostic()
+}
 
 #[async_std::main]
 async fn main() -> miette::Result<()> {
@@ -72,6 +79,16 @@ async fn main() -> miette::Result<()> {
 		.get(|_| async { Ok(Body::from_file("static/index.html").await?) })
 		.serve_dir("static/")
 		.into_diagnostic()?;
+
+	establish_alternate_route(&mut app, "/register")?;
+	establish_alternate_route(&mut app, "/register_complete")?;
+	establish_alternate_route(&mut app, "/events")?;
+	establish_alternate_route(&mut app, "/log/:id")?;
+	establish_alternate_route(&mut app, "/admin/events")?;
+	establish_alternate_route(&mut app, "/admin/users")?;
+	establish_alternate_route(&mut app, "/admin/groups")?;
+	establish_alternate_route(&mut app, "/admin/assign_groups")?;
+	establish_alternate_route(&mut app, "/error")?;
 
 	app.listen(&config.listen.addr).await.into_diagnostic()?;
 

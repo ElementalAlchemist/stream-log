@@ -3,6 +3,7 @@ use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::{Message, WebSocketError};
 use serde::de::DeserializeOwned;
 use std::fmt::Display;
+use wasm_bindgen::JsCast;
 use web_sys::Url;
 
 /// Errors that can occur when reading data from a WebSocket connection
@@ -43,10 +44,15 @@ impl From<WebSocketError> for WebSocketReadError {
 ///
 /// This function panics when the browser context (window, location, URL, etc.) is inaccessible.
 pub fn websocket_endpoint() -> String {
-	let js_location = web_sys::window()
+	let doc = web_sys::window()
 		.expect("Failed to get browser window context")
-		.location();
-	let web_endpoint = js_location.href().expect("Failed to get current address");
+		.document()
+		.expect("Failed to get webpage document root");
+	let doc_node: web_sys::Node = doc.unchecked_into();
+	let web_endpoint = doc_node
+		.base_uri()
+		.expect("Failed to get base address")
+		.expect("Failed to get base address");
 	let url = Url::new(&web_endpoint).expect("Failed to generate URL instance");
 	url.set_search(""); // Query string is unnecessary and should be cleared
 	if url.protocol() == "http:" {
