@@ -1,14 +1,21 @@
-table! {
-	use crate::diesel_types::*;
+// @generated automatically by Diesel CLI.
 
+pub mod sql_types {
+	#[derive(diesel::sql_types::SqlType)]
+	#[diesel(postgres_type(name = "permission"))]
+	pub struct Permission;
+}
+
+diesel::table! {
 	events (id) {
 		id -> Text,
 		name -> Text,
 	}
 }
 
-table! {
-	use crate::diesel_types::*;
+diesel::table! {
+	use diesel::sql_types::*;
+	use super::sql_types::Permission;
 
 	permission_events (permission_group, event) {
 		permission_group -> Text,
@@ -17,27 +24,21 @@ table! {
 	}
 }
 
-table! {
-	use crate::diesel_types::*;
-
+diesel::table! {
 	permission_groups (id) {
 		id -> Text,
 		name -> Text,
 	}
 }
 
-table! {
-	use crate::diesel_types::*;
-
+diesel::table! {
 	user_permissions (user_id, permission_group) {
 		user_id -> Text,
 		permission_group -> Text,
 	}
 }
 
-table! {
-	use crate::diesel_types::*;
-
+diesel::table! {
 	users (id) {
 		id -> Text,
 		openid_user_id -> Text,
@@ -46,9 +47,9 @@ table! {
 	}
 }
 
-joinable!(permission_events -> events (event));
-joinable!(permission_events -> permission_groups (permission_group));
-joinable!(user_permissions -> permission_groups (permission_group));
-joinable!(user_permissions -> users (user_id));
+diesel::joinable!(permission_events -> events (event));
+diesel::joinable!(permission_events -> permission_groups (permission_group));
+diesel::joinable!(user_permissions -> permission_groups (permission_group));
+diesel::joinable!(user_permissions -> users (user_id));
 
-allow_tables_to_appear_in_same_query!(events, permission_events, permission_groups, user_permissions, users,);
+diesel::allow_tables_to_appear_in_same_query!(events, permission_events, permission_groups, user_permissions, users,);

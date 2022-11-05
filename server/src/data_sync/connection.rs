@@ -30,10 +30,10 @@ pub async fn handle_connection(
 	};
 
 	let results = {
-		let connection = db_connection.lock().await;
+		let mut db_connection = db_connection.lock().await;
 		users::table
 			.filter(users::openid_user_id.eq(&openid_user_id))
-			.load::<User>(&*connection)
+			.load::<User>(&mut *db_connection)
 	};
 
 	let user = match results {

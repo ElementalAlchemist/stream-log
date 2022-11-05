@@ -20,19 +20,13 @@ mod data_sync;
 use data_sync::connection::handle_connection;
 
 mod database;
-use database::connect_db;
+use database::{connect_db, run_embedded_migrations};
 
 mod websocket_msg;
 
-#[macro_use]
-extern crate diesel;
-#[macro_use]
-extern crate diesel_migrations;
 mod diesel_types;
 mod models;
 mod schema;
-
-embed_migrations!();
 
 fn establish_alternate_route(app: &mut Server<()>, path: &str) -> miette::Result<()> {
 	app.at(path)
@@ -47,8 +41,8 @@ async fn main() -> miette::Result<()> {
 
 	let config = Arc::new(parse_config(&args.config)?);
 
-	let db_connection = connect_db(&config)?;
-	embedded_migrations::run(&db_connection).into_diagnostic()?;
+	let mut db_connection = connect_db(&config)?;
+	run_embedded_migrations(&mut db_connection)?;
 
 	if args.migrations_only {
 		return Ok(());

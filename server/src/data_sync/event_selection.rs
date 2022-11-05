@@ -14,14 +14,14 @@ pub async fn send_events(
 	user: &models::User,
 ) -> Result<(), HandleConnectionError> {
 	let user_events: QueryResult<Vec<models::Event>> = {
-		let db_connection = db_connection.lock().await;
+		let mut db_connection = db_connection.lock().await;
 		user_permissions::table
 			.filter(user_permissions::user_id.eq(&user.id))
 			.inner_join(permission_groups::table)
 			.inner_join(permission_events::table.on(permission_groups::id.eq(permission_events::permission_group)))
 			.inner_join(events::table.on(permission_events::event.eq(events::id)))
 			.select(events::table.default_selection())
-			.load(&*db_connection)
+			.load(&mut *db_connection)
 	};
 	match user_events {
 		Ok(results) => {

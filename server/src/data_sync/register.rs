@@ -45,8 +45,8 @@ pub async fn register_user(
 					continue;
 				}
 				let check_results: QueryResult<Vec<User>> = {
-					let db_connection = db_connection.lock().await;
-					users::table.filter(users::name.eq(&username)).load(&*db_connection)
+					let mut db_connection = db_connection.lock().await;
+					users::table.filter(users::name.eq(&username)).load(&mut *db_connection)
 				};
 				let message = match check_results {
 					Ok(data) => {
@@ -89,10 +89,10 @@ pub async fn register_user(
 				};
 
 				let user_result: QueryResult<User> = {
-					let db_connection = db_connection.lock().await;
-					db_connection.transaction(|| {
+					let mut db_connection = db_connection.lock().await;
+					db_connection.transaction(|db_connection| {
 						let initial_user_check: Vec<String> =
-							users::table.select(users::id).limit(1).load(&*db_connection)?;
+							users::table.select(users::id).limit(1).load(db_connection)?;
 						let has_users = !initial_user_check.is_empty();
 
 						// If this is the first account, it should be an administrator account so that there can be an administrator
@@ -108,7 +108,7 @@ pub async fn register_user(
 
 						let user_record: User = diesel::insert_into(users::table)
 							.values(&new_user)
-							.get_result(&*db_connection)?;
+							.get_result(db_connection)?;
 						Ok(user_record)
 					})
 				};
