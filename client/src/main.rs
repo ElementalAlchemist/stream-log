@@ -17,19 +17,16 @@ use pages::event_selection::EventSelectionView;
 use pages::not_found::NotFoundView;
 use pages::register::RegistrationView;
 use pages::register_complete::RegistrationCompleteView;
-use pages::start_redirect::StartRedirectView;
 use websocket::read_websocket;
 
 #[derive(Debug, Route)]
 enum AppRoutes {
 	#[to("/")]
-	DefaultRedirect,
+	EventSelection,
 	#[to("/register")]
 	Register,
 	#[to("/register_complete")]
 	RegistrationComplete,
-	#[to("/events")]
-	EventSelection,
 	#[to("/log/<id>")]
 	EventLog(String),
 	#[to("/admin/events")]
@@ -118,10 +115,9 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 				view! {
 					ctx,
 					(match route.get().as_ref() {
-						AppRoutes::DefaultRedirect => view! { ctx, StartRedirectView },
+						AppRoutes::EventSelection => view! { ctx, EventSelectionView },
 						AppRoutes::Register => view! { ctx, RegistrationView },
 						AppRoutes::RegistrationComplete => view! { ctx, RegistrationCompleteView },
-						AppRoutes::EventSelection => view! { ctx, EventSelectionView },
 						AppRoutes::EventLog(id) => todo!(),
 						AppRoutes::AdminEventManager => view! { ctx, AdminManageEventsView },
 						AppRoutes::AdminUserManager => todo!(),

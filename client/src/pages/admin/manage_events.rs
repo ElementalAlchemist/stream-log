@@ -75,19 +75,22 @@ pub async fn AdminManageEventsView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	match user_signal.get().as_ref() {
 		Some(user) => {
 			if !user.is_admin {
-				spawn_local_scoped(ctx, async { navigate("/") });
+				spawn_local_scoped(ctx, async {
+					navigate("/");
+				});
 				return view! { ctx, };
 			}
 		}
 		None => {
-			spawn_local_scoped(ctx, async { navigate("/") });
+			spawn_local_scoped(ctx, async {
+				navigate("/register");
+			});
 			return view! { ctx, };
 		}
 	}
 
-	let event_list = match get_event_list(ctx).await {
-		Ok(events) => events,
-		Err(_) => return view! { ctx, ErrorView },
+	let Ok(event_list) = get_event_list(ctx).await else {
+		return view! { ctx, ErrorView };
 	};
 
 	let event_list = create_signal(ctx, event_list);

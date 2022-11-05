@@ -5,12 +5,25 @@ use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
 use stream_log_shared::messages::events::EventSelection;
+use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::{DataMessage, RequestMessage};
+use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
+use sycamore_router::navigate;
 
 #[component]
 pub async fn EventSelectionView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	log::debug!("Activating event selection page");
+
+	{
+		let user_signal: &Signal<Option<UserData>> = use_context(ctx);
+		if user_signal.get().is_none() {
+			spawn_local_scoped(ctx, async {
+				navigate("/register");
+			});
+			return view! { ctx, };
+		}
+	}
 
 	let message = RequestMessage::ListAvailableEvents;
 	let message_json = match serde_json::to_string(&message) {
