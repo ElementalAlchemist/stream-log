@@ -154,7 +154,7 @@ pub async fn AdminManageEventsView<G: Html>(ctx: Scope<'_>) -> View<G> {
 					let ws_context: &Mutex<WebSocket> = use_context(ctx);
 					let mut ws = ws_context.lock().await;
 					match ws.send(Message::Text(message_json)).await {
-						Ok(_) => navigate("/events"),
+						Ok(_) => navigate("/"),
 						Err(error) => {
 							let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 							error_signal.set(Some(ErrorData::new_with_error(

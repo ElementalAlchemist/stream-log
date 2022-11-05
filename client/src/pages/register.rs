@@ -61,7 +61,12 @@ pub async fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				Ok(msg) => msg,
 				Err(error) => {
 					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-					error_signal.set(Some(ErrorData::new_with_error(String::from("Failed to serialize registration message. Ensure your username is valid and try again."), error)));
+					error_signal.set(Some(ErrorData::new_with_error(
+						String::from(
+							"Failed to serialize registration message. Ensure your username is valid and try again.",
+						),
+						error,
+					)));
 					navigate("/error");
 					return;
 				}
