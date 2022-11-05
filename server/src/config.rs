@@ -2,9 +2,9 @@ use knuffel::Decode;
 use miette::{IntoDiagnostic, Result};
 use std::fs;
 
-pub fn parse_config() -> Result<ConfigDocument> {
-	let config_file_contents = fs::read_to_string("config.kdl").into_diagnostic()?;
-	let config = knuffel::parse("config.kdl", &config_file_contents)?;
+pub fn parse_config(config_path: &str) -> Result<ConfigDocument> {
+	let config_file_contents = fs::read_to_string(config_path).into_diagnostic()?;
+	let config = knuffel::parse(config_path, &config_file_contents)?;
 	Ok(config)
 }
 

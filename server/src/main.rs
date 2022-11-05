@@ -45,7 +45,7 @@ fn establish_alternate_route(app: &mut Server<()>, path: &str) -> miette::Result
 async fn main() -> miette::Result<()> {
 	let args = CliArgs::parse();
 
-	let config = Arc::new(parse_config()?);
+	let config = Arc::new(parse_config(&args.config)?);
 
 	let db_connection = connect_db(&config)?;
 	embedded_migrations::run(&db_connection).into_diagnostic()?;
@@ -55,7 +55,7 @@ async fn main() -> miette::Result<()> {
 	}
 
 	tide::log::start();
-	
+
 	let db_connection = Arc::new(Mutex::new(db_connection));
 
 	let mut app = tide::new();
