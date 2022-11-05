@@ -13,6 +13,7 @@ use stream_log_shared::messages::DataMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use sycamore_router::navigate;
+use web_sys::Event as WebEvent;
 
 #[component]
 pub async fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
@@ -42,7 +43,9 @@ pub async fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	// Username error class signal determines what the class of the username field should be based on whether there's an error
 	let username_error_class_signal = create_memo(ctx, || if *username_error_signal.get() { "error" } else { "" });
 
-	let form_submission_handler = move |_| {
+	let form_submission_handler = move |event: WebEvent| {
+		event.prevent_default();
+
 		let username = username_signal.get();
 		if username.is_empty() {
 			username_empty_signal.set(true);
