@@ -1,8 +1,7 @@
 use super::error::ErrorData;
 use crate::websocket::read_websocket;
-use futures::channel::mpsc;
 use futures::lock::Mutex;
-use futures::{SinkExt, StreamExt};
+use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
 use stream_log_shared::messages::user::UserData;
@@ -14,11 +13,6 @@ use stream_log_shared::messages::DataMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use sycamore_router::navigate;
-
-enum PageTask {
-	CheckUsername(String),
-	SubmitRegistration(UserRegistrationFinalize),
-}
 
 #[component]
 pub async fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
@@ -48,170 +42,149 @@ pub async fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	// Username error class signal determines what the class of the username field should be based on whether there's an error
 	let username_error_class_signal = create_memo(ctx, || if *username_error_signal.get() { "error" } else { "" });
 
-	let (form_tx, mut form_rx) = mpsc::unbounded();
+	let form_submission_handler = move |_| {
+		let username = username_signal.get();
+		if username.is_empty() {
+			username_empty_signal.set(true);
+			return;
+		}
+		let registration_data = UserRegistrationFinalize {
+			name: (*username).clone(),
+		};
 
-	let form_submission_handler = {
-		let form_tx = form_tx.clone();
-		move |_| {
-			let username = username_signal.get();
-			if username.is_empty() {
-				username_empty_signal.set(true);
-				return;
-			}
-			let registration_data = UserRegistrationFinalize {
-				name: (*username).clone(),
+		spawn_local_scoped(ctx, async move {
+			let ws_context: &Mutex<WebSocket> = use_context(ctx);
+			let mut ws = ws_context.lock().await;
+
+			let message = UserRegistration::Finalize(registration_data);
+			let message_json = match serde_json::to_string(&message) {
+				Ok(msg) => msg,
+				Err(error) => {
+					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
+					error_signal.set(Some(ErrorData::new_with_error(String::from("Failed to serialize registration message. Ensure your username is valid and try again."), error)));
+					navigate("/error");
+					return;
+				}
 			};
-			if let Err(error) = form_tx.unbounded_send(PageTask::SubmitRegistration(registration_data)) {
+
+			if let Err(error) = ws.send(Message::Text(message_json)).await {
 				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 				error_signal.set(Some(ErrorData::new_with_error(
-					String::from("An internal communication error occurred"),
+					String::from("Failed to send registration message"),
 					error,
 				)));
 				navigate("/error");
+				return;
 			}
-		}
+
+			let response: DataMessage<RegistrationResponse> = match read_websocket(&mut ws).await {
+				Ok(data) => data,
+				Err(error) => {
+					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
+					error_signal.set(Some(ErrorData::new_with_error(
+						String::from("Failed to receive registration response"),
+						error,
+					)));
+					navigate("/error");
+					return;
+				}
+			};
+
+			let response = match response {
+				Ok(resp) => resp,
+				Err(error) => {
+					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
+					error_signal.set(Some(ErrorData::new_with_error(
+						String::from("A server error occurred during registration."),
+						error,
+					)));
+					navigate("/error");
+					return;
+				}
+			};
+
+			match response {
+				RegistrationResponse::Success(user) => {
+					let user_data_signal: &Signal<Option<UserData>> = use_context(ctx);
+					user_data_signal.set(Some(user));
+					navigate("/register_complete");
+				}
+				RegistrationResponse::NoUsernameSpecified => username_empty_signal.set(true),
+				RegistrationResponse::UsernameInUse => username_in_use_signal.set(true),
+				RegistrationResponse::UsernameTooLong => username_too_long_signal.set(true),
+			}
+		});
 	};
 
 	create_effect(ctx, move || {
-		let new_username = (*username_signal.get()).clone();
+		let username = (*username_signal.get()).clone();
 		// The username was modified, so clear submit-only errors
-		username_empty_signal.set(new_username.is_empty());
-		username_too_long_signal.set(new_username.len() > USERNAME_LENGTH_LIMIT);
+		username_empty_signal.set(username.is_empty());
+		username_too_long_signal.set(username.len() > USERNAME_LENGTH_LIMIT);
 
-		if let Err(error) = form_tx.unbounded_send(PageTask::CheckUsername(new_username)) {
-			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-			error_signal.set(Some(ErrorData::new_with_error(
-				String::from("An internal communication error occurred"),
-				error,
-			)));
-			navigate("/error");
+		if username.is_empty() {
+			username_in_use_signal.set(false);
+			return;
 		}
-	});
 
-	spawn_local_scoped(ctx, async move {
-		while let Some(task) = form_rx.next().await {
-			match task {
-				PageTask::CheckUsername(username) => {
-					if username.is_empty() {
-						username_empty_signal.set(true);
-						username_in_use_signal.set(false);
-						continue;
-					}
-					username_empty_signal.set(false);
+		spawn_local_scoped(ctx, async move {
+			let ws_context: &Mutex<WebSocket> = use_context(ctx);
+			let mut ws = ws_context.lock().await;
 
-					let ws_context: &Mutex<WebSocket> = use_context(ctx);
-					let mut ws = ws_context.lock().await;
-
-					let message = UserRegistration::CheckUsername(username);
-					let message_json = match serde_json::to_string(&message) {
-						Ok(msg) => msg,
-						Err(error) => {
-							let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-							error_signal.set(Some(ErrorData::new_with_error(String::from("Failed to serialize username availability check. Ensure your username is valid and try again."), error)));
-							navigate("/error");
-							break;
-						}
-					};
-					if let Err(error) = ws.send(Message::Text(message_json)).await {
-						let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-						error_signal.set(Some(ErrorData::new_with_error(
-							String::from("Failed to send username availability check message."),
-							error,
-						)));
-						navigate("/error");
-						break;
-					}
-					let response: DataMessage<UsernameCheckResponse> = match read_websocket(&mut ws).await {
-						Ok(data) => data,
-						Err(error) => {
-							let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-							error_signal.set(Some(ErrorData::new_with_error(
-								String::from("Failed to receive username availability check response."),
-								error,
-							)));
-							navigate("/error");
-							break;
-						}
-					};
-					let response = match response {
-						Ok(resp) => resp,
-						Err(error) => {
-							let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-							error_signal.set(Some(ErrorData::new_with_error(
-								String::from("A server error occurred checking username availability."),
-								error,
-							)));
-							navigate("/error");
-							break;
-						}
-					};
-					if *username_signal.get() == response.username {
-						match response.status {
-							UsernameCheckStatus::Available => username_in_use_signal.set(false),
-							UsernameCheckStatus::Unavailable => username_in_use_signal.set(true),
-						}
-					}
+			let message = UserRegistration::CheckUsername(username);
+			let message_json = match serde_json::to_string(&message) {
+				Ok(msg) => msg,
+				Err(error) => {
+					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
+					error_signal.set(Some(ErrorData::new_with_error(String::from("Failed to serialize username availability check. Ensure your username is valid and try again."), error)));
+					navigate("/error");
+					return;
 				}
-				PageTask::SubmitRegistration(registration_data) => {
-					let ws_context: &Mutex<WebSocket> = use_context(ctx);
-					let mut ws = ws_context.lock().await;
+			};
 
-					let message = UserRegistration::Finalize(registration_data);
-					let message_json = match serde_json::to_string(&message) {
-						Ok(msg) => msg,
-						Err(error) => {
-							let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-							error_signal.set(Some(ErrorData::new_with_error(String::from("Failed to serialize registration message. Ensure your username is valid and try again."), error)));
-							navigate("/error");
-							break;
-						}
-					};
-					if let Err(error) = ws.send(Message::Text(message_json)).await {
-						let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-						error_signal.set(Some(ErrorData::new_with_error(
-							String::from("Failed to send registration message"),
-							error,
-						)));
-						navigate("/error");
-						break;
-					}
-					let response: DataMessage<RegistrationResponse> = match read_websocket(&mut ws).await {
-						Ok(data) => data,
-						Err(error) => {
-							let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-							error_signal.set(Some(ErrorData::new_with_error(
-								String::from("Failed to receive registration response"),
-								error,
-							)));
-							navigate("/error");
-							break;
-						}
-					};
-					let response = match response {
-						Ok(resp) => resp,
-						Err(error) => {
-							let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-							error_signal.set(Some(ErrorData::new_with_error(
-								String::from("A server error occurred during registration."),
-								error,
-							)));
-							navigate("/error");
-							break;
-						}
-					};
-					match response {
-						RegistrationResponse::Success(user) => {
-							let user_data_signal: &Signal<Option<UserData>> = use_context(ctx);
-							user_data_signal.set(Some(user));
-							navigate("/register_complete");
-						}
-						RegistrationResponse::NoUsernameSpecified => username_empty_signal.set(true),
-						RegistrationResponse::UsernameInUse => username_in_use_signal.set(true),
-						RegistrationResponse::UsernameTooLong => username_too_long_signal.set(true),
-					}
+			if let Err(error) = ws.send(Message::Text(message_json)).await {
+				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
+				error_signal.set(Some(ErrorData::new_with_error(
+					String::from("Failed to send username availability check message."),
+					error,
+				)));
+				navigate("/error");
+				return;
+			}
+
+			let response: DataMessage<UsernameCheckResponse> = match read_websocket(&mut ws).await {
+				Ok(data) => data,
+				Err(error) => {
+					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
+					error_signal.set(Some(ErrorData::new_with_error(
+						String::from("Failed to receive username availability check response."),
+						error,
+					)));
+					navigate("/error");
+					return;
+				}
+			};
+
+			let response = match response {
+				Ok(resp) => resp,
+				Err(error) => {
+					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
+					error_signal.set(Some(ErrorData::new_with_error(
+						String::from("A server error occurred checking username availability."),
+						error,
+					)));
+					navigate("/error");
+					return;
+				}
+			};
+
+			if *username_signal.get() == response.username {
+				match response.status {
+					UsernameCheckStatus::Available => username_in_use_signal.set(false),
+					UsernameCheckStatus::Unavailable => username_in_use_signal.set(true),
 				}
 			}
-		}
+		});
 	});
 
 	view! {
