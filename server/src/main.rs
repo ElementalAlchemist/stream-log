@@ -1,5 +1,6 @@
 use async_std::fs;
 use async_std::sync::{Arc, Mutex};
+use clap::Parser;
 use miette::IntoDiagnostic;
 use tide::http::cookies::SameSite;
 use tide::sessions::{MemoryStore, SessionMiddleware};
@@ -8,6 +9,9 @@ use tide_openidconnect::{
 	ClientId, ClientSecret, IssuerUrl, OpenIdConnectMiddleware, OpenIdConnectRouteExt, RedirectUrl,
 };
 use tide_websockets::WebSocket;
+
+mod args;
+use args::CliArgs;
 
 mod config;
 use config::parse_config;
@@ -39,12 +43,19 @@ fn establish_alternate_route(app: &mut Server<()>, path: &str) -> miette::Result
 
 #[async_std::main]
 async fn main() -> miette::Result<()> {
-	let config = Arc::new(parse_config()?);
+	let args = CliArgs::parse();
 
-	tide::log::start();
+	let config = Arc::new(parse_config()?);
 
 	let db_connection = connect_db(&config)?;
 	embedded_migrations::run(&db_connection).into_diagnostic()?;
+
+	if args.migrations_only {
+		return Ok(());
+	}
+
+	tide::log::start();
+	
 	let db_connection = Arc::new(Mutex::new(db_connection));
 
 	let mut app = tide::new();
