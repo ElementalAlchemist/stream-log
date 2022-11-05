@@ -82,9 +82,8 @@ pub async fn read_websocket<T: DeserializeOwned>(read_stream: &mut WebSocket) ->
 		Some(data) => data?,
 		None => return Err(WebSocketReadError::ConnectionClosed),
 	};
-	let msg = match msg {
-		Message::Text(text) => text,
-		Message::Bytes(_) => return Err(WebSocketReadError::BinaryMessage),
+	let Message::Text(msg) = msg else {
+		return Err(WebSocketReadError::BinaryMessage);
 	};
 	Ok(serde_json::from_str(&msg)?)
 }

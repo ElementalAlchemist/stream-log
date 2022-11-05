@@ -23,9 +23,7 @@ pub async fn handle_connection(
 	request: Request<()>,
 	mut stream: WebSocketConnection,
 ) -> tide::Result<()> {
-	let openid_user_id = if let Some(id) = request.user_id() {
-		id
-	} else {
+	let Some(openid_user_id) = request.user_id() else {
 		let message = InitialMessage::new(UserDataLoad::MissingId);
 		stream.send_json(&message).await?;
 		return Ok(());
