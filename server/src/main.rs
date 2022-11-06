@@ -24,7 +24,6 @@ use database::{connect_db, run_embedded_migrations};
 
 mod websocket_msg;
 
-mod diesel_types;
 mod models;
 mod schema;
 
