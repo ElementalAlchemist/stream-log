@@ -226,6 +226,29 @@ pub async fn handle_admin(
 			}
 		}
 		AdminAction::ListUsers => {
+			let mut db_connection = db_connection.lock().await;
+			let lookup_result: QueryResult<Vec<User>> = users::table.load(&mut *db_connection);
+			let message = match lookup_result {
+				Ok(user_list) => {
+					let user_list: Vec<UserData> = user_list
+						.iter()
+						.map(|user| UserData {
+							id: user.id.clone(),
+							username: user.name.clone(),
+							is_admin: user.is_admin,
+						})
+						.collect();
+					let message: DataMessage<Vec<UserData>> = Ok(user_list);
+					message
+				}
+				Err(error) => {
+					tide::log::error!("Database error: {}", error);
+					Err(DataError::DatabaseError)
+				}
+			};
+			stream.send_json(&message).await?;
+		}
+		AdminAction::ListUserPermissions => {
 			let user_groups_table = user_permissions::table.inner_join(permission_groups::table);
 			let user_list: QueryResult<Vec<(UserData, Option<PermissionGroup>)>> = {
 				let mut db_connection = db_connection.lock().await;

@@ -16,6 +16,7 @@ pub enum AdminAction {
 	AddUserToPermissionGroup(PermissionGroupUser),
 	RemoveUserFromPermissionGroup(PermissionGroupUser),
 	ListUsers,
+	ListUserPermissions,
 }
 
 /// A single permission group
