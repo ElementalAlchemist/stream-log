@@ -9,10 +9,11 @@ use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::{DataMessage, RequestMessage};
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
+use sycamore::suspense::Suspense;
 use sycamore_router::navigate;
 
 #[component]
-pub async fn EventSelectionView<G: Html>(ctx: Scope<'_>) -> View<G> {
+async fn EventSelectionLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	log::debug!("Activating event selection page");
 
 	{
@@ -99,5 +100,15 @@ pub async fn EventSelectionView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		ctx,
 		h1 { "Select an event" }
 		ul { (event_views) }
+	}
+}
+
+#[component]
+pub fn EventSelectionView<G: Html>(ctx: Scope<'_>) -> View<G> {
+	view! {
+		ctx,
+		Suspense(fallback=view! { ctx, "Loading events..." }) {
+			EventSelectionLoadedView
+		}
 	}
 }

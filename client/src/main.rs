@@ -139,12 +139,7 @@ fn main() {
 	sycamore::render(|ctx| {
 		view! {
 			ctx,
-			Suspense(
-				fallback=view! {
-					ctx,
-					"Causing the enloadening..."
-				}
-			) {
+			Suspense(fallback=view! { ctx, "Causing the enloadening..." }) {
 				App
 			}
 		}

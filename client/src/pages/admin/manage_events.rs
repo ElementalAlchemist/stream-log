@@ -13,6 +13,7 @@ use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::{DataMessage, RequestMessage};
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
+use sycamore::suspense::Suspense;
 use sycamore_router::navigate;
 use wasm_bindgen::JsCast;
 use web_sys::{Event as WebEvent, HtmlButtonElement, HtmlInputElement};
@@ -68,7 +69,7 @@ async fn get_event_list(ctx: Scope<'_>) -> Result<Vec<Event>, ()> {
 }
 
 #[component]
-pub async fn AdminManageEventsView<G: Html>(ctx: Scope<'_>) -> View<G> {
+async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	log::debug!("Activating admin events management page");
 
 	let user_signal: &Signal<Option<UserData>> = use_context(ctx);
@@ -239,6 +240,16 @@ pub async fn AdminManageEventsView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				button(type="button", on:click=cancel_form_handler, ref=cancel_button_ref) { "Cancel" }
 				button(type="button", id="admin_manage_events_new_row", on:click=add_row_handler) { "Add New Event" }
 			}
+		}
+	}
+}
+
+#[component]
+pub async fn AdminManageEventsView<G: Html>(ctx: Scope<'_>) -> View<G> {
+	view! {
+		ctx,
+		Suspense(fallback=view!{ ctx, "Loading events..." }) {
+			AdminManageEventsLoadedView
 		}
 	}
 }

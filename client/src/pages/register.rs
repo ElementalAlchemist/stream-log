@@ -16,7 +16,7 @@ use sycamore_router::navigate;
 use web_sys::Event as WebEvent;
 
 #[component]
-pub async fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
+pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	log::debug!("Activating registration page");
 
 	{
