@@ -248,6 +248,22 @@ pub async fn handle_admin(
 			};
 			stream.send_json(&message).await?;
 		}
+		AdminAction::EditUsers(modified_users) => {
+			let mut db_connection = db_connection.lock().await;
+			let tx_result: QueryResult<()> = db_connection.transaction(|db_connection| {
+				for user in modified_users.iter() {
+					diesel::update(users::table)
+						.filter(users::id.eq(&user.id))
+						.set(users::is_admin.eq(user.is_admin))
+						.execute(db_connection)?;
+				}
+				Ok(())
+			});
+			if let Err(error) = tx_result {
+				tide::log::error!("Database error: {}", error);
+				return Err(HandleConnectionError::ConnectionClosed);
+			}
+		}
 		AdminAction::ListUserPermissions => {
 			let user_groups_table = user_permissions::table.inner_join(permission_groups::table);
 			let user_list: QueryResult<Vec<(UserData, Option<PermissionGroup>)>> = {

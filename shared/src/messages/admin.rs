@@ -16,6 +16,7 @@ pub enum AdminAction {
 	AddUserToPermissionGroup(PermissionGroupUser),
 	RemoveUserFromPermissionGroup(PermissionGroupUser),
 	ListUsers,
+	EditUsers(Vec<UserData>),
 	ListUserPermissions,
 }
 
