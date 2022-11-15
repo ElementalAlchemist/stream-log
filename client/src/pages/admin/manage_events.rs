@@ -1,6 +1,6 @@
 use crate::pages::error::{ErrorData, ErrorView};
 use crate::websocket::read_websocket;
-use chrono::NaiveDateTime;
+use chrono::prelude::*;
 use futures::lock::Mutex;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
@@ -21,6 +21,21 @@ use web_sys::{Event as WebEvent, HtmlButtonElement, HtmlInputElement};
 
 const ISO_DATETIME_FORMAT_STRING: &str = "%Y-%m-%dT%H:%M:%S";
 const INCOMPLETE_DATA_ERROR_MSG: &str = "Both values must be populated for a valid new event.";
+
+fn parse_time_field_value(value: &str) -> chrono::format::ParseResult<NaiveDateTime> {
+	// Inexplicably, browsers will just omit the seconds part even if seconds can be entered.
+	// As such, we need to handle both formats here.
+	match NaiveDateTime::parse_from_str(value, "%Y-%m-%dT%H:%M:%S") {
+		Ok(dt) => Ok(dt),
+		Err(error) => {
+			if error.kind() == chrono::format::ParseErrorKind::TooShort {
+				NaiveDateTime::parse_from_str(value, "%Y-%m-%dT%H:%M")
+			} else {
+				Err(error)
+			}
+		}
+	}
+}
 
 #[derive(Clone, Default)]
 struct PossibleEventData {
@@ -201,10 +216,13 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			let index = next_new_index.fetch_add(1, Ordering::AcqRel);
 			new_values.modify().push(PossibleEventData::default());
 			let id = format!("+{}", index);
+
+			let now = chrono::offset::Utc::now();
+			let start_time = now.naive_utc();
 			event_list.modify().push(Event {
 				id,
 				name: String::new(),
-				start_time: NaiveDateTime::default(),
+				start_time,
 			});
 		}
 	};
@@ -217,7 +235,7 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				tr {
 					th { "Name" }
 					th { "New Name" }
-					th { "Start Time" }
+					th { "Start Time (UTC)" }
 				}
 				Indexed(
 					iterable=event_list,
@@ -287,7 +305,14 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 									} else {
 										match NaiveDateTime::parse_from_str(&field_value, "%Y-%m-%dT%H:%M:%S") {
 											Ok(dt) => Some(dt),
-											Err(error) => {
+											Err(mut error) => 'handle_format: {
+												if error.kind() == chrono::format::ParseErrorKind::TooShort {
+													match NaiveDateTime::parse_from_str(&field_value, "%Y-%m-%dT%H:%M") {
+														Ok(dt) => break 'handle_format Some(dt),
+														Err(new_error) => error = new_error
+													}
+												}
+												log::error!("Error: {:?}", error);
 												let error_description = format!("Invalid date/time: {}", error);
 												field.class_list().add_1("input-error").expect("Input field classes are valid");
 												field.set_title(&error_description);
