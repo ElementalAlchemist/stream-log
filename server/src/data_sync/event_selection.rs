@@ -30,6 +30,7 @@ pub async fn send_events(
 				.map(|event| event_messages::Event {
 					id: event.id.clone(),
 					name: event.name.clone(),
+					start_time: event.start_time,
 				})
 				.collect();
 			let event_selection = DataMessage::Ok(event_messages::EventSelection {

@@ -1,3 +1,4 @@
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
@@ -9,4 +10,5 @@ pub struct EventSelection {
 pub struct Event {
 	pub id: String,
 	pub name: String,
+	pub start_time: NaiveDateTime,
 }

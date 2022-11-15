@@ -2,7 +2,8 @@ CREATE TYPE permission AS ENUM ('view', 'edit');
 
 CREATE TABLE events (
 	id TEXT PRIMARY KEY,
-	name TEXT UNIQUE NOT NULL
+	name TEXT UNIQUE NOT NULL,
+	start_time TIMESTAMP NOT NULL
 );
 
 CREATE TABLE permission_groups (

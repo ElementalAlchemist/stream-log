@@ -7,9 +7,10 @@ license = "MPL-2.0"
 
 [dependencies]
 async-std = { version = "1.11.0", features = ["attributes"] }
+chrono = "0.4.23"
 clap = { version = "4.0.19", features = ["derive"] }
 cuid = "1.2.0"
-diesel = { version = "2.0.2", features = ["postgres"] }
+diesel = { version = "2.0.2", features = ["chrono", "postgres"] }
 diesel_migrations = "2.0.0"
 diesel-derive-enum = { version = "2.0.0-rc.0", features = ["postgres"] }
 knuffel = "2.0.0"

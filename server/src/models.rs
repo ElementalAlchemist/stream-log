@@ -1,4 +1,5 @@
 use crate::schema::{events, permission_events, permission_groups, user_permissions, users};
+use chrono::NaiveDateTime;
 use diesel::{Insertable, Queryable};
 use diesel_derive_enum::DbEnum;
 use stream_log_shared::messages::permissions::PermissionLevel;
@@ -39,6 +40,7 @@ pub struct User {
 pub struct Event {
 	pub id: String,
 	pub name: String,
+	pub start_time: NaiveDateTime,
 }
 
 #[derive(Insertable, Queryable)]

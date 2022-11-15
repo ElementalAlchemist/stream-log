@@ -4,6 +4,7 @@ use crate::models::{
 };
 use crate::schema::{events, permission_events, permission_groups, user_permissions, users};
 use async_std::sync::{Arc, Mutex};
+use chrono::NaiveDateTime;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use diesel::result::{DatabaseErrorKind, Error as QueryError};
@@ -15,6 +16,15 @@ use stream_log_shared::messages::events::Event as EventWs;
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::{DataError, DataMessage};
 use tide_websockets::WebSocketConnection;
+
+type DestructuredEventPermission = (
+	String,
+	String,
+	Option<String>,
+	Option<String>,
+	Option<NaiveDateTime>,
+	Option<Permission>,
+);
 
 /// Handles administration actions performed by the client
 pub async fn handle_admin(
@@ -38,6 +48,7 @@ pub async fn handle_admin(
 					.map(|event| EventWs {
 						id: event.id,
 						name: event.name,
+						start_time: event.start_time,
 					})
 					.collect(),
 				Err(error) => {
@@ -67,6 +78,7 @@ pub async fn handle_admin(
 							let event = EventDb {
 								id,
 								name: event.name.clone(),
+								start_time: event.start_time,
 							};
 							new_events.push(event);
 						} else {
@@ -90,7 +102,7 @@ pub async fn handle_admin(
 			}
 		}
 		AdminAction::ListPermissionGroups => {
-			let group_data: QueryResult<Vec<(_, _, _, Option<String>, Option<Permission>)>> = {
+			let group_data: QueryResult<Vec<DestructuredEventPermission>> = {
 				let mut db_connection = db_connection.lock().await;
 				let events_data_table = permission_events::table.inner_join(events::table);
 				permission_groups::table
@@ -100,6 +112,7 @@ pub async fn handle_admin(
 						permission_groups::name,
 						permission_events::event.nullable(),
 						events::name.nullable(),
+						events::start_time.nullable(),
 						permission_events::level.nullable(),
 					))
 					.load(&mut *db_connection)
@@ -107,7 +120,7 @@ pub async fn handle_admin(
 			let group_data: Vec<PermissionGroupWithEvents> = match group_data {
 				Ok(groups) => {
 					let mut permission_group_events: HashMap<PermissionGroup, Vec<EventPermission>> = HashMap::new();
-					for (group_id, group_name, event_id, event_name, event_permission) in groups {
+					for (group_id, group_name, event_id, event_name, event_start_time, event_permission) in groups {
 						let permission_group = PermissionGroup {
 							id: group_id,
 							name: group_name,
@@ -115,10 +128,12 @@ pub async fn handle_admin(
 						let group_entry = permission_group_events.entry(permission_group).or_default();
 						if let Some(event_id) = event_id {
 							let event_name = event_name.unwrap();
+							let event_start_time = event_start_time.unwrap();
 							let event_permission = event_permission.unwrap();
 							let event = EventWs {
 								id: event_id,
 								name: event_name,
+								start_time: event_start_time,
 							};
 							let event_permission_data = EventPermission {
 								event,

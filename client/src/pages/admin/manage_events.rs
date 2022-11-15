@@ -1,5 +1,6 @@
 use crate::pages::error::{ErrorData, ErrorView};
 use crate::websocket::read_websocket;
+use chrono::NaiveDateTime;
 use futures::lock::Mutex;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
@@ -17,6 +18,15 @@ use sycamore::suspense::Suspense;
 use sycamore_router::navigate;
 use wasm_bindgen::JsCast;
 use web_sys::{Event as WebEvent, HtmlButtonElement, HtmlInputElement};
+
+const ISO_DATETIME_FORMAT_STRING: &str = "%Y-%m-%dT%H:%M:%S";
+const INCOMPLETE_DATA_ERROR_MSG: &str = "Both values must be populated for a valid new event.";
+
+#[derive(Clone, Default)]
+struct PossibleEventData {
+	name: Option<String>,
+	start_time: Option<NaiveDateTime>,
+}
 
 async fn get_event_list(ctx: Scope<'_>) -> Result<Vec<Event>, ()> {
 	let ws_context: &Mutex<WebSocket> = use_context(ctx);
@@ -95,16 +105,16 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	};
 
 	let event_list = create_signal(ctx, event_list);
-	let updated_names: RcSignal<HashMap<String, String>> = create_rc_signal(HashMap::new());
-	let new_names: RcSignal<Vec<String>> = create_rc_signal(Vec::new());
+	let updated_values: RcSignal<HashMap<String, PossibleEventData>> = create_rc_signal(HashMap::new());
+	let new_values: RcSignal<Vec<PossibleEventData>> = create_rc_signal(Vec::new());
 	let next_new_index: Rc<AtomicUsize> = Rc::new(AtomicUsize::new(0));
 
 	let submit_button_ref = create_node_ref(ctx);
 	let cancel_button_ref = create_node_ref(ctx);
 
 	let form_submission_handler = {
-		let updated_names = updated_names.clone();
-		let new_names = new_names.clone();
+		let updated_values = updated_values.clone();
+		let new_values = new_values.clone();
 		move |event: WebEvent| {
 			event.prevent_default();
 
@@ -117,21 +127,31 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			cancel_button.set_disabled(true);
 
 			let mut changes: Vec<Event> = Vec::new();
-			for (id, name) in updated_names.get().iter() {
+			for (id, event_data) in updated_values.get().iter() {
+				let (Some(name), Some(start_time)) = (event_data.name.clone(), event_data.start_time) else {
+					submit_button.set_disabled(false);
+					cancel_button.set_disabled(false);
+					return;
+				};
 				let new_event = Event {
 					id: id.clone(),
-					name: name.clone(),
+					name,
+					start_time,
 				};
 				changes.push(new_event);
 			}
-			for name in new_names.get().iter() {
-				if !name.is_empty() {
-					let new_event = Event {
-						id: String::new(),
-						name: name.clone(),
-					};
-					changes.push(new_event);
-				}
+			for event_data in new_values.get().iter() {
+				let (Some(name), Some(start_time)) = (event_data.name.clone(), event_data.start_time) else {
+					submit_button.set_disabled(false);
+					cancel_button.set_disabled(false);
+					return;
+				};
+				let new_event = Event {
+					id: String::new(),
+					name,
+					start_time,
+				};
+				changes.push(new_event);
 			}
 
 			if changes.is_empty() {
@@ -176,14 +196,15 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 	let add_row_handler = {
 		let next_new_index = Rc::clone(&next_new_index);
-		let new_names = new_names.clone();
+		let new_values = new_values.clone();
 		move |_: WebEvent| {
 			let index = next_new_index.fetch_add(1, Ordering::AcqRel);
-			new_names.modify().push(String::new());
+			new_values.modify().push(PossibleEventData::default());
 			let id = format!("+{}", index);
 			event_list.modify().push(Event {
 				id,
 				name: String::new(),
+				start_time: NaiveDateTime::default(),
 			});
 		}
 	};
@@ -196,38 +217,125 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				tr {
 					th { "Name" }
 					th { "New Name" }
+					th { "Start Time" }
 				}
 				Indexed(
 					iterable=event_list,
 					view={
-						let updated_names = updated_names.clone();
+						let updated_values = updated_values.clone();
 						move |ctx, event| {
-							let updated_names = updated_names.clone();
-							let input_name = format!("event-name-{}", event.id);
-							let field_change_handler = {
+							let input_name_name = format!("event-name-{}", event.id);
+							let input_time_name = format!("event-start-{}", event.id);
+
+							let name_field = create_node_ref(ctx);
+							let time_field = create_node_ref(ctx);
+
+							let name_field_change_handler = {
+								let updated_values = updated_values.clone();
 								let id = event.id.clone();
-								let new_names = new_names.clone();
+								let new_values = new_values.clone();
 								move |change_event: WebEvent| {
-									let mut names_map = updated_names.modify();
+									let mut values_map = updated_values.modify();
 									let event_target = change_event.target().unwrap();
 									let field: &HtmlInputElement = event_target.dyn_ref().unwrap();
-									let new_value = field.value();
+									let new_name = field.value();
+									let new_name = if new_name.is_empty() { None } else { Some(new_name) };
+
+									let time_field_ref: DomNode = time_field.get();
+									let time_field_element: HtmlInputElement = time_field_ref.unchecked_into();
+									let time_field_value = time_field_element.value();
+
+									if new_name.is_none() && !time_field_value.is_empty() {
+										field.class_list().add_1("input-error").expect("Class changes are valid");
+										field.set_title(INCOMPLETE_DATA_ERROR_MSG);
+										time_field_element.class_list().remove_1("input-error").expect("Class changes are valid");
+										time_field_element.set_title("");
+									} else if new_name.is_some() && time_field_value.is_empty() {
+										field.class_list().remove_1("input-error").expect("Class changes are valid");
+										field.set_title("");
+										time_field_element.class_list().add_1("input-error").expect("Class changes are valid");
+										time_field_element.set_title(INCOMPLETE_DATA_ERROR_MSG);
+									} else {
+										field.class_list().remove_1("input-error").expect("Class changes are valid");
+										field.set_title("");
+										time_field_element.class_list().remove_1("input-error").expect("Class changes are valid");
+										time_field_element.set_title("");
+									}
+
 									if let Some(index) = id.strip_prefix('+') {
 										let index: usize = index.parse().unwrap();
-										new_names.modify()[index] = new_value;
-									} else if new_value.is_empty() {
-										names_map.remove(&id.clone());
+										new_values.modify()[index].name = new_name;
 									} else {
-										names_map.insert(id.clone(), new_value);
+										values_map.entry(id.clone()).or_default().name = new_name;
 									}
 								}
 							};
+
+							let time_field_change_handler = {
+								let updated_values = updated_values.clone();
+								let id = event.id.clone();
+								let new_values = new_values.clone();
+								move |change_event: WebEvent| {
+									let mut values_map = updated_values.modify();
+									let event_target = change_event.target().unwrap();
+									let field: &HtmlInputElement = event_target.dyn_ref().unwrap();
+									field.class_list().remove_1("input-error").expect("Input field classes are valid");
+									field.set_title("");
+									let field_value = field.value();
+									let field_value = if field_value.is_empty() {
+										None
+									} else {
+										match NaiveDateTime::parse_from_str(&field_value, "%Y-%m-%dT%H:%M:%S") {
+											Ok(dt) => Some(dt),
+											Err(error) => {
+												let error_description = format!("Invalid date/time: {}", error);
+												field.class_list().add_1("input-error").expect("Input field classes are valid");
+												field.set_title(&error_description);
+												return;
+											}
+										}
+									};
+
+									let name_field_ref: DomNode = name_field.get();
+									let name_field_element: HtmlInputElement = name_field_ref.unchecked_into();
+									let name_field_value = name_field_element.value();
+
+									if field_value.is_none() && !name_field_value.is_empty() {
+										field.class_list().add_1("input-error").expect("Class changes are valid");
+										field.set_title(INCOMPLETE_DATA_ERROR_MSG);
+										name_field_element.class_list().remove_1("input-error").expect("Class changes are valid");
+										name_field_element.set_title("");
+									} else if field_value.is_some() && name_field_value.is_empty() {
+										field.class_list().remove_1("input-error").expect("Class changes are valid");
+										field.set_title("");
+										name_field_element.class_list().add_1("input-error").expect("Class changes are valid");
+										name_field_element.set_title(INCOMPLETE_DATA_ERROR_MSG);
+									} else {
+										field.class_list().remove_1("input-error").expect("Class changes are valid");
+										field.set_title("");
+										name_field_element.class_list().remove_1("input-error").expect("Class changes are valid");
+										name_field_element.set_title("");
+									}
+
+									if let Some(index) = id.strip_prefix('+') {
+										let index: usize = index.parse().unwrap();
+										new_values.modify()[index].start_time = field_value;
+									} else {
+										values_map.entry(id.clone()).or_default().start_time = field_value;
+									}
+								}
+							};
+
+							let start_time_value = format!("{}", event.start_time.format(ISO_DATETIME_FORMAT_STRING));
 							view! {
 								ctx,
 								tr {
 									td { (event.name) }
 									td {
-										input(type="input", name=input_name, on:change=field_change_handler)
+										input(type="input", name=input_name_name, on:change=name_field_change_handler, ref=name_field)
+									}
+									td {
+										input(type="datetime-local", step=1, name=input_time_name, value=start_time_value, on:change=time_field_change_handler, ref=time_field)
 									}
 								}
 							}
