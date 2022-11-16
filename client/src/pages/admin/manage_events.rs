@@ -136,7 +136,9 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 			let mut changes: Vec<Event> = updated_values.get().values().cloned().collect();
 			for new_event in new_values.get().iter() {
-				changes.push(new_event.clone());
+				let mut event = new_event.clone();
+				event.id.clear();
+				changes.push(event);
 			}
 			let mut remove_indices: Vec<usize> = Vec::new();
 
