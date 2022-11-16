@@ -10,7 +10,7 @@ diesel::table! {
 	events (id) {
 		id -> Text,
 		name -> Text,
-		start_time -> Timestamp,
+		start_time -> Timestamptz,
 	}
 }
 

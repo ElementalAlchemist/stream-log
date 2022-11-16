@@ -4,7 +4,7 @@ use crate::models::{
 };
 use crate::schema::{events, permission_events, permission_groups, user_permissions, users};
 use async_std::sync::{Arc, Mutex};
-use chrono::NaiveDateTime;
+use chrono::prelude::*;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use diesel::result::{DatabaseErrorKind, Error as QueryError};
@@ -22,7 +22,7 @@ type DestructuredEventPermission = (
 	String,
 	Option<String>,
 	Option<String>,
-	Option<NaiveDateTime>,
+	Option<DateTime<Utc>>,
 	Option<Permission>,
 );
 
@@ -83,7 +83,7 @@ pub async fn handle_admin(
 							new_events.push(event);
 						} else {
 							diesel::update(events::table.filter(events::id.eq(&event.id)))
-								.set(events::name.eq(&event.name))
+								.set((events::name.eq(&event.name), events::start_time.eq(&event.start_time)))
 								.execute(&mut *db_connection)?;
 						}
 					}
