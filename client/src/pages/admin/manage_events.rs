@@ -20,7 +20,6 @@ use wasm_bindgen::JsCast;
 use web_sys::{Event as WebEvent, HtmlButtonElement, HtmlInputElement};
 
 const ISO_DATETIME_FORMAT_STRING: &str = "%Y-%m-%dT%H:%M:%S";
-const INCOMPLETE_DATA_ERROR_MSG: &str = "Both values must be populated for a valid new event.";
 
 fn parse_time_field_value(value: &str) -> chrono::format::ParseResult<NaiveDateTime> {
 	// Inexplicably, browsers will just omit the seconds part even if seconds can be entered.
@@ -35,12 +34,6 @@ fn parse_time_field_value(value: &str) -> chrono::format::ParseResult<NaiveDateT
 			}
 		}
 	}
-}
-
-#[derive(Clone, Default)]
-struct PossibleEventData {
-	name: Option<String>,
-	start_time: Option<NaiveDateTime>,
 }
 
 async fn get_event_list(ctx: Scope<'_>) -> Result<Vec<Event>, ()> {
@@ -120,8 +113,8 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	};
 
 	let event_list = create_signal(ctx, event_list);
-	let updated_values: RcSignal<HashMap<String, PossibleEventData>> = create_rc_signal(HashMap::new());
-	let new_values: RcSignal<Vec<PossibleEventData>> = create_rc_signal(Vec::new());
+	let updated_values: RcSignal<HashMap<String, Event>> = create_rc_signal(HashMap::new());
+	let new_values: RcSignal<Vec<Event>> = create_rc_signal(Vec::new());
 	let next_new_index: Rc<AtomicUsize> = Rc::new(AtomicUsize::new(0));
 
 	let submit_button_ref = create_node_ref(ctx);
@@ -141,32 +134,28 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			let cancel_button: HtmlButtonElement = cancel_button_node.unchecked_into();
 			cancel_button.set_disabled(true);
 
-			let mut changes: Vec<Event> = Vec::new();
-			for (id, event_data) in updated_values.get().iter() {
-				let (Some(name), Some(start_time)) = (event_data.name.clone(), event_data.start_time) else {
-					submit_button.set_disabled(false);
-					cancel_button.set_disabled(false);
-					return;
-				};
-				let new_event = Event {
-					id: id.clone(),
-					name,
-					start_time,
-				};
-				changes.push(new_event);
+			let mut changes: Vec<Event> = updated_values.get().values().cloned().collect();
+			for new_event in new_values.get().iter() {
+				changes.push(new_event.clone());
 			}
-			for event_data in new_values.get().iter() {
-				let (Some(name), Some(start_time)) = (event_data.name.clone(), event_data.start_time) else {
+			let mut remove_indices: Vec<usize> = Vec::new();
+
+			for (event_index, event) in changes.iter().enumerate() {
+				if event.name.is_empty() {
+					remove_indices.push(event_index);
+				}
+			}
+
+			// Validation occurs in on-change events. As such, there should already be display of it,
+			// so we can just skip submission when that happens
+			while let Some(event_index) = remove_indices.pop() {
+				let event = &changes[event_index];
+				if event.name.is_empty() && !event.id.starts_with('+') {
 					submit_button.set_disabled(false);
 					cancel_button.set_disabled(false);
 					return;
-				};
-				let new_event = Event {
-					id: String::new(),
-					name,
-					start_time,
-				};
-				changes.push(new_event);
+				}
+				changes.remove(event_index);
 			}
 
 			if changes.is_empty() {
@@ -214,16 +203,19 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		let new_values = new_values.clone();
 		move |_: WebEvent| {
 			let index = next_new_index.fetch_add(1, Ordering::AcqRel);
-			new_values.modify().push(PossibleEventData::default());
-			let id = format!("+{}", index);
 
+			let id = format!("+{}", index);
 			let now = chrono::offset::Utc::now();
 			let start_time = now.naive_utc();
-			event_list.modify().push(Event {
+
+			let new_event = Event {
 				id,
 				name: String::new(),
 				start_time,
-			});
+			};
+			new_values.modify().push(new_event.clone());
+
+			event_list.modify().push(new_event);
 		}
 	};
 
@@ -234,7 +226,6 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			table {
 				tr {
 					th { "Name" }
-					th { "New Name" }
 					th { "Start Time (UTC)" }
 				}
 				Indexed(
@@ -250,104 +241,63 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 							let name_field_change_handler = {
 								let updated_values = updated_values.clone();
+								let event = event.clone();
 								let id = event.id.clone();
 								let new_values = new_values.clone();
 								move |change_event: WebEvent| {
-									let mut values_map = updated_values.modify();
 									let event_target = change_event.target().unwrap();
 									let field: &HtmlInputElement = event_target.dyn_ref().unwrap();
 									let new_name = field.value();
-									let new_name = if new_name.is_empty() { None } else { Some(new_name) };
 
-									let time_field_ref: DomNode = time_field.get();
-									let time_field_element: HtmlInputElement = time_field_ref.unchecked_into();
-									let time_field_value = time_field_element.value();
+									field.class_list().remove_1("input-error").expect("Class changes are valid");
+									field.set_title("");
 
-									if new_name.is_none() && !time_field_value.is_empty() {
-										field.class_list().add_1("input-error").expect("Class changes are valid");
-										field.set_title(INCOMPLETE_DATA_ERROR_MSG);
-										time_field_element.class_list().remove_1("input-error").expect("Class changes are valid");
-										time_field_element.set_title("");
-									} else if new_name.is_some() && time_field_value.is_empty() {
-										field.class_list().remove_1("input-error").expect("Class changes are valid");
-										field.set_title("");
-										time_field_element.class_list().add_1("input-error").expect("Class changes are valid");
-										time_field_element.set_title(INCOMPLETE_DATA_ERROR_MSG);
+									if new_name.is_empty() {
+										if !id.starts_with('+') {
+											field.class_list().add_1("input-error").expect("Class changes are valid");
+											field.set_title("A name is required");
+										}
+									} else if let Some(index) = id.strip_prefix('+') {
+											let index: usize = index.parse().unwrap();
+											new_values.modify()[index].name = new_name;
 									} else {
-										field.class_list().remove_1("input-error").expect("Class changes are valid");
-										field.set_title("");
-										time_field_element.class_list().remove_1("input-error").expect("Class changes are valid");
-										time_field_element.set_title("");
-									}
-
-									if let Some(index) = id.strip_prefix('+') {
-										let index: usize = index.parse().unwrap();
-										new_values.modify()[index].name = new_name;
-									} else {
-										values_map.entry(id.clone()).or_default().name = new_name;
+										updated_values.modify().entry(id.clone()).or_insert_with(|| event.clone()).name = new_name;
 									}
 								}
 							};
 
 							let time_field_change_handler = {
 								let updated_values = updated_values.clone();
+								let event = event.clone();
 								let id = event.id.clone();
 								let new_values = new_values.clone();
 								move |change_event: WebEvent| {
-									let mut values_map = updated_values.modify();
 									let event_target = change_event.target().unwrap();
 									let field: &HtmlInputElement = event_target.dyn_ref().unwrap();
-									field.class_list().remove_1("input-error").expect("Input field classes are valid");
+									field.class_list().remove_1("input-error").expect("Class changes are valid");
 									field.set_title("");
 									let field_value = field.value();
-									let field_value = if field_value.is_empty() {
-										None
+									if field_value.is_empty() {
+										if !id.starts_with('+') {
+											field.class_list().add_1("input-error").expect("Class changes are valid");
+											field.set_title("A time is required");
+										}
 									} else {
-										match NaiveDateTime::parse_from_str(&field_value, "%Y-%m-%dT%H:%M:%S") {
-											Ok(dt) => Some(dt),
-											Err(mut error) => 'handle_format: {
-												if error.kind() == chrono::format::ParseErrorKind::TooShort {
-													match NaiveDateTime::parse_from_str(&field_value, "%Y-%m-%dT%H:%M") {
-														Ok(dt) => break 'handle_format Some(dt),
-														Err(new_error) => error = new_error
-													}
+										match parse_time_field_value(&field_value) {
+											Ok(dt) => {
+												if let Some(index) = id.strip_prefix('+') {
+													let index: usize = index.parse().unwrap();
+													new_values.modify()[index].start_time = dt;
+												} else {
+													updated_values.modify().entry(id.clone()).or_insert_with(|| event.clone()).start_time = dt;
 												}
-												log::error!("Error: {:?}", error);
-												let error_description = format!("Invalid date/time: {}", error);
-												field.class_list().add_1("input-error").expect("Input field classes are valid");
-												field.set_title(&error_description);
-												return;
+											}
+											Err(error) => {
+												field.class_list().add_1("input-error").expect("Class changes are valid");
+												field.set_title(&format!("Invalid date/time: {}", error));
 											}
 										}
 									};
-
-									let name_field_ref: DomNode = name_field.get();
-									let name_field_element: HtmlInputElement = name_field_ref.unchecked_into();
-									let name_field_value = name_field_element.value();
-
-									if field_value.is_none() && !name_field_value.is_empty() {
-										field.class_list().add_1("input-error").expect("Class changes are valid");
-										field.set_title(INCOMPLETE_DATA_ERROR_MSG);
-										name_field_element.class_list().remove_1("input-error").expect("Class changes are valid");
-										name_field_element.set_title("");
-									} else if field_value.is_some() && name_field_value.is_empty() {
-										field.class_list().remove_1("input-error").expect("Class changes are valid");
-										field.set_title("");
-										name_field_element.class_list().add_1("input-error").expect("Class changes are valid");
-										name_field_element.set_title(INCOMPLETE_DATA_ERROR_MSG);
-									} else {
-										field.class_list().remove_1("input-error").expect("Class changes are valid");
-										field.set_title("");
-										name_field_element.class_list().remove_1("input-error").expect("Class changes are valid");
-										name_field_element.set_title("");
-									}
-
-									if let Some(index) = id.strip_prefix('+') {
-										let index: usize = index.parse().unwrap();
-										new_values.modify()[index].start_time = field_value;
-									} else {
-										values_map.entry(id.clone()).or_default().start_time = field_value;
-									}
 								}
 							};
 
@@ -355,9 +305,8 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 							view! {
 								ctx,
 								tr {
-									td { (event.name) }
 									td {
-										input(type="input", name=input_name_name, on:change=name_field_change_handler, ref=name_field)
+										input(type="input", name=input_name_name, value=event.name, on:change=name_field_change_handler, ref=name_field)
 									}
 									td {
 										input(type="datetime-local", step=1, name=input_time_name, value=start_time_value, on:change=time_field_change_handler, ref=time_field)
@@ -369,7 +318,7 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				)
 			}
 			div {
-				button(id="admin_manage_events_submit", ref=submit_button_ref) { "Update Names" }
+				button(id="admin_manage_events_submit", ref=submit_button_ref) { "Update" }
 				button(type="button", on:click=cancel_form_handler, ref=cancel_button_ref) { "Cancel" }
 				button(type="button", id="admin_manage_events_new_row", on:click=add_row_handler) { "Add New Event" }
 			}
