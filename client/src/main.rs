@@ -107,13 +107,13 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 	view! {
 		ctx,
-		UserInfoBar
 		Router(
 			integration=HistoryIntegration::new(),
 			view=|ctx, route: &ReadSignal<AppRoutes>| {
 				log::info!("Navigating to route: {:?}", route.get());
 				view! {
 					ctx,
+					UserInfoBar {}
 					(match route.get().as_ref() {
 						AppRoutes::EventSelection => view! { ctx, EventSelectionView },
 						AppRoutes::Register => view! { ctx, RegistrationView },
