@@ -229,8 +229,9 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 					th { "Name" }
 					th { "Start Time (UTC)" }
 				}
-				Indexed(
+				Keyed(
 					iterable=event_list,
+					key=|event| event.id.clone(),
 					view={
 						let updated_values = updated_values.clone();
 						move |ctx, event| {
