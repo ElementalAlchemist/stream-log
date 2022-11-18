@@ -90,24 +90,6 @@ async fn get_event_list(ctx: Scope<'_>) -> Result<Vec<Event>, ()> {
 async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	log::debug!("Activating admin events management page");
 
-	let user_signal: &Signal<Option<UserData>> = use_context(ctx);
-	match user_signal.get().as_ref() {
-		Some(user) => {
-			if !user.is_admin {
-				spawn_local_scoped(ctx, async {
-					navigate("/");
-				});
-				return view! { ctx, };
-			}
-		}
-		None => {
-			spawn_local_scoped(ctx, async {
-				navigate("/register");
-			});
-			return view! { ctx, };
-		}
-	}
-
 	let Ok(event_list) = get_event_list(ctx).await else {
 		return view! { ctx, ErrorView };
 	};
@@ -329,7 +311,25 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 }
 
 #[component]
-pub async fn AdminManageEventsView<G: Html>(ctx: Scope<'_>) -> View<G> {
+pub fn AdminManageEventsView<G: Html>(ctx: Scope<'_>) -> View<G> {
+	let user_signal: &Signal<Option<UserData>> = use_context(ctx);
+	match user_signal.get().as_ref() {
+		Some(user) => {
+			if !user.is_admin {
+				spawn_local_scoped(ctx, async {
+					navigate("/");
+				});
+				return view! { ctx, };
+			}
+		}
+		None => {
+			spawn_local_scoped(ctx, async {
+				navigate("/register");
+			});
+			return view! { ctx, };
+		}
+	}
+
 	view! {
 		ctx,
 		Suspense(fallback=view!{ ctx, "Loading events..." }) {

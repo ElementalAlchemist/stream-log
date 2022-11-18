@@ -68,24 +68,6 @@ async fn get_user_list(ctx: Scope<'_>) -> Result<Vec<UserData>, ()> {
 async fn AdminManageUsersLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	log::debug!("Activating admin user management page");
 
-	let user_signal: &Signal<Option<UserData>> = use_context(ctx);
-	match user_signal.get().as_ref() {
-		Some(user) => {
-			if !user.is_admin {
-				spawn_local_scoped(ctx, async {
-					navigate("/");
-				});
-				return view! { ctx, };
-			}
-		}
-		None => {
-			spawn_local_scoped(ctx, async {
-				navigate("/register");
-			});
-			return view! { ctx, };
-		}
-	}
-
 	let Ok(user_list) = get_user_list(ctx).await else {
 		return view! { ctx, ErrorView };
 	};
@@ -186,6 +168,24 @@ async fn AdminManageUsersLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 #[component]
 pub fn AdminManageUsersView<G: Html>(ctx: Scope<'_>) -> View<G> {
+	let user_signal: &Signal<Option<UserData>> = use_context(ctx);
+	match user_signal.get().as_ref() {
+		Some(user) => {
+			if !user.is_admin {
+				spawn_local_scoped(ctx, async {
+					navigate("/");
+				});
+				return view! { ctx, };
+			}
+		}
+		None => {
+			spawn_local_scoped(ctx, async {
+				navigate("/register");
+			});
+			return view! { ctx, };
+		}
+	}
+
 	view! {
 		ctx,
 		Suspense(fallback=view! { ctx, "Loading users..." }) {
