@@ -9,10 +9,7 @@ pub enum AdminAction {
 	EditEvents(Vec<Event>),
 	ListEvents,
 	ListPermissionGroups,
-	CreatePermissionGroup(String),
-	SetEventViewForGroup(PermissionGroupEvent),
-	SetEventEditForGroup(PermissionGroupEvent),
-	RemoveEventFromGroup(PermissionGroupEvent),
+	UpdatePermissionGroups(Vec<PermissionGroupWithEvents>),
 	AddUserToPermissionGroup(PermissionGroupUser),
 	RemoveUserFromPermissionGroup(PermissionGroupUser),
 	ListUsers,
@@ -25,13 +22,6 @@ pub enum AdminAction {
 pub struct PermissionGroup {
 	pub id: String,
 	pub name: String,
-}
-
-/// A pairing of a permission group and its associated event
-#[derive(Deserialize, Serialize)]
-pub struct PermissionGroupEvent {
-	pub group: PermissionGroup,
-	pub event: Event,
 }
 
 /// A description of an event and its permission level, to be used with a permission group

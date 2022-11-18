@@ -10,7 +10,7 @@ use diesel::prelude::*;
 use diesel::result::{DatabaseErrorKind, Error as QueryError};
 use std::collections::HashMap;
 use stream_log_shared::messages::admin::{
-	AdminAction, EventPermission, PermissionGroup, PermissionGroupEvent, PermissionGroupWithEvents, UserDataPermissions,
+	AdminAction, EventPermission, PermissionGroup, PermissionGroupWithEvents, UserDataPermissions,
 };
 use stream_log_shared::messages::events::Event as EventWs;
 use stream_log_shared::messages::user::UserData;
@@ -25,6 +25,16 @@ type DestructuredEventPermission = (
 	Option<DateTime<Utc>>,
 	Option<Permission>,
 );
+
+fn generate_cuid_in_transaction() -> Result<String, QueryError> {
+	match cuid::cuid() {
+		Ok(id) => Ok(id),
+		Err(error) => {
+			tide::log::error!("Failed to generate CUID: {}", error);
+			Err(QueryError::RollbackTransaction)
+		}
+	}
+}
 
 /// Handles administration actions performed by the client
 pub async fn handle_admin(
@@ -68,13 +78,7 @@ pub async fn handle_admin(
 					let mut new_events: Vec<EventDb> = Vec::new();
 					for event in events.iter() {
 						if event.id.is_empty() {
-							let id = match cuid::cuid() {
-								Ok(id) => id,
-								Err(error) => {
-									tide::log::error!("Failed to generate CUID: {}", error);
-									return Err(QueryError::RollbackTransaction);
-								}
-							};
+							let id = generate_cuid_in_transaction()?;
 							let event = EventDb {
 								id,
 								name: event.name.clone(),
@@ -158,50 +162,47 @@ pub async fn handle_admin(
 			let message: DataMessage<Vec<PermissionGroupWithEvents>> = DataMessage::Ok(group_data);
 			stream.send_json(&message).await?;
 		}
-		AdminAction::CreatePermissionGroup(group_name) => {
+		AdminAction::UpdatePermissionGroups(group_changes) => {
 			let mut db_connection = db_connection.lock().await;
-			let id = match cuid::cuid() {
-				Ok(id) => id,
-				Err(error) => {
-					tide::log::error!("Failed to generate CUID: {}", error);
-					return Err(HandleConnectionError::ConnectionClosed);
+			let tx_result: QueryResult<()> = db_connection.transaction(move |db_connection| {
+				for group_event_data in group_changes.iter() {
+					let id = if group_event_data.group.id.is_empty() {
+						let new_id = generate_cuid_in_transaction()?;
+						let new_group = PermissionGroupDb {
+							id: new_id.clone(),
+							name: group_event_data.group.name.clone(),
+						};
+						diesel::insert_into(permission_groups::table)
+							.values(new_group)
+							.execute(db_connection)?;
+						new_id
+					} else {
+						diesel::update(permission_groups::table)
+							.filter(permission_groups::id.eq(&group_event_data.group.id))
+							.set(permission_groups::name.eq(&group_event_data.group.name))
+							.execute(db_connection)?;
+						group_event_data.group.id.clone()
+					};
+					diesel::delete(permission_events::table.filter(permission_events::permission_group.eq(&id)))
+						.execute(db_connection)?;
+					let mut new_event_permissions: Vec<PermissionEvent> = Vec::new();
+					for event in group_event_data.events.iter() {
+						let group_event_permission = PermissionEvent {
+							permission_group: id.clone(),
+							event: event.event.id.clone(),
+							level: event.level.into(),
+						};
+						new_event_permissions.push(group_event_permission);
+					}
+					diesel::insert_into(permission_events::table)
+						.values(new_event_permissions)
+						.execute(db_connection)?;
 				}
-			};
-			let new_group = PermissionGroupDb { id, name: group_name };
-			let insert_result = diesel::insert_into(permission_groups::table)
-				.values(new_group)
-				.execute(&mut *db_connection);
-			if let Err(error) = insert_result {
-				if let diesel::result::Error::DatabaseError(DatabaseErrorKind::UniqueViolation, _) = error {
-					// This one might happen sometimes (e.g. race condition from multiple administrators), and it's OK if it does
-				} else {
-					tide::log::error!("Database error: {}", error);
-					return Err(HandleConnectionError::ConnectionClosed);
-				}
-			}
-		}
-		AdminAction::SetEventViewForGroup(permission_group_event) => {
-			update_permission_event(&db_connection, permission_group_event, Permission::View).await?;
-		}
-		AdminAction::SetEventEditForGroup(permission_group_event) => {
-			update_permission_event(&db_connection, permission_group_event, Permission::Edit).await?;
-		}
-		AdminAction::RemoveEventFromGroup(permission_group_event) => {
-			let mut db_connection = db_connection.lock().await;
-			let delete_result = diesel::delete(
-				permission_events::table.filter(
-					permission_events::permission_group
-						.eq(&permission_group_event.group.id)
-						.and(permission_events::event.eq(&permission_group_event.event.id)),
-				),
-			)
-			.execute(&mut *db_connection);
-			if let Err(error) = delete_result {
-				// This one might happen sometimes (e.g. race condition from multiple administrators), and it's OK if it does
-				if error != diesel::result::Error::NotFound {
-					tide::log::error!("Database error: {}", error);
-					return Err(HandleConnectionError::ConnectionClosed);
-				}
+				Ok(())
+			});
+			if let Err(error) = tx_result {
+				tide::log::error!("Database error: {}", error);
+				return Err(HandleConnectionError::ConnectionClosed);
 			}
 		}
 		AdminAction::AddUserToPermissionGroup(permission_group_user) => {
@@ -347,49 +348,4 @@ pub async fn handle_admin(
 	}
 
 	Ok(())
-}
-
-async fn update_permission_event(
-	db_connection: &Arc<Mutex<PgConnection>>,
-	permission_group_event: PermissionGroupEvent,
-	permission: Permission,
-) -> Result<(), HandleConnectionError> {
-	let mut db_connection = db_connection.lock().await;
-	let tx_result: QueryResult<()> = db_connection.transaction(|db_connection| {
-		let existing_record: Option<PermissionEvent> = permission_events::table
-			.filter(
-				permission_events::permission_group
-					.eq(&permission_group_event.group.id)
-					.and(permission_events::event.eq(&permission_group_event.event.id)),
-			)
-			.first(&mut *db_connection)
-			.optional()?;
-		if existing_record.is_some() {
-			diesel::update(permission_events::table)
-				.filter(
-					permission_events::permission_group
-						.eq(&permission_group_event.group.id)
-						.and(permission_events::event.eq(&permission_group_event.event.id)),
-				)
-				.set(permission_events::level.eq(permission))
-				.execute(&mut *db_connection)?;
-		} else {
-			let new_record = PermissionEvent {
-				permission_group: permission_group_event.group.id.clone(),
-				event: permission_group_event.event.id.clone(),
-				level: permission,
-			};
-			diesel::insert_into(permission_events::table)
-				.values(new_record)
-				.execute(&mut *db_connection)?;
-		}
-		Ok(())
-	});
-	match tx_result {
-		Ok(_) => Ok(()),
-		Err(error) => {
-			tide::log::error!("Database error: {}", error);
-			Err(HandleConnectionError::ConnectionClosed)
-		}
-	}
 }
