@@ -403,6 +403,7 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 							let new_event_permission = OptionalEventPermission { event: event_data.clone(), level: None };
 							group_events_signal.modify().push(new_event_permission);
+							new_event_name_signal.set(String::new());
 						};
 
 						view! {
