@@ -121,6 +121,18 @@ async fn AdminManageUsersLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		});
 	};
 
+	let cancel_button_handler = |_event: WebEvent| {
+		let submit_button_node: DomNode = submit_button.get();
+		let submit_button: HtmlButtonElement = submit_button_node.unchecked_into();
+		let cancel_button_node: DomNode = cancel_button.get();
+		let cancel_button: HtmlButtonElement = cancel_button_node.unchecked_into();
+
+		submit_button.set_disabled(true);
+		cancel_button.set_disabled(true);
+
+		navigate("/");
+	};
+
 	view! {
 		ctx,
 		h1 { "Manage Users" }
@@ -159,7 +171,7 @@ async fn AdminManageUsersLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				)
 			}
 			button(ref=submit_button) { "Update" }
-			button(type="button", ref=cancel_button) { "Cancel" }
+			button(type="button", on:click=cancel_button_handler, ref=cancel_button) { "Cancel" }
 		}
 	}
 }
