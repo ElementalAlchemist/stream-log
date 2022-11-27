@@ -26,14 +26,14 @@ pub struct PermissionGroup {
 
 /// A description of an event and its permission level, to be used with a permission group
 /// to describe the event's permission level in the group
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Eq, PartialEq, Serialize)]
 pub struct EventPermission {
 	pub event: Event,
 	pub level: PermissionLevel,
 }
 
 /// List item in response to list permission groups
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Eq, PartialEq, Serialize)]
 pub struct PermissionGroupWithEvents {
 	pub group: PermissionGroup,
 	pub events: Vec<EventPermission>,

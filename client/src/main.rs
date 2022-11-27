@@ -12,6 +12,7 @@ mod pages;
 mod websocket;
 use components::user_info_bar::UserInfoBar;
 use pages::admin::manage_events::AdminManageEventsView;
+use pages::admin::manage_groups::AdminManageGroupsView;
 use pages::admin::manage_users::AdminManageUsersView;
 use pages::error::{ErrorData, ErrorView};
 use pages::event_selection::EventSelectionView;
@@ -122,7 +123,7 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 						AppRoutes::EventLog(id) => todo!(),
 						AppRoutes::AdminEventManager => view! { ctx, AdminManageEventsView },
 						AppRoutes::AdminUserManager => view! { ctx, AdminManageUsersView },
-						AppRoutes::AdminPermissionGroupManager => todo!(),
+						AppRoutes::AdminPermissionGroupManager => view! { ctx, AdminManageGroupsView },
 						AppRoutes::AdminUserGroupAssignmentManager => todo!(),
 						AppRoutes::Error => view! { ctx, ErrorView },
 						AppRoutes::NotFound => view! { ctx, NotFoundView }

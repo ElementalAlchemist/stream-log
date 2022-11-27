@@ -25,7 +25,9 @@ features = [
 	"Event",
 	"EventTarget",
 	"HtmlButtonElement",
+	"HtmlElement",
 	"HtmlInputElement",
+	"HtmlSpanElement",
 	"Node",
 	"Url"
 ]
