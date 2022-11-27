@@ -10,14 +10,14 @@ pub fn UserInfoBar<G: Html>(ctx: Scope) -> View<G> {
 			view! {
 				ctx,
 				div(id="user") {
-					span(id="user_greeting") {
+					div(id="user_greeting") {
 						"Hi, "
 						(user.username)
 					}
 					(if user.is_admin {
 						view! {
 							ctx,
-							span(id="user_admin_menu") {
+							div(id="user_admin_menu") {
 								"Admin Menu"
 								ul(id="user_admin_menu_pages") {
 									li {

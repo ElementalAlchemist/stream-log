@@ -1,0 +1,28 @@
+#user {
+	position: absolute;
+	top: 0;
+	right: 0;
+
+	> div {
+		display: inline-block;
+		vertical-align: top;
+		margin: 2px;
+	}
+}
+
+#user_admin_menu_pages {
+	display: none;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	border: 1px solid #000;
+}
+
+#user_admin_menu {
+	width: 200px;
+	text-align: center;
+
+	&:hover #user_admin_menu_pages {
+		display: block;
+	}
+}
