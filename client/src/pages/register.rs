@@ -17,8 +17,6 @@ use web_sys::Event as WebEvent;
 
 #[component]
 pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
-	log::debug!("Activating registration page");
-
 	{
 		let user_signal: &Signal<Option<UserData>> = use_context(ctx);
 		if user_signal.get().is_some() {

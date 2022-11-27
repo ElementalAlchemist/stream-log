@@ -14,8 +14,6 @@ use sycamore_router::navigate;
 
 #[component]
 async fn EventSelectionLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
-	log::debug!("Activating event selection page");
-
 	{
 		let user_signal: &Signal<Option<UserData>> = use_context(ctx);
 		if user_signal.get().is_none() {

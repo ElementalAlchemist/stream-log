@@ -5,8 +5,6 @@ use sycamore_router::navigate;
 
 #[component]
 pub fn RegistrationCompleteView<G: Html>(ctx: Scope) -> View<G> {
-	log::debug!("Activating registration complete page");
-
 	let user_signal: &Signal<Option<UserData>> = use_context(ctx);
 	if user_signal.get().is_none() {
 		spawn_local_scoped(ctx, async {

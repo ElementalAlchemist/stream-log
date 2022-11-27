@@ -67,8 +67,6 @@ impl From<PermissionGroupWithOptionalEvents> for PermissionGroupWithEvents {
 
 #[component]
 async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
-	log::debug!("Activating admin permission groups management view");
-
 	let (events, mut permission_groups) = {
 		let ws_context: &Mutex<WebSocket> = use_context(ctx);
 		let mut ws = ws_context.lock().await;

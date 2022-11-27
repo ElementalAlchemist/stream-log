@@ -66,8 +66,6 @@ async fn get_user_list(ctx: Scope<'_>) -> Result<Vec<UserData>, ()> {
 
 #[component]
 async fn AdminManageUsersLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
-	log::debug!("Activating admin user management page");
-
 	let Ok(user_list) = get_user_list(ctx).await else {
 		return view! { ctx, ErrorView };
 	};

@@ -88,8 +88,6 @@ async fn get_event_list(ctx: Scope<'_>) -> Result<Vec<Event>, ()> {
 
 #[component]
 async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
-	log::debug!("Activating admin events management page");
-
 	let Ok(event_list) = get_event_list(ctx).await else {
 		return view! { ctx, ErrorView };
 	};
