@@ -201,6 +201,10 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		}
 	});
 
+	create_effect(ctx, || {
+		log::debug!("Expanded: {:?}", *expanded_group.get());
+	});
+
 	let submit_button = create_node_ref(ctx);
 	let cancel_button = create_node_ref(ctx);
 
@@ -315,12 +319,17 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 					key=|group_with_events| group_with_events.group.id.clone(),
 					view=move |ctx, group_data| {
 						let group_id = group_data.group.id.clone();
-						let this_group_is_open = (*expanded_group.get()).as_ref().map(|g| group_id == *g).unwrap_or(false);
-						let events_class = if this_group_is_open {
-							"admin_group_events admin_group_events_active"
-						} else {
-							"admin_group_events"
-						};
+						let this_group_is_open = create_memo(ctx, {
+							let group_id = group_id.clone();
+							move || (*expanded_group.get()).as_ref().map(|g| group_id == *g).unwrap_or(false)
+						});
+						let events_class = create_memo(ctx, || {
+							if *this_group_is_open.get() {
+								"admin_group_events admin_group_events_active"
+							} else {
+								"admin_group_events"
+							}
+						});
 
 						let group_name_signal = create_signal(ctx, group_data.group.name.clone());
 						let group_name_field = create_node_ref(ctx);
@@ -367,7 +376,7 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 						let group_header_click_handler = {
 							let group_id = group_id.clone();
 							move |_event: WebEvent| {
-								if this_group_is_open {
+								if *this_group_is_open.get() {
 									expanded_group.set(None);
 								} else {
 									expanded_group.set(Some(group_id.clone()));
@@ -400,6 +409,10 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 								error_node.set_inner_text("The entered event does not exist");
 								return;
 							};
+							if group_events_signal.get().iter().any(|ev| ev.event.id == event_data.id) {
+								error_node.set_inner_text("That event already has data for this group");
+								return;
+							}
 
 							let new_event_permission = OptionalEventPermission { event: event_data.clone(), level: None };
 							group_events_signal.modify().push(new_event_permission);
@@ -412,7 +425,7 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 								div(class="admin_group_header", on:click=group_header_click_handler) {
 									input(bind:value=group_name_signal, ref=group_name_field)
 								}
-								div(class=events_class) {
+								div(class=*events_class.get()) {
 									Keyed(
 										iterable=group_events_signal,
 										key=|event_permission| event_permission.event.id.clone(),
