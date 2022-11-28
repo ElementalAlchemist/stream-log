@@ -391,8 +391,7 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 							new_event_name_signal.set(String::new());
 						};
 
-						let events_list_id = format!("admin_group_event_list-{}", group_id);
-						let events_list_id_ref = events_list_id.clone();
+						let group_events_list_id = group_id.clone();
 						view! {
 							ctx,
 							div {
@@ -400,13 +399,6 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 									input(bind:value=group_name_signal, ref=group_name_field)
 								}
 								div(class=*events_class.get()) {
-									datalist(id=events_list_id) {
-										Keyed(
-											iterable=available_events_signal,
-											key=|event| event.id.clone(),
-											view=|ctx, event| view! { ctx, option(value=event.name) }
-										)
-									}
 									Keyed(
 										iterable=group_events_signal,
 										key=|event_permission| event_permission.event.id.clone(),
@@ -482,11 +474,27 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 											}
 										}
 									)
-									form(on:submit=add_event_submission_handler) {
-										input(placeholder="Add event", list=events_list_id_ref, bind:value=new_event_name_signal)
-										button { "Add" }
-										span(class="form-error", ref=form_error_node)
-									}
+									(if available_events_signal.get().is_empty() {
+										view! { ctx, }
+									} else {
+										let events_list_id = format!("admin_group_event_list-{}", group_events_list_id);
+										let events_list_id_ref = events_list_id.clone();
+										view! {
+											ctx,
+											form(on:submit=add_event_submission_handler) {
+												datalist(id=events_list_id) {
+													Keyed(
+														iterable=available_events_signal,
+														key=|event| event.id.clone(),
+														view=|ctx, event| view! { ctx, option(value=event.name) }
+													)
+												}
+												input(placeholder="Add event", list=events_list_id_ref, bind:value=new_event_name_signal)
+												button { "Add" }
+												span(class="form-error", ref=form_error_node)
+											}
+										}
+									})
 								}
 							}
 						}
