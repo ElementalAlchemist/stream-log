@@ -181,29 +181,6 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	let permission_groups_signal = create_signal(ctx, permission_groups);
 	let updated_groups_signal: &Signal<HashSet<String>> = create_signal(ctx, HashSet::new());
 	let expanded_group: &Signal<Option<String>> = create_signal(ctx, None);
-	let available_events_signal = create_memo(ctx, || {
-		if let Some(group_id) = (*expanded_group.get()).as_ref() {
-			let Some(group) = permission_groups_signal.get().iter().find(|group_data| group_data.group.id == *group_id).cloned() else { return (*events_signal.get()).clone() };
-			let group_events: HashSet<String> = group
-				.events
-				.iter()
-				.filter(|event| event.level.is_some())
-				.map(|event| event.event.id.clone())
-				.collect();
-			events_signal
-				.get()
-				.iter()
-				.filter(|event| !group_events.contains(&event.id))
-				.cloned()
-				.collect()
-		} else {
-			(*events_signal.get()).clone()
-		}
-	});
-
-	create_effect(ctx, || {
-		log::debug!("Expanded: {:?}", *expanded_group.get());
-	});
 
 	let submit_button = create_node_ref(ctx);
 	let cancel_button = create_node_ref(ctx);
@@ -303,15 +280,6 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	view! {
 		ctx,
 		h1 { "Manage Permission Groups" }
-		datalist(id="admin_event_list") {
-			Keyed(
-				iterable=available_events_signal,
-				key=|event| event.id.clone(),
-				view=move |ctx, event| {
-					view! { ctx, option(value=event.name) }
-				}
-			)
-		}
 		form(on:submit=form_submission_handler) {
 			div {
 				Keyed(
@@ -373,6 +341,10 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 							}
 						});
 
+						let available_events_signal: &ReadSignal<Vec<Event>> = create_memo(ctx, || {
+							(*events_signal.get()).iter().filter(|ev| !group_events_signal.get().iter().any(|ge| ev.id == ge.event.id)).cloned().collect()
+						});
+
 						let group_header_click_handler = {
 							let group_id = group_id.clone();
 							move |_event: WebEvent| {
@@ -419,6 +391,8 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 							new_event_name_signal.set(String::new());
 						};
 
+						let events_list_id = format!("admin_group_event_list-{}", group_id);
+						let events_list_id_ref = events_list_id.clone();
 						view! {
 							ctx,
 							div {
@@ -426,6 +400,13 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 									input(bind:value=group_name_signal, ref=group_name_field)
 								}
 								div(class=*events_class.get()) {
+									datalist(id=events_list_id) {
+										Keyed(
+											iterable=available_events_signal,
+											key=|event| event.id.clone(),
+											view=|ctx, event| view! { ctx, option(value=event.name) }
+										)
+									}
 									Keyed(
 										iterable=group_events_signal,
 										key=|event_permission| event_permission.event.id.clone(),
@@ -502,7 +483,7 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 										}
 									)
 									form(on:submit=add_event_submission_handler) {
-										input(placeholder="Add event", list="admin_event_list", bind:value=new_event_name_signal)
+										input(placeholder="Add event", list=events_list_id_ref, bind:value=new_event_name_signal)
 										button { "Add" }
 										span(class="form-error", ref=form_error_node)
 									}
