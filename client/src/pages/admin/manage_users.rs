@@ -137,7 +137,7 @@ async fn AdminManageUsersLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		ctx,
 		h1 { "Manage Users" }
 		form(on:submit=form_submission_handler) {
-			table {
+			table(id="admin_user_manage") {
 				tr {
 					th { "Username" }
 					th { "Admin?" }
@@ -161,7 +161,7 @@ async fn AdminManageUsersLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 								ctx,
 								tr {
 									td { (user.username) }
-									td {
+									td(class="admin_user_admin_toggle") {
 										input(type="checkbox", checked=user.is_admin, on:change=admin_change_handler, ref=checkbox)
 									}
 								}

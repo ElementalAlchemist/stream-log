@@ -27,6 +27,19 @@
 	}
 }
 
+#admin_user_manage {
+	border-collapse: collapse;
+	
+	th, td {
+		border: 1px solid #999;
+		padding: 2px;
+	}
+}
+
+.admin_user_admin_toggle {
+	text-align: center;
+}
+
 #admin_group_manage {
 	margin-bottom: 10px;
 }
