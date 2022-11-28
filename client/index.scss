@@ -26,3 +26,36 @@
 		display: block;
 	}
 }
+
+#admin_group_manage {
+	margin-bottom: 10px;
+}
+
+.admin_group {
+	margin-bottom: 5px;
+	padding-top: 2px;
+
+	&:not(:first-child) {
+		border-top: 1px solid #000;
+	}
+}
+
+.admin_group_events {
+	display: none;
+
+	&.admin_group_events_active {
+		display: block;
+	}
+}
+
+.admin_group_events_grid {
+	display: grid;
+	grid-template-columns: max-content max-content max-content;
+	gap: 1px;
+	align-items: baseline;
+	margin-bottom: 3px;
+
+	> div {
+		padding: 2px;
+	}
+}

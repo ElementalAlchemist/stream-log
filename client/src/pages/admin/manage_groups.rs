@@ -281,7 +281,7 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		ctx,
 		h1 { "Manage Permission Groups" }
 		form(on:submit=form_submission_handler) {
-			div {
+			div(id="admin_group_manage") {
 				Keyed(
 					iterable=permission_groups_signal,
 					key=|group_with_events| group_with_events.group.id.clone(),
@@ -394,72 +394,72 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 						let group_events_list_id = group_id.clone();
 						view! {
 							ctx,
-							div {
+							div(class="admin_group") {
 								div(class="admin_group_header", on:click=group_header_click_handler) {
 									input(bind:value=group_name_signal, ref=group_name_field)
 								}
 								div(class=*events_class.get()) {
-									Keyed(
-										iterable=group_events_signal,
-										key=|event_permission| event_permission.event.id.clone(),
-										view={
-											let group_id = group_id.clone();
-											move |ctx, event_permission| {
-												let view_id = format!("admin_group_event_line_view-{}-{}", group_id, event_permission.event.id);
-												let view_id_for = view_id.clone();
-												let edit_id = format!("admin_group_event_line_edit-{}-{}", group_id, event_permission.event.id);
-												let edit_id_for = edit_id.clone();
+									div(class="admin_group_events_grid") {
+										Keyed(
+											iterable=group_events_signal,
+											key=|event_permission| event_permission.event.id.clone(),
+											view={
+												let group_id = group_id.clone();
+												move |ctx, event_permission| {
+													let view_id = format!("admin_group_event_line_view-{}-{}", group_id, event_permission.event.id);
+													let view_id_for = view_id.clone();
+													let edit_id = format!("admin_group_event_line_edit-{}-{}", group_id, event_permission.event.id);
+													let edit_id_for = edit_id.clone();
 
-												let event_permission_signal = create_signal(ctx, event_permission.level);
-												let event_view_signal = create_signal(ctx, event_permission.level.is_some());
-												let event_edit_signal = create_signal(ctx, event_permission.level == Some(PermissionLevel::Edit));
+													let event_permission_signal = create_signal(ctx, event_permission.level);
+													let event_view_signal = create_signal(ctx, event_permission.level.is_some());
+													let event_edit_signal = create_signal(ctx, event_permission.level == Some(PermissionLevel::Edit));
 
-												create_effect(ctx, || {
-													let view_state = *event_view_signal.get();
-													if !view_state {
-														event_edit_signal.set(false);
-													}
-												});
-												create_effect(ctx, || {
-													let edit_state = *event_edit_signal.get();
-													if edit_state {
-														event_view_signal.set(true);
-													}
-												});
-												create_effect(ctx, || {
-													let view_state = *event_view_signal.get();
-													let edit_state = *event_edit_signal.get();
-													let new_level = match (view_state, edit_state) {
-														(_, true) => Some(PermissionLevel::Edit),
-														(true, false) => Some(PermissionLevel::View),
-														_ => None
-													};
-													event_permission_signal.set(new_level);
-												});
-												create_effect(ctx, {
-													let group_id = group_id.clone();
-													move || {
+													create_effect(ctx, || {
+														let view_state = *event_view_signal.get();
+														if !view_state {
+															event_edit_signal.set(false);
+														}
+													});
+													create_effect(ctx, || {
+														let edit_state = *event_edit_signal.get();
+														if edit_state {
+															event_view_signal.set(true);
+														}
+													});
+													create_effect(ctx, || {
+														let view_state = *event_view_signal.get();
+														let edit_state = *event_edit_signal.get();
+														let new_level = match (view_state, edit_state) {
+															(_, true) => Some(PermissionLevel::Edit),
+															(true, false) => Some(PermissionLevel::View),
+															_ => None
+														};
+														event_permission_signal.set(new_level);
+													});
+													create_effect(ctx, {
+														let group_id = group_id.clone();
+														move || {
+															let new_level = *event_permission_signal.get();
+															let mut modify_events = group_events_signal.modify();
+															let event_data = modify_events.iter_mut().find(|event| event_permission.event.id == event.event.id).expect("Event being rendered exists in the group event data");
+															event_data.level = new_level;
+															updated_groups_signal.modify().insert(group_id.clone());
+														}
+													});
+													create_effect(ctx, || {
 														let new_level = *event_permission_signal.get();
-														let mut modify_events = group_events_signal.modify();
-														let event_data = modify_events.iter_mut().find(|event| event_permission.event.id == event.event.id).expect("Event being rendered exists in the group event data");
-														event_data.level = new_level;
-														updated_groups_signal.modify().insert(group_id.clone());
-													}
-												});
-												create_effect(ctx, || {
-													let new_level = *event_permission_signal.get();
-													let (view_state, edit_state) = match new_level {
-														Some(PermissionLevel::Edit) => (true, true),
-														Some(PermissionLevel::View) => (true, false),
-														None => (false, false)
-													};
-													event_edit_signal.set(edit_state);
-													event_view_signal.set(view_state);
-												});
+														let (view_state, edit_state) = match new_level {
+															Some(PermissionLevel::Edit) => (true, true),
+															Some(PermissionLevel::View) => (true, false),
+															None => (false, false)
+														};
+														event_edit_signal.set(edit_state);
+														event_view_signal.set(view_state);
+													});
 
-												view! {
-													ctx,
-													div(class="admin_group_event_line") {
+													view! {
+														ctx,
 														div { (event_permission.event.name) }
 														div {
 															input(type="checkbox", id=view_id, bind:checked=event_view_signal)
@@ -472,8 +472,8 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 													}
 												}
 											}
-										}
-									)
+										)
+									}
 									(if available_events_signal.get().is_empty() {
 										view! { ctx, }
 									} else {
@@ -481,7 +481,7 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 										let events_list_id_ref = events_list_id.clone();
 										view! {
 											ctx,
-											form(on:submit=add_event_submission_handler) {
+											form(class="admin_group_events_add", on:submit=add_event_submission_handler) {
 												datalist(id=events_list_id) {
 													Keyed(
 														iterable=available_events_signal,
