@@ -1,12 +1,28 @@
+:root {
+	--base-border-color: #000;
+}
+
 @media (prefers-color-scheme: dark) {
 	html {
 		background: #111;
 		color: #fff;
 	}
 
+	a {
+		color: #ccf;
+	}
+
+	a:visited {
+		color: #dcf;
+	}
+
 	button {
 		background: #222;
 		color: #fff;
+	}
+
+	:root {
+		--base-border-color: #eee;
 	}
 }
 
@@ -27,7 +43,7 @@
 	list-style: none;
 	margin: 0;
 	padding: 0;
-	border: 1px solid #000;
+	border: 1px solid var(--base-border-color);
 }
 
 #user_admin_menu {
@@ -70,7 +86,7 @@
 	padding-top: 2px;
 
 	&:not(:first-child) {
-		border-top: 1px solid #000;
+		border-top: 1px solid var(--base-border-color);
 	}
 }
 
