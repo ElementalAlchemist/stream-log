@@ -1,3 +1,15 @@
+@media (prefers-color-scheme: dark) {
+	html {
+		background: #111;
+		color: #fff;
+	}
+
+	button {
+		background: #222;
+		color: #fff;
+	}
+}
+
 #user {
 	position: absolute;
 	top: 0;
