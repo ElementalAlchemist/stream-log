@@ -39,8 +39,17 @@
 	}
 }
 
+#admin_manage_events > table {
+	margin-bottom: 5px;
+
+	> tr {
+		vertical-align: baseline;
+	}
+}
+
 #admin_user_manage {
 	border-collapse: collapse;
+	margin-bottom: 5px;
 	
 	th, td {
 		border: 1px solid #999;
