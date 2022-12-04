@@ -6,6 +6,11 @@
 	color: #b00;
 }
 
+input.error {
+	border-color: #b00;
+	outline-color: #c00;
+}
+
 @media (prefers-color-scheme: dark) {
 	html {
 		background: #111;
@@ -32,6 +37,11 @@
 		color: #fff;
 		border-color: #999;
 		border-style: solid;
+
+		&.error {
+			border-color: #f55;
+			outline-color: #f33;
+		}
 	}
 
 	:root {
