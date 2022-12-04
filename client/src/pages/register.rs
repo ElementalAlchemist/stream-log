@@ -29,8 +29,8 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 	let username_signal = create_signal(ctx, String::new());
 	let username_in_use_signal = create_signal(ctx, false);
-	let username_empty_signal = create_signal(ctx, false); // This shouldn't be visible until some user entry happens
-	let username_too_long_signal = create_signal(ctx, false);
+	let username_empty_signal = create_memo(ctx, || username_signal.get().is_empty());
+	let username_too_long_signal = create_memo(ctx, || username_signal.get().len() > USERNAME_LENGTH_LIMIT);
 	let username_field = create_node_ref(ctx);
 	let submit_button_ref = create_node_ref(ctx);
 
@@ -46,7 +46,9 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 		let username = username_signal.get();
 		if username.is_empty() {
-			username_empty_signal.set(true);
+			return;
+		}
+		if username.len() > USERNAME_LENGTH_LIMIT {
 			return;
 		}
 		let registration_data = UserRegistrationFinalize {
@@ -115,18 +117,18 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 					user_data_signal.set(Some(user));
 					navigate("/register_complete");
 				}
-				RegistrationResponse::NoUsernameSpecified => username_empty_signal.set(true),
 				RegistrationResponse::UsernameInUse => username_in_use_signal.set(true),
-				RegistrationResponse::UsernameTooLong => username_too_long_signal.set(true),
+				_ => {
+					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
+					error_signal.set(Some(ErrorData::new(String::from("A desync occurred in validation expectations between the client and the server. Please refresh the page."))));
+					navigate("/error");
+				}
 			}
 		});
 	};
 
 	create_effect(ctx, move || {
 		let username = (*username_signal.get()).clone();
-		// The username was modified, so clear submit-only errors
-		username_empty_signal.set(username.is_empty());
-		username_too_long_signal.set(username.len() > USERNAME_LENGTH_LIMIT);
 
 		if username.is_empty() {
 			username_in_use_signal.set(false);
