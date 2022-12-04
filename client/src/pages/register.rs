@@ -135,6 +135,11 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			return;
 		}
 
+		if username.len() > USERNAME_LENGTH_LIMIT {
+			username_in_use_signal.set(false);
+			return;
+		}
+
 		spawn_local_scoped(ctx, async move {
 			let ws_context: &Mutex<WebSocket> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
@@ -198,36 +203,48 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	view! {
 		ctx,
 		form(id="register_user", on:submit=form_submission_handler) {
-			label(for="register_username") {
-				"Username: "
-			}
-			input(id="register_username", type="text", class=*username_error_class_signal.get(), bind:value=username_signal, ref=username_field)
-			(
-				if *username_in_use_signal.get() {
-					view! {
-						ctx,
-						div(id="register_username_in_use_warning", class="input-error") {
-							"This username is in use."
-						}
-					}
-				} else if *username_empty_signal.get() {
-					view! {
-						ctx,
-						div(id="register_username_empty_warning", class="input-error") {
-							"Username cannot be empty."
-						}
-					}
-				} else if *username_too_long_signal.get() {
-					view! {
-						ctx,
-						div(id="register_username_too_long_warning", class="input-error") {
-							"Username is too long."
-						}
-					}
-				} else {
-					view! { ctx, }
+			div(class="input_with_message") {
+				label(for="register_username") {
+					"Username: "
 				}
-			)
+				input(id="register_username", type="text", class=*username_error_class_signal.get(), bind:value=username_signal, ref=username_field)
+				(
+					if *username_in_use_signal.get() {
+						view! {
+							ctx,
+							span(id="register_username_in_use_warning", class="input_error register_username_error") {
+								"This username is in use."
+							}
+						}
+					} else {
+						view! { ctx, }
+					}
+				)
+				(
+					if *username_empty_signal.get() {
+						view! {
+							ctx,
+							span(id="register_username_empty_warning", class="input_error register_username_error") {
+								"Username cannot be empty."
+							}
+						}
+					} else {
+						view! { ctx, }
+					}
+				)
+				(
+					if *username_too_long_signal.get() {
+						view! {
+							ctx,
+							span(id="register_username_too_long_warning", class="input_error register_username_error") {
+								"Username is too long."
+							}
+						}
+					} else {
+						view! { ctx, }
+					}
+				)
+			}
 			button(ref=submit_button_ref) {
 				"Register"
 			}

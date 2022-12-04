@@ -2,7 +2,7 @@
 	--base-border-color: #000;
 }
 
-.input-error {
+.input_error {
 	color: #b00;
 }
 
@@ -38,7 +38,7 @@
 		--base-border-color: #eee;
 	}
 
-	.input-error {
+	.input_error {
 		color: #f55;
 	}
 }
@@ -59,6 +59,10 @@
 	button {
 		margin-top: 5px;
 	}
+}
+
+.register_username_error {
+	margin: 0 3px;
 }
 
 #user_admin_menu_pages {
