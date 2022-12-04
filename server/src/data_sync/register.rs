@@ -36,11 +36,11 @@ pub async fn register_user(
 		};
 		match registration_data {
 			UserRegistration::CheckUsername(username) => {
-				if username.len() > 64 {
-					let response = UsernameCheckResponse {
+				if username.len() > USERNAME_LENGTH_LIMIT {
+					let response = DataMessage::Ok(UsernameCheckResponse {
 						username,
 						status: UsernameCheckStatus::Unavailable,
-					};
+					});
 					stream.send_json(&response).await?;
 					continue;
 				}
