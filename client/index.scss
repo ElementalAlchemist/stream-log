@@ -2,6 +2,10 @@
 	--base-border-color: #000;
 }
 
+.input-error {
+	color: #b00;
+}
+
 @media (prefers-color-scheme: dark) {
 	html {
 		background: #111;
@@ -24,6 +28,10 @@
 	:root {
 		--base-border-color: #eee;
 	}
+
+	.input-error {
+		color: #f55;
+	}
 }
 
 #user {
@@ -35,6 +43,12 @@
 		display: inline-block;
 		vertical-align: top;
 		margin: 2px;
+	}
+}
+
+#register_user {
+	button {
+		margin-top: 5px;
 	}
 }
 

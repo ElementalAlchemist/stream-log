@@ -204,21 +204,21 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				if *username_in_use_signal.get() {
 					view! {
 						ctx,
-						div(id="register_username_in_use_warning", class="register_username_error") {
+						div(id="register_username_in_use_warning", class="input-error") {
 							"This username is in use."
 						}
 					}
 				} else if *username_empty_signal.get() {
 					view! {
 						ctx,
-						div(id="register_username_empty_warning", class="register_username_error") {
+						div(id="register_username_empty_warning", class="input-error") {
 							"Username cannot be empty."
 						}
 					}
 				} else if *username_too_long_signal.get() {
 					view! {
 						ctx,
-						div(id="register_username_too_long_warning", class="register_username_error") {
+						div(id="register_username_too_long_warning", class="input-error") {
 							"Username is too long."
 						}
 					}
