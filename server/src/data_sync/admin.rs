@@ -9,9 +9,7 @@ use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use diesel::result::{DatabaseErrorKind, Error as QueryError};
 use std::collections::HashMap;
-use stream_log_shared::messages::admin::{
-	AdminAction, EventPermission, PermissionGroup, PermissionGroupWithEvents, UserDataPermissions,
-};
+use stream_log_shared::messages::admin::{AdminAction, EventPermission, PermissionGroup, PermissionGroupWithEvents};
 use stream_log_shared::messages::events::Event as EventWs;
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::{DataError, DataMessage};
@@ -205,6 +203,41 @@ pub async fn handle_admin(
 				return Err(HandleConnectionError::ConnectionClosed);
 			}
 		}
+		AdminAction::ListUserPermissionGroups(user) => {
+			let permission_groups_result: QueryResult<Vec<PermissionGroupDb>> = {
+				let mut db_connection = db_connection.lock().await;
+				permission_groups::table
+					.filter(
+						user_permissions::table
+							.filter(
+								user_permissions::user_id
+									.eq(&user.id)
+									.and(user_permissions::permission_group.eq(permission_groups::id)),
+							)
+							.count()
+							.single_value()
+							.gt(0),
+					)
+					.load(&mut *db_connection)
+			};
+			let message = match permission_groups_result {
+				Ok(mut permission_groups) => {
+					let permission_groups: Vec<PermissionGroup> = permission_groups
+						.drain(..)
+						.map(|group| PermissionGroup {
+							id: group.id,
+							name: group.name,
+						})
+						.collect();
+					DataMessage::Ok(permission_groups)
+				}
+				Err(error) => {
+					tide::log::error!("Database error: {}", error);
+					DataMessage::Err(DataError::DatabaseError)
+				}
+			};
+			stream.send_json(&message).await?;
+		}
 		AdminAction::AddUserToPermissionGroup(permission_group_user) => {
 			let mut db_connection = db_connection.lock().await;
 			let new_user_permission = UserPermission {
@@ -280,63 +313,30 @@ pub async fn handle_admin(
 				return Err(HandleConnectionError::ConnectionClosed);
 			}
 		}
-		AdminAction::ListUserPermissions => {
-			let user_groups_table = user_permissions::table.inner_join(permission_groups::table);
-			let user_list: QueryResult<Vec<(UserData, Option<PermissionGroup>)>> = {
+		AdminAction::ListUsersWithNoPermissionGroups => {
+			let users_result: QueryResult<Vec<User>> = {
 				let mut db_connection = db_connection.lock().await;
-				let lookup_result: QueryResult<Vec<(_, _, _, Option<String>, Option<String>)>> = users::table
-					.left_outer_join(user_groups_table)
-					.select((
-						users::id,
-						users::name,
-						users::is_admin,
-						permission_groups::id.nullable(),
-						permission_groups::name.nullable(),
-					))
-					.load(&mut *db_connection);
-				match lookup_result {
-					Ok(results) => {
-						let mut result_list: Vec<(UserData, Option<PermissionGroup>)> =
-							Vec::with_capacity(results.len());
-						for (user_id, user_name, user_is_admin, group_id, group_name) in results {
-							let user_data = UserData {
-								id: user_id,
-								username: user_name,
-								is_admin: user_is_admin,
-							};
-							let permission_group = if let Some(group_id) = group_id {
-								let group_name = group_name.unwrap();
-								Some(PermissionGroup {
-									id: group_id,
-									name: group_name,
-								})
-							} else {
-								None
-							};
-							result_list.push((user_data, permission_group));
-						}
-						Ok(result_list)
-					}
-					Err(error) => Err(error),
-				}
+				users::table
+					.filter(
+						user_permissions::table
+							.filter(user_permissions::user_id.eq(users::id))
+							.count()
+							.single_value()
+							.eq(0),
+					)
+					.load(&mut *db_connection)
 			};
-			let message: DataMessage<Vec<UserDataPermissions>> = match user_list {
-				Ok(user_list) => {
-					let mut user_groups: HashMap<UserData, Vec<PermissionGroup>> = HashMap::new();
-					for (user_data, group) in user_list {
-						let user_group_entry = user_groups.entry(user_data).or_default();
-						if let Some(group_data) = group {
-							user_group_entry.push(group_data);
-						}
-					}
-					let user_groups = user_groups
-						.drain()
-						.map(|(user_data, group_data)| UserDataPermissions {
-							user: user_data,
-							groups: group_data,
+			let message = match users_result {
+				Ok(mut users) => {
+					let user_data: Vec<UserData> = users
+						.drain(..)
+						.map(|user| UserData {
+							id: user.id,
+							username: user.name,
+							is_admin: user.is_admin,
 						})
 						.collect();
-					DataMessage::Ok(user_groups)
+					DataMessage::Ok(user_data)
 				}
 				Err(error) => {
 					tide::log::error!("Database error: {}", error);

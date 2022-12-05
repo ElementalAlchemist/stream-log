@@ -10,11 +10,12 @@ pub enum AdminAction {
 	ListEvents,
 	ListPermissionGroups,
 	UpdatePermissionGroups(Vec<PermissionGroupWithEvents>),
+	ListUserPermissionGroups(UserData),
 	AddUserToPermissionGroup(PermissionGroupUser),
 	RemoveUserFromPermissionGroup(PermissionGroupUser),
 	ListUsers,
 	EditUsers(Vec<UserData>),
-	ListUserPermissions,
+	ListUsersWithNoPermissionGroups,
 }
 
 /// A single permission group
@@ -44,11 +45,4 @@ pub struct PermissionGroupWithEvents {
 pub struct PermissionGroupUser {
 	pub group: PermissionGroup,
 	pub user: UserData,
-}
-
-/// List item in response to list users
-#[derive(Deserialize, Serialize)]
-pub struct UserDataPermissions {
-	pub user: UserData,
-	pub groups: Vec<PermissionGroup>,
 }
