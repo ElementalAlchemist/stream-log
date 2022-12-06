@@ -11,6 +11,7 @@ mod components;
 mod pages;
 mod websocket;
 use components::user_info_bar::UserInfoBar;
+use pages::admin::assign_groups::AssignUsersToGroupsView;
 use pages::admin::manage_events::AdminManageEventsView;
 use pages::admin::manage_groups::AdminManageGroupsView;
 use pages::admin::manage_users::AdminManageUsersView;
@@ -124,7 +125,7 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 						AppRoutes::AdminEventManager => view! { ctx, AdminManageEventsView },
 						AppRoutes::AdminUserManager => view! { ctx, AdminManageUsersView },
 						AppRoutes::AdminPermissionGroupManager => view! { ctx, AdminManageGroupsView },
-						AppRoutes::AdminUserGroupAssignmentManager => todo!(),
+						AppRoutes::AdminUserGroupAssignmentManager => view! { ctx, AssignUsersToGroupsView },
 						AppRoutes::Error => view! { ctx, ErrorView },
 						AppRoutes::NotFound => view! { ctx, NotFoundView }
 					})

@@ -9,6 +9,7 @@ pub enum AdminAction {
 	EditEvents(Vec<Event>),
 	ListEvents,
 	ListPermissionGroups,
+	ListPermissionGroupsWithEvents,
 	UpdatePermissionGroups(Vec<PermissionGroupWithEvents>),
 	ListUserPermissionGroups(UserData),
 	AddUserToPermissionGroup(PermissionGroupUser),

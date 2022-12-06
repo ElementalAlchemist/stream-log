@@ -92,7 +92,7 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			return view! { ctx, ErrorView };
 		}
 
-		let message = RequestMessage::Admin(AdminAction::ListPermissionGroups);
+		let message = RequestMessage::Admin(AdminAction::ListPermissionGroupsWithEvents);
 		let message_json = match serde_json::to_string(&message) {
 			Ok(msg) => msg,
 			Err(error) => {

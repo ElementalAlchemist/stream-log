@@ -104,6 +104,29 @@ pub async fn handle_admin(
 			}
 		}
 		AdminAction::ListPermissionGroups => {
+			let group_data: QueryResult<Vec<PermissionGroupDb>> = {
+				let mut db_connection = db_connection.lock().await;
+				permission_groups::table.load(&mut *db_connection)
+			};
+			let message = match group_data {
+				Ok(groups) => {
+					let send_groups: Vec<PermissionGroup> = groups
+						.iter()
+						.map(|group| PermissionGroup {
+							id: group.id.clone(),
+							name: group.name.clone(),
+						})
+						.collect();
+					DataMessage::Ok(send_groups)
+				}
+				Err(error) => {
+					tide::log::error!("Database error: {}", error);
+					DataMessage::Err(DataError::DatabaseError)
+				}
+			};
+			stream.send_json(&message).await?;
+		}
+		AdminAction::ListPermissionGroupsWithEvents => {
 			let group_data: QueryResult<Vec<DestructuredEventPermission>> = {
 				let mut db_connection = db_connection.lock().await;
 				let events_data_table = permission_events::table.inner_join(events::table);
