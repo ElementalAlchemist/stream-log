@@ -414,12 +414,14 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 					view! {
 						ctx,
-						div(class="admin_assign_group_name") {
-							(group.name)
-						}
-						div(class="admin_assign_group_remove") {
-							button(ref=remove_button_ref, on:click=remove_handler) {
-								"Remove"
+						div(class="admin_assign_group_row") {
+							div(class="admin_assign_group_name") {
+								(group.name)
+							}
+							div(class="admin_assign_group_remove") {
+								button(ref=remove_button_ref, on:click=remove_handler) {
+									"Remove"
+								}
 							}
 						}
 					}
