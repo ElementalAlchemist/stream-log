@@ -1,3 +1,4 @@
+use super::event_types::EventType;
 use super::events::Event;
 use super::permissions::PermissionLevel;
 use super::user::UserData;
@@ -17,6 +18,9 @@ pub enum AdminAction {
 	ListUsers,
 	EditUsers(Vec<UserData>),
 	ListUsersWithNoPermissionGroups,
+	ListEventTypes,
+	AddEventType(EventType),
+	UpdateEventType(EventType),
 }
 
 /// A single permission group

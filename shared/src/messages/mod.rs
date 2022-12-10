@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 pub mod admin;
+pub mod event_types;
 pub mod events;
 pub mod initial;
 pub mod permissions;

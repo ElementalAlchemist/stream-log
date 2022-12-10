@@ -1,8 +1,9 @@
 use super::HandleConnectionError;
 use crate::models::{
-	Event as EventDb, Permission, PermissionEvent, PermissionGroup as PermissionGroupDb, User, UserPermission,
+	Event as EventDb, EventType as EventTypeDb, Permission, PermissionEvent, PermissionGroup as PermissionGroupDb,
+	User, UserPermission,
 };
-use crate::schema::{events, permission_events, permission_groups, user_permissions, users};
+use crate::schema::{event_types, events, permission_events, permission_groups, user_permissions, users};
 use async_std::sync::{Arc, Mutex};
 use chrono::prelude::*;
 use diesel::pg::PgConnection;
@@ -10,6 +11,7 @@ use diesel::prelude::*;
 use diesel::result::{DatabaseErrorKind, Error as QueryError};
 use std::collections::HashMap;
 use stream_log_shared::messages::admin::{AdminAction, EventPermission, PermissionGroup, PermissionGroupWithEvents};
+use stream_log_shared::messages::event_types::EventType;
 use stream_log_shared::messages::events::Event as EventWs;
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::{DataError, DataMessage};
@@ -367,6 +369,74 @@ pub async fn handle_admin(
 				}
 			};
 			stream.send_json(&message).await?;
+		}
+		AdminAction::ListEventTypes => {
+			let event_types: QueryResult<Vec<EventTypeDb>> = {
+				let mut db_connection = db_connection.lock().await;
+				event_types::table.load(&mut *db_connection)
+			};
+			let message = match event_types {
+				Ok(event_types) => {
+					let event_types: Vec<EventType> = event_types
+						.iter()
+						.map(|et| EventType {
+							id: et.id.clone(),
+							name: et.name.clone(),
+							color: et.color(),
+						})
+						.collect();
+					DataMessage::Ok(event_types)
+				}
+				Err(error) => {
+					tide::log::error!("Database error: {}", error);
+					DataMessage::Err(DataError::DatabaseError)
+				}
+			};
+			stream.send_json(&message).await?;
+		}
+		AdminAction::AddEventType(event_type) => {
+			let new_id = match cuid::cuid() {
+				Ok(id) => id,
+				Err(error) => {
+					tide::log::error!("Failed to generate CUID: {}", error);
+					return Err(HandleConnectionError::ConnectionClosed);
+				}
+			};
+			let new_event = EventTypeDb {
+				id: new_id,
+				name: event_type.name,
+				color_red: event_type.color.r.into(),
+				color_green: event_type.color.g.into(),
+				color_blue: event_type.color.b.into(),
+			};
+
+			let mut db_connection = db_connection.lock().await;
+			let result: QueryResult<_> = diesel::insert_into(event_types::table)
+				.values(&new_event)
+				.execute(&mut *db_connection);
+			if let Err(error) = result {
+				tide::log::error!("Error adding event type: {}", error);
+				return Err(HandleConnectionError::ConnectionClosed);
+			}
+		}
+		AdminAction::UpdateEventType(event_type) => {
+			let mut db_connection = db_connection.lock().await;
+			let red: i32 = event_type.color.r.into();
+			let green: i32 = event_type.color.g.into();
+			let blue: i32 = event_type.color.b.into();
+
+			let result: QueryResult<_> = diesel::update(event_types::table.filter(event_types::id.eq(&event_type.id)))
+				.set((
+					event_types::name.eq(&event_type.name),
+					event_types::color_red.eq(red),
+					event_types::color_green.eq(green),
+					event_types::color_blue.eq(blue),
+				))
+				.execute(&mut *db_connection);
+			if let Err(error) = result {
+				tide::log::error!("Error updating event type: {}", error);
+				return Err(HandleConnectionError::ConnectionClosed);
+			}
 		}
 	}
 

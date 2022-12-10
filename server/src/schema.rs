@@ -7,6 +7,16 @@ pub mod sql_types {
 }
 
 diesel::table! {
+	event_types (id) {
+		id -> Text,
+		name -> Text,
+		color_red -> Int4,
+		color_green -> Int4,
+		color_blue -> Int4,
+	}
+}
+
+diesel::table! {
 	events (id) {
 		id -> Text,
 		name -> Text,
@@ -53,4 +63,11 @@ diesel::joinable!(permission_events -> permission_groups (permission_group));
 diesel::joinable!(user_permissions -> permission_groups (permission_group));
 diesel::joinable!(user_permissions -> users (user_id));
 
-diesel::allow_tables_to_appear_in_same_query!(events, permission_events, permission_groups, user_permissions, users,);
+diesel::allow_tables_to_appear_in_same_query!(
+	event_types,
+	events,
+	permission_events,
+	permission_groups,
+	user_permissions,
+	users,
+);
