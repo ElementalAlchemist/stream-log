@@ -21,6 +21,7 @@ pub async fn send_events(
 			.inner_join(permission_events::table.on(permission_groups::id.eq(permission_events::permission_group)))
 			.inner_join(events::table.on(permission_events::event.eq(events::id)))
 			.select(events::table.default_selection())
+			.distinct()
 			.load(&mut *db_connection)
 	};
 	match user_events {
