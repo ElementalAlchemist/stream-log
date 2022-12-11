@@ -40,6 +40,11 @@ pub fn UserInfoBar<G: Html>(ctx: Scope) -> View<G> {
 											"Assign Users to Permission Groups"
 										}
 									}
+									li {
+										a(href="/admin/event_types") {
+											"Manage Event Types"
+										}
+									}
 								}
 							}
 						}

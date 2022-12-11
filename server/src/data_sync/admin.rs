@@ -403,7 +403,7 @@ pub async fn handle_admin(
 				}
 			};
 			let new_event = EventTypeDb {
-				id: new_id,
+				id: new_id.clone(),
 				name: event_type.name,
 				color_red: event_type.color.r.into(),
 				color_green: event_type.color.g.into(),
@@ -418,6 +418,14 @@ pub async fn handle_admin(
 				tide::log::error!("Error adding event type: {}", error);
 				return Err(HandleConnectionError::ConnectionClosed);
 			}
+			let message = match result {
+				Ok(_) => DataMessage::Ok(new_id),
+				Err(error) => {
+					tide::log::error!("Database error: {}", error);
+					DataMessage::Err(DataError::DatabaseError)
+				}
+			};
+			stream.send_json(&message).await?;
 		}
 		AdminAction::UpdateEventType(event_type) => {
 			let mut db_connection = db_connection.lock().await;
