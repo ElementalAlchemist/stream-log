@@ -1,4 +1,6 @@
-use crate::schema::{event_types, events, permission_events, permission_groups, user_permissions, users};
+use crate::schema::{
+	available_event_types_for_event, event_types, events, permission_events, permission_groups, user_permissions, users,
+};
 use chrono::prelude::*;
 use diesel::{Insertable, Queryable};
 use diesel_derive_enum::DbEnum;
@@ -80,4 +82,11 @@ impl EventType {
 		let blue: u8 = self.color_blue.try_into().unwrap();
 		RGB8::new(red, green, blue)
 	}
+}
+
+#[derive(Insertable, Queryable)]
+#[diesel(table_name = available_event_types_for_event)]
+pub struct AvailableEventType {
+	pub event_type: String,
+	pub event_id: String,
 }

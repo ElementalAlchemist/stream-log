@@ -8,9 +8,11 @@ use sycamore_router::{HistoryIntegration, Route, Router};
 use websocket::websocket_endpoint;
 
 mod components;
+mod event_type_colors;
 mod pages;
 mod websocket;
 use components::user_info_bar::UserInfoBar;
+use pages::admin::assign_event_types::AdminManageEventTypesForEventsView;
 use pages::admin::assign_groups::AssignUsersToGroupsView;
 use pages::admin::manage_event_types::AdminManageEventTypesView;
 use pages::admin::manage_events::AdminManageEventsView;
@@ -43,6 +45,8 @@ enum AppRoutes {
 	AdminUserGroupAssignmentManager,
 	#[to("/admin/event_types")]
 	AdminEventTypeManager,
+	#[to("/admin/assign_event_types")]
+	AdminEventTypesForEventManager,
 	#[to("/error")]
 	Error,
 	#[not_found]
@@ -130,6 +134,7 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 						AppRoutes::AdminPermissionGroupManager => view! { ctx, AdminManageGroupsView },
 						AppRoutes::AdminUserGroupAssignmentManager => view! { ctx, AssignUsersToGroupsView },
 						AppRoutes::AdminEventTypeManager => view! { ctx, AdminManageEventTypesView },
+						AppRoutes::AdminEventTypesForEventManager => view! { ctx, AdminManageEventTypesForEventsView },
 						AppRoutes::Error => view! { ctx, ErrorView },
 						AppRoutes::NotFound => view! { ctx, NotFoundView }
 					})

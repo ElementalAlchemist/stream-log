@@ -45,6 +45,11 @@ pub fn UserInfoBar<G: Html>(ctx: Scope) -> View<G> {
 											"Manage Event Types"
 										}
 									}
+									li {
+										a(href="/admin/assign_event_types") {
+											"Assign Event Types to Events"
+										}
+									}
 								}
 							}
 						}

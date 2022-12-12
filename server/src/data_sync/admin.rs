@@ -1,9 +1,11 @@
 use super::HandleConnectionError;
 use crate::models::{
-	Event as EventDb, EventType as EventTypeDb, Permission, PermissionEvent, PermissionGroup as PermissionGroupDb,
-	User, UserPermission,
+	AvailableEventType, Event as EventDb, EventType as EventTypeDb, Permission, PermissionEvent,
+	PermissionGroup as PermissionGroupDb, User, UserPermission,
 };
-use crate::schema::{event_types, events, permission_events, permission_groups, user_permissions, users};
+use crate::schema::{
+	available_event_types_for_event, event_types, events, permission_events, permission_groups, user_permissions, users,
+};
 use async_std::sync::{Arc, Mutex};
 use chrono::prelude::*;
 use diesel::pg::PgConnection;
@@ -443,6 +445,68 @@ pub async fn handle_admin(
 				.execute(&mut *db_connection);
 			if let Err(error) = result {
 				tide::log::error!("Error updating event type: {}", error);
+				return Err(HandleConnectionError::ConnectionClosed);
+			}
+		}
+		AdminAction::ListEventTypesForEvent(event) => {
+			let event_types_result: QueryResult<Vec<EventTypeDb>> = {
+				let mut db_connection = db_connection.lock().await;
+				event_types::table
+					.filter(
+						available_event_types_for_event::table
+							.filter(
+								available_event_types_for_event::event_id
+									.eq(&event.id)
+									.and(available_event_types_for_event::event_type.eq(event_types::id)),
+							)
+							.count()
+							.single_value()
+							.gt(0),
+					)
+					.load(&mut *db_connection)
+			};
+
+			let message = match event_types_result {
+				Ok(event_types) => {
+					let event_types: Vec<EventType> = event_types
+						.iter()
+						.map(|et| EventType {
+							id: et.id.clone(),
+							name: et.name.clone(),
+							color: et.color(),
+						})
+						.collect();
+					DataMessage::Ok(event_types)
+				}
+				Err(error) => {
+					tide::log::error!("Database error: {}", error);
+					DataMessage::Err(DataError::DatabaseError)
+				}
+			};
+			stream.send_json(&message).await?;
+		}
+		AdminAction::UpdateEventTypesForEvent(event, event_types) => {
+			let mut db_connection = db_connection.lock().await;
+			let tx_result: QueryResult<()> = db_connection.transaction(|db_connection| {
+				diesel::delete(available_event_types_for_event::table)
+					.filter(available_event_types_for_event::event_id.eq(&event.id))
+					.execute(&mut *db_connection)?;
+
+				let available_event_types: Vec<AvailableEventType> = event_types
+					.iter()
+					.map(|et| AvailableEventType {
+						event_id: event.id.clone(),
+						event_type: et.id.clone(),
+					})
+					.collect();
+				diesel::insert_into(available_event_types_for_event::table)
+					.values(available_event_types)
+					.execute(&mut *db_connection)?;
+
+				Ok(())
+			});
+			if let Err(error) = tx_result {
+				tide::log::error!("Database error: {}", error);
 				return Err(HandleConnectionError::ConnectionClosed);
 			}
 		}

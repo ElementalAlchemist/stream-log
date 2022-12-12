@@ -1,6 +1,6 @@
+use crate::event_type_colors::{use_white_foreground, WHITE};
 use crate::pages::error::{ErrorData, ErrorView};
 use crate::websocket::read_websocket;
-use contrast::contrast;
 use futures::lock::Mutex;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
@@ -16,8 +16,6 @@ use sycamore::suspense::Suspense;
 use sycamore_router::navigate;
 use web_sys::Event as WebEvent;
 
-const WHITE: RGB8 = RGB8::new(255, 255, 255);
-const BLACK: RGB8 = RGB8::new(0, 0, 0);
 const DEFAULT_COLOR: &str = "#ffffff";
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -115,10 +113,7 @@ async fn AdminManageEventTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 						}
 					};
 
-					let white_contrast: f64 = contrast(event_type.color, WHITE);
-					let black_contrast: f64 = contrast(event_type.color, BLACK);
-
-					let foreground_color = if white_contrast > black_contrast {
+					let foreground_color = if use_white_foreground(&event_type.color) {
 						"#fff"
 					} else {
 						"#000"

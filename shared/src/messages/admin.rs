@@ -21,6 +21,8 @@ pub enum AdminAction {
 	ListEventTypes,
 	AddEventType(EventType),
 	UpdateEventType(EventType),
+	ListEventTypesForEvent(Event),
+	UpdateEventTypesForEvent(Event, Vec<EventType>),
 }
 
 /// A single permission group

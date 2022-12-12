@@ -7,6 +7,13 @@ pub mod sql_types {
 }
 
 diesel::table! {
+	available_event_types_for_event (event_type, event_id) {
+		event_type -> Text,
+		event_id -> Text,
+	}
+}
+
+diesel::table! {
 	event_types (id) {
 		id -> Text,
 		name -> Text,
@@ -58,12 +65,15 @@ diesel::table! {
 	}
 }
 
+diesel::joinable!(available_event_types_for_event -> event_types (event_type));
+diesel::joinable!(available_event_types_for_event -> events (event_id));
 diesel::joinable!(permission_events -> events (event));
 diesel::joinable!(permission_events -> permission_groups (permission_group));
 diesel::joinable!(user_permissions -> permission_groups (permission_group));
 diesel::joinable!(user_permissions -> users (user_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
+	available_event_types_for_event,
 	event_types,
 	events,
 	permission_events,
