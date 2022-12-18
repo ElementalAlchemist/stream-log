@@ -170,3 +170,38 @@ input.error {
 #admin_assign_groups_add_to_user {
 	margin-bottom: 20px;
 }
+
+#admin_event_type_list {
+	display: flex;
+	flex-direction: column;
+	width: 250px;
+
+	.admin_event_type {
+		text-align: center;
+	}
+}
+
+#admin_event_type_controls {
+	margin-top: 10px;
+}
+
+#admin_event_type_event_selection {
+	margin-bottom: 10px;
+}
+
+#admin_event_type_assignment > button {
+	margin-top: 10px;
+}
+
+#admin_event_type_assignment_grid {
+	display: grid;
+	grid-template-columns: 200px max-content;
+
+	.admin_event_type_assignment_row {
+		display: contents;
+	}
+
+	.admin_event_type_assignment_available {
+		margin: 0 10px;
+	}
+}
