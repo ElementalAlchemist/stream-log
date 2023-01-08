@@ -151,12 +151,12 @@ async fn AdminManageEventTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				let mut color_red = String::new();
 				let mut color_green = String::new();
 				let mut color_blue = String::new();
-				color_red.push(color_chars.next().unwrap());
-				color_red.push(color_chars.next().unwrap());
-				color_green.push(color_chars.next().unwrap());
-				color_green.push(color_chars.next().unwrap());
-				color_blue.push(color_chars.next().unwrap());
-				color_blue.push(color_chars.next().unwrap());
+				color_red.push(if let Some(c) = color_chars.next() { c } else { return; });
+				color_red.push(if let Some(c) = color_chars.next() { c } else { return; });
+				color_green.push(if let Some(c) = color_chars.next() { c } else { return; });
+				color_green.push(if let Some(c) = color_chars.next() { c } else { return; });
+				color_blue.push(if let Some(c) = color_chars.next() { c } else { return; });
+				color_blue.push(if let Some(c) = color_chars.next() { c } else { return; });
 
 				let Ok(color_red) = u8::from_str_radix(&color_red, 16) else {
 					return;
