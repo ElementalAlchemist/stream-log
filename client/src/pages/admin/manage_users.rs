@@ -1,3 +1,5 @@
+use crate::color_utils::{color_from_rgb_str, rgb_str_from_color};
+use crate::components::color_input_with_contrast::ColorInputWithContrast;
 use crate::pages::error::{ErrorData, ErrorView};
 use crate::websocket::read_websocket;
 use futures::lock::Mutex;
@@ -141,6 +143,7 @@ async fn AdminManageUsersLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				tr {
 					th { "Username" }
 					th { "Admin?" }
+					th { "Color" }
 				}
 				Keyed(
 					iterable=user_list,
@@ -157,12 +160,31 @@ async fn AdminManageUsersLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 								}
 							};
 
+							let username_signal = create_signal(ctx, user.username.clone());
+							let start_color = rgb_str_from_color(user.color);
+							let color_signal = create_signal(ctx, start_color);
+
+							create_effect(ctx, {
+								let user = user.clone();
+								move || {
+									let new_color = (*color_signal.get()).clone();
+									let Ok(new_color) = color_from_rgb_str(&new_color) else {
+										return;
+									};
+									changed_users.modify().entry(user.id.clone()).or_insert_with(|| user.clone()).color = new_color;
+								}
+							});
+							let color_view_id = format!("admin_user_color_{}", user.id);
+
 							view! {
 								ctx,
 								tr {
 									td { (user.username) }
 									td(class="admin_user_admin_toggle") {
 										input(type="checkbox", checked=user.is_admin, on:change=admin_change_handler, ref=checkbox)
+									}
+									td(class="admin_user_color_selection") {
+										ColorInputWithContrast(color=color_signal, username=username_signal, view_id=&color_view_id)
 									}
 								}
 							}
