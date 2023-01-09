@@ -107,18 +107,21 @@ input.error {
 	display: grid;
 	grid-template-columns: min-content 1fr;
 	gap: 2px;
+	align-items: center;
 }
 
 .color_input_preview_light {
 	background: $light-background-color;
 	color: $light-foreground-color;
 	font-weight: 700;
+	padding: 3px;
 }
 
 .color_input_preview_dark {
 	background: $dark-background-color;
 	color: $dark-foreground-color;
 	font-weight: 700;
+	padding: 3px;
 }
 
 .color_input_preview_contrast_info {
@@ -237,4 +240,8 @@ input.error {
 	.admin_event_type_assignment_available {
 		margin: 0 10px;
 	}
+}
+
+#register_user > div {
+	margin-bottom: 5px;
 }
