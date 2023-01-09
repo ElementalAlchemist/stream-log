@@ -122,7 +122,6 @@ pub fn ColorInputWithContrast<'a, 'b, G: Html>(ctx: Scope<'a>, props: ColorInput
 				div(class="color_input_preview_light_contrast") { "Contrast: " (*light_color_contrast_signal.get()) }
 				div(class="color_input_preview_dark", style=format!("color: {}", *props.color.get())) { (*props.username.get()) }
 				div(class="color_input_preview_dark_contrast") { "Contrast: " (*dark_color_contrast_signal.get()) }
-				div(class="color_input_preview_contrast_info") { "For readability, it's recommended to choose a color with contrast values of at least 4.5." }
 			}
 		}
 	}

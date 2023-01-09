@@ -210,6 +210,7 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 	view! {
 		ctx,
+		h1 { "Register an Account" }
 		form(id="register_user", on:submit=form_submission_handler) {
 			div(class="input_with_message") {
 				label(for="register_username") {
@@ -254,6 +255,7 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				)
 			}
 			ColorInputWithContrast(color=color_signal, username=username_signal, view_id="register_user")
+			div(id="register_contrast_help_notice") { "For best readability, it's recommended to choose a color with contrast values of at least 4.5." }
 			button(ref=submit_button_ref) {
 				"Register"
 			}
