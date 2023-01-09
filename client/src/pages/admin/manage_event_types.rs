@@ -1,4 +1,4 @@
-use crate::components::color_input_with_contrast::color_from_rgb_str;
+use crate::color_utils::{color_from_rgb_str, rgb_str_from_color};
 use crate::event_type_colors::{use_white_foreground, WHITE};
 use crate::pages::error::{ErrorData, ErrorView};
 use crate::websocket::read_websocket;
@@ -104,11 +104,7 @@ async fn AdminManageEventTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 							selected_event_type_signal.set(Some(SelectedIndex::Existing(event_types_signal.get().iter().enumerate().find(|(_, et)| et.id == event_type.id).map(|(index, _)| index).unwrap())));
 							entered_name_signal.set(event_type.name.clone());
 
-							let color_red = event_type.color.r;
-							let color_green = event_type.color.g;
-							let color_blue = event_type.color.b;
-
-							let color = format!("#{:02x}{:02x}{:02x}", color_red, color_green, color_blue);
+							let color = rgb_str_from_color(event_type.color);
 							entered_color_signal.set(color);
 						}
 					};

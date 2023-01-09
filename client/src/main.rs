@@ -7,6 +7,7 @@ use sycamore::suspense::Suspense;
 use sycamore_router::{HistoryIntegration, Route, Router};
 use websocket::websocket_endpoint;
 
+mod color_utils;
 mod components;
 mod event_type_colors;
 mod pages;

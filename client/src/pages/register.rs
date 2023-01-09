@@ -1,5 +1,6 @@
 use super::error::ErrorData;
-use crate::components::color_input_with_contrast::{color_from_rgb_str, ColorInputWithContrast};
+use crate::color_utils::color_from_rgb_str;
+use crate::components::color_input_with_contrast::ColorInputWithContrast;
 use crate::websocket::read_websocket;
 use futures::lock::Mutex;
 use futures::SinkExt;
