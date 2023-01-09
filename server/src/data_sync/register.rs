@@ -6,6 +6,7 @@ use async_std::sync::{Arc, Mutex};
 use cuid::cuid;
 use diesel::prelude::*;
 use diesel::result::DatabaseErrorKind;
+use rgb::RGB8;
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::user_register::{
 	RegistrationResponse, UserRegistration, UsernameCheckResponse, UsernameCheckStatus, USERNAME_LENGTH_LIMIT,
@@ -87,6 +88,9 @@ pub async fn register_user(
 						continue;
 					}
 				};
+				let color_red: i32 = data.color.r.into();
+				let color_green: i32 = data.color.g.into();
+				let color_blue: i32 = data.color.b.into();
 
 				let user_result: QueryResult<User> = {
 					let mut db_connection = db_connection.lock().await;
@@ -104,6 +108,9 @@ pub async fn register_user(
 							openid_user_id: openid_user_id.to_owned(),
 							name: data.name,
 							is_admin: !has_users,
+							color_red,
+							color_green,
+							color_blue,
 						};
 
 						let user_record: User = diesel::insert_into(users::table)
@@ -114,10 +121,16 @@ pub async fn register_user(
 				};
 				match user_result {
 					Ok(data) => {
+						let color = RGB8::new(
+							color_red.try_into().unwrap(),
+							color_green.try_into().unwrap(),
+							color_blue.try_into().unwrap(),
+						);
 						let user_data = UserData {
 							id: data.id.clone(),
 							username: data.name.clone(),
 							is_admin: data.is_admin,
+							color,
 						};
 						let response_message = DataMessage::Ok(RegistrationResponse::Success(user_data));
 						stream.send_json(&response_message).await?;

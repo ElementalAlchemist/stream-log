@@ -1,4 +1,5 @@
 use super::user::UserData;
+use rgb::RGB8;
 use serde::{Deserialize, Serialize};
 
 pub const USERNAME_LENGTH_LIMIT: usize = 64;
@@ -12,6 +13,7 @@ pub enum UserRegistration {
 #[derive(Deserialize, Serialize)]
 pub struct UserRegistrationFinalize {
 	pub name: String,
+	pub color: RGB8,
 }
 
 #[derive(Deserialize, Serialize)]

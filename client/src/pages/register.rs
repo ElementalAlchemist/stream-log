@@ -1,4 +1,5 @@
 use super::error::ErrorData;
+use crate::components::color_input_with_contrast::{color_from_rgb_str, ColorInputWithContrast};
 use crate::websocket::read_websocket;
 use futures::lock::Mutex;
 use futures::SinkExt;
@@ -32,6 +33,7 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	let username_empty_signal = create_memo(ctx, || username_signal.get().is_empty());
 	let username_too_long_signal = create_memo(ctx, || username_signal.get().len() > USERNAME_LENGTH_LIMIT);
 	let username_field = create_node_ref(ctx);
+	let color_signal = create_signal(ctx, String::from("#7f7f7f"));
 	let submit_button_ref = create_node_ref(ctx);
 
 	// Username error signal collects all possible kinds of username errors
@@ -51,8 +53,14 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		if username.len() > USERNAME_LENGTH_LIMIT {
 			return;
 		}
+
+		// If the color is in the wrong format, the user either is in an unsupported browser or has manipulated the
+		// input field.
+		let Ok(color) = color_from_rgb_str(&color_signal.get()) else { return; };
+
 		let registration_data = UserRegistrationFinalize {
 			name: (*username).clone(),
+			color,
 		};
 
 		spawn_local_scoped(ctx, async move {
@@ -245,6 +253,7 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 					}
 				)
 			}
+			ColorInputWithContrast(color=color_signal, username=username_signal, view_id="register_user")
 			button(ref=submit_button_ref) {
 				"Register"
 			}

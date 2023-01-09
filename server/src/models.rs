@@ -37,6 +37,9 @@ pub struct User {
 	pub openid_user_id: String,
 	pub name: String,
 	pub is_admin: bool,
+	pub color_red: i32,
+	pub color_green: i32,
+	pub color_blue: i32,
 }
 
 #[derive(Insertable, Queryable)]

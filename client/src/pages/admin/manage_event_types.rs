@@ -1,3 +1,4 @@
+use crate::components::color_input_with_contrast::color_from_rgb_str;
 use crate::event_type_colors::{use_white_foreground, WHITE};
 use crate::pages::error::{ErrorData, ErrorView};
 use crate::websocket::read_websocket;
@@ -5,7 +6,6 @@ use futures::lock::Mutex;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
-use rgb::RGB8;
 use stream_log_shared::messages::admin::AdminAction;
 use stream_log_shared::messages::event_types::EventType;
 use stream_log_shared::messages::user::UserData;
@@ -139,36 +139,8 @@ async fn AdminManageEventTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 					entered_name_error_signal.set(String::from("Name cannot be empty."));
 					return;
 				}
-				let color_str = (*entered_color_signal.get()).clone();
 				// Assuming a functioning browser color input, we don't have error output for this parsing
-				if color_str.len() != 7 {
-					return;
-				}
-				let Some(color_str) = color_str.strip_prefix('#') else {
-					return;
-				};
-				let mut color_chars = color_str.chars();
-				let mut color_red = String::new();
-				let mut color_green = String::new();
-				let mut color_blue = String::new();
-				color_red.push(if let Some(c) = color_chars.next() { c } else { return; });
-				color_red.push(if let Some(c) = color_chars.next() { c } else { return; });
-				color_green.push(if let Some(c) = color_chars.next() { c } else { return; });
-				color_green.push(if let Some(c) = color_chars.next() { c } else { return; });
-				color_blue.push(if let Some(c) = color_chars.next() { c } else { return; });
-				color_blue.push(if let Some(c) = color_chars.next() { c } else { return; });
-
-				let Ok(color_red) = u8::from_str_radix(&color_red, 16) else {
-					return;
-				};
-				let Ok(color_green) = u8::from_str_radix(&color_green, 16) else {
-					return;
-				};
-				let Ok(color_blue) = u8::from_str_radix(&color_blue, 16) else {
-					return;
-				};
-
-				let color = RGB8::new(color_red, color_green, color_blue);
+				let Ok(color) = color_from_rgb_str(&entered_color_signal.get()) else { return; };
 
 				let mut event_type_data = match selected_event_type {
 					SelectedIndex::NewType => EventType { id: String::new(), name: String::new(), color: WHITE },

@@ -9,6 +9,7 @@ use crate::websocket_msg::recv_msg;
 use async_std::sync::{Arc, Mutex};
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
+use rgb::RGB8;
 use stream_log_shared::messages::initial::{InitialMessage, UserDataLoad};
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::RequestMessage;
@@ -57,10 +58,16 @@ pub async fn handle_connection(
 
 	match user {
 		Some(user) => {
+			let color = RGB8::new(
+				user.color_red.try_into().unwrap(),
+				user.color_green.try_into().unwrap(),
+				user.color_blue.try_into().unwrap(),
+			);
 			let user_data = UserData {
 				id: user.id.clone(),
 				username: user.name.clone(),
 				is_admin: user.is_admin,
+				color,
 			};
 			let message = InitialMessage::new(UserDataLoad::User(user_data));
 			stream.send_json(&message).await?;

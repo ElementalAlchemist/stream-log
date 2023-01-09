@@ -11,6 +11,7 @@ use chrono::prelude::*;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use diesel::result::{DatabaseErrorKind, Error as QueryError};
+use rgb::RGB8;
 use std::collections::HashMap;
 use stream_log_shared::messages::admin::{AdminAction, EventPermission, PermissionGroup, PermissionGroupWithEvents};
 use stream_log_shared::messages::event_types::EventType;
@@ -312,6 +313,11 @@ pub async fn handle_admin(
 							id: user.id.clone(),
 							username: user.name.clone(),
 							is_admin: user.is_admin,
+							color: RGB8::new(
+								user.color_red.try_into().unwrap(),
+								user.color_green.try_into().unwrap(),
+								user.color_blue.try_into().unwrap(),
+							),
 						})
 						.collect();
 					let message: DataMessage<Vec<UserData>> = Ok(user_list);
@@ -328,9 +334,17 @@ pub async fn handle_admin(
 			let mut db_connection = db_connection.lock().await;
 			let tx_result: QueryResult<()> = db_connection.transaction(|db_connection| {
 				for user in modified_users.iter() {
+					let color_red: i32 = user.color.r.into();
+					let color_green: i32 = user.color.g.into();
+					let color_blue: i32 = user.color.b.into();
 					diesel::update(users::table)
 						.filter(users::id.eq(&user.id))
-						.set(users::is_admin.eq(user.is_admin))
+						.set((
+							users::is_admin.eq(user.is_admin),
+							users::color_red.eq(color_red),
+							users::color_green.eq(color_green),
+							users::color_blue.eq(color_blue),
+						))
 						.execute(db_connection)?;
 				}
 				Ok(())
@@ -361,6 +375,11 @@ pub async fn handle_admin(
 							id: user.id,
 							username: user.name,
 							is_admin: user.is_admin,
+							color: RGB8::new(
+								user.color_red.try_into().unwrap(),
+								user.color_green.try_into().unwrap(),
+								user.color_blue.try_into().unwrap(),
+							),
 						})
 						.collect();
 					DataMessage::Ok(user_data)

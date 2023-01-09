@@ -1,5 +1,16 @@
+// For contrast to be calculated correctly, the background colors must also be specified
+// in the color_input_with_contrast component constants.
+$light-background-color: #fff;
+$dark-background-color: #111;
+$light-foreground-color: #000;
+$dark-foreground-color: #fff;
+
 :root {
 	--base-border-color: #000;
+}
+
+html {
+	background: $light-background-color;
 }
 
 .input_error {
@@ -13,8 +24,8 @@ input.error {
 
 @media (prefers-color-scheme: dark) {
 	html {
-		background: #111;
-		color: #fff;
+		background: $dark-background-color;
+		color: $dark-foreground-color;
 	}
 
 	a {
@@ -90,6 +101,28 @@ input.error {
 	&:hover #user_admin_menu_pages {
 		display: block;
 	}
+}
+
+.color_input_preview {
+	display: grid;
+	grid-template-columns: min-content 1fr;
+	gap: 2px;
+}
+
+.color_input_preview_light {
+	background: $light-background-color;
+	color: $light-foreground-color;
+	font-weight: 700;
+}
+
+.color_input_preview_dark {
+	background: $dark-background-color;
+	color: $dark-foreground-color;
+	font-weight: 700;
+}
+
+.color_input_preview_contrast_info {
+	grid-column: span 2;
 }
 
 #admin_manage_events > table {
