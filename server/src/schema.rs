@@ -50,6 +50,15 @@ diesel::table! {
 }
 
 diesel::table! {
+	tags (id) {
+		id -> Text,
+		for_event -> Text,
+		tag -> Text,
+		description -> Text,
+	}
+}
+
+diesel::table! {
 	user_permissions (user_id, permission_group) {
 		user_id -> Text,
 		permission_group -> Text,
@@ -72,6 +81,7 @@ diesel::joinable!(available_event_types_for_event -> event_types (event_type));
 diesel::joinable!(available_event_types_for_event -> events (event_id));
 diesel::joinable!(permission_events -> events (event));
 diesel::joinable!(permission_events -> permission_groups (permission_group));
+diesel::joinable!(tags -> events (for_event));
 diesel::joinable!(user_permissions -> permission_groups (permission_group));
 diesel::joinable!(user_permissions -> users (user_id));
 
@@ -81,6 +91,7 @@ diesel::allow_tables_to_appear_in_same_query!(
 	events,
 	permission_events,
 	permission_groups,
+	tags,
 	user_permissions,
 	users,
 );

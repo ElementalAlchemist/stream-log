@@ -1,5 +1,6 @@
 use crate::schema::{
-	available_event_types_for_event, event_types, events, permission_events, permission_groups, user_permissions, users,
+	available_event_types_for_event, event_types, events, permission_events, permission_groups, tags, user_permissions,
+	users,
 };
 use chrono::prelude::*;
 use diesel::{Insertable, Queryable};
@@ -92,4 +93,12 @@ impl EventType {
 pub struct AvailableEventType {
 	pub event_type: String,
 	pub event_id: String,
+}
+
+#[derive(Insertable, Queryable)]
+pub struct Tag {
+	pub id: String,
+	pub for_event: String,
+	pub tag: String,
+	pub description: String,
 }
