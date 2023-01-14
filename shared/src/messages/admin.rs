@@ -1,6 +1,7 @@
 use super::event_types::EventType;
 use super::events::Event;
 use super::permissions::PermissionLevel;
+use super::tags::Tag;
 use super::user::UserData;
 use serde::{Deserialize, Serialize};
 
@@ -23,6 +24,11 @@ pub enum AdminAction {
 	UpdateEventType(EventType),
 	ListEventTypesForEvent(Event),
 	UpdateEventTypesForEvent(Event, Vec<EventType>),
+	ListTagsForEvent(Event),
+	AddTag(Tag, Event),
+	RemoveTag(Tag),
+	ReplaceTag(Tag, Tag),
+	CopyTags(Event, Event),
 }
 
 /// A single permission group

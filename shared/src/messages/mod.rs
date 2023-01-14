@@ -6,6 +6,7 @@ pub mod event_types;
 pub mod events;
 pub mod initial;
 pub mod permissions;
+pub mod tags;
 pub mod user;
 pub mod user_register;
 

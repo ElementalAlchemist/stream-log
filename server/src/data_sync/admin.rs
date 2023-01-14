@@ -1,10 +1,11 @@
 use super::HandleConnectionError;
 use crate::models::{
 	AvailableEventType, Event as EventDb, EventType as EventTypeDb, Permission, PermissionEvent,
-	PermissionGroup as PermissionGroupDb, User, UserPermission,
+	PermissionGroup as PermissionGroupDb, Tag as TagDb, User, UserPermission,
 };
 use crate::schema::{
-	available_event_types_for_event, event_types, events, permission_events, permission_groups, user_permissions, users,
+	available_event_types_for_event, event_types, events, permission_events, permission_groups, tags, user_permissions,
+	users,
 };
 use async_std::sync::{Arc, Mutex};
 use chrono::prelude::*;
@@ -12,10 +13,11 @@ use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use diesel::result::{DatabaseErrorKind, Error as QueryError};
 use rgb::RGB8;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use stream_log_shared::messages::admin::{AdminAction, EventPermission, PermissionGroup, PermissionGroupWithEvents};
 use stream_log_shared::messages::event_types::EventType;
 use stream_log_shared::messages::events::Event as EventWs;
+use stream_log_shared::messages::tags::Tag;
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::{DataError, DataMessage};
 use tide_websockets::WebSocketConnection;
@@ -520,6 +522,100 @@ pub async fn handle_admin(
 					.collect();
 				diesel::insert_into(available_event_types_for_event::table)
 					.values(available_event_types)
+					.execute(&mut *db_connection)?;
+
+				Ok(())
+			});
+			if let Err(error) = tx_result {
+				tide::log::error!("Database error: {}", error);
+				return Err(HandleConnectionError::ConnectionClosed);
+			}
+		}
+		AdminAction::ListTagsForEvent(event) => {
+			let mut db_connection = db_connection.lock().await;
+			let tags_result: QueryResult<Vec<TagDb>> = tags::table
+				.filter(tags::for_event.eq(&event.id))
+				.load(&mut *db_connection);
+			let message = match tags_result {
+				Ok(tag_list) => {
+					let tags: Vec<Tag> = tag_list
+						.iter()
+						.map(|t| Tag {
+							id: t.id.clone(),
+							name: t.tag.clone(),
+							description: t.description.clone(),
+						})
+						.collect();
+					DataMessage::Ok(tags)
+				}
+				Err(error) => {
+					tide::log::error!("Database error: {}", error);
+					DataMessage::Err(DataError::DatabaseError)
+				}
+			};
+			stream.send_json(&message).await?;
+		}
+		AdminAction::AddTag(tag, event) => {
+			let new_id = match cuid::cuid() {
+				Ok(id) => id,
+				Err(error) => {
+					tide::log::error!("Failed to generate CUID: {}", error);
+					return Err(HandleConnectionError::ConnectionClosed);
+				}
+			};
+			let tag = TagDb {
+				id: new_id,
+				for_event: event.id,
+				tag: tag.name,
+				description: tag.description,
+			};
+			let mut db_connection = db_connection.lock().await;
+			if let Err(error) = diesel::insert_into(tags::table)
+				.values(tag)
+				.execute(&mut *db_connection)
+			{
+				tide::log::error!("Error adding tag: {}", error);
+				return Err(HandleConnectionError::ConnectionClosed);
+			}
+		}
+		AdminAction::RemoveTag(tag) => {
+			let mut db_connection = db_connection.lock().await;
+			if let Err(error) = diesel::delete(tags::table.filter(tags::id.eq(&tag.id))).execute(&mut *db_connection) {
+				tide::log::error!("Error deleting tag: {}", error);
+				return Err(HandleConnectionError::ConnectionClosed);
+			}
+		}
+		AdminAction::ReplaceTag(old_tag, new_tag) => {
+			todo!("The data structures that use these tags don't exist yet");
+		}
+		AdminAction::CopyTags(from_event, to_event) => {
+			let mut db_connection = db_connection.lock().await;
+			let tx_result: QueryResult<()> = db_connection.transaction(|db_connection| {
+				let from_event_tags: Vec<TagDb> = tags::table
+					.filter(tags::for_event.eq(&from_event.id))
+					.load(&mut *db_connection)?;
+				let to_event_tags: Vec<TagDb> = tags::table
+					.filter(tags::for_event.eq(&to_event.id))
+					.load(&mut *db_connection)?;
+				let to_event_names: HashSet<String> = to_event_tags.iter().map(|tag| tag.tag.clone()).collect();
+
+				let mut new_events: Vec<TagDb> = from_event_tags
+					.iter()
+					.filter(|tag| !to_event_names.contains(&tag.tag))
+					.map(|tag| TagDb {
+						id: String::new(),
+						for_event: to_event.id.clone(),
+						tag: tag.tag.clone(),
+						description: tag.description.clone(),
+					})
+					.collect();
+				for new_event in new_events.iter_mut() {
+					let new_id = generate_cuid_in_transaction()?;
+					new_event.id = new_id;
+				}
+
+				diesel::insert_into(tags::table)
+					.values(new_events)
 					.execute(&mut *db_connection)?;
 
 				Ok(())
