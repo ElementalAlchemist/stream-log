@@ -18,6 +18,7 @@ use pages::admin::assign_groups::AssignUsersToGroupsView;
 use pages::admin::manage_event_types::AdminManageEventTypesView;
 use pages::admin::manage_events::AdminManageEventsView;
 use pages::admin::manage_groups::AdminManageGroupsView;
+use pages::admin::manage_tags::AdminManageTagsView;
 use pages::admin::manage_users::AdminManageUsersView;
 use pages::error::{ErrorData, ErrorView};
 use pages::event_selection::EventSelectionView;
@@ -48,6 +49,8 @@ enum AppRoutes {
 	AdminEventTypeManager,
 	#[to("/admin/assign_event_types")]
 	AdminEventTypesForEventManager,
+	#[to("/admin/tags")]
+	AdminTagsManager,
 	#[to("/error")]
 	Error,
 	#[not_found]
@@ -136,6 +139,7 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 						AppRoutes::AdminUserGroupAssignmentManager => view! { ctx, AssignUsersToGroupsView },
 						AppRoutes::AdminEventTypeManager => view! { ctx, AdminManageEventTypesView },
 						AppRoutes::AdminEventTypesForEventManager => view! { ctx, AdminManageEventTypesForEventsView },
+						AppRoutes::AdminTagsManager => view! { ctx, AdminManageTagsView },
 						AppRoutes::Error => view! { ctx, ErrorView },
 						AppRoutes::NotFound => view! { ctx, NotFoundView }
 					})

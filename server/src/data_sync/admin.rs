@@ -555,7 +555,7 @@ pub async fn handle_admin(
 			};
 			stream.send_json(&message).await?;
 		}
-		AdminAction::AddTag(tag, event) => {
+		AdminAction::AddTag(mut tag, event) => {
 			let new_id = match cuid::cuid() {
 				Ok(id) => id,
 				Err(error) => {
@@ -563,20 +563,26 @@ pub async fn handle_admin(
 					return Err(HandleConnectionError::ConnectionClosed);
 				}
 			};
-			let tag = TagDb {
-				id: new_id,
+			let db_tag = TagDb {
+				id: new_id.clone(),
 				for_event: event.id,
-				tag: tag.name,
-				description: tag.description,
+				tag: tag.name.clone(),
+				description: tag.description.clone(),
 			};
+			tag.id = new_id;
+
 			let mut db_connection = db_connection.lock().await;
-			if let Err(error) = diesel::insert_into(tags::table)
-				.values(tag)
+			let response = match diesel::insert_into(tags::table)
+				.values(db_tag)
 				.execute(&mut *db_connection)
 			{
-				tide::log::error!("Error adding tag: {}", error);
-				return Err(HandleConnectionError::ConnectionClosed);
-			}
+				Ok(_) => DataMessage::Ok(tag),
+				Err(error) => {
+					tide::log::error!("Error adding tag: {}", error);
+					DataMessage::Err(DataError::DatabaseError)
+				}
+			};
+			stream.send_json(&response).await?;
 		}
 		AdminAction::UpdateTagDescription(tag) => {
 			let mut db_connection = db_connection.lock().await;
