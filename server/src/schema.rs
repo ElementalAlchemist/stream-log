@@ -14,6 +14,31 @@ diesel::table! {
 }
 
 diesel::table! {
+	event_log (id) {
+		id -> Text,
+		event -> Text,
+		start_time -> Timestamptz,
+		end_time -> Nullable<Timestamptz>,
+		event_type -> Text,
+		description -> Text,
+		media_link -> Text,
+		submitter_or_winner -> Text,
+		notes_to_editor -> Text,
+		editor_link -> Text,
+		editor -> Nullable<Text>,
+		last_updated -> Timestamptz,
+		last_update_user -> Text,
+	}
+}
+
+diesel::table! {
+	event_log_tags (tag, log_entry) {
+		tag -> Text,
+		log_entry -> Text,
+	}
+}
+
+diesel::table! {
 	event_types (id) {
 		id -> Text,
 		name -> Text,
@@ -79,6 +104,10 @@ diesel::table! {
 
 diesel::joinable!(available_event_types_for_event -> event_types (event_type));
 diesel::joinable!(available_event_types_for_event -> events (event_id));
+diesel::joinable!(event_log -> event_types (event_type));
+diesel::joinable!(event_log -> events (event));
+diesel::joinable!(event_log_tags -> event_log (log_entry));
+diesel::joinable!(event_log_tags -> tags (tag));
 diesel::joinable!(permission_events -> events (event));
 diesel::joinable!(permission_events -> permission_groups (permission_group));
 diesel::joinable!(tags -> events (for_event));
@@ -87,6 +116,8 @@ diesel::joinable!(user_permissions -> users (user_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
 	available_event_types_for_event,
+	event_log,
+	event_log_tags,
 	event_types,
 	events,
 	permission_events,
