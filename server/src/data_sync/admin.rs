@@ -578,6 +578,16 @@ pub async fn handle_admin(
 				return Err(HandleConnectionError::ConnectionClosed);
 			}
 		}
+		AdminAction::UpdateTagDescription(tag) => {
+			let mut db_connection = db_connection.lock().await;
+			if let Err(error) = diesel::update(tags::table.filter(tags::id.eq(&tag.id)))
+				.set(tags::description.eq(&tag.description))
+				.execute(&mut *db_connection)
+			{
+				tide::log::error!("Database error: {}", error);
+				return Err(HandleConnectionError::ConnectionClosed);
+			}
+		}
 		AdminAction::RemoveTag(tag) => {
 			let mut db_connection = db_connection.lock().await;
 			if let Err(error) = diesel::delete(tags::table.filter(tags::id.eq(&tag.id))).execute(&mut *db_connection) {

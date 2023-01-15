@@ -26,6 +26,7 @@ pub enum AdminAction {
 	UpdateEventTypesForEvent(Event, Vec<EventType>),
 	ListTagsForEvent(Event),
 	AddTag(Tag, Event),
+	UpdateTagDescription(Tag),
 	RemoveTag(Tag),
 	ReplaceTag(Tag, Tag),
 	CopyTags(Event, Event),
