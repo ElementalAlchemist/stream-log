@@ -4,8 +4,8 @@ use crate::models::{
 	PermissionGroup as PermissionGroupDb, Tag as TagDb, User, UserPermission,
 };
 use crate::schema::{
-	available_event_types_for_event, event_types, events, permission_events, permission_groups, tags, user_permissions,
-	users,
+	available_event_types_for_event, event_log_tags, event_types, events, permission_events, permission_groups, tags,
+	user_permissions, users,
 };
 use async_std::sync::{Arc, Mutex};
 use chrono::prelude::*;
@@ -602,7 +602,40 @@ pub async fn handle_admin(
 			}
 		}
 		AdminAction::ReplaceTag(old_tag, new_tag) => {
-			todo!("The data structures that use these tags don't exist yet");
+			let mut db_connection = db_connection.lock().await;
+			let tx_result: QueryResult<()> = db_connection.transaction(|db_connection| {
+				let (tags_a, tags_b) = diesel::alias!(event_log_tags as tag_a, event_log_tags as tag_b);
+				let events_with_both_old_and_new: Vec<String> = tags_a
+					.inner_join(
+						tags_b.on(tags_a
+							.field(event_log_tags::log_entry)
+							.eq(tags_b.field(event_log_tags::log_entry))),
+					)
+					.filter(
+						tags_a
+							.field(event_log_tags::tag)
+							.eq(&old_tag.id)
+							.and(tags_b.field(event_log_tags::tag).eq(&new_tag.id)),
+					)
+					.select(tags_a.field(event_log_tags::log_entry))
+					.load(&mut *db_connection)?;
+				diesel::delete(event_log_tags::table)
+					.filter(
+						event_log_tags::tag
+							.eq(&old_tag.id)
+							.and(event_log_tags::log_entry.eq_any(events_with_both_old_and_new)),
+					)
+					.execute(&mut *db_connection)?;
+				diesel::update(event_log_tags::table)
+					.filter(event_log_tags::tag.eq(&old_tag.id))
+					.set(event_log_tags::tag.eq(&new_tag.id))
+					.execute(&mut *db_connection)?;
+				Ok(())
+			});
+			if let Err(error) = tx_result {
+				tide::log::error!("Error replacing tags: {}", error);
+				return Err(HandleConnectionError::ConnectionClosed);
+			}
 		}
 		AdminAction::CopyTags(from_event, to_event) => {
 			let mut db_connection = db_connection.lock().await;
