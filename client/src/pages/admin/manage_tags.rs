@@ -372,7 +372,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 							td { (tag.name) }
 							td {
 								form(on:submit=description_submission_handler) {
-									input(type="text", bind:value=entered_description_signal, placeholder="Tag description")
+									input(type="text", class="admin_manage_tags_tag_description", bind:value=entered_description_signal, placeholder="Tag description")
 									button(type="submit") { "Update" }
 								}
 							}
