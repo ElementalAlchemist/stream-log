@@ -286,12 +286,23 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			button(type="submit") { "Load" }
 			span(class="error") { (entered_event_name_error_signal.get()) }
 		}
+		datalist(id="tag_names") {
+			Keyed(
+				iterable=tags_signal,
+				key=|tag| tag.id.clone(),
+				view=|ctx, tag| {
+					view! {
+						ctx,
+						option(value=&tag.name)
+					}
+				}
+			)
+		}
 		table(id="admin_manage_tags_list") {
 			Keyed(
 				iterable=tags_signal,
 				key=|tag| tag.id.clone(),
 				view=move |ctx, tag| {
-					let started_removal_signal = create_signal(ctx, false);
 					let entered_description_signal = create_signal(ctx, tag.description.clone());
 
 					let description_submission_handler = {
@@ -326,6 +337,8 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 							});
 						}
 					};
+
+					let started_removal_signal = create_signal(ctx, false);
 
 					let remove_button_clicked = |_event: WebEvent| {
 						started_removal_signal.set(true);
@@ -366,6 +379,50 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 						started_removal_signal.set(false);
 					};
 
+					let entered_replacement_tag_signal = create_signal(ctx, String::new());
+					let entered_replacement_tag_error_signal = create_signal(ctx, String::new());
+					let entered_replacement_tag_has_error_signal = create_memo(ctx, || !entered_replacement_tag_error_signal.get().is_empty());
+					let replace_tag_handler = {
+						let tag = tag.clone();
+						move |event: WebEvent| {
+							event.prevent_default();
+
+							let tag = tag.clone();
+							spawn_local_scoped(ctx, async move {
+								let tags_list = tags_signal.get();
+								let replacement = tags_list.iter().find(|t| *entered_replacement_tag_signal.get() == t.name);
+								let replacement = if let Some(replacement) = replacement {
+									entered_replacement_tag_error_signal.set(String::new());
+									replacement.clone()
+								} else {
+									entered_replacement_tag_error_signal.set(String::from("Replacement tag must exist"));
+									return;
+								};
+								entered_replacement_tag_signal.set(String::new());
+
+								let message = RequestMessage::Admin(AdminAction::ReplaceTag(tag, replacement));
+								let message_json = match serde_json::to_string(&message) {
+									Ok(msg) => msg,
+									Err(error) => {
+										let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
+										error_signal.set(Some(ErrorData::new_with_error(String::from("Failed to serialize tag replacement request"), error)));
+										navigate("/error");
+										return;
+									}
+								};
+
+								let ws_context: &Mutex<WebSocket> = use_context(ctx);
+								let mut ws = ws_context.lock().await;
+
+								if let Err(error) = ws.send(Message::Text(message_json)).await {
+									let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
+									error_signal.set(Some(ErrorData::new_with_error(String::from("Failed to send tag replacement request"), error)));
+									navigate("/error");
+								}
+							});
+						}
+					};
+
 					view! {
 						ctx,
 						tr {
@@ -390,6 +447,13 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 										button(type="button", on:click=remove_button_clicked) { "Remove" }
 									}
 								})
+							}
+							td {
+								form(on:submit=replace_tag_handler) {
+									input(type="text", list="tag_names", bind:value=entered_replacement_tag_signal, class=if *entered_replacement_tag_has_error_signal.get() { "error" } else { "" })
+									button(type="submit") { "Replace Tag" }
+									span(class="error") { (entered_replacement_tag_error_signal.get()) }
+								}
 							}
 						}
 					}
