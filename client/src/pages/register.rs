@@ -41,8 +41,6 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	let username_error_signal = create_memo(ctx, || {
 		*username_in_use_signal.get() || *username_empty_signal.get() || *username_too_long_signal.get()
 	});
-	// Username error class signal determines what the class of the username field should be based on whether there's an error
-	let username_error_class_signal = create_memo(ctx, || if *username_error_signal.get() { "error" } else { "" });
 
 	let form_submission_handler = move |event: WebEvent| {
 		event.prevent_default();
@@ -218,7 +216,7 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				label(for="register_username") {
 					"Username: "
 				}
-				input(id="register_username", type="text", class=*username_error_class_signal.get(), bind:value=username_signal, ref=username_field)
+				input(id="register_username", type="text", class=if *username_error_signal.get() { "error" } else { "" }, bind:value=username_signal, ref=username_field)
 				(
 					if *username_in_use_signal.get() {
 						view! {

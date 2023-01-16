@@ -306,9 +306,9 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 								};
 								let group_name_field: HtmlInputElement = group_name_field_ref.unchecked_into();
 								if name_empty {
-									group_name_field.class_list().add_1("input-error").expect("Class change is valid");
+									group_name_field.class_list().add_1("error").expect("Class change is valid");
 								} else {
-									group_name_field.class_list().remove_1("input-error").expect("Class change is valid");
+									group_name_field.class_list().remove_1("error").expect("Class change is valid");
 								}
 							});
 						}

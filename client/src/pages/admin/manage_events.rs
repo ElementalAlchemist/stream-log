@@ -228,12 +228,12 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 									let field: &HtmlInputElement = event_target.dyn_ref().unwrap();
 									let new_name = field.value();
 
-									field.class_list().remove_1("input-error").expect("Class changes are valid");
+									field.class_list().remove_1("error").expect("Class changes are valid");
 									field.set_title("");
 
 									if new_name.is_empty() {
 										if !id.starts_with('+') {
-											field.class_list().add_1("input-error").expect("Class changes are valid");
+											field.class_list().add_1("error").expect("Class changes are valid");
 											field.set_title("A name is required");
 										}
 									} else if let Some(index) = id.strip_prefix('+') {
@@ -253,12 +253,12 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 								move |change_event: WebEvent| {
 									let event_target = change_event.target().unwrap();
 									let field: &HtmlInputElement = event_target.dyn_ref().unwrap();
-									field.class_list().remove_1("input-error").expect("Class changes are valid");
+									field.class_list().remove_1("error").expect("Class changes are valid");
 									field.set_title("");
 									let field_value = field.value();
 									if field_value.is_empty() {
 										if !id.starts_with('+') {
-											field.class_list().add_1("input-error").expect("Class changes are valid");
+											field.class_list().add_1("error").expect("Class changes are valid");
 											field.set_title("A time is required");
 										}
 									} else {
@@ -272,7 +272,7 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 												}
 											}
 											Err(error) => {
-												field.class_list().add_1("input-error").expect("Class changes are valid");
+												field.class_list().add_1("error").expect("Class changes are valid");
 												field.set_title(&format!("Invalid date/time: {}", error));
 											}
 										}

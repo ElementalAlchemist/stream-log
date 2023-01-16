@@ -281,7 +281,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			}
 			input(placeholder="Event name", bind:value=entered_event_name_signal, class=if *entered_event_name_has_error_signal.get() { "error" } else { "" }, list="event_names")
 			button(type="submit") { "Load" }
-			span(class="error") { (entered_event_name_error_signal.get()) }
+			span(class="input_error") { (entered_event_name_error_signal.get()) }
 		}
 		datalist(id="tag_names") {
 			Keyed(
@@ -449,7 +449,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 								form(on:submit=replace_tag_handler) {
 									input(type="text", list="tag_names", bind:value=entered_replacement_tag_signal, class=if *entered_replacement_tag_has_error_signal.get() { "error" } else { "" })
 									button(type="submit") { "Replace Tag" }
-									span(class="error") { (entered_replacement_tag_error_signal.get()) }
+									span(class="input_error") { (entered_replacement_tag_error_signal.get()) }
 								}
 							}
 						}
@@ -464,7 +464,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 					h2 { "Add new tag" }
 					div(id="admin_manage_tags_add_new_name") {
 						input(bind:value=entered_new_tag_name_signal, placeholder="Tag name", class=if *entered_new_tag_name_has_error_signal.get() { "error" } else { "" })
-						span(class="error") { (entered_new_tag_name_error_signal.get()) }
+						span(class="input_error") { (entered_new_tag_name_error_signal.get()) }
 					}
 					input(bind:value=entered_new_tag_description_signal, placeholder="Tag description")
 					button(type="submit") { "Add tag" }

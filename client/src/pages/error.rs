@@ -29,7 +29,7 @@ pub fn ErrorView<G: Html>(ctx: Scope) -> View<G> {
 		if let Some(err_disp) = error.error_display {
 			return view! {
 				ctx,
-				div(class="error") {
+				div(id="app_error") {
 					(error.message)
 					br {}
 					(err_disp)
@@ -43,6 +43,6 @@ pub fn ErrorView<G: Html>(ctx: Scope) -> View<G> {
 
 	view! {
 		ctx,
-		div(class="error") { (error_message) }
+		div(id="app_error") { (error_message) }
 	}
 }
