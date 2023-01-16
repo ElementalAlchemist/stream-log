@@ -77,7 +77,7 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			Err(error) => {
 				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 				error_signal.set(Some(ErrorData::new_with_error(
-					String::from("Failed to serialize events request"),
+					"Failed to serialize events request",
 					error,
 				)));
 				return view! { ctx, ErrorView };
@@ -85,10 +85,7 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		};
 		if let Err(error) = ws.send(Message::Text(message_json)).await {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-			error_signal.set(Some(ErrorData::new_with_error(
-				String::from("Failed to send events request"),
-				error,
-			)));
+			error_signal.set(Some(ErrorData::new_with_error("Failed to send events request", error)));
 			return view! { ctx, ErrorView };
 		}
 
@@ -98,7 +95,7 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			Err(error) => {
 				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 				error_signal.set(Some(ErrorData::new_with_error(
-					String::from("Failed to serialize permission groups request"),
+					"Failed to serialize permission groups request",
 					error,
 				)));
 				return view! { ctx, ErrorView };
@@ -107,7 +104,7 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		if let Err(error) = ws.send(Message::Text(message_json)).await {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 			error_signal.set(Some(ErrorData::new_with_error(
-				String::from("Failed to send permission groups request"),
+				"Failed to send permission groups request",
 				error,
 			)));
 			return view! { ctx, ErrorView };
@@ -117,10 +114,7 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			Ok(data) => data,
 			Err(error) => {
 				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-				error_signal.set(Some(ErrorData::new_with_error(
-					String::from("Failed to receive events data"),
-					error,
-				)));
+				error_signal.set(Some(ErrorData::new_with_error("Failed to receive events data", error)));
 				return view! { ctx, ErrorView };
 			}
 		};
@@ -130,7 +124,7 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			Err(error) => {
 				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 				error_signal.set(Some(ErrorData::new_with_error(
-					String::from("Failed to receive permission groups data"),
+					"Failed to receive permission groups data",
 					error,
 				)));
 				return view! { ctx, ErrorView };
@@ -142,7 +136,7 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			Err(error) => {
 				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 				error_signal.set(Some(ErrorData::new_with_error(
-					String::from("Server error occurred getting events data"),
+					"Server error occurred getting events data",
 					error,
 				)));
 				return view! { ctx, ErrorView };
@@ -154,7 +148,7 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			Err(error) => {
 				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 				error_signal.set(Some(ErrorData::new_with_error(
-					String::from("Server error occurred getting permission group data"),
+					"Server error occurred getting permission group data",
 					error,
 				)));
 				return view! { ctx, ErrorView };
@@ -225,7 +219,7 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				Err(error) => {
 					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 					error_signal.set(Some(ErrorData::new_with_error(
-						String::from("Failed to serialize permission group update"),
+						"Failed to serialize permission group update",
 						error,
 					)));
 					navigate("/error");
@@ -238,7 +232,7 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			if let Err(error) = ws.send(Message::Text(message_json)).await {
 				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 				error_signal.set(Some(ErrorData::new_with_error(
-					String::from("failed to send permission group update"),
+					"failed to send permission group update",
 					error,
 				)));
 				navigate("/error");

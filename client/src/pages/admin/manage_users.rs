@@ -25,7 +25,7 @@ async fn get_user_list(ctx: Scope<'_>) -> Result<Vec<UserData>, ()> {
 		Err(error) => {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 			error_signal.set(Some(ErrorData::new_with_error(
-				String::from("Failed to serialize user list request message"),
+				"Failed to serialize user list request message",
 				error,
 			)));
 			return Err(());
@@ -34,7 +34,7 @@ async fn get_user_list(ctx: Scope<'_>) -> Result<Vec<UserData>, ()> {
 	if let Err(error) = ws.send(Message::Text(message_json)).await {
 		let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 		error_signal.set(Some(ErrorData::new_with_error(
-			String::from("Failed to send user list request message"),
+			"Failed to send user list request message",
 			error,
 		)));
 		return Err(());
@@ -46,7 +46,7 @@ async fn get_user_list(ctx: Scope<'_>) -> Result<Vec<UserData>, ()> {
 		Err(error) => {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 			error_signal.set(Some(ErrorData::new_with_error(
-				String::from("Failed to receive user list response message"),
+				"Failed to receive user list response message",
 				error,
 			)));
 			return Err(());
@@ -58,7 +58,7 @@ async fn get_user_list(ctx: Scope<'_>) -> Result<Vec<UserData>, ()> {
 		Err(error) => {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 			error_signal.set(Some(ErrorData::new_with_error(
-				String::from("A server error occurred retrieving the user list"),
+				"A server error occurred retrieving the user list",
 				error,
 			)));
 			Err(())
@@ -98,10 +98,7 @@ async fn AdminManageUsersLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				Ok(msg) => msg,
 				Err(error) => {
 					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-					error_signal.set(Some(ErrorData::new_with_error(
-						String::from("Failed to serialize user data"),
-						error,
-					)));
+					error_signal.set(Some(ErrorData::new_with_error("Failed to serialize user data", error)));
 					navigate("/error");
 					return;
 				}
@@ -113,7 +110,7 @@ async fn AdminManageUsersLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			if let Err(error) = ws.send(Message::Text(message_json)).await {
 				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 				error_signal.set(Some(ErrorData::new_with_error(
-					String::from("Failed to send user data updates"),
+					"Failed to send user data updates",
 					error,
 				)));
 				navigate("/error");

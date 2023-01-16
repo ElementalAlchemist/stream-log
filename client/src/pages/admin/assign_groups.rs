@@ -25,7 +25,7 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		Err(error) => {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 			error_signal.set(Some(ErrorData::new_with_error(
-				String::from("Failed to serialize user request"),
+				"Failed to serialize user request",
 				error,
 			)));
 			return view! { ctx, ErrorView };
@@ -33,10 +33,7 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	};
 	if let Err(error) = ws.send(Message::Text(users_request_json)).await {
 		let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-		error_signal.set(Some(ErrorData::new_with_error(
-			String::from("Failed to send user request"),
-			error,
-		)));
+		error_signal.set(Some(ErrorData::new_with_error("Failed to send user request", error)));
 		return view! { ctx, ErrorView };
 	}
 
@@ -46,7 +43,7 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		Err(error) => {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 			error_signal.set(Some(ErrorData::new_with_error(
-				String::from("Failed to serialize groups request"),
+				"Failed to serialize groups request",
 				error,
 			)));
 			return view! { ctx, ErrorView };
@@ -54,10 +51,7 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	};
 	if let Err(error) = ws.send(Message::Text(groups_request_json)).await {
 		let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-		error_signal.set(Some(ErrorData::new_with_error(
-			String::from("Failed to send groups request"),
-			error,
-		)));
+		error_signal.set(Some(ErrorData::new_with_error("Failed to send groups request", error)));
 		return view! { ctx, ErrorView };
 	}
 
@@ -66,7 +60,7 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		Err(error) => {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 			error_signal.set(Some(ErrorData::new_with_error(
-				String::from("Failed to receive user response message"),
+				"Failed to receive user response message",
 				error,
 			)));
 			return view! { ctx, ErrorView };
@@ -78,7 +72,7 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		Err(error) => {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 			error_signal.set(Some(ErrorData::new_with_error(
-				String::from("Failed to receive group response message"),
+				"Failed to receive group response message",
 				error,
 			)));
 			return view! { ctx, ErrorView };
@@ -90,7 +84,7 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		Err(error) => {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 			error_signal.set(Some(ErrorData::new_with_error(
-				String::from("A server error occurred getting users"),
+				"A server error occurred getting users",
 				error,
 			)));
 			return view! { ctx, ErrorView };
@@ -102,7 +96,7 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		Err(error) => {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 			error_signal.set(Some(ErrorData::new_with_error(
-				String::from("A server error occurred getting permission groups"),
+				"A server error occurred getting permission groups",
 				error,
 			)));
 			return view! { ctx, ErrorView };
@@ -170,7 +164,7 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				Err(error) => {
 					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 					error_signal.set(Some(ErrorData::new_with_error(
-						String::from("Failed to serialize user permission group list request"),
+						"Failed to serialize user permission group list request",
 						error,
 					)));
 					navigate("/error");
@@ -180,7 +174,7 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			if let Err(error) = ws.send(Message::Text(message_json)).await {
 				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 				error_signal.set(Some(ErrorData::new_with_error(
-					String::from("Failed to send user permission group list request"),
+					"Failed to send user permission group list request",
 					error,
 				)));
 				navigate("/error");
@@ -192,7 +186,7 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				Err(error) => {
 					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 					error_signal.set(Some(ErrorData::new_with_error(
-						String::from("Failed to receive user permission group list response"),
+						"Failed to receive user permission group list response",
 						error,
 					)));
 					navigate("/error");
@@ -205,7 +199,7 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				Err(error) => {
 					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 					error_signal.set(Some(ErrorData::new_with_error(
-						String::from("A server error occurred generating the user's permission group list"),
+						"A server error occurred generating the user's permission group list",
 						error,
 					)));
 					navigate("/error");
@@ -279,7 +273,7 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				Err(error) => {
 					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 					error_signal.set(Some(ErrorData::new_with_error(
-						String::from("Failed to serialize request to add user to group"),
+						"Failed to serialize request to add user to group",
 						error,
 					)));
 					navigate("/error");
@@ -289,7 +283,7 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			if let Err(error) = ws.send(Message::Text(message_json)).await {
 				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 				error_signal.set(Some(ErrorData::new_with_error(
-					String::from("Failed to send request to add user to group"),
+					"Failed to send request to add user to group",
 					error,
 				)));
 				navigate("/error");
@@ -378,7 +372,7 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 										Ok(msg) => msg,
 										Err(error) => {
 											let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-											error_signal.set(Some(ErrorData::new_with_error(String::from("Failed to serialize permission group removal request"), error)));
+											error_signal.set(Some(ErrorData::new_with_error("Failed to serialize permission group removal request", error)));
 											navigate("/error");
 											return;
 										}
@@ -389,7 +383,7 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 									if let Err(error) = ws.send(Message::Text(message_json)).await {
 										let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-										error_signal.set(Some(ErrorData::new_with_error(String::from("Failed to send permission group removal request"), error)));
+										error_signal.set(Some(ErrorData::new_with_error("Failed to send permission group removal request", error)));
 										navigate("/error");
 										return;
 									}

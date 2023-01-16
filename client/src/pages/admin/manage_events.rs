@@ -46,7 +46,7 @@ async fn get_event_list(ctx: Scope<'_>) -> Result<Vec<Event>, ()> {
 		Err(error) => {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 			error_signal.set(Some(ErrorData::new_with_error(
-				String::from("Failed to serialize request for event list"),
+				"Failed to serialize request for event list",
 				error,
 			)));
 			return Err(());
@@ -55,7 +55,7 @@ async fn get_event_list(ctx: Scope<'_>) -> Result<Vec<Event>, ()> {
 	if let Err(error) = ws.send(Message::Text(event_list_message_json)).await {
 		let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 		error_signal.set(Some(ErrorData::new_with_error(
-			String::from("Failed to send request for event list"),
+			"Failed to send request for event list",
 			error,
 		)));
 		return Err(());
@@ -66,10 +66,7 @@ async fn get_event_list(ctx: Scope<'_>) -> Result<Vec<Event>, ()> {
 		Ok(resp) => resp,
 		Err(error) => {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-			error_signal.set(Some(ErrorData::new_with_error(
-				String::from("Failed to receive event list"),
-				error,
-			)));
+			error_signal.set(Some(ErrorData::new_with_error("Failed to receive event list", error)));
 			return Err(());
 		}
 	};
@@ -78,7 +75,7 @@ async fn get_event_list(ctx: Scope<'_>) -> Result<Vec<Event>, ()> {
 		Err(error) => {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 			error_signal.set(Some(ErrorData::new_with_error(
-				String::from("Failed to generate the event list"),
+				"Failed to generate the event list",
 				error,
 			)));
 			Err(())
@@ -149,7 +146,7 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 					Err(error) => {
 						let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 						error_signal.set(Some(ErrorData::new_with_error(
-							String::from("Failed to serialize event name changes"),
+							"Failed to serialize event name changes",
 							error,
 						)));
 						navigate("/error");
@@ -165,7 +162,7 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 						Err(error) => {
 							let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 							error_signal.set(Some(ErrorData::new_with_error(
-								String::from("Failed to send event name changes"),
+								"Failed to send event name changes",
 								error,
 							)));
 							navigate("/error");

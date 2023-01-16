@@ -3,19 +3,19 @@ use sycamore::prelude::*;
 
 #[derive(Clone)]
 pub struct ErrorData {
-	message: String,
+	message: &'static str,
 	error_display: Option<String>,
 }
 
 impl ErrorData {
-	pub fn new(message: String) -> Self {
+	pub fn new(message: &'static str) -> Self {
 		Self {
 			message,
 			error_display: None,
 		}
 	}
 
-	pub fn new_with_error(message: String, error: impl Display) -> Self {
+	pub fn new_with_error(message: &'static str, error: impl Display) -> Self {
 		let error_display = Some(format!("{}", error));
 		Self { message, error_display }
 	}
@@ -38,7 +38,7 @@ pub fn ErrorView<G: Html>(ctx: Scope) -> View<G> {
 		}
 		error.message
 	} else {
-		String::from("A completely unknown error occurred")
+		"A completely unknown error occurred"
 	};
 
 	view! {

@@ -68,7 +68,7 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 		Err(error) => {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 			error_signal.set(Some(ErrorData::new_with_error(
-				String::from("Unable to load/operate: Failed to form a websocket connection"),
+				"Unable to load/operate: Failed to form a websocket connection",
 				error,
 			)));
 			return view! { ctx, ErrorView };
@@ -80,7 +80,7 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 		Err(error) => {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 			error_signal.set(Some(ErrorData::new_with_error(
-				String::from("Unable to load/operate: Failed to read initial info message"),
+				"Unable to load/operate: Failed to read initial info message",
 				error,
 			)));
 			return view! { ctx, ErrorView };
@@ -89,7 +89,7 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 	if initial_message.sync_version != SYNC_VERSION {
 		let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-		error_signal.set(Some(ErrorData::new(String::from("A mismatch in communication protocols occurred between the lient and the server. Please refresh the page. If the problem persists, please contact an administrator."))));
+		error_signal.set(Some(ErrorData::new("A mismatch in communication protocols occurred between the lient and the server. Please refresh the page. If the problem persists, please contact an administrator.")));
 		return view! { ctx, ErrorView };
 	}
 
@@ -98,16 +98,16 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 		UserDataLoad::NewUser => None,
 		UserDataLoad::MissingId => {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-			error_signal.set(Some(ErrorData::new(String::from(
+			error_signal.set(Some(ErrorData::new(
 				"An error occurred reading user data. Please log in again.",
-			))));
+			)));
 			return view! { ctx, ErrorView };
 		}
 		UserDataLoad::Error => {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-			error_signal.set(Some(ErrorData::new(String::from(
+			error_signal.set(Some(ErrorData::new(
 				"An error occurred with logging in. Please contact an administrator regarding this issue.",
-			))));
+			)));
 			return view! { ctx, ErrorView };
 		}
 	};

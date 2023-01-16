@@ -30,7 +30,7 @@ async fn EventSelectionLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		Err(error) => {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 			error_signal.set(Some(ErrorData::new_with_error(
-				String::from("Failed to serialize event list request (critical internal error)"),
+				"Failed to serialize event list request (critical internal error)",
 				error,
 			)));
 			return view! { ctx, };
@@ -43,7 +43,7 @@ async fn EventSelectionLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		if let Err(error) = ws.send(Message::Text(message_json)).await {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 			error_signal.set(Some(ErrorData::new_with_error(
-				String::from("Failed to send event list request"),
+				"Failed to send event list request",
 				error,
 			)));
 			return view! { ctx, ErrorView };
@@ -54,7 +54,7 @@ async fn EventSelectionLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			Err(error) => {
 				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 				error_signal.set(Some(ErrorData::new_with_error(
-					String::from("Failed to receive event list response"),
+					"Failed to receive event list response",
 					error,
 				)));
 				return view! { ctx, ErrorView };
@@ -67,7 +67,7 @@ async fn EventSelectionLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		Err(error) => {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 			error_signal.set(Some(ErrorData::new_with_error(
-				String::from("A server error occurred generating the event list"),
+				"A server error occurred generating the event list",
 				error,
 			)));
 			return view! { ctx, ErrorView };

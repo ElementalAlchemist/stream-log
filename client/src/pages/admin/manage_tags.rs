@@ -26,7 +26,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		Err(error) => {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 			error_signal.set(Some(ErrorData::new_with_error(
-				String::from("Failed to serialize event list request"),
+				"Failed to serialize event list request",
 				error,
 			)));
 			return view! { ctx, ErrorView };
@@ -35,7 +35,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	if let Err(error) = ws.send(Message::Text(events_request_json)).await {
 		let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 		error_signal.set(Some(ErrorData::new_with_error(
-			String::from("Failed to send event list request"),
+			"Failed to send event list request",
 			error,
 		)));
 		return view! { ctx, ErrorView };
@@ -46,7 +46,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		Err(error) => {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 			error_signal.set(Some(ErrorData::new_with_error(
-				String::from("Failed to receive event list response"),
+				"Failed to receive event list response",
 				error,
 			)));
 			return view! { ctx, ErrorView };
@@ -58,7 +58,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		Err(error) => {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 			error_signal.set(Some(ErrorData::new_with_error(
-				String::from("A server error occurred generating the events list"),
+				"A server error occurred generating the events list",
 				error,
 			)));
 			return view! { ctx, ErrorView };
@@ -142,7 +142,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				Err(error) => {
 					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 					error_signal.set(Some(ErrorData::new_with_error(
-						String::from("Failed to serialize add tag request"),
+						"Failed to serialize add tag request",
 						error,
 					)));
 					navigate("/error");
@@ -152,10 +152,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 			if let Err(error) = ws.send(Message::Text(message_json)).await {
 				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-				error_signal.set(Some(ErrorData::new_with_error(
-					String::from("Failed to send add tag request"),
-					error,
-				)));
+				error_signal.set(Some(ErrorData::new_with_error("Failed to send add tag request", error)));
 				navigate("/error");
 				return;
 			}
@@ -165,7 +162,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				Err(error) => {
 					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 					error_signal.set(Some(ErrorData::new_with_error(
-						String::from("Failed to receive add tag response"),
+						"Failed to receive add tag response",
 						error,
 					)));
 					navigate("/error");
@@ -178,7 +175,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				Err(error) => {
 					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 					error_signal.set(Some(ErrorData::new_with_error(
-						String::from("A server error occurred adding a tag"),
+						"A server error occurred adding a tag",
 						error,
 					)));
 					navigate("/error");
@@ -217,7 +214,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				Err(error) => {
 					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 					error_signal.set(Some(ErrorData::new_with_error(
-						String::from("Failed to serialize tag list request"),
+						"Failed to serialize tag list request",
 						error,
 					)));
 					navigate("/error");
@@ -228,7 +225,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			if let Err(error) = ws.send(Message::Text(message_json)).await {
 				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 				error_signal.set(Some(ErrorData::new_with_error(
-					String::from("Failed to send tag list request"),
+					"Failed to send tag list request",
 					error,
 				)));
 				navigate("/error");
@@ -240,7 +237,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				Err(error) => {
 					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 					error_signal.set(Some(ErrorData::new_with_error(
-						String::from("Failed to receive tag list response"),
+						"Failed to receive tag list response",
 						error,
 					)));
 					navigate("/error");
@@ -253,7 +250,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				Err(error) => {
 					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 					error_signal.set(Some(ErrorData::new_with_error(
-						String::from("A server error occurred generating the tag list"),
+						"A server error occurred generating the tag list",
 						error,
 					)));
 					navigate("/error");
@@ -319,7 +316,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 								Ok(msg) => msg,
 								Err(error) => {
 									let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-									error_signal.set(Some(ErrorData::new_with_error(String::from("Failed to serialize tag description update request"), error)));
+									error_signal.set(Some(ErrorData::new_with_error("Failed to serialize tag description update request", error)));
 									navigate("/error");
 									return;
 								}
@@ -331,7 +328,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 								if let Err(error) = ws.send(Message::Text(message_json)).await {
 									let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-									error_signal.set(Some(ErrorData::new_with_error(String::from("Failed to send tag description update request"), error)));
+									error_signal.set(Some(ErrorData::new_with_error("Failed to send tag description update request", error)));
 									navigate("/error");
 								}
 							});
@@ -361,7 +358,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 									Ok(msg) => msg,
 									Err(error) => {
 										let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-										error_signal.set(Some(ErrorData::new_with_error(String::from("Failed to serialize tag deletion request"), error)));
+										error_signal.set(Some(ErrorData::new_with_error("Failed to serialize tag deletion request", error)));
 										navigate("/error");
 										return;
 									}
@@ -369,7 +366,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 								if let Err(error) = ws.send(Message::Text(message_json)).await {
 									let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-									error_signal.set(Some(ErrorData::new_with_error(String::from("Failed to send tag deletion request"), error)));
+									error_signal.set(Some(ErrorData::new_with_error("Failed to send tag deletion request", error)));
 									navigate("/error");
 								}
 							});
@@ -405,7 +402,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 									Ok(msg) => msg,
 									Err(error) => {
 										let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-										error_signal.set(Some(ErrorData::new_with_error(String::from("Failed to serialize tag replacement request"), error)));
+										error_signal.set(Some(ErrorData::new_with_error("Failed to serialize tag replacement request", error)));
 										navigate("/error");
 										return;
 									}
@@ -416,7 +413,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 								if let Err(error) = ws.send(Message::Text(message_json)).await {
 									let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-									error_signal.set(Some(ErrorData::new_with_error(String::from("Failed to send tag replacement request"), error)));
+									error_signal.set(Some(ErrorData::new_with_error("Failed to send tag replacement request", error)));
 									navigate("/error");
 								}
 							});

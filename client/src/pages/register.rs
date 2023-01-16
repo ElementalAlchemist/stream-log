@@ -74,9 +74,7 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				Err(error) => {
 					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 					error_signal.set(Some(ErrorData::new_with_error(
-						String::from(
-							"Failed to serialize registration message. Ensure your username is valid and try again.",
-						),
+						"Failed to serialize registration message. Ensure your username is valid and try again.",
 						error,
 					)));
 					navigate("/error");
@@ -87,7 +85,7 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			if let Err(error) = ws.send(Message::Text(message_json)).await {
 				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 				error_signal.set(Some(ErrorData::new_with_error(
-					String::from("Failed to send registration message"),
+					"Failed to send registration message",
 					error,
 				)));
 				navigate("/error");
@@ -99,7 +97,7 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				Err(error) => {
 					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 					error_signal.set(Some(ErrorData::new_with_error(
-						String::from("Failed to receive registration response"),
+						"Failed to receive registration response",
 						error,
 					)));
 					navigate("/error");
@@ -112,7 +110,7 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				Err(error) => {
 					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 					error_signal.set(Some(ErrorData::new_with_error(
-						String::from("A server error occurred during registration."),
+						"A server error occurred during registration.",
 						error,
 					)));
 					navigate("/error");
@@ -129,7 +127,7 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				RegistrationResponse::UsernameInUse => username_in_use_signal.set(true),
 				_ => {
 					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-					error_signal.set(Some(ErrorData::new(String::from("A desync occurred in validation expectations between the client and the server. Please refresh the page."))));
+					error_signal.set(Some(ErrorData::new("A desync occurred in validation expectations between the client and the server. Please refresh the page.")));
 					navigate("/error");
 				}
 			}
@@ -158,7 +156,10 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				Ok(msg) => msg,
 				Err(error) => {
 					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-					error_signal.set(Some(ErrorData::new_with_error(String::from("Failed to serialize username availability check. Ensure your username is valid and try again."), error)));
+					error_signal.set(Some(ErrorData::new_with_error(
+						"Failed to serialize username availability check. Ensure your username is valid and try again.",
+						error,
+					)));
 					navigate("/error");
 					return;
 				}
@@ -167,7 +168,7 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			if let Err(error) = ws.send(Message::Text(message_json)).await {
 				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 				error_signal.set(Some(ErrorData::new_with_error(
-					String::from("Failed to send username availability check message."),
+					"Failed to send username availability check message.",
 					error,
 				)));
 				navigate("/error");
@@ -179,7 +180,7 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				Err(error) => {
 					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 					error_signal.set(Some(ErrorData::new_with_error(
-						String::from("Failed to receive username availability check response."),
+						"Failed to receive username availability check response.",
 						error,
 					)));
 					navigate("/error");
@@ -192,7 +193,7 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				Err(error) => {
 					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 					error_signal.set(Some(ErrorData::new_with_error(
-						String::from("A server error occurred checking username availability."),
+						"A server error occurred checking username availability.",
 						error,
 					)));
 					navigate("/error");

@@ -35,7 +35,7 @@ async fn AdminManageEventTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		Err(error) => {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 			error_signal.set(Some(ErrorData::new_with_error(
-				String::from("Failed to serialize event types list request"),
+				"Failed to serialize event types list request",
 				error,
 			)));
 			return view! { ctx, ErrorView };
@@ -44,7 +44,7 @@ async fn AdminManageEventTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	if let Err(error) = ws.send(Message::Text(message_json)).await {
 		let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 		error_signal.set(Some(ErrorData::new_with_error(
-			String::from("Failed to send event types list request"),
+			"Failed to send event types list request",
 			error,
 		)));
 		return view! { ctx, ErrorView };
@@ -55,7 +55,7 @@ async fn AdminManageEventTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		Err(error) => {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 			error_signal.set(Some(ErrorData::new_with_error(
-				String::from("Failed to receive event types list response"),
+				"Failed to receive event types list response",
 				error,
 			)));
 			return view! { ctx, ErrorView };
@@ -67,7 +67,7 @@ async fn AdminManageEventTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		Err(error) => {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 			error_signal.set(Some(ErrorData::new_with_error(
-				String::from("A server error occurred getting the event types list"),
+				"A server error occurred getting the event types list",
 				error,
 			)));
 			return view! { ctx, ErrorView };
@@ -164,14 +164,14 @@ async fn AdminManageEventTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 						Ok(msg) => msg,
 						Err(error) => {
 							let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-							error_signal.set(Some(ErrorData::new_with_error(String::from("Failed to serialize event type update"), error)));
+							error_signal.set(Some(ErrorData::new_with_error("Failed to serialize event type update", error)));
 							navigate("/error");
 							return;
 						}
 					};
 					if let Err(error) = ws.send(Message::Text(message_json)).await {
 						let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-						error_signal.set(Some(ErrorData::new_with_error(String::from("Failed to send event type update"), error)));
+						error_signal.set(Some(ErrorData::new_with_error("Failed to send event type update", error)));
 						navigate("/error");
 						return;
 					}
@@ -181,7 +181,7 @@ async fn AdminManageEventTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 							Ok(msg) => msg,
 							Err(error) => {
 								let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-								error_signal.set(Some(ErrorData::new_with_error(String::from("Failed to receive new event type ID"), error)));
+								error_signal.set(Some(ErrorData::new_with_error("Failed to receive new event type ID", error)));
 								navigate("/error");
 								return;
 							}
@@ -190,7 +190,7 @@ async fn AdminManageEventTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 							Ok(id) => id,
 							Err(error) => {
 								let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-								error_signal.set(Some(ErrorData::new_with_error(String::from("A server error occurred adding the new event type"), error)));
+								error_signal.set(Some(ErrorData::new_with_error("A server error occurred adding the new event type", error)));
 								navigate("/error");
 								return;
 							}
