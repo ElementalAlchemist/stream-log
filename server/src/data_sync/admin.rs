@@ -619,16 +619,16 @@ pub async fn handle_admin(
 					)
 					.select(tags_a.field(event_log_tags::log_entry))
 					.load(&mut *db_connection)?;
-				diesel::delete(event_log_tags::table)
+				diesel::update(event_log_tags::table)
 					.filter(
 						event_log_tags::tag
 							.eq(&old_tag.id)
-							.and(event_log_tags::log_entry.eq_any(events_with_both_old_and_new)),
+							.and(event_log_tags::log_entry.ne_all(events_with_both_old_and_new)),
 					)
-					.execute(&mut *db_connection)?;
-				diesel::update(event_log_tags::table)
-					.filter(event_log_tags::tag.eq(&old_tag.id))
 					.set(event_log_tags::tag.eq(&new_tag.id))
+					.execute(&mut *db_connection)?;
+				diesel::delete(tags::table)
+					.filter(tags::id.eq(&old_tag.id))
 					.execute(&mut *db_connection)?;
 				Ok(())
 			});

@@ -386,7 +386,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 							let tag = tag.clone();
 							spawn_local_scoped(ctx, async move {
-								let tags_list = tags_signal.get();
+								let mut tags_list = tags_signal.modify();
 								let replacement = tags_list.iter().find(|t| *entered_replacement_tag_signal.get() == t.name);
 								let replacement = if let Some(replacement) = replacement {
 									entered_replacement_tag_error_signal.set(String::new());
@@ -395,6 +395,8 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 									entered_replacement_tag_error_signal.set(String::from("Replacement tag must exist"));
 									return;
 								};
+								let Some((replacing_tag_index, _)) = tags_list.iter().enumerate().find(|(_, t)| tag.id == t.id) else { return; };
+								tags_list.remove(replacing_tag_index);
 								entered_replacement_tag_signal.set(String::new());
 
 								let message = RequestMessage::Admin(AdminAction::ReplaceTag(tag, replacement));
