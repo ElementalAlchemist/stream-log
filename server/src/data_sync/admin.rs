@@ -602,8 +602,20 @@ pub async fn handle_admin(
 			}
 		}
 		AdminAction::ReplaceTag(old_tag, new_tag) => {
+			if old_tag.id == new_tag.id {
+				return Ok(());
+			}
 			let mut db_connection = db_connection.lock().await;
 			let tx_result: QueryResult<()> = db_connection.transaction(|db_connection| {
+				let tag_events: Vec<String> = tags::table.filter(tags::id.eq(&old_tag.id).or(tags::id.eq(&new_tag.id))).select(tags::for_event).load(&mut *db_connection)?;
+				let mut event_ids_iter = tag_events.iter();
+				let Some(event_id) = event_ids_iter.next() else { return Ok(()); };
+				for event in event_ids_iter {
+					if *event != *event_id {
+						return Ok(());
+					}
+				}
+
 				let (tags_a, tags_b) = diesel::alias!(event_log_tags as tag_a, event_log_tags as tag_b);
 				let events_with_both_old_and_new: Vec<String> = tags_a
 					.inner_join(
