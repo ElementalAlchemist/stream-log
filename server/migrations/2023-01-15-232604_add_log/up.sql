@@ -10,6 +10,7 @@ CREATE TABLE event_log (
 	notes_to_editor TEXT NOT NULL,
 	editor_link TEXT NOT NULL,
 	editor TEXT REFERENCES users,
+	highlighted BOOLEAN NOT NULL,
 	last_updated TIMESTAMP WITH TIME ZONE NOT NULL,
 	last_update_user TEXT NOT NULL REFERENCES users
 );
