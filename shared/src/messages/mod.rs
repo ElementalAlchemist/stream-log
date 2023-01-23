@@ -33,6 +33,7 @@ pub type DataMessage<T> = Result<T, DataError>;
 #[derive(Deserialize, Serialize)]
 pub enum RequestMessage {
 	ListAvailableEvents,
-	SwitchToEvent(Event),
+	SubscribeToEvent(Event),
+	UnsubscribeAll,
 	Admin(AdminAction),
 }
