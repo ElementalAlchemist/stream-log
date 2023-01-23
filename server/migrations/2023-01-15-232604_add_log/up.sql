@@ -8,7 +8,7 @@ CREATE TABLE event_log (
 	media_link TEXT NOT NULL,
 	submitter_or_winner TEXT NOT NULL,
 	notes_to_editor TEXT NOT NULL,
-	editor_link TEXT NOT NULL,
+	editor_link TEXT,
 	editor TEXT REFERENCES users,
 	highlighted BOOLEAN NOT NULL,
 	last_updated TIMESTAMP WITH TIME ZONE NOT NULL,

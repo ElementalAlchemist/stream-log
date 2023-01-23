@@ -24,7 +24,7 @@ diesel::table! {
 		media_link -> Text,
 		submitter_or_winner -> Text,
 		notes_to_editor -> Text,
-		editor_link -> Text,
+		editor_link -> Nullable<Text>,
 		editor -> Nullable<Text>,
 		highlighted -> Bool,
 		last_updated -> Timestamptz,

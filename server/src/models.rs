@@ -115,7 +115,7 @@ pub struct EventLogEntry {
 	pub media_link: String,
 	pub submitter_or_winner: String,
 	pub notes_to_editor: String,
-	pub editor_link: String,
+	pub editor_link: Option<String>,
 	pub editor: Option<String>,
 	pub highlighted: bool,
 	pub last_updated: DateTime<Utc>,
