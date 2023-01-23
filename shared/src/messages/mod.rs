@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 pub mod admin;
+pub mod event_log;
+pub mod event_subscription;
 pub mod event_types;
 pub mod events;
 pub mod initial;
@@ -11,7 +13,6 @@ pub mod user;
 pub mod user_register;
 
 use admin::AdminAction;
-use events::Event;
 
 #[derive(Deserialize, Serialize)]
 pub enum DataError {
@@ -33,7 +34,7 @@ pub type DataMessage<T> = Result<T, DataError>;
 #[derive(Deserialize, Serialize)]
 pub enum RequestMessage {
 	ListAvailableEvents,
-	SubscribeToEvent(Event),
+	SubscribeToEvent(String),
 	UnsubscribeAll,
 	Admin(AdminAction),
 }

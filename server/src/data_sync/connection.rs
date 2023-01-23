@@ -123,7 +123,7 @@ async fn process_messages(
 
 		match incoming_msg {
 			RequestMessage::ListAvailableEvents => send_events(&db_connection, stream, user).await?,
-			RequestMessage::SubscribeToEvent(event) => todo!(),
+			RequestMessage::SubscribeToEvent(event_id) => todo!(),
 			RequestMessage::UnsubscribeAll => todo!(),
 			RequestMessage::Admin(action) => handle_admin(stream, Arc::clone(&db_connection), user, action).await?,
 		}
