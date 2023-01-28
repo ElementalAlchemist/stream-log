@@ -1,13 +1,14 @@
 use super::event_log::EventLogEntry;
 use super::event_types::EventType;
 use super::events::Event;
+use super::permissions::PermissionLevel;
 use super::tags::Tag;
 use super::user::UserData;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
 pub enum EventSubscriptionResponse {
-	Subscribed(Event, Vec<EventType>, Vec<Tag>, Vec<EventLogEntry>),
+	Subscribed(Event, PermissionLevel, Vec<EventType>, Vec<Tag>, Vec<EventLogEntry>),
 	NoEvent,
 	NotAllowed,
 }
