@@ -25,6 +25,7 @@ use pages::event_selection::EventSelectionView;
 use pages::not_found::NotFoundView;
 use pages::register::RegistrationView;
 use pages::register_complete::RegistrationCompleteView;
+use pages::user_profile::UserProfileView;
 use websocket::read_websocket;
 
 #[derive(Debug, Route)]
@@ -51,6 +52,8 @@ enum AppRoutes {
 	AdminEventTypesForEventManager,
 	#[to("/admin/tags")]
 	AdminTagsManager,
+	#[to("/user_profile")]
+	UserProfile,
 	#[to("/error")]
 	Error,
 	#[not_found]
@@ -140,6 +143,7 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 						AppRoutes::AdminEventTypeManager => view! { ctx, AdminManageEventTypesView },
 						AppRoutes::AdminEventTypesForEventManager => view! { ctx, AdminManageEventTypesForEventsView },
 						AppRoutes::AdminTagsManager => view! { ctx, AdminManageTagsView },
+						AppRoutes::UserProfile => view! { ctx, UserProfileView },
 						AppRoutes::Error => view! { ctx, ErrorView },
 						AppRoutes::NotFound => view! { ctx, NotFoundView }
 					})

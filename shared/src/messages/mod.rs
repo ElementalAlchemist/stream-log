@@ -13,6 +13,7 @@ pub mod user;
 pub mod user_register;
 
 use admin::AdminAction;
+use user::UpdateUser;
 
 #[derive(Deserialize, Serialize)]
 pub enum DataError {
@@ -37,4 +38,5 @@ pub enum RequestMessage {
 	SubscribeToEvent(String),
 	UnsubscribeAll,
 	Admin(AdminAction),
+	UpdateProfile(UpdateUser),
 }

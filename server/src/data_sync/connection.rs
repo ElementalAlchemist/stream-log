@@ -1,6 +1,7 @@
 use super::admin::handle_admin;
 use super::event_selection::send_events;
 use super::register::register_user;
+use super::user_profile::handle_profile_update;
 use super::HandleConnectionError;
 use crate::models::User;
 use crate::schema::users;
@@ -123,6 +124,9 @@ async fn process_messages(
 			RequestMessage::SubscribeToEvent(event_id) => todo!(),
 			RequestMessage::UnsubscribeAll => todo!(),
 			RequestMessage::Admin(action) => handle_admin(stream, Arc::clone(&db_connection), user, action).await?,
+			RequestMessage::UpdateProfile(update_data) => {
+				handle_profile_update(Arc::clone(&db_connection), user, update_data).await?
+			}
 		}
 	}
 }

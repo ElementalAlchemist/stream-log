@@ -8,3 +8,8 @@ pub struct UserData {
 	pub is_admin: bool,
 	pub color: RGB8,
 }
+
+#[derive(Deserialize, Serialize)]
+pub enum UpdateUser {
+	UpdateColor(RGB8),
+}

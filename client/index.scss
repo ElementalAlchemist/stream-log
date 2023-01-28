@@ -86,7 +86,7 @@ input.error {
 	margin: 0 3px;
 }
 
-#user_admin_menu_pages {
+#user_menu, #user_admin_menu_pages {
 	display: none;
 	list-style: none;
 	margin: 0;
@@ -94,11 +94,11 @@ input.error {
 	border: 1px solid var(--base-border-color);
 }
 
-#user_admin_menu {
+#user_greeting, #user_admin_menu {
 	width: 200px;
 	text-align: center;
 
-	&:hover #user_admin_menu_pages {
+	&:hover .user_info_menu {
 		display: block;
 	}
 }
@@ -244,6 +244,10 @@ input.error {
 
 .admin_manage_tags_tag_description {
 	width: 600px;
+}
+
+#user_profile_edit > div {
+	margin: 5px 0;
 }
 
 #register_user > div {

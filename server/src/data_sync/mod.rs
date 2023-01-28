@@ -2,6 +2,7 @@ mod admin;
 pub mod connection;
 mod event_selection;
 mod register;
+mod user_profile;
 
 pub enum HandleConnectionError {
 	ConnectionClosed,

@@ -13,13 +13,20 @@ pub fn UserInfoBar<G: Html>(ctx: Scope) -> View<G> {
 					div(id="user_greeting") {
 						"Hi, "
 						(user.username)
+						ul(id="user_menu", class="user_info_menu") {
+							li {
+								a(href="/user_profile") {
+									"Profile"
+								}
+							}
+						}
 					}
 					(if user.is_admin {
 						view! {
 							ctx,
 							div(id="user_admin_menu") {
 								"Admin Menu"
-								ul(id="user_admin_menu_pages") {
+								ul(id="user_admin_menu_pages", class="user_info_menu") {
 									li {
 										a(href="/admin/events") {
 											"Manage Events"
