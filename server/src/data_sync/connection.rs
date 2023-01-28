@@ -2,7 +2,6 @@ use super::admin::handle_admin;
 use super::event_selection::send_events;
 use super::register::register_user;
 use super::HandleConnectionError;
-use crate::config::ConfigDocument;
 use crate::models::User;
 use crate::schema::users;
 use crate::websocket_msg::recv_msg;
@@ -19,7 +18,6 @@ use tide_websockets::WebSocketConnection;
 
 /// Runs the WebSocket connection with the user
 pub async fn handle_connection(
-	config: Arc<ConfigDocument>,
 	db_connection: Arc<Mutex<PgConnection>>,
 	request: Request<()>,
 	mut stream: WebSocketConnection,
@@ -72,7 +70,7 @@ pub async fn handle_connection(
 			let message = InitialMessage::new(UserDataLoad::User(user_data));
 			stream.send_json(&message).await?;
 			if let Err(HandleConnectionError::SendError(error)) =
-				process_messages(Arc::clone(&config), Arc::clone(&db_connection), &mut stream, &user).await
+				process_messages(Arc::clone(&db_connection), &mut stream, &user).await
 			{
 				return Err(error);
 			}
@@ -87,7 +85,7 @@ pub async fn handle_connection(
 			};
 			if user.is_admin {
 				if let Err(HandleConnectionError::SendError(error)) =
-					process_messages(Arc::clone(&config), Arc::clone(&db_connection), &mut stream, &user).await
+					process_messages(Arc::clone(&db_connection), &mut stream, &user).await
 				{
 					return Err(error);
 				}
@@ -100,7 +98,6 @@ pub async fn handle_connection(
 
 /// Handles messages from a user throughout the connection
 async fn process_messages(
-	config: Arc<ConfigDocument>,
 	db_connection: Arc<Mutex<PgConnection>>,
 	stream: &mut WebSocketConnection,
 	user: &User,

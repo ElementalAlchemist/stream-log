@@ -69,12 +69,10 @@ async fn main() -> miette::Result<()> {
 	app.with(OpenIdConnectMiddleware::new(&openid_config).await);
 
 	app.at("/ws").authenticated().get(WebSocket::new({
-		let config = Arc::clone(&config);
 		let db_connection = Arc::clone(&db_connection);
 		move |request, stream| {
-			let config = Arc::clone(&config);
 			let db_connection = Arc::clone(&db_connection);
-			async move { handle_connection(config, db_connection, request, stream).await }
+			async move { handle_connection(db_connection, request, stream).await }
 		}
 	}));
 
