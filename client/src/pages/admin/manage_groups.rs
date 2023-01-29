@@ -1,4 +1,5 @@
 use crate::pages::error::{ErrorData, ErrorView};
+use crate::subscriptions::send_unsubscribe_all_message;
 use crate::websocket::read_websocket;
 use futures::lock::Mutex;
 use futures::SinkExt;
@@ -70,6 +71,12 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	let (events, mut permission_groups) = {
 		let ws_context: &Mutex<WebSocket> = use_context(ctx);
 		let mut ws = ws_context.lock().await;
+
+		if let Err(error) = send_unsubscribe_all_message(&mut ws).await {
+			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
+			error_signal.set(Some(error));
+			return view! { ctx, ErrorView };
+		}
 
 		let message = RequestMessage::Admin(AdminAction::ListEvents);
 		let message_json = match serde_json::to_string(&message) {

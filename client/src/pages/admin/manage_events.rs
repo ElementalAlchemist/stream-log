@@ -1,4 +1,5 @@
 use crate::pages::error::{ErrorData, ErrorView};
+use crate::subscriptions::send_unsubscribe_all_message;
 use crate::websocket::read_websocket;
 use chrono::prelude::*;
 use futures::lock::Mutex;
@@ -85,6 +86,15 @@ async fn get_event_list(ctx: Scope<'_>) -> Result<Vec<Event>, ()> {
 
 #[component]
 async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
+	{
+		let ws_context: &Mutex<WebSocket> = use_context(ctx);
+		let mut ws = ws_context.lock().await;
+		if let Err(error) = send_unsubscribe_all_message(&mut ws).await {
+			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
+			error_signal.set(Some(error));
+			return view! { ctx, ErrorView };
+		}
+	}
 	let Ok(event_list) = get_event_list(ctx).await else {
 		return view! { ctx, ErrorView };
 	};

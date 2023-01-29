@@ -2,7 +2,7 @@ use sycamore::prelude::*;
 
 #[derive(Prop)]
 pub struct EventLogProps {
-	id: String
+	id: String,
 }
 
 #[component]
