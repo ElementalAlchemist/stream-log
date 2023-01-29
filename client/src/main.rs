@@ -21,6 +21,7 @@ use pages::admin::manage_groups::AdminManageGroupsView;
 use pages::admin::manage_tags::AdminManageTagsView;
 use pages::admin::manage_users::AdminManageUsersView;
 use pages::error::{ErrorData, ErrorView};
+use pages::event_log::EventLogView;
 use pages::event_selection::EventSelectionView;
 use pages::not_found::NotFoundView;
 use pages::register::RegistrationView;
@@ -135,7 +136,7 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 						AppRoutes::EventSelection => view! { ctx, EventSelectionView },
 						AppRoutes::Register => view! { ctx, RegistrationView },
 						AppRoutes::RegistrationComplete => view! { ctx, RegistrationCompleteView },
-						AppRoutes::EventLog(id) => todo!(),
+						AppRoutes::EventLog(id) => view! { ctx, EventLogView(id=id.clone()) },
 						AppRoutes::AdminEventManager => view! { ctx, AdminManageEventsView },
 						AppRoutes::AdminUserManager => view! { ctx, AdminManageUsersView },
 						AppRoutes::AdminPermissionGroupManager => view! { ctx, AdminManageGroupsView },
