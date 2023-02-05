@@ -14,6 +14,11 @@ pub enum EventSubscriptionResponse {
 }
 
 #[derive(Deserialize, Serialize)]
+pub enum EventUnsubscriptionResponse {
+	Success,
+}
+
+#[derive(Deserialize, Serialize)]
 pub enum EventSubscriptionData {
 	NewLogEntry(EventLogEntry),
 	DeleteLogEntry(EventLogEntry),

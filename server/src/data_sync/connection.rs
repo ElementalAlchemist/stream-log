@@ -1,6 +1,7 @@
 use super::admin::handle_admin;
 use super::event_selection::send_events;
 use super::register::register_user;
+use super::subscriptions::unsubscribe_all;
 use super::user_profile::handle_profile_update;
 use super::HandleConnectionError;
 use crate::models::User;
@@ -122,7 +123,7 @@ async fn process_messages(
 		match incoming_msg {
 			RequestMessage::ListAvailableEvents => send_events(&db_connection, stream, user).await?,
 			RequestMessage::SubscribeToEvent(event_id) => todo!(),
-			RequestMessage::UnsubscribeAll => todo!(),
+			RequestMessage::UnsubscribeAll => unsubscribe_all(stream, user),
 			RequestMessage::Admin(action) => handle_admin(stream, Arc::clone(&db_connection), user, action).await?,
 			RequestMessage::UpdateProfile(update_data) => {
 				handle_profile_update(Arc::clone(&db_connection), user, update_data).await?
