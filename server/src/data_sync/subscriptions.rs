@@ -1,6 +1,18 @@
 use crate::models::User;
+use async_std::sync::{Arc, Mutex};
+use diesel::pg::PgConnection;
+use diesel::prelude::*;
 use tide_websockets::WebSocketConnection;
 
-pub fn unsubscribe_all(stream: &mut WebSocketConnection, user: &User) {
+pub async fn subscribe_to_event(
+	db_connection: Arc<Mutex<PgConnection>>,
+	stream: &mut WebSocketConnection,
+	user: &User,
+	event_id: &str,
+) {
+	// TODO
+}
+
+pub async fn unsubscribe_all(stream: &mut WebSocketConnection, user: &User) {
 	// TODO
 }
