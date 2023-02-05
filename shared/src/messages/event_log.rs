@@ -2,7 +2,7 @@ use super::tags::Tag;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct EventLogEntry {
 	pub id: String,
 	pub start_time: DateTime<Utc>,

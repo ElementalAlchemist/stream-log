@@ -18,7 +18,7 @@ pub enum EventUnsubscriptionResponse {
 	Success,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub enum EventSubscriptionData {
 	NewLogEntry(EventLogEntry),
 	DeleteLogEntry(EventLogEntry),
@@ -30,7 +30,7 @@ pub enum EventSubscriptionData {
 	DeleteEventType(EventType),
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub enum TypingData {
 	TypingStartTime(Option<EventLogEntry>, String, UserData),
 	TypingEndTime(Option<EventLogEntry>, String, UserData),

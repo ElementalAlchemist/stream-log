@@ -22,6 +22,7 @@ use data_sync::connection::handle_connection;
 mod database;
 use database::{connect_db, run_embedded_migrations};
 
+mod synchronization;
 mod websocket_msg;
 
 mod models;
