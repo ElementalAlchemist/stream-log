@@ -1,5 +1,5 @@
-use crate::subscriptions::send_unsubscribe_all_message;
 use super::error::{ErrorData, ErrorView};
+use crate::subscriptions::send_unsubscribe_all_message;
 use futures::lock::Mutex;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
@@ -10,7 +10,7 @@ use sycamore::suspense::Suspense;
 
 #[derive(Prop)]
 pub struct EventLogProps {
-	id: String
+	id: String,
 }
 
 #[component]
@@ -29,14 +29,20 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		Ok(msg) => msg,
 		Err(error) => {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-			error_signal.set(Some(ErrorData::new_with_error("Failed to serialize event subscription request message", error)));
+			error_signal.set(Some(ErrorData::new_with_error(
+				"Failed to serialize event subscription request message",
+				error,
+			)));
 			return view! { ctx, ErrorView };
 		}
 	};
 
 	if let Err(error) = ws.send(Message::Text(subscribe_msg_json)).await {
 		let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-		error_signal.set(Some(ErrorData::new_with_error("Failed to send event subscription request message", error)));
+		error_signal.set(Some(ErrorData::new_with_error(
+			"Failed to send event subscription request message",
+			error,
+		)));
 		return view! { ctx, ErrorView };
 	}
 
