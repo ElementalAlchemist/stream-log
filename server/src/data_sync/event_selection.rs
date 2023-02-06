@@ -10,7 +10,7 @@ use tide_websockets::WebSocketConnection;
 
 pub async fn send_events(
 	db_connection: &Arc<Mutex<PgConnection>>,
-	stream: &mut WebSocketConnection,
+	stream: Arc<Mutex<WebSocketConnection>>,
 	user: &models::User,
 ) -> Result<(), HandleConnectionError> {
 	let user_events: QueryResult<Vec<models::Event>> = {
@@ -37,12 +37,12 @@ pub async fn send_events(
 			let event_selection = DataMessage::Ok(event_messages::EventSelection {
 				available_events: event_selection,
 			});
-			stream.send_json(&event_selection).await?;
+			stream.lock().await.send_json(&event_selection).await?;
 		}
 		Err(error) => {
 			tide::log::error!("Database error: {}", error);
 			let message: DataMessage<event_messages::EventSelection> = DataMessage::Err(DataError::DatabaseError);
-			stream.send_json(&message).await?;
+			stream.lock().await.send_json(&message).await?;
 			return Err(HandleConnectionError::ConnectionClosed);
 		}
 	}

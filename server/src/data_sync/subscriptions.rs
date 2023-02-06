@@ -6,13 +6,13 @@ use tide_websockets::WebSocketConnection;
 
 pub async fn subscribe_to_event(
 	db_connection: Arc<Mutex<PgConnection>>,
-	stream: &mut WebSocketConnection,
+	stream: Arc<Mutex<WebSocketConnection>>,
 	user: &User,
 	event_id: &str,
 ) {
 	// TODO
 }
 
-pub async fn unsubscribe_all(stream: &mut WebSocketConnection, user: &User) {
+pub async fn unsubscribe_all(stream: Arc<Mutex<WebSocketConnection>>, user: &User) {
 	// TODO
 }

@@ -17,11 +17,12 @@ use tide_websockets::WebSocketConnection;
 /// Runs the user registration portion of the connection
 pub async fn register_user(
 	db_connection: Arc<Mutex<PgConnection>>,
-	stream: &mut WebSocketConnection,
+	stream: Arc<Mutex<WebSocketConnection>>,
 	openid_user_id: &str,
 ) -> Result<User, HandleConnectionError> {
+	let mut stream = stream.lock().await;
 	loop {
-		let response = match recv_msg(stream).await {
+		let response = match recv_msg(&mut stream).await {
 			Ok(resp) => resp,
 			Err(error) => {
 				error.log();

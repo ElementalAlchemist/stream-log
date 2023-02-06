@@ -22,7 +22,7 @@ use tide_websockets::WebSocketConnection;
 pub async fn handle_connection(
 	db_connection: Arc<Mutex<PgConnection>>,
 	request: Request<()>,
-	mut stream: WebSocketConnection,
+	stream: WebSocketConnection,
 ) -> tide::Result<()> {
 	let Some(openid_user_id) = request.user_id() else {
 		let message = InitialMessage::new(UserDataLoad::MissingId);
@@ -56,6 +56,8 @@ pub async fn handle_connection(
 		}
 	};
 
+	let stream = Arc::new(Mutex::new(stream));
+
 	match user {
 		Some(user) => {
 			let color = RGB8::new(
@@ -70,24 +72,24 @@ pub async fn handle_connection(
 				color,
 			};
 			let message = InitialMessage::new(UserDataLoad::User(user_data));
-			stream.send_json(&message).await?;
+			stream.lock().await.send_json(&message).await?;
 			if let Err(HandleConnectionError::SendError(error)) =
-				process_messages(Arc::clone(&db_connection), &mut stream, &user).await
+				process_messages(Arc::clone(&db_connection), Arc::clone(&stream), &user).await
 			{
 				return Err(error);
 			}
 		}
 		None => {
 			let message = InitialMessage::new(UserDataLoad::NewUser);
-			stream.send_json(&message).await?;
-			let user = match register_user(Arc::clone(&db_connection), &mut stream, &openid_user_id).await {
+			stream.lock().await.send_json(&message).await?;
+			let user = match register_user(Arc::clone(&db_connection), Arc::clone(&stream), &openid_user_id).await {
 				Ok(user) => user,
 				Err(HandleConnectionError::SendError(error)) => return Err(error),
 				Err(_) => return Ok(()),
 			};
 			if user.is_admin {
 				if let Err(HandleConnectionError::SendError(error)) =
-					process_messages(Arc::clone(&db_connection), &mut stream, &user).await
+					process_messages(Arc::clone(&db_connection), Arc::clone(&stream), &user).await
 				{
 					return Err(error);
 				}
@@ -101,15 +103,19 @@ pub async fn handle_connection(
 /// Handles messages from a user throughout the connection
 async fn process_messages(
 	db_connection: Arc<Mutex<PgConnection>>,
-	stream: &mut WebSocketConnection,
+	stream: Arc<Mutex<WebSocketConnection>>,
 	user: &User,
 ) -> Result<(), HandleConnectionError> {
 	loop {
-		let incoming_msg = match recv_msg(stream).await {
-			Ok(msg) => msg,
-			Err(error) => {
-				error.log();
-				return Err(HandleConnectionError::ConnectionClosed);
+		let stream = Arc::clone(&stream);
+		let incoming_msg = {
+			let mut stream = stream.lock().await;
+			match recv_msg(&mut stream).await {
+				Ok(msg) => msg,
+				Err(error) => {
+					error.log();
+					return Err(HandleConnectionError::ConnectionClosed);
+				}
 			}
 		};
 		let incoming_msg: RequestMessage = match serde_json::from_str(&incoming_msg) {

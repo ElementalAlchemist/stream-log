@@ -43,7 +43,7 @@ fn generate_cuid_in_transaction() -> Result<String, QueryError> {
 
 /// Handles administration actions performed by the client
 pub async fn handle_admin(
-	stream: &mut WebSocketConnection,
+	stream: Arc<Mutex<WebSocketConnection>>,
 	db_connection: Arc<Mutex<PgConnection>>,
 	user: &User,
 	action: AdminAction,
@@ -57,6 +57,7 @@ pub async fn handle_admin(
 				let mut db_connection = db_connection.lock().await;
 				events::table.load(&mut *db_connection)
 			};
+			let stream = stream.lock().await;
 			let events: Vec<EventWs> = match events {
 				Ok(mut events) => events
 					.drain(..)
@@ -131,7 +132,7 @@ pub async fn handle_admin(
 					DataMessage::Err(DataError::DatabaseError)
 				}
 			};
-			stream.send_json(&message).await?;
+			stream.lock().await.send_json(&message).await?;
 		}
 		AdminAction::ListPermissionGroupsWithEvents => {
 			let group_data: QueryResult<Vec<DestructuredEventPermission>> = {
@@ -149,6 +150,8 @@ pub async fn handle_admin(
 					))
 					.load(&mut *db_connection)
 			};
+
+			let stream = stream.lock().await;
 			let group_data: Vec<PermissionGroupWithEvents> = match group_data {
 				Ok(groups) => {
 					let mut permission_group_events: HashMap<PermissionGroup, Vec<EventPermission>> = HashMap::new();
@@ -266,7 +269,7 @@ pub async fn handle_admin(
 					DataMessage::Err(DataError::DatabaseError)
 				}
 			};
-			stream.send_json(&message).await?;
+			stream.lock().await.send_json(&message).await?;
 		}
 		AdminAction::AddUserToPermissionGroup(permission_group_user) => {
 			let mut db_connection = db_connection.lock().await;
@@ -330,7 +333,7 @@ pub async fn handle_admin(
 					Err(DataError::DatabaseError)
 				}
 			};
-			stream.send_json(&message).await?;
+			stream.lock().await.send_json(&message).await?;
 		}
 		AdminAction::EditUsers(modified_users) => {
 			let mut db_connection = db_connection.lock().await;
@@ -391,7 +394,7 @@ pub async fn handle_admin(
 					DataMessage::Err(DataError::DatabaseError)
 				}
 			};
-			stream.send_json(&message).await?;
+			stream.lock().await.send_json(&message).await?;
 		}
 		AdminAction::ListEventTypes => {
 			let event_types: QueryResult<Vec<EventTypeDb>> = {
@@ -415,7 +418,7 @@ pub async fn handle_admin(
 					DataMessage::Err(DataError::DatabaseError)
 				}
 			};
-			stream.send_json(&message).await?;
+			stream.lock().await.send_json(&message).await?;
 		}
 		AdminAction::AddEventType(event_type) => {
 			let new_id = match cuid::cuid() {
@@ -448,7 +451,7 @@ pub async fn handle_admin(
 					DataMessage::Err(DataError::DatabaseError)
 				}
 			};
-			stream.send_json(&message).await?;
+			stream.lock().await.send_json(&message).await?;
 		}
 		AdminAction::UpdateEventType(event_type) => {
 			let mut db_connection = db_connection.lock().await;
@@ -504,7 +507,7 @@ pub async fn handle_admin(
 					DataMessage::Err(DataError::DatabaseError)
 				}
 			};
-			stream.send_json(&message).await?;
+			stream.lock().await.send_json(&message).await?;
 		}
 		AdminAction::UpdateEventTypesForEvent(event, event_types) => {
 			let mut db_connection = db_connection.lock().await;
@@ -553,7 +556,7 @@ pub async fn handle_admin(
 					DataMessage::Err(DataError::DatabaseError)
 				}
 			};
-			stream.send_json(&message).await?;
+			stream.lock().await.send_json(&message).await?;
 		}
 		AdminAction::AddTag(mut tag, event) => {
 			let new_id = match cuid::cuid() {
@@ -582,7 +585,7 @@ pub async fn handle_admin(
 					DataMessage::Err(DataError::DatabaseError)
 				}
 			};
-			stream.send_json(&response).await?;
+			stream.lock().await.send_json(&response).await?;
 		}
 		AdminAction::UpdateTagDescription(tag) => {
 			let mut db_connection = db_connection.lock().await;
