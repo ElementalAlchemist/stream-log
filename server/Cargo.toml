@@ -13,6 +13,7 @@ cuid = "1.2.0"
 diesel = { version = "2.0.2", features = ["chrono", "postgres"] }
 diesel_migrations = "2.0.0"
 diesel-derive-enum = { version = "2.0.0-rc.0", features = ["postgres"] }
+futures = "0.3.26"
 knuffel = "2.0.0"
 miette = { version = "4.7.1", features = ["fancy"] }
 rgb = "0.8.34"
