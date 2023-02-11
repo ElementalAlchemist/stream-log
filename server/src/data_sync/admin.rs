@@ -11,7 +11,7 @@ use async_std::sync::{Arc, Mutex};
 use chrono::prelude::*;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
-use diesel::result::{DatabaseErrorKind, Error as QueryError};
+use diesel::result::DatabaseErrorKind;
 use rgb::RGB8;
 use std::collections::{HashMap, HashSet};
 use stream_log_shared::messages::admin::{AdminAction, EventPermission, PermissionGroup, PermissionGroupWithEvents};
@@ -30,16 +30,6 @@ type DestructuredEventPermission = (
 	Option<DateTime<Utc>>,
 	Option<Permission>,
 );
-
-fn generate_cuid_in_transaction() -> Result<String, QueryError> {
-	match cuid::cuid() {
-		Ok(id) => Ok(id),
-		Err(error) => {
-			tide::log::error!("Failed to generate CUID: {}", error);
-			Err(QueryError::RollbackTransaction)
-		}
-	}
-}
 
 /// Handles administration actions performed by the client
 pub async fn handle_admin(
@@ -84,7 +74,7 @@ pub async fn handle_admin(
 					let mut new_events: Vec<EventDb> = Vec::new();
 					for event in events.iter() {
 						if event.id.is_empty() {
-							let id = generate_cuid_in_transaction()?;
+							let id = cuid2::create_id();
 							let event = EventDb {
 								id,
 								name: event.name.clone(),
@@ -198,7 +188,7 @@ pub async fn handle_admin(
 			let tx_result: QueryResult<()> = db_connection.transaction(move |db_connection| {
 				for group_event_data in group_changes.iter() {
 					let id = if group_event_data.group.id.is_empty() {
-						let new_id = generate_cuid_in_transaction()?;
+						let new_id = cuid2::create_id();
 						let new_group = PermissionGroupDb {
 							id: new_id.clone(),
 							name: group_event_data.group.name.clone(),
@@ -421,13 +411,7 @@ pub async fn handle_admin(
 			stream.lock().await.send_json(&message).await?;
 		}
 		AdminAction::AddEventType(event_type) => {
-			let new_id = match cuid::cuid() {
-				Ok(id) => id,
-				Err(error) => {
-					tide::log::error!("Failed to generate CUID: {}", error);
-					return Err(HandleConnectionError::ConnectionClosed);
-				}
-			};
+			let new_id = cuid2::create_id();
 			let new_event = EventTypeDb {
 				id: new_id.clone(),
 				name: event_type.name,
@@ -559,13 +543,7 @@ pub async fn handle_admin(
 			stream.lock().await.send_json(&message).await?;
 		}
 		AdminAction::AddTag(mut tag, event) => {
-			let new_id = match cuid::cuid() {
-				Ok(id) => id,
-				Err(error) => {
-					tide::log::error!("Failed to generate CUID: {}", error);
-					return Err(HandleConnectionError::ConnectionClosed);
-				}
-			};
+			let new_id = cuid2::create_id();
 			let db_tag = TagDb {
 				id: new_id.clone(),
 				for_event: event.id,
@@ -677,7 +655,7 @@ pub async fn handle_admin(
 					})
 					.collect();
 				for new_event in new_events.iter_mut() {
-					let new_id = generate_cuid_in_transaction()?;
+					let new_id = cuid2::create_id();
 					new_event.id = new_id;
 				}
 

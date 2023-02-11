@@ -3,7 +3,6 @@ use crate::models::User;
 use crate::schema::users;
 use crate::websocket_msg::recv_msg;
 use async_std::sync::{Arc, Mutex};
-use cuid::cuid;
 use diesel::prelude::*;
 use diesel::result::DatabaseErrorKind;
 use rgb::RGB8;
@@ -79,16 +78,7 @@ pub async fn register_user(
 					stream.send_json(&response_message).await?;
 					continue;
 				}
-				let new_user_id = match cuid() {
-					Ok(id) => id,
-					Err(error) => {
-						tide::log::error!("CUID generation error: {}", error);
-						let response_message: DataMessage<RegistrationResponse> =
-							DataMessage::Err(DataError::ServerError);
-						stream.send_json(&response_message).await?;
-						continue;
-					}
-				};
+				let new_user_id = cuid2::create_id();
 				let color_red: i32 = data.color.r.into();
 				let color_green: i32 = data.color.g.into();
 				let color_blue: i32 = data.color.b.into();
