@@ -1,4 +1,5 @@
 use super::tags::Tag;
+use super::user::UserData;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -14,6 +15,6 @@ pub struct EventLogEntry {
 	pub tags: Vec<Tag>,
 	pub notes_to_editor: String,
 	pub editor_link: Option<String>,
-	pub editor: Option<String>,
+	pub editor: Option<UserData>,
 	pub highlighted: bool,
 }

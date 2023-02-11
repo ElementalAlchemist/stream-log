@@ -25,9 +25,11 @@ impl SubscriptionManager {
 		&mut self,
 		event_id: String,
 		subscribing_user: &User,
-		connection: &mut WebSocketConnection,
+		connection: Arc<Mutex<WebSocketConnection>>,
 	) {
 	}
+
+	pub fn unsubscribe_user_from_event(&mut self, event_id: &str, user: &User) {}
 
 	pub fn broadcast_event_message(&mut self, event_id: String, message: EventSubscriptionData) {}
 

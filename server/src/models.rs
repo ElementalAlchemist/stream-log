@@ -43,6 +43,16 @@ pub struct User {
 	pub color_blue: i32,
 }
 
+impl User {
+	pub fn color(&self) -> RGB8 {
+		// Database constraints restrict the values to valid u8 values, so it's fine to unwrap these
+		let red: u8 = self.color_red.try_into().unwrap();
+		let green: u8 = self.color_green.try_into().unwrap();
+		let blue: u8 = self.color_blue.try_into().unwrap();
+		RGB8::new(red, green, blue)
+	}
+}
+
 #[derive(Insertable, Queryable)]
 pub struct Event {
 	pub id: String,

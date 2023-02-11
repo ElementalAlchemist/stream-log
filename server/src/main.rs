@@ -23,6 +23,8 @@ mod database;
 use database::{connect_db, run_embedded_migrations};
 
 mod synchronization;
+use synchronization::SubscriptionManager;
+
 mod websocket_msg;
 
 mod models;
@@ -51,6 +53,7 @@ async fn main() -> miette::Result<()> {
 	tide::log::start();
 
 	let db_connection = Arc::new(Mutex::new(db_connection));
+	let subscription_manager = Arc::new(Mutex::new(SubscriptionManager::new()));
 
 	let mut app = tide::new();
 
@@ -70,10 +73,11 @@ async fn main() -> miette::Result<()> {
 	app.with(OpenIdConnectMiddleware::new(&openid_config).await);
 
 	app.at("/ws").authenticated().get(WebSocket::new({
-		let db_connection = Arc::clone(&db_connection);
+		let subscription_manager = Arc::clone(&subscription_manager);
 		move |request, stream| {
 			let db_connection = Arc::clone(&db_connection);
-			async move { handle_connection(db_connection, request, stream).await }
+			let subscription_manager = Arc::clone(&subscription_manager);
+			async move { handle_connection(db_connection, request, stream, subscription_manager).await }
 		}
 	}));
 
@@ -97,6 +101,8 @@ async fn main() -> miette::Result<()> {
 	establish_alternate_route(&mut app, "/error")?;
 
 	app.listen(&config.listen.addr).await.into_diagnostic()?;
+
+	subscription_manager.lock().await.shutdown();
 
 	Ok(())
 }

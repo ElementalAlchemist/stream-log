@@ -6,6 +6,7 @@ use super::user_profile::handle_profile_update;
 use super::HandleConnectionError;
 use crate::models::User;
 use crate::schema::users;
+use crate::synchronization::SubscriptionManager;
 use crate::websocket_msg::recv_msg;
 use async_std::sync::{Arc, Mutex};
 use diesel::pg::PgConnection;
@@ -23,6 +24,7 @@ pub async fn handle_connection(
 	db_connection: Arc<Mutex<PgConnection>>,
 	request: Request<()>,
 	stream: WebSocketConnection,
+	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 ) -> tide::Result<()> {
 	let Some(openid_user_id) = request.user_id() else {
 		let message = InitialMessage::new(UserDataLoad::MissingId);
@@ -73,8 +75,13 @@ pub async fn handle_connection(
 			};
 			let message = InitialMessage::new(UserDataLoad::User(user_data));
 			stream.lock().await.send_json(&message).await?;
-			if let Err(HandleConnectionError::SendError(error)) =
-				process_messages(Arc::clone(&db_connection), Arc::clone(&stream), &user).await
+			if let Err(HandleConnectionError::SendError(error)) = process_messages(
+				Arc::clone(&db_connection),
+				Arc::clone(&stream),
+				&user,
+				subscription_manager,
+			)
+			.await
 			{
 				return Err(error);
 			}
@@ -88,8 +95,13 @@ pub async fn handle_connection(
 				Err(_) => return Ok(()),
 			};
 			if user.is_admin {
-				if let Err(HandleConnectionError::SendError(error)) =
-					process_messages(Arc::clone(&db_connection), Arc::clone(&stream), &user).await
+				if let Err(HandleConnectionError::SendError(error)) = process_messages(
+					Arc::clone(&db_connection),
+					Arc::clone(&stream),
+					&user,
+					subscription_manager,
+				)
+				.await
 				{
 					return Err(error);
 				}
@@ -105,6 +117,7 @@ async fn process_messages(
 	db_connection: Arc<Mutex<PgConnection>>,
 	stream: Arc<Mutex<WebSocketConnection>>,
 	user: &User,
+	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 ) -> Result<(), HandleConnectionError> {
 	loop {
 		let stream = Arc::clone(&stream);
@@ -129,7 +142,14 @@ async fn process_messages(
 		match incoming_msg {
 			RequestMessage::ListAvailableEvents => send_events(&db_connection, stream, user).await?,
 			RequestMessage::SubscribeToEvent(event_id) => {
-				subscribe_to_event(Arc::clone(&db_connection), stream, user, &event_id).await
+				subscribe_to_event(
+					Arc::clone(&db_connection),
+					stream,
+					user,
+					Arc::clone(&subscription_manager),
+					&event_id,
+				)
+				.await?
 			}
 			RequestMessage::UnsubscribeAll => unsubscribe_all(stream, user).await,
 			RequestMessage::Admin(action) => handle_admin(stream, Arc::clone(&db_connection), user, action).await?,
