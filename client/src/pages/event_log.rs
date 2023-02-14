@@ -1,9 +1,14 @@
 use super::error::{ErrorData, ErrorView};
 use crate::subscriptions::send_unsubscribe_all_message;
+use crate::websocket::read_websocket;
 use futures::lock::Mutex;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
+use std::collections::HashMap;
+use stream_log_shared::messages::event_subscription::EventSubscriptionResponse;
+use stream_log_shared::messages::permissions::PermissionLevel;
+use stream_log_shared::messages::tags::Tag;
 use stream_log_shared::messages::RequestMessage;
 use sycamore::prelude::*;
 use sycamore::suspense::Suspense;
@@ -45,6 +50,58 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		)));
 		return view! { ctx, ErrorView };
 	}
+
+	let subscribe_response: EventSubscriptionResponse = match read_websocket(&mut ws).await {
+		Ok(msg) => msg,
+		Err(error) => {
+			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
+			error_signal.set(Some(ErrorData::new_with_error(
+				"Failed to receive event subscription response",
+				error,
+			)));
+			return view! { ctx, ErrorView };
+		}
+	};
+
+	let (event, permission_level, event_types, tags, log_entries) = match subscribe_response {
+		EventSubscriptionResponse::Subscribed(event, permission_level, event_types, tags, log_entries) => {
+			(event, permission_level, event_types, tags, log_entries)
+		}
+		EventSubscriptionResponse::NoEvent => {
+			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
+			error_signal.set(Some(ErrorData::new("That event does not exist")));
+			return view! { ctx, ErrorView };
+		}
+		EventSubscriptionResponse::NotAllowed => {
+			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
+			error_signal.set(Some(ErrorData::new("Not allowed to access that event")));
+			return view! { ctx, ErrorView };
+		}
+		EventSubscriptionResponse::Error(error) => {
+			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
+			error_signal.set(Some(ErrorData::new_with_error(
+				"An error occurred subscribing to event updates",
+				error,
+			)));
+			return view! { ctx, ErrorView };
+		}
+	};
+
+	let event_signal = create_signal(ctx, event);
+	let permission_signal = create_signal(ctx, permission_level);
+	let event_types_signal = create_signal(ctx, event_types);
+	let tags_signal = create_signal(ctx, tags);
+	let log_entries = create_signal(ctx, log_entries);
+
+	let tags_by_name_index = create_memo(ctx, || {
+		let name_index: HashMap<String, Tag> = tags_signal
+			.get()
+			.iter()
+			.map(|tag| (tag.name.clone(), tag.clone()))
+			.collect();
+		name_index
+	});
+	let can_edit = create_memo(ctx, || *permission_signal.get() == PermissionLevel::Edit);
 
 	todo!()
 }
