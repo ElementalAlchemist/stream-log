@@ -11,7 +11,7 @@ pub struct ColorInputProps<'a, 'b> {
 }
 
 #[component]
-pub fn ColorInputWithContrast<'a, 'b, G: Html>(ctx: Scope<'a>, props: ColorInputProps<'a, 'b>) -> View<G> {
+pub fn ColorInputWithContrast<'a, G: Html>(ctx: Scope<'a>, props: ColorInputProps<'a, '_>) -> View<G> {
 	let light_color_contrast_signal = create_memo(ctx, || {
 		let color = color_from_rgb_str(&props.color.get()).unwrap_or_else(|_| RGB8::new(127, 127, 127));
 		let color_contrast: f64 = contrast(color, LIGHT_BACKGROUND);
