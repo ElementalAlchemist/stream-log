@@ -1,5 +1,5 @@
+use super::entry_types::EntryType;
 use super::event_log::EventLogEntry;
-use super::event_types::EventType;
 use super::events::Event;
 use super::permissions::PermissionLevel;
 use super::tags::Tag;
@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
 pub enum EventSubscriptionResponse {
-	Subscribed(Event, PermissionLevel, Vec<EventType>, Vec<Tag>, Vec<EventLogEntry>),
+	Subscribed(Event, PermissionLevel, Vec<EntryType>, Vec<Tag>, Vec<EventLogEntry>),
 	NoEvent,
 	NotAllowed,
 	Error(DataError),
@@ -28,8 +28,8 @@ pub enum EventSubscriptionData {
 	Typing(TypingData),
 	NewTag(Tag),
 	DeleteTag(Tag),
-	AddEventType(EventType),
-	DeleteEventType(EventType),
+	AddEntryType(EntryType),
+	DeleteEntryType(EntryType),
 }
 
 #[derive(Clone, Deserialize, Serialize)]

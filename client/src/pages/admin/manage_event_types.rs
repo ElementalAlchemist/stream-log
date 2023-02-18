@@ -8,7 +8,7 @@ use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
 use stream_log_shared::messages::admin::AdminAction;
-use stream_log_shared::messages::event_types::EventType;
+use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::{DataMessage, RequestMessage};
 use sycamore::futures::spawn_local_scoped;
@@ -57,7 +57,7 @@ async fn AdminManageEventTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		return view! { ctx, ErrorView };
 	}
 
-	let event_types_response: DataMessage<Vec<EventType>> = match read_websocket(&mut ws).await {
+	let event_types_response: DataMessage<Vec<EntryType>> = match read_websocket(&mut ws).await {
 		Ok(data) => data,
 		Err(error) => {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
@@ -146,7 +146,7 @@ async fn AdminManageEventTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				let Ok(color) = color_from_rgb_str(&entered_color_signal.get()) else { return; };
 
 				let mut event_type_data = match selected_event_type {
-					SelectedIndex::NewType => EventType { id: String::new(), name: String::new(), color: WHITE },
+					SelectedIndex::NewType => EntryType { id: String::new(), name: String::new(), color: WHITE },
 					SelectedIndex::Existing(index) => event_types_signal.get()[index].clone()
 				};
 

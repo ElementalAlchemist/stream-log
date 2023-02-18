@@ -1,0 +1,1 @@
+DROP TABLE available_entry_types_for_event;

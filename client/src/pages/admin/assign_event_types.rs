@@ -7,7 +7,7 @@ use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
 use stream_log_shared::messages::admin::AdminAction;
-use stream_log_shared::messages::event_types::EventType;
+use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::{DataMessage, RequestMessage};
 use sycamore::futures::spawn_local_scoped;
@@ -69,7 +69,7 @@ async fn AdminManageEventTypesForEventsLoadedView<G: Html>(ctx: Scope<'_>) -> Vi
 		return view! { ctx, ErrorView };
 	}
 
-	let event_types_response: DataMessage<Vec<EventType>> = match read_websocket(&mut ws).await {
+	let event_types_response: DataMessage<Vec<EntryType>> = match read_websocket(&mut ws).await {
 		Ok(response) => response,
 		Err(error) => {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
@@ -118,7 +118,7 @@ async fn AdminManageEventTypesForEventsLoadedView<G: Html>(ctx: Scope<'_>) -> Vi
 	let event_types_signal = create_signal(ctx, event_types);
 	let events_signal = create_signal(ctx, events);
 	let selected_event_signal: &Signal<Option<Event>> = create_signal(ctx, None);
-	let selected_event_available_types_signal: &Signal<Vec<EventType>> = create_signal(ctx, Vec::new());
+	let selected_event_available_types_signal: &Signal<Vec<EntryType>> = create_signal(ctx, Vec::new());
 	let loading_selected_event = create_signal(ctx, false);
 
 	let entered_event_signal = create_signal(ctx, String::new());
@@ -154,7 +154,7 @@ async fn AdminManageEventTypesForEventsLoadedView<G: Html>(ctx: Scope<'_>) -> Vi
 					return;
 				}
 
-				let event_types_response: DataMessage<Vec<EventType>> = match read_websocket(&mut ws).await {
+				let event_types_response: DataMessage<Vec<EntryType>> = match read_websocket(&mut ws).await {
 					Ok(msg) => msg,
 					Err(error) => {
 						let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
@@ -195,7 +195,7 @@ async fn AdminManageEventTypesForEventsLoadedView<G: Html>(ctx: Scope<'_>) -> Vi
 	let update_handler = move |event: WebEvent| {
 		event.prevent_default();
 
-		let selected_event_types: Vec<EventType> = selected_event_available_types_signal.modify().drain(..).collect();
+		let selected_event_types: Vec<EntryType> = selected_event_available_types_signal.modify().drain(..).collect();
 		let event = if let Some(event) = selected_event_signal.modify().take() {
 			event
 		} else {

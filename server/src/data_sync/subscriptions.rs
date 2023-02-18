@@ -1,10 +1,10 @@
 use super::HandleConnectionError;
 use crate::models::{
-	Event as EventDb, EventLogEntry as EventLogEntryDb, EventLogTag, EventType as EventTypeDb, Permission,
+	EntryType as EntryTypeDb, Event as EventDb, EventLogEntry as EventLogEntryDb, EventLogTag, Permission,
 	PermissionEvent, Tag as TagDb, User,
 };
 use crate::schema::{
-	available_event_types_for_event, event_log, event_log_tags, event_types, events, permission_events, tags,
+	available_entry_types_for_event, entry_types, event_log, event_log_tags, events, permission_events, tags,
 	user_permissions, users,
 };
 use crate::synchronization::SubscriptionManager;
@@ -12,9 +12,9 @@ use async_std::sync::{Arc, Mutex};
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use std::collections::HashMap;
+use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_log::EventLogEntry;
 use stream_log_shared::messages::event_subscription::EventSubscriptionResponse;
-use stream_log_shared::messages::event_types::EventType;
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::tags::Tag;
@@ -101,13 +101,13 @@ pub async fn subscribe_to_event(
 		subscriptions.subscribe_user_to_event(event_id.to_owned(), user, Arc::clone(&stream));
 	}
 
-	let event_types: Vec<EventTypeDb> = match event_types::table
+	let event_types: Vec<EntryTypeDb> = match entry_types::table
 		.filter(
-			available_event_types_for_event::table
+			available_entry_types_for_event::table
 				.filter(
-					available_event_types_for_event::event_id
+					available_entry_types_for_event::event_id
 						.eq(event_id)
-						.and(available_event_types_for_event::event_type.eq(event_types::id)),
+						.and(available_entry_types_for_event::entry_type.eq(entry_types::id)),
 				)
 				.count()
 				.single_value()
@@ -239,9 +239,9 @@ pub async fn subscribe_to_event(
 		start_time: event.start_time,
 	};
 	let permission_level: PermissionLevel = permission_level.into();
-	let event_types: Vec<EventType> = event_types
+	let event_types: Vec<EntryType> = event_types
 		.iter()
-		.map(|et| EventType {
+		.map(|et| EntryType {
 			id: et.id.clone(),
 			name: et.name.clone(),
 			color: et.color(),
@@ -290,7 +290,7 @@ pub async fn subscribe_to_event(
 			id: log_entry.id.clone(),
 			start_time: log_entry.start_time,
 			end_time: log_entry.end_time,
-			event_type: log_entry.event_type.clone(),
+			entry_type: log_entry.entry_type.clone(),
 			description: log_entry.description.clone(),
 			media_link: log_entry.media_link.clone(),
 			submitter_or_winner: log_entry.submitter_or_winner.clone(),

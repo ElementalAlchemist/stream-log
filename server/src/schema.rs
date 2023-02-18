@@ -7,9 +7,19 @@ pub mod sql_types {
 }
 
 diesel::table! {
-	available_event_types_for_event (event_type, event_id) {
-		event_type -> Text,
+	available_entry_types_for_event (entry_type, event_id) {
+		entry_type -> Text,
 		event_id -> Text,
+	}
+}
+
+diesel::table! {
+	entry_types (id) {
+		id -> Text,
+		name -> Text,
+		color_red -> Int4,
+		color_green -> Int4,
+		color_blue -> Int4,
 	}
 }
 
@@ -19,7 +29,7 @@ diesel::table! {
 		event -> Text,
 		start_time -> Timestamptz,
 		end_time -> Nullable<Timestamptz>,
-		event_type -> Text,
+		entry_type -> Text,
 		description -> Text,
 		media_link -> Text,
 		submitter_or_winner -> Text,
@@ -37,16 +47,6 @@ diesel::table! {
 	event_log_tags (tag, log_entry) {
 		tag -> Text,
 		log_entry -> Text,
-	}
-}
-
-diesel::table! {
-	event_types (id) {
-		id -> Text,
-		name -> Text,
-		color_red -> Int4,
-		color_green -> Int4,
-		color_blue -> Int4,
 	}
 }
 
@@ -104,9 +104,9 @@ diesel::table! {
 	}
 }
 
-diesel::joinable!(available_event_types_for_event -> event_types (event_type));
-diesel::joinable!(available_event_types_for_event -> events (event_id));
-diesel::joinable!(event_log -> event_types (event_type));
+diesel::joinable!(available_entry_types_for_event -> entry_types (entry_type));
+diesel::joinable!(available_entry_types_for_event -> events (event_id));
+diesel::joinable!(event_log -> entry_types (entry_type));
 diesel::joinable!(event_log -> events (event));
 diesel::joinable!(event_log_tags -> event_log (log_entry));
 diesel::joinable!(event_log_tags -> tags (tag));
@@ -117,10 +117,10 @@ diesel::joinable!(user_permissions -> permission_groups (permission_group));
 diesel::joinable!(user_permissions -> users (user_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
-	available_event_types_for_event,
+	available_entry_types_for_event,
+	entry_types,
 	event_log,
 	event_log_tags,
-	event_types,
 	events,
 	permission_events,
 	permission_groups,

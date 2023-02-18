@@ -3,7 +3,7 @@ CREATE TABLE event_log (
 	event TEXT NOT NULL REFERENCES events,
 	start_time TIMESTAMP WITH TIME ZONE NOT NULL,
 	end_time TIMESTAMP WITH TIME ZONE,
-	event_type TEXT NOT NULL REFERENCES event_types,
+	entry_type TEXT NOT NULL REFERENCES entry_types,
 	description TEXT NOT NULL,
 	media_link TEXT NOT NULL,
 	submitter_or_winner TEXT NOT NULL,

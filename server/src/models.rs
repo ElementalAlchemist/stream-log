@@ -1,5 +1,5 @@
 use crate::schema::{
-	available_event_types_for_event, event_log, event_log_tags, event_types, events, permission_events,
+	available_entry_types_for_event, entry_types, event_log, event_log_tags, events, permission_events,
 	permission_groups, tags, user_permissions, users,
 };
 use chrono::prelude::*;
@@ -80,7 +80,7 @@ pub struct UserPermission {
 }
 
 #[derive(Insertable, Queryable)]
-pub struct EventType {
+pub struct EntryType {
 	pub id: String,
 	pub name: String,
 	pub color_red: i32,
@@ -88,7 +88,7 @@ pub struct EventType {
 	pub color_blue: i32,
 }
 
-impl EventType {
+impl EntryType {
 	pub fn color(&self) -> RGB8 {
 		// Database constraints restrict the values to valid u8 values, so it's fine to unwrap these
 		let red: u8 = self.color_red.try_into().unwrap();
@@ -99,9 +99,9 @@ impl EventType {
 }
 
 #[derive(Insertable, Queryable)]
-#[diesel(table_name = available_event_types_for_event)]
-pub struct AvailableEventType {
-	pub event_type: String,
+#[diesel(table_name = available_entry_types_for_event)]
+pub struct AvailableEntryType {
+	pub entry_type: String,
 	pub event_id: String,
 }
 
@@ -120,7 +120,7 @@ pub struct EventLogEntry {
 	pub event: String,
 	pub start_time: DateTime<Utc>,
 	pub end_time: Option<DateTime<Utc>>,
-	pub event_type: String,
+	pub entry_type: String,
 	pub description: String,
 	pub media_link: String,
 	pub submitter_or_winner: String,

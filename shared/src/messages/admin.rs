@@ -1,4 +1,4 @@
-use super::event_types::EventType;
+use super::entry_types::EntryType;
 use super::events::Event;
 use super::permissions::PermissionLevel;
 use super::tags::Tag;
@@ -20,10 +20,10 @@ pub enum AdminAction {
 	EditUsers(Vec<UserData>),
 	ListUsersWithNoPermissionGroups,
 	ListEventTypes,
-	AddEventType(EventType),
-	UpdateEventType(EventType),
+	AddEventType(EntryType),
+	UpdateEventType(EntryType),
 	ListEventTypesForEvent(Event),
-	UpdateEventTypesForEvent(Event, Vec<EventType>),
+	UpdateEventTypesForEvent(Event, Vec<EntryType>),
 	ListTagsForEvent(Event),
 	AddTag(Tag, Event),
 	UpdateTagDescription(Tag),

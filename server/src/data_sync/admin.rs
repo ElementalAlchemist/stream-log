@@ -1,10 +1,10 @@
 use super::HandleConnectionError;
 use crate::models::{
-	AvailableEventType, Event as EventDb, EventType as EventTypeDb, Permission, PermissionEvent,
+	AvailableEntryType, EntryType as EntryTypeDb, Event as EventDb, Permission, PermissionEvent,
 	PermissionGroup as PermissionGroupDb, Tag as TagDb, User, UserPermission,
 };
 use crate::schema::{
-	available_event_types_for_event, event_log_tags, event_types, events, permission_events, permission_groups, tags,
+	available_entry_types_for_event, entry_types, event_log_tags, events, permission_events, permission_groups, tags,
 	user_permissions, users,
 };
 use async_std::sync::{Arc, Mutex};
@@ -15,7 +15,7 @@ use diesel::result::DatabaseErrorKind;
 use rgb::RGB8;
 use std::collections::{HashMap, HashSet};
 use stream_log_shared::messages::admin::{AdminAction, EventPermission, PermissionGroup, PermissionGroupWithEvents};
-use stream_log_shared::messages::event_types::EventType;
+use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::events::Event as EventWs;
 use stream_log_shared::messages::tags::Tag;
 use stream_log_shared::messages::user::UserData;
@@ -387,15 +387,15 @@ pub async fn handle_admin(
 			stream.lock().await.send_json(&message).await?;
 		}
 		AdminAction::ListEventTypes => {
-			let event_types: QueryResult<Vec<EventTypeDb>> = {
+			let event_types: QueryResult<Vec<EntryTypeDb>> = {
 				let mut db_connection = db_connection.lock().await;
-				event_types::table.load(&mut *db_connection)
+				entry_types::table.load(&mut *db_connection)
 			};
 			let message = match event_types {
 				Ok(event_types) => {
-					let event_types: Vec<EventType> = event_types
+					let event_types: Vec<EntryType> = event_types
 						.iter()
-						.map(|et| EventType {
+						.map(|et| EntryType {
 							id: et.id.clone(),
 							name: et.name.clone(),
 							color: et.color(),
@@ -412,7 +412,7 @@ pub async fn handle_admin(
 		}
 		AdminAction::AddEventType(event_type) => {
 			let new_id = cuid2::create_id();
-			let new_event = EventTypeDb {
+			let new_event = EntryTypeDb {
 				id: new_id.clone(),
 				name: event_type.name,
 				color_red: event_type.color.r.into(),
@@ -421,7 +421,7 @@ pub async fn handle_admin(
 			};
 
 			let mut db_connection = db_connection.lock().await;
-			let result: QueryResult<_> = diesel::insert_into(event_types::table)
+			let result: QueryResult<_> = diesel::insert_into(entry_types::table)
 				.values(&new_event)
 				.execute(&mut *db_connection);
 			if let Err(error) = result {
@@ -443,12 +443,12 @@ pub async fn handle_admin(
 			let green: i32 = event_type.color.g.into();
 			let blue: i32 = event_type.color.b.into();
 
-			let result: QueryResult<_> = diesel::update(event_types::table.filter(event_types::id.eq(&event_type.id)))
+			let result: QueryResult<_> = diesel::update(entry_types::table.filter(entry_types::id.eq(&event_type.id)))
 				.set((
-					event_types::name.eq(&event_type.name),
-					event_types::color_red.eq(red),
-					event_types::color_green.eq(green),
-					event_types::color_blue.eq(blue),
+					entry_types::name.eq(&event_type.name),
+					entry_types::color_red.eq(red),
+					entry_types::color_green.eq(green),
+					entry_types::color_blue.eq(blue),
 				))
 				.execute(&mut *db_connection);
 			if let Err(error) = result {
@@ -457,15 +457,15 @@ pub async fn handle_admin(
 			}
 		}
 		AdminAction::ListEventTypesForEvent(event) => {
-			let event_types_result: QueryResult<Vec<EventTypeDb>> = {
+			let event_types_result: QueryResult<Vec<EntryTypeDb>> = {
 				let mut db_connection = db_connection.lock().await;
-				event_types::table
+				entry_types::table
 					.filter(
-						available_event_types_for_event::table
+						available_entry_types_for_event::table
 							.filter(
-								available_event_types_for_event::event_id
+								available_entry_types_for_event::event_id
 									.eq(&event.id)
-									.and(available_event_types_for_event::event_type.eq(event_types::id)),
+									.and(available_entry_types_for_event::entry_type.eq(entry_types::id)),
 							)
 							.count()
 							.single_value()
@@ -476,9 +476,9 @@ pub async fn handle_admin(
 
 			let message = match event_types_result {
 				Ok(event_types) => {
-					let event_types: Vec<EventType> = event_types
+					let event_types: Vec<EntryType> = event_types
 						.iter()
-						.map(|et| EventType {
+						.map(|et| EntryType {
 							id: et.id.clone(),
 							name: et.name.clone(),
 							color: et.color(),
@@ -496,18 +496,18 @@ pub async fn handle_admin(
 		AdminAction::UpdateEventTypesForEvent(event, event_types) => {
 			let mut db_connection = db_connection.lock().await;
 			let tx_result: QueryResult<()> = db_connection.transaction(|db_connection| {
-				diesel::delete(available_event_types_for_event::table)
-					.filter(available_event_types_for_event::event_id.eq(&event.id))
+				diesel::delete(available_entry_types_for_event::table)
+					.filter(available_entry_types_for_event::event_id.eq(&event.id))
 					.execute(&mut *db_connection)?;
 
-				let available_event_types: Vec<AvailableEventType> = event_types
+				let available_event_types: Vec<AvailableEntryType> = event_types
 					.iter()
-					.map(|et| AvailableEventType {
+					.map(|et| AvailableEntryType {
 						event_id: event.id.clone(),
-						event_type: et.id.clone(),
+						entry_type: et.id.clone(),
 					})
 					.collect();
-				diesel::insert_into(available_event_types_for_event::table)
+				diesel::insert_into(available_entry_types_for_event::table)
 					.values(available_event_types)
 					.execute(&mut *db_connection)?;
 

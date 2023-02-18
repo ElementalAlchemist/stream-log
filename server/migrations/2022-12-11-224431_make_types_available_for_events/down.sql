@@ -1,1 +1,0 @@
-DROP TABLE available_event_types_for_event;
