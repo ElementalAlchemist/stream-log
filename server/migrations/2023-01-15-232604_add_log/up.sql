@@ -7,6 +7,7 @@ CREATE TABLE event_log (
 	description TEXT NOT NULL,
 	media_link TEXT NOT NULL,
 	submitter_or_winner TEXT NOT NULL,
+	make_video BOOLEAN NOT NULL,
 	notes_to_editor TEXT NOT NULL,
 	editor_link TEXT,
 	editor TEXT REFERENCES users,

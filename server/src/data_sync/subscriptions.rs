@@ -295,6 +295,7 @@ pub async fn subscribe_to_event(
 			media_link: log_entry.media_link.clone(),
 			submitter_or_winner: log_entry.submitter_or_winner.clone(),
 			tags,
+			make_video: log_entry.make_video,
 			notes_to_editor: log_entry.notes_to_editor.clone(),
 			editor_link: log_entry.editor_link.clone(),
 			editor,

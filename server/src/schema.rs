@@ -23,6 +23,7 @@ diesel::table! {
 		description -> Text,
 		media_link -> Text,
 		submitter_or_winner -> Text,
+		make_video -> Bool,
 		notes_to_editor -> Text,
 		editor_link -> Nullable<Text>,
 		editor -> Nullable<Text>,

@@ -124,6 +124,7 @@ pub struct EventLogEntry {
 	pub description: String,
 	pub media_link: String,
 	pub submitter_or_winner: String,
+	pub make_video: bool,
 	pub notes_to_editor: String,
 	pub editor_link: Option<String>,
 	pub editor: Option<String>,
