@@ -128,6 +128,7 @@ pub struct EventLogEntry {
 	pub notes_to_editor: String,
 	pub editor_link: Option<String>,
 	pub editor: Option<String>,
+	pub video_link: Option<String>,
 	pub highlighted: bool,
 	pub last_updated: DateTime<Utc>,
 	pub last_update_user: String,

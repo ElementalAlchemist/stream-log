@@ -11,6 +11,7 @@ CREATE TABLE event_log (
 	notes_to_editor TEXT NOT NULL,
 	editor_link TEXT,
 	editor TEXT REFERENCES users,
+	video_link TEXT,
 	highlighted BOOLEAN NOT NULL,
 	last_updated TIMESTAMP WITH TIME ZONE NOT NULL,
 	last_update_user TEXT NOT NULL REFERENCES users

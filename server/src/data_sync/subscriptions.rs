@@ -299,6 +299,7 @@ pub async fn subscribe_to_event(
 			notes_to_editor: log_entry.notes_to_editor.clone(),
 			editor_link: log_entry.editor_link.clone(),
 			editor,
+			video_link: log_entry.video_link.clone(),
 			highlighted: log_entry.highlighted,
 		};
 		event_log_entries.push(send_entry);

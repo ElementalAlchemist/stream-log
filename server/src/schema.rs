@@ -37,6 +37,7 @@ diesel::table! {
 		notes_to_editor -> Text,
 		editor_link -> Nullable<Text>,
 		editor -> Nullable<Text>,
+		video_link -> Nullable<Text>,
 		highlighted -> Bool,
 		last_updated -> Timestamptz,
 		last_update_user -> Text,

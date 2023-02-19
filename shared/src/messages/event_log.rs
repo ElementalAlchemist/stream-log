@@ -17,5 +17,6 @@ pub struct EventLogEntry {
 	pub notes_to_editor: String,
 	pub editor_link: Option<String>,
 	pub editor: Option<UserData>,
+	pub video_link: Option<String>,
 	pub highlighted: bool,
 }
