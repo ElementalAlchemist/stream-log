@@ -147,6 +147,7 @@ pub async fn subscribe_to_event(
 
 	let log_entries: Vec<EventLogEntryDb> = match event_log::table
 		.filter(event_log::event.eq(event_id))
+		.order(event_log::start_time.asc())
 		.load(&mut *db_connection)
 	{
 		Ok(entries) => entries,
