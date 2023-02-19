@@ -1,4 +1,5 @@
 use super::error::{ErrorData, ErrorView};
+use crate::components::event_log_entry::EventLogEntryRow;
 use crate::subscriptions::send_unsubscribe_all_message;
 use crate::websocket::read_websocket;
 use futures::lock::Mutex;
@@ -63,7 +64,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		}
 	};
 
-	let (event, permission_level, event_types, tags, log_entries) = match subscribe_response {
+	let (event, permission_level, entry_types, tags, log_entries) = match subscribe_response {
 		EventSubscriptionResponse::Subscribed(event, permission_level, event_types, tags, log_entries) => {
 			(event, permission_level, event_types, tags, log_entries)
 		}
@@ -89,7 +90,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 
 	let event_signal = create_signal(ctx, event);
 	let permission_signal = create_signal(ctx, permission_level);
-	let event_types_signal = create_signal(ctx, event_types);
+	let entry_types_signal = create_signal(ctx, entry_types);
 	let tags_signal = create_signal(ctx, tags);
 	let log_entries = create_signal(ctx, log_entries);
 
@@ -103,7 +104,30 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 	});
 	let can_edit = create_memo(ctx, || *permission_signal.get() == PermissionLevel::Edit);
 
-	todo!()
+	let click_handler = || {
+		// TODO: Open the edit version of the event
+	};
+
+	view! {
+		ctx,
+		h1(id="stream_log_event_title") { (event_signal.get().name) }
+		div(id="event_log") {
+			Keyed(
+				iterable=log_entries,
+				key=|entry| entry.id.clone(),
+				view=move |ctx, entry| {
+					// TODO: Wrap click handler for props
+					let entry_types = entry_types_signal.get();
+					let entry_type = (*entry_types).iter().find(|et| et.id == entry.entry_type).unwrap();
+					let event = event_signal.get();
+					view! {
+						ctx,
+						EventLogEntryRow(entry=entry, event=(*event).clone(), entry_type=entry_type.clone(), click_handler=None)
+					}
+				}
+			)
+		}
+	}
 }
 
 #[component]
