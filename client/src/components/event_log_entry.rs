@@ -6,6 +6,7 @@ use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_log::EventLogEntry;
 use stream_log_shared::messages::events::Event;
 use sycamore::prelude::*;
+use web_sys::Event as WebEvent;
 
 const WHITE: RGB8 = RGB8::new(255, 255, 255);
 const BLACK: RGB8 = RGB8::new(0, 0, 0);
@@ -18,15 +19,15 @@ fn format_duration(duration: &Duration) -> String {
 }
 
 #[derive(Prop)]
-pub struct EventLogEntryRowProps {
+pub struct EventLogEntryRowProps<T: Fn()> {
 	entry: EventLogEntry,
 	event: Event,
 	entry_type: EntryType,
-	click_handler: Option<Box<dyn Fn()>>,
+	click_handler: Option<T>,
 }
 
 #[component]
-pub fn EventLogEntryRow<G: Html>(ctx: Scope<'_>, props: EventLogEntryRowProps) -> View<G> {
+pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventLogEntryRowProps<T>) -> View<G> {
 	let start_time = props.entry.start_time - props.event.start_time;
 	let start_time_display = format_duration(&start_time);
 	let end_time_display = if let Some(entry_end_time) = props.entry.end_time {
@@ -59,9 +60,15 @@ pub fn EventLogEntryRow<G: Html>(ctx: Scope<'_>, props: EventLogEntryRowProps) -
 		row_class = format!("{} click", row_class);
 	}
 
+	let click_handler = move |_event: WebEvent| {
+		if let Some(click_handler) = &props.click_handler {
+			(*click_handler)();
+		}
+	};
+
 	view! {
 		ctx,
-		div(class=row_class, on:click=move |_| if let Some(click_handler) = &props.click_handler { (*click_handler)() }) {
+		div(class=row_class, on:click=click_handler) {
 			div(class="log_entry_start_time") { (start_time_display) }
 			div(class="log_entry_end_time") { (end_time_display) }
 			div(class="log_entry_type", style=entry_type_style) { (props.entry_type.name) }
