@@ -200,6 +200,9 @@ pub struct EventLogEntryEditProps<'a, TCloseHandler: Fn()> {
 	highlighted: &'a Signal<bool>,
 	save_handler: TCloseHandler,
 	cancel_handler: TCloseHandler,
+	save_label: &'static str,
+	cancel_label: &'static str,
+	persistent: bool,
 }
 
 #[component]
@@ -327,24 +330,28 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 		event.prevent_default();
 		(props.save_handler)();
 
-		let save_button: DomNode = save_button.get();
-		let save_button: HtmlButtonElement = save_button.unchecked_into();
-		let cancel_button: DomNode = cancel_button.get();
-		let cancel_button: HtmlButtonElement = cancel_button.unchecked_into();
+		if !props.persistent {
+			let save_button: DomNode = save_button.get();
+			let save_button: HtmlButtonElement = save_button.unchecked_into();
+			let cancel_button: DomNode = cancel_button.get();
+			let cancel_button: HtmlButtonElement = cancel_button.unchecked_into();
 
-		save_button.set_disabled(true);
-		cancel_button.set_disabled(true);
+			save_button.set_disabled(true);
+			cancel_button.set_disabled(true);
+		}
 	};
 	let cancel_close_handler = move |_event: WebEvent| {
 		(props.cancel_handler)();
 
-		let save_button: DomNode = save_button.get();
-		let save_button: HtmlButtonElement = save_button.unchecked_into();
-		let cancel_button: DomNode = cancel_button.get();
-		let cancel_button: HtmlButtonElement = cancel_button.unchecked_into();
+		if !props.persistent {
+			let save_button: DomNode = save_button.get();
+			let save_button: HtmlButtonElement = save_button.unchecked_into();
+			let cancel_button: DomNode = cancel_button.get();
+			let cancel_button: HtmlButtonElement = cancel_button.unchecked_into();
 
-		save_button.set_disabled(true);
-		cancel_button.set_disabled(true);
+			save_button.set_disabled(true);
+			cancel_button.set_disabled(true);
+		}
 	};
 
 	view! {
@@ -414,8 +421,8 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 				}
 			}
 			div {
-				button(ref=save_button) { "Save" }
-				button(type="button", on:click=cancel_close_handler, ref=cancel_button) { "Cancel" }
+				button(ref=save_button) { (props.save_label) }
+				button(type="button", on:click=cancel_close_handler, ref=cancel_button) { (props.cancel_label) }
 			}
 		}
 	}
