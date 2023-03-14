@@ -13,6 +13,8 @@ pub mod user;
 pub mod user_register;
 
 use admin::AdminAction;
+use event_subscription::EventSubscriptionUpdate;
+use events::Event;
 use user::UpdateUser;
 
 #[derive(Deserialize, Serialize)]
@@ -37,6 +39,7 @@ pub enum RequestMessage {
 	ListAvailableEvents,
 	SubscribeToEvent(String),
 	UnsubscribeAll,
+	EventSubscriptionUpdate(Event, Box<EventSubscriptionUpdate>),
 	Admin(AdminAction),
 	UpdateProfile(UpdateUser),
 }

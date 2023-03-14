@@ -231,7 +231,15 @@ pub async fn subscribe_to_event(
 		}
 	};
 
-	let available_editors_list: Vec<UserData> = editors.iter().map(|user| UserData { id: user.id.clone(), username: user.name.clone(), is_admin: user.is_admin, color: user.color() }).collect();
+	let available_editors_list: Vec<UserData> = editors
+		.iter()
+		.map(|user| UserData {
+			id: user.id.clone(),
+			username: user.name.clone(),
+			is_admin: user.is_admin,
+			color: user.color(),
+		})
+		.collect();
 	let editors: HashMap<String, User> = editors.drain(..).map(|user| (user.id.clone(), user)).collect();
 
 	// Turn all the data we have into client-usable data
@@ -307,7 +315,14 @@ pub async fn subscribe_to_event(
 		event_log_entries.push(send_entry);
 	}
 
-	let message = EventSubscriptionResponse::Subscribed(event, permission_level, event_types, tags, available_editors_list, event_log_entries);
+	let message = EventSubscriptionResponse::Subscribed(
+		event,
+		permission_level,
+		event_types,
+		tags,
+		available_editors_list,
+		event_log_entries,
+	);
 	send_stream.send_json(&message).await?;
 
 	Ok(())

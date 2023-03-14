@@ -5,6 +5,7 @@ use super::permissions::PermissionLevel;
 use super::tags::Tag;
 use super::user::UserData;
 use super::DataError;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 /// A response to an initial subscription request. Responds with data about the subscription or why the subscription was
@@ -31,11 +32,13 @@ pub enum EventSubscriptionResponse {
 	Error(DataError),
 }
 
+/// A response to an unsubscription request.
 #[derive(Deserialize, Serialize)]
 pub enum EventUnsubscriptionResponse {
 	Success,
 }
 
+/// Event subscription data sent by the server to subscribed clients with information about what changes were made.
 #[derive(Clone, Deserialize, Serialize)]
 pub enum EventSubscriptionData {
 	NewLogEntry(EventLogEntry),
@@ -50,12 +53,46 @@ pub enum EventSubscriptionData {
 	RemoveEditor(Event, UserData),
 }
 
+/// Typing data sent by the server as part of event subscription data with information on what updates to make to typing
+/// data by other users.
 #[derive(Clone, Deserialize, Serialize)]
 pub enum TypingData {
-	TypingStartTime(Option<EventLogEntry>, String, UserData),
-	TypingEndTime(Option<EventLogEntry>, String, UserData),
-	TypingDescription(Option<EventLogEntry>, String, UserData),
-	TypingMediaLink(Option<EventLogEntry>, String, UserData),
-	TypingSubmitterWinner(Option<EventLogEntry>, String, UserData),
-	ClearTyping(Option<EventLogEntry>, UserData),
+	StartTime(Option<EventLogEntry>, String, UserData),
+	EndTime(Option<EventLogEntry>, String, UserData),
+	Description(Option<EventLogEntry>, String, UserData),
+	MediaLink(Option<EventLogEntry>, String, UserData),
+	SubmitterWinner(Option<EventLogEntry>, String, UserData),
+	NotesToEditor(Option<EventLogEntry>, String, UserData),
+}
+
+/// Event subsription update sent by the client to the server.
+#[derive(Deserialize, Serialize)]
+pub enum EventSubscriptionUpdate {
+	NewLogEntry(EventLogEntry),
+	DeleteLogEntry(EventLogEntry),
+	ChangeStartTime(EventLogEntry, DateTime<Utc>),
+	ChangeEndTime(EventLogEntry, Option<DateTime<Utc>>),
+	/// Updates the entry type for the given [`EventLogEntry`]. Accepts a string ID.
+	ChangeEntryType(EventLogEntry, String),
+	ChangeDescription(EventLogEntry, String),
+	ChangeMediaLink(EventLogEntry, String),
+	ChangeSubmitterWinner(EventLogEntry, String),
+	ChangeTags(EventLogEntry, Vec<Tag>),
+	ChangeMakeVideo(EventLogEntry, bool),
+	ChangeNotesToEditor(EventLogEntry, String),
+	ChangeEditor(EventLogEntry, UserData),
+	ChangeHighlighted(EventLogEntry, bool),
+	Typing(NewTypingData),
+	NewTag(Tag),
+	DeleteTag(Tag),
+}
+
+#[derive(Deserialize, Serialize)]
+pub enum NewTypingData {
+	StartTime(Option<EventLogEntry>, String),
+	EndTime(Option<EventLogEntry>, String),
+	Description(Option<EventLogEntry>, String),
+	MediaLink(Option<EventLogEntry>, String),
+	SubmitterWinner(Option<EventLogEntry>, String),
+	NotesToEditor(Option<EventLogEntry>, String),
 }
