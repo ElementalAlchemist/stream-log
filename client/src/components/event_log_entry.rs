@@ -10,7 +10,7 @@ use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::tags::Tag;
 use stream_log_shared::messages::user::UserData;
 use sycamore::prelude::*;
-use web_sys::{Event as WebEvent, HtmlButtonElement};
+use web_sys::Event as WebEvent;
 
 const WHITE: RGB8 = RGB8::new(255, 255, 255);
 const BLACK: RGB8 = RGB8::new(0, 0, 0);
@@ -183,7 +183,6 @@ pub struct EventLogEntryEditProps<'a, TCloseHandler: Fn()> {
 	event_entry_types: &'a ReadSignal<Vec<EntryType>>,
 	event_tags_name_index: &'a ReadSignal<HashMap<String, Tag>>,
 	entry_types_datalist_id: &'a str,
-	entry: &'a ReadSignal<EventLogEntry>,
 	start_time: &'a Signal<DateTime<Utc>>,
 	end_time: &'a Signal<Option<DateTime<Utc>>>,
 	entry_type: &'a Signal<String>,
@@ -198,11 +197,8 @@ pub struct EventLogEntryEditProps<'a, TCloseHandler: Fn()> {
 	editor_name_index: &'a ReadSignal<HashMap<String, UserData>>,
 	editor_name_datalist_id: &'a str,
 	highlighted: &'a Signal<bool>,
-	save_handler: TCloseHandler,
-	cancel_handler: TCloseHandler,
-	save_label: &'static str,
-	cancel_label: &'static str,
-	persistent: bool,
+	close_handler: TCloseHandler,
+	editing_new: bool,
 }
 
 #[component]
@@ -323,40 +319,31 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 	let editor_entry = create_signal(ctx, editor_entry);
 	let editor_error: &Signal<Option<String>> = create_signal(ctx, None);
 
-	let save_button = create_node_ref(ctx);
-	let cancel_button = create_node_ref(ctx);
-
-	let save_close_handler = move |event: WebEvent| {
+	let close_handler = move |event: WebEvent| {
 		event.prevent_default();
-		(props.save_handler)();
+		(props.close_handler)();
 
-		if !props.persistent {
-			let save_button: DomNode = save_button.get();
-			let save_button: HtmlButtonElement = save_button.unchecked_into();
-			let cancel_button: DomNode = cancel_button.get();
-			let cancel_button: HtmlButtonElement = cancel_button.unchecked_into();
+		if props.editing_new {
+			let new_start_time = Utc::now() - props.event_start;
+			let new_start_time_input = format_duration(&new_start_time);
+			start_time_input.set(new_start_time_input);
 
-			save_button.set_disabled(true);
-			cancel_button.set_disabled(true);
-		}
-	};
-	let cancel_close_handler = move |_event: WebEvent| {
-		(props.cancel_handler)();
-
-		if !props.persistent {
-			let save_button: DomNode = save_button.get();
-			let save_button: HtmlButtonElement = save_button.unchecked_into();
-			let cancel_button: DomNode = cancel_button.get();
-			let cancel_button: HtmlButtonElement = cancel_button.unchecked_into();
-
-			save_button.set_disabled(true);
-			cancel_button.set_disabled(true);
+			end_time_input.set(String::new());
+			entry_type_name.set(String::new());
+			props.description.set(String::new());
+			props.media_link.set(String::new());
+			props.submitter_or_winner.set(String::new());
+			props.tags.set(Vec::new());
+			props.make_video.set(false);
+			props.notes_to_editor.set(String::new());
+			editor_entry.set(String::new());
+			props.highlighted.set(false);
 		}
 	};
 
 	view! {
 		ctx,
-		form(class="event_log_entry_edit", on:submit=save_close_handler) {
+		form(class="event_log_entry_edit", on:submit=close_handler) {
 			div {
 				input(placeholder="Start", bind:value=start_time_input, class=if start_time_error.get().is_some() { "error" } else { "" }, title=(*start_time_error.get()).as_ref().unwrap_or(&String::new()))
 			}
@@ -374,6 +361,12 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			}
 			div {
 				input(placeholder="Description", bind:value=props.description)
+			}
+			div {
+				label {
+					"Media link:"
+					input(bind:value=props.media_link)
+				}
 			}
 			div {
 				label {
@@ -421,8 +414,24 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 				}
 			}
 			div {
-				button(ref=save_button) { (props.save_label) }
-				button(type="button", on:click=cancel_close_handler, ref=cancel_button) { (props.cancel_label) }
+				label {
+					input(type="checkbox", bind:checked=props.highlighted)
+					"Highlight row"
+				}
+			}
+			div {
+				(if props.editing_new {
+					view! {
+						ctx,
+						button { "Add" }
+						button(type="reset") { "Reset" }
+					}
+				} else {
+					view! {
+						ctx,
+						button { "Close" }
+					}
+				})
 			}
 		}
 	}

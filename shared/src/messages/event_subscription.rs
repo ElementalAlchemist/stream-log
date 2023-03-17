@@ -80,7 +80,7 @@ pub enum EventSubscriptionUpdate {
 	ChangeTags(EventLogEntry, Vec<Tag>),
 	ChangeMakeVideo(EventLogEntry, bool),
 	ChangeNotesToEditor(EventLogEntry, String),
-	ChangeEditor(EventLogEntry, UserData),
+	ChangeEditor(EventLogEntry, Option<UserData>),
 	ChangeHighlighted(EventLogEntry, bool),
 	Typing(NewTypingData),
 	NewTag(Tag),

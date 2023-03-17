@@ -1,22 +1,40 @@
 use super::error::{ErrorData, ErrorView};
-use crate::components::event_log_entry::EventLogEntryRow;
+use crate::components::event_log_entry::{EventLogEntryEdit, EventLogEntryRow};
 use crate::subscriptions::send_unsubscribe_all_message;
 use crate::websocket::read_websocket;
 use futures::lock::Mutex;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
-use std::collections::HashMap;
-use stream_log_shared::messages::event_subscription::EventSubscriptionResponse;
+use std::collections::{HashMap, HashSet};
+use stream_log_shared::messages::event_subscription::{EventSubscriptionResponse, EventSubscriptionUpdate};
 use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::tags::Tag;
+use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::RequestMessage;
+use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use sycamore::suspense::Suspense;
+use sycamore_router::navigate;
 
 #[derive(Prop)]
 pub struct EventLogProps {
 	id: String,
+}
+
+#[derive(Clone, Eq, Hash, PartialEq)]
+enum ModifiedEventLogEntryParts {
+	StartTime,
+	EndTime,
+	EntryType,
+	Description,
+	MediaLink,
+	SubmitterOrWinner,
+	Tags,
+	MakeVideo,
+	NotesToEditor,
+	Editor,
+	Highlighted,
 }
 
 #[component]
@@ -64,10 +82,15 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		}
 	};
 
-	let (event, permission_level, entry_types, tags, log_entries) = match subscribe_response {
-		EventSubscriptionResponse::Subscribed(event, permission_level, event_types, tags, log_entries) => {
-			(event, permission_level, event_types, tags, log_entries)
-		}
+	let (event, permission_level, entry_types, tags, event_editors, log_entries) = match subscribe_response {
+		EventSubscriptionResponse::Subscribed(
+			event,
+			permission_level,
+			event_types,
+			tags,
+			event_editors,
+			log_entries,
+		) => (event, permission_level, event_types, tags, event_editors, log_entries),
 		EventSubscriptionResponse::NoEvent => {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
 			error_signal.set(Some(ErrorData::new("That event does not exist")));
@@ -93,12 +116,21 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 	let entry_types_signal = create_signal(ctx, entry_types);
 	let tags_signal = create_signal(ctx, tags);
 	let log_entries = create_signal(ctx, log_entries);
+	let available_editors = create_signal(ctx, event_editors);
 
 	let tags_by_name_index = create_memo(ctx, || {
 		let name_index: HashMap<String, Tag> = tags_signal
 			.get()
 			.iter()
 			.map(|tag| (tag.name.clone(), tag.clone()))
+			.collect();
+		name_index
+	});
+	let editors_by_name_index = create_memo(ctx, || {
+		let name_index: HashMap<String, UserData> = available_editors
+			.get()
+			.iter()
+			.map(|editor| (editor.username.clone(), editor.clone()))
 			.collect();
 		name_index
 	});
@@ -121,9 +153,136 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 					} else {
 						None
 					};
+
+					// Set up edit signals/data
+					let event_start = event.start_time;
+					let edit_start_time = create_signal(ctx, entry.start_time);
+					let edit_end_time = create_signal(ctx, entry.end_time);
+					let edit_entry_type = create_signal(ctx, entry.entry_type.clone());
+					let edit_description = create_signal(ctx, entry.description.clone());
+					let edit_media_link = create_signal(ctx, entry.media_link.clone());
+					let edit_submitter_or_winner = create_signal(ctx, entry.submitter_or_winner.clone());
+					let edit_tags = create_signal(ctx, entry.tags.clone());
+					let edit_make_video = create_signal(ctx, entry.make_video);
+					let edit_notes_to_editor = create_signal(ctx, entry.notes_to_editor.clone());
+					let edit_editor = create_signal(ctx, entry.editor.clone());
+					let edit_highlighted = create_signal(ctx, entry.highlighted);
+
+					let modified_data: &Signal<HashSet<ModifiedEventLogEntryParts>> = create_signal(ctx, HashSet::new());
+
+					let close_handler_entry = entry.clone();
+
 					view! {
 						ctx,
 						EventLogEntryRow(entry=entry, event=(*event).clone(), entry_type=entry_type.clone(), click_handler=click_handler)
+						(if *edit_open_signal.get() {
+							let close_handler = {
+								let entry = close_handler_entry.clone();
+								move || {
+									let entry = entry.clone();
+									spawn_local_scoped(ctx, async move {
+										edit_open_signal.set(false);
+
+										let mut log_entries = log_entries.modify();
+										let log_entry = log_entries.iter_mut().find(|log_entry| log_entry.id == entry.id);
+										let log_entry = match log_entry {
+											Some(entry) => entry,
+											None => return
+										};
+
+										let event = (*event_signal.get()).clone();
+
+										let ws_context: &Mutex<WebSocket> = use_context(ctx);
+										let mut ws = ws_context.lock().await;
+
+										let modified_data = modified_data.modify();
+										for changed_datum in modified_data.iter() {
+											let event_message = match changed_datum {
+												ModifiedEventLogEntryParts::StartTime => EventSubscriptionUpdate::ChangeStartTime(log_entry.clone(), *edit_start_time.get()),
+												ModifiedEventLogEntryParts::EndTime => EventSubscriptionUpdate::ChangeEndTime(log_entry.clone(), *edit_end_time.get()),
+												ModifiedEventLogEntryParts::EntryType => EventSubscriptionUpdate::ChangeEntryType(log_entry.clone(), (*edit_entry_type.get()).clone()),
+												ModifiedEventLogEntryParts::Description => EventSubscriptionUpdate::ChangeDescription(log_entry.clone(), (*edit_description.get()).clone()),
+												ModifiedEventLogEntryParts::MediaLink => EventSubscriptionUpdate::ChangeMediaLink(log_entry.clone(), (*edit_media_link.get()).clone()),
+												ModifiedEventLogEntryParts::SubmitterOrWinner => EventSubscriptionUpdate::ChangeSubmitterWinner(log_entry.clone(), (*edit_submitter_or_winner.get()).clone()),
+												ModifiedEventLogEntryParts::Tags => EventSubscriptionUpdate::ChangeTags(log_entry.clone(), (*edit_tags.get()).clone()),
+												ModifiedEventLogEntryParts::MakeVideo => EventSubscriptionUpdate::ChangeMakeVideo(log_entry.clone(), *edit_make_video.get()),
+												ModifiedEventLogEntryParts::NotesToEditor => EventSubscriptionUpdate::ChangeNotesToEditor(log_entry.clone(), (*edit_notes_to_editor.get()).clone()),
+												ModifiedEventLogEntryParts::Editor => EventSubscriptionUpdate::ChangeEditor(log_entry.clone(), (*edit_editor.get()).clone()),
+												ModifiedEventLogEntryParts::Highlighted => EventSubscriptionUpdate::ChangeHighlighted(log_entry.clone(), *edit_highlighted.get())
+											};
+											let event_message = RequestMessage::EventSubscriptionUpdate(event.clone(), Box::new(event_message));
+											let event_message = match serde_json::to_string(&event_message) {
+												Ok(msg) => msg,
+												Err(error) => {
+													let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
+													error_signal.set(Some(ErrorData::new_with_error("Failed to serialize outgoing entry log change", error)));
+													navigate("/error");
+													return;
+												}
+											};
+											if let Err(error) = ws.send(Message::Text(event_message)).await {
+												let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
+												error_signal.set(Some(ErrorData::new_with_error("Failed to send outgoing log entry change", error)));
+												navigate("/error");
+											}
+										}
+									});
+								}
+							};
+							view! {
+								ctx,
+								EventLogEntryEdit(
+									event_start=event_start,
+									event_entry_types=entry_types_signal,
+									event_tags_name_index=tags_by_name_index,
+									entry_types_datalist_id="event_entry_types",
+									start_time=edit_start_time,
+									end_time=edit_end_time,
+									entry_type=edit_entry_type,
+									description=edit_description,
+									media_link=edit_media_link,
+									submitter_or_winner=edit_submitter_or_winner,
+									tags=edit_tags,
+									make_video=edit_make_video,
+									notes_to_editor=edit_notes_to_editor,
+									editor=edit_editor,
+									editor_list=available_editors,
+									editor_name_index=editors_by_name_index,
+									editor_name_datalist_id="editor_names",
+									highlighted=edit_highlighted,
+									close_handler=close_handler,
+									editing_new=false
+								)
+							}
+						} else {
+							view! { ctx, }
+						})
+					}
+				}
+			)
+		}
+		datalist(id="event_entry_types") {
+			Keyed(
+				iterable=entry_types_signal,
+				key=|entry_type| entry_type.id.clone(),
+				view=|ctx, entry_type| {
+					let type_name = entry_type.name;
+					view! {
+						ctx,
+						option(value=type_name)
+					}
+				}
+			)
+		}
+		datalist(id="editor_names") {
+			Keyed(
+				iterable=available_editors,
+				key=|editor| editor.id.clone(),
+				view=|ctx, editor| {
+					let editor_name = editor.username;
+					view! {
+						ctx,
+						option(value=editor_name)
 					}
 				}
 			)
