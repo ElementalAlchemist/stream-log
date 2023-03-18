@@ -337,7 +337,6 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 									make_video=edit_make_video,
 									notes_to_editor=edit_notes_to_editor,
 									editor=edit_editor,
-									editor_list=available_editors,
 									editor_name_index=editors_by_name_index,
 									editor_name_datalist_id="editor_names",
 									highlighted=edit_highlighted,

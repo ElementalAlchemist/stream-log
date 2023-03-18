@@ -202,7 +202,6 @@ pub struct EventLogEntryEditProps<'a, TCloseHandler: Fn()> {
 	make_video: &'a Signal<bool>,
 	notes_to_editor: &'a Signal<String>,
 	editor: &'a Signal<Option<UserData>>,
-	editor_list: &'a ReadSignal<Vec<UserData>>,
 	editor_name_index: &'a ReadSignal<HashMap<String, UserData>>,
 	editor_name_datalist_id: &'a str,
 	highlighted: &'a Signal<bool>,
@@ -608,6 +607,19 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 	};
 	let editor_entry = create_signal(ctx, editor_entry);
 	let editor_error: &Signal<Option<String>> = create_signal(ctx, None);
+	create_effect(ctx, || {
+		let editor_name = editor_entry.get();
+		if editor_name.is_empty() {
+			props.editor.set(None);
+			return;
+		}
+		if let Some(editor_user) = props.editor_name_index.get().get(&*editor_name) {
+			editor_error.set(None);
+			props.editor.set(Some(editor_user.clone()));
+		} else {
+			editor_error.set(Some(String::from("The entered name couldn't be matched to an editor")));
+		}
+	});
 
 	let close_handler = move |event: WebEvent| {
 		event.prevent_default();
