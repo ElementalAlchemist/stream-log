@@ -170,6 +170,51 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 
 					let modified_data: &Signal<HashSet<ModifiedEventLogEntryParts>> = create_signal(ctx, HashSet::new());
 
+					create_effect(ctx, || {
+						let _ = edit_start_time.get();
+						modified_data.modify().insert(ModifiedEventLogEntryParts::StartTime);
+					});
+					create_effect(ctx, || {
+						let _ = edit_end_time.get();
+						modified_data.modify().insert(ModifiedEventLogEntryParts::EndTime);
+					});
+					create_effect(ctx, || {
+						let _ = edit_entry_type.get();
+						modified_data.modify().insert(ModifiedEventLogEntryParts::EntryType);
+					});
+					create_effect(ctx, || {
+						let _ = edit_description.get();
+						modified_data.modify().insert(ModifiedEventLogEntryParts::Description);
+					});
+					create_effect(ctx, || {
+						let _ = edit_media_link.get();
+						modified_data.modify().insert(ModifiedEventLogEntryParts::MediaLink);
+					});
+					create_effect(ctx, || {
+						let _ = edit_submitter_or_winner.get();
+						modified_data.modify().insert(ModifiedEventLogEntryParts::SubmitterOrWinner);
+					});
+					create_effect(ctx, || {
+						let _ = edit_tags.get();
+						modified_data.modify().insert(ModifiedEventLogEntryParts::Tags);
+					});
+					create_effect(ctx, || {
+						let _ = edit_make_video.get();
+						modified_data.modify().insert(ModifiedEventLogEntryParts::MakeVideo);
+					});
+					create_effect(ctx, || {
+						let _ = edit_notes_to_editor.get();
+						modified_data.modify().insert(ModifiedEventLogEntryParts::NotesToEditor);
+					});
+					create_effect(ctx, || {
+						let _ = edit_editor.get();
+						modified_data.modify().insert(ModifiedEventLogEntryParts::Editor);
+					});
+					create_effect(ctx, || {
+						let _ = edit_highlighted.get();
+						modified_data.modify().insert(ModifiedEventLogEntryParts::Highlighted);
+					});
+
 					let close_handler_entry = entry.clone();
 
 					view! {
