@@ -643,6 +643,13 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 		}
 	};
 
+	let disable_save = create_memo(ctx, || {
+		start_time_error.get().is_some()
+			|| end_time_error.get().is_some()
+			|| entry_type_error.get().is_some()
+			|| editor_error.get().is_some()
+	});
+
 	view! {
 		ctx,
 		form(class="event_log_entry_edit", on:submit=close_handler) {
@@ -725,13 +732,13 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 				(if props.editing_new {
 					view! {
 						ctx,
-						button { "Add" }
+						button(disabled=*disable_save.get()) { "Add" }
 						button(type="reset") { "Reset" }
 					}
 				} else {
 					view! {
 						ctx,
-						button { "Close" }
+						button(disabled=*disable_save.get()) { "Close" }
 					}
 				})
 			}
