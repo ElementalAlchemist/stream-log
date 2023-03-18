@@ -59,6 +59,7 @@ pub enum EventSubscriptionData {
 pub enum TypingData {
 	StartTime(Option<EventLogEntry>, String, UserData),
 	EndTime(Option<EventLogEntry>, String, UserData),
+	EntryType(Option<EventLogEntry>, String, UserData),
 	Description(Option<EventLogEntry>, String, UserData),
 	MediaLink(Option<EventLogEntry>, String, UserData),
 	SubmitterWinner(Option<EventLogEntry>, String, UserData),
@@ -91,6 +92,7 @@ pub enum EventSubscriptionUpdate {
 pub enum NewTypingData {
 	StartTime(Option<EventLogEntry>, String),
 	EndTime(Option<EventLogEntry>, String),
+	EntryType(Option<EventLogEntry>, String),
 	Description(Option<EventLogEntry>, String),
 	MediaLink(Option<EventLogEntry>, String),
 	SubmitterWinner(Option<EventLogEntry>, String),

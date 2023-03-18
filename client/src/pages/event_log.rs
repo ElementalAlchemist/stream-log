@@ -153,9 +153,9 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 					} else {
 						None
 					};
+					let event_log_entry_signal = create_signal(ctx, Some(entry.clone()));
 
 					// Set up edit signals/data
-					let event_start = event.start_time;
 					let edit_start_time = create_signal(ctx, entry.start_time);
 					let edit_end_time = create_signal(ctx, entry.end_time);
 					let edit_entry_type = create_signal(ctx, entry.entry_type.clone());
@@ -322,10 +322,11 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 							view! {
 								ctx,
 								EventLogEntryEdit(
-									event_start=event_start,
+									event=event_signal,
 									event_entry_types=entry_types_signal,
 									event_tags_name_index=tags_by_name_index,
 									entry_types_datalist_id="event_entry_types",
+									event_log_entry=event_log_entry_signal,
 									start_time=edit_start_time,
 									end_time=edit_end_time,
 									entry_type=edit_entry_type,
