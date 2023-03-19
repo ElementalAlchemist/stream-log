@@ -2,11 +2,13 @@ use super::error::{ErrorData, ErrorView};
 use crate::components::event_log_entry::{EventLogEntryEdit, EventLogEntryRow};
 use crate::subscriptions::send_unsubscribe_all_message;
 use crate::websocket::read_websocket;
+use chrono::{DateTime, Utc};
 use futures::lock::Mutex;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
 use std::collections::{HashMap, HashSet};
+use stream_log_shared::messages::event_log::EventLogEntry;
 use stream_log_shared::messages::event_subscription::{EventSubscriptionResponse, EventSubscriptionUpdate};
 use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::tags::Tag;
@@ -135,6 +137,79 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		name_index
 	});
 	let can_edit = create_memo(ctx, || *permission_signal.get() == PermissionLevel::Edit);
+
+	let new_event_log_entry: &Signal<Option<EventLogEntry>> = create_signal(ctx, None);
+	let new_entry_start_time = create_signal(ctx, Utc::now());
+	let new_entry_end_time: &Signal<Option<DateTime<Utc>>> = create_signal(ctx, None);
+	let new_entry_type = create_signal(ctx, String::new());
+	let new_entry_description = create_signal(ctx, String::new());
+	let new_entry_media_link = create_signal(ctx, String::new());
+	let new_entry_submitter_or_winner = create_signal(ctx, String::new());
+	let new_entry_tags: &Signal<Vec<Tag>> = create_signal(ctx, Vec::new());
+	let new_entry_make_video = create_signal(ctx, false);
+	let new_entry_notes_to_editor = create_signal(ctx, String::new());
+	let new_entry_editor: &Signal<Option<UserData>> = create_signal(ctx, None);
+	let new_entry_highlighted = create_signal(ctx, false);
+
+	let new_entry_close_handler = move || {
+		let start_time = *new_entry_start_time.get();
+		let end_time = *new_entry_end_time.get();
+		let entry_type = (*new_entry_type.get()).clone();
+		let description = (*new_entry_description.get()).clone();
+		let media_link = (*new_entry_media_link.get()).clone();
+		let submitter_or_winner = (*new_entry_media_link.get()).clone();
+		let tags = (*new_entry_tags.get()).clone();
+		let make_video = *new_entry_make_video.get();
+		let notes_to_editor = (*new_entry_notes_to_editor.get()).clone();
+		let editor = (*new_entry_editor.get()).clone();
+		let highlighted = *new_entry_highlighted.get();
+		let new_event_log_entry = EventLogEntry {
+			id: String::new(),
+			start_time,
+			end_time,
+			entry_type,
+			description,
+			media_link,
+			submitter_or_winner,
+			tags,
+			make_video,
+			notes_to_editor,
+			editor_link: None,
+			editor,
+			video_link: None,
+			highlighted,
+		};
+
+		spawn_local_scoped(ctx, async move {
+			let ws_context: &Mutex<WebSocket> = use_context(ctx);
+			let mut ws = ws_context.lock().await;
+
+			let message = RequestMessage::EventSubscriptionUpdate(
+				(*event_signal.get()).clone(),
+				Box::new(EventSubscriptionUpdate::NewLogEntry(new_event_log_entry)),
+			);
+			let message_json = match serde_json::to_string(&message) {
+				Ok(msg) => msg,
+				Err(error) => {
+					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
+					error_signal.set(Some(ErrorData::new_with_error(
+						"Failed to serialize new log entry submission",
+						error,
+					)));
+					navigate("/error");
+					return;
+				}
+			};
+			if let Err(error) = ws.send(Message::Text(message_json)).await {
+				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
+				error_signal.set(Some(ErrorData::new_with_error(
+					"Failed to send new log entry submission",
+					error,
+				)));
+				navigate("/error");
+			}
+		});
+	};
 
 	view! {
 		ctx,
@@ -350,6 +425,37 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 					}
 				}
 			)
+			(if *can_edit.get() {
+				view! {
+					ctx,
+					div(id="event_log_new_entry") {
+						EventLogEntryEdit(
+							event=event_signal,
+							event_entry_types=entry_types_signal,
+							event_tags_name_index=tags_by_name_index,
+							entry_types_datalist_id="event_entry_types",
+							event_log_entry=new_event_log_entry,
+							start_time=new_entry_start_time,
+							end_time=new_entry_end_time,
+							entry_type=new_entry_type,
+							description=new_entry_description,
+							media_link=new_entry_media_link,
+							submitter_or_winner=new_entry_submitter_or_winner,
+							tags=new_entry_tags,
+							make_video=new_entry_make_video,
+							notes_to_editor=new_entry_notes_to_editor,
+							editor=new_entry_editor,
+							editor_name_index=editors_by_name_index,
+							editor_name_datalist_id="editor_names",
+							highlighted=new_entry_highlighted,
+							close_handler=new_entry_close_handler,
+							editing_new=true
+						)
+					}
+				}
+			} else {
+				view! { ctx, }
+			})
 		}
 		datalist(id="event_entry_types") {
 			Keyed(
@@ -379,6 +485,24 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		}
 	}
 }
+
+/*
+	start_time: &'a Signal<DateTime<Utc>>,
+end_time: &'a Signal<Option<DateTime<Utc>>>,
+entry_type: &'a Signal<String>,
+description: &'a Signal<String>,
+media_link: &'a Signal<String>,
+submitter_or_winner: &'a Signal<String>,
+tags: &'a Signal<Vec<Tag>>,
+make_video: &'a Signal<bool>,
+notes_to_editor: &'a Signal<String>,
+editor: &'a Signal<Option<UserData>>,
+editor_name_index: &'a ReadSignal<HashMap<String, UserData>>,
+editor_name_datalist_id: &'a str,
+highlighted: &'a Signal<bool>,
+close_handler: TCloseHandler,
+editing_new: bool,
+*/
 
 #[component]
 pub fn EventLogView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> View<G> {
