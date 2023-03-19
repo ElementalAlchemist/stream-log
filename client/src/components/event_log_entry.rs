@@ -574,6 +574,36 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 		}
 	});
 
+	let new_tag_data: &Signal<Vec<Tag>> = create_signal(ctx, Vec::new());
+
+	let update_new_tag_handler = |_event: WebEvent| {
+		let mut new_tags = Vec::new();
+		for tag_name in entered_tag_entry.get().iter() {
+			let tag_name = tag_name.get();
+			if tag_name.is_empty() {
+				continue;
+			}
+			if props.event_tags_name_index.get().get(&*tag_name).is_none() {
+				new_tags.push(Tag {
+					id: String::new(),
+					name: (*tag_name).clone(),
+					description: String::new(),
+				});
+			}
+		}
+		let new_tags_by_name: HashMap<String, usize> = new_tags
+			.iter()
+			.enumerate()
+			.map(|(index, tag)| (tag.name.clone(), index))
+			.collect();
+		for tag in new_tag_data.get().iter() {
+			if let Some(index) = new_tags_by_name.get(&tag.name) {
+				new_tags[*index].description = tag.description.clone();
+			}
+		}
+		new_tag_data.set(new_tags);
+	};
+
 	let notes_to_editor_typing_ran_once = create_signal(ctx, false);
 	create_effect(ctx, move || {
 		props.notes_to_editor.track();
@@ -705,10 +735,48 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 					view=move |ctx, entry_signal| {
 						view! {
 							ctx,
-							input(bind:value=entry_signal)
+							input(bind:value=entry_signal, on:lostfocus=update_new_tag_handler)
 						}
 					}
 				)
+			}
+			div {
+				(if new_tag_data.get().is_empty() {
+					view! { ctx, }
+				} else {
+					view! {
+						ctx,
+						table {
+							Indexed(
+								iterable=new_tag_data,
+								view=move |ctx, tag_data| {
+									let description_signal = create_signal(ctx, tag_data.description.clone());
+									create_effect(ctx, {
+										let tag_data = tag_data.clone();
+										move || {
+											description_signal.track();
+											let mut new_tag_data = new_tag_data.modify();
+											for new_tag in new_tag_data.iter_mut() {
+												if new_tag.name == tag_data.name {
+													new_tag.description = (*description_signal.get()).clone();
+												}
+											}
+										}
+									});
+									view! {
+										ctx,
+										tr {
+											td { (tag_data.name) }
+											td {
+												input(bind:value=description_signal, required=true)
+											}
+										}
+									}
+								}
+							)
+						}
+					}
+				})
 			}
 			div {
 				label {
