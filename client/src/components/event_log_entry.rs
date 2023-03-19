@@ -675,6 +675,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			|| end_time_error.get().is_some()
 			|| entry_type_error.get().is_some()
 			|| editor_error.get().is_some()
+			|| !new_tag_names.get().is_empty()
 	});
 
 	view! {
