@@ -540,23 +540,38 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 		});
 	});
 
-	let entered_tags: Vec<Option<Tag>> = props.tags.get().iter().map(|tag| Some(tag.clone())).collect();
-	let entered_tags = create_signal(ctx, entered_tags);
+	let entered_tag_entry: Vec<&Signal<String>> = props
+		.tags
+		.get()
+		.iter()
+		.map(|tag| create_signal(ctx, tag.name.clone()))
+		.collect();
+	let entered_tag_entry = create_signal(ctx, entered_tag_entry);
 
 	create_effect(ctx, || {
-		let mut entered_tags = entered_tags.modify();
-		if let Some(last_tag) = entered_tags.last() {
-			if last_tag.is_none() {
-				entered_tags.push(None);
+		let mut tags: Vec<Tag> = Vec::new();
+		for tag_name in entered_tag_entry.get().iter() {
+			let tag_name = tag_name.get();
+			if tag_name.is_empty() {
+				continue;
 			}
-		} else {
-			entered_tags.push(None);
+			if let Some(tag) = props.event_tags_name_index.get().get(&*tag_name) {
+				tags.push(tag.clone());
+			}
 		}
+		props.tags.set(tags);
 	});
 
-	create_effect(ctx, || {
-		let tags: Vec<Tag> = entered_tags.get().iter().flatten().cloned().collect();
-		props.tags.set(tags);
+	create_effect(ctx, move || {
+		let entered_tag_names = entered_tag_entry.get();
+		let last_entered_tag = entered_tag_names.last().cloned();
+		if let Some(tag_name_signal) = last_entered_tag {
+			create_effect(ctx, move || {
+				if !tag_name_signal.get().is_empty() {
+					entered_tag_entry.modify().push(create_signal(ctx, String::new()));
+				}
+			});
+		}
 	});
 
 	let notes_to_editor_typing_ran_once = create_signal(ctx, false);
@@ -686,20 +701,11 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			div {
 				label { "Tags:" }
 				Indexed(
-					iterable=entered_tags,
-					view=|ctx, entry| {
-						let tag_name = if let Some(tag) = entry.as_ref() {
-							tag.name.clone()
-						} else {
-							String::new()
-						};
-						let entry_signal = create_signal(ctx, tag_name);
-
-						let error_signal: &Signal<Option<String>> = create_signal(ctx, None);
-
+					iterable=entered_tag_entry,
+					view=move |ctx, entry_signal| {
 						view! {
 							ctx,
-							input(bind:value=entry_signal, class=if error_signal.get().is_some() { "error" } else { "" }, title=(*error_signal.get()).as_ref().unwrap_or(&String::new()))
+							input(bind:value=entry_signal)
 						}
 					}
 				)
