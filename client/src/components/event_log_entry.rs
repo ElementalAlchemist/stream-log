@@ -681,55 +681,56 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 	view! {
 		ctx,
 		form(class="event_log_entry_edit", on:submit=close_handler) {
-			div {
-				input(placeholder="Start", bind:value=start_time_input, class=if start_time_error.get().is_some() { "error" } else { "" }, title=(*start_time_error.get()).as_ref().unwrap_or(&String::new()))
-			}
-			div {
-				input(placeholder="End", bind:value=end_time_input, class=if end_time_error.get().is_some() { "error" } else { "" }, title=(*end_time_error.get()).as_ref().unwrap_or(&String::new()))
-			}
-			div {
-				input(
-					placeholder="Type",
-					bind:value=entry_type_name,
-					class=if entry_type_error.get().is_some() { "error" } else { "" },
-					title=(*entry_type_error.get()).as_ref().unwrap_or(&String::new()),
-					list=props.entry_types_datalist_id
-				)
-			}
-			div {
-				input(placeholder="Description", bind:value=props.description)
-			}
-			div {
-				label {
-					"Media link:"
-					input(bind:value=props.media_link)
+			div(class="event_log_entry_edit_basic_info") {
+				div(class="event_log_entry_edit_start_time") {
+					input(placeholder="Start", bind:value=start_time_input, class=if start_time_error.get().is_some() { "error" } else { "" }, title=(*start_time_error.get()).as_ref().unwrap_or(&String::new()))
+				}
+				div(class="event_log_entry_edit_end_time") {
+					input(placeholder="End", bind:value=end_time_input, class=if end_time_error.get().is_some() { "error" } else { "" }, title=(*end_time_error.get()).as_ref().unwrap_or(&String::new()))
+				}
+				div(class="event_log_entry_edit_type") {
+					input(
+						placeholder="Type",
+						bind:value=entry_type_name,
+						class=if entry_type_error.get().is_some() { "error" } else { "" },
+						title=(*entry_type_error.get()).as_ref().unwrap_or(&String::new()),
+						list=props.entry_types_datalist_id
+					)
+				}
+				div(class="event_log_entry_edit_description") {
+					input(placeholder="Description", bind:value=props.description)
+				}
+				div(class="event_log_entry_edit_media_link") {
+					input(bind:value=props.media_link, placeholder="Media link")
+				}
+				div(class="event_log_entry_edit_submitter_or_winner") {
+					input(bind:value=props.submitter_or_winner, placeholder="Submitter/winner")
 				}
 			}
-			div {
-				label {
-					"Submitter/winner:"
-					input(bind:value=props.submitter_or_winner)
-				}
-			}
-			div {
+			div(class="event_log_entry_edit_tags") {
 				label { "Tags:" }
-				Indexed(
-					iterable=entered_tag_entry,
-					view=move |ctx, entry_signal| {
-						view! {
-							ctx,
-							input(bind:value=entry_signal)
+				div(class="event_log_entry_edit_tags_fields") {
+					Indexed(
+						iterable=entered_tag_entry,
+						view=move |ctx, entry_signal| {
+							view! {
+								ctx,
+								div {
+									input(bind:value=entry_signal)
+								}
+							}
 						}
-					}
-				)
+					)
+				}
 			}
-			div {
+			div(class="event_log_entry_edit_new_tags") {
 				(if new_tag_names.get().is_empty() {
 					view! { ctx, }
 				} else {
 					view! {
 						ctx,
-						div(class="event_log_entry_edit_new_tags") {
+						label { "New tags:" }
+						div(class="event_log_entry_edit_new_tags_fields") {
 							Indexed(
 								iterable=new_tag_names,
 								view=move |ctx, tag_name| {
@@ -779,43 +780,39 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 					}
 				})
 			}
-			div {
-				label {
-					input(type="checkbox", bind:checked=props.make_video)
-					"Should make video?"
-				}
-			}
-			div {
-				label {
-					"Notes for editor:"
-					input(bind:value=props.notes_to_editor)
-				}
-			}
-			div {
-				label {
-					"Editor:"
-					input(bind:value=editor_entry, list=props.editor_name_datalist_id, class=if editor_error.get().is_some() { "error" } else { "" }, title=(*editor_error.get()).as_ref().unwrap_or(&String::new()))
-				}
-			}
-			div {
-				label {
-					input(type="checkbox", bind:checked=props.highlighted)
-					"Highlight row"
-				}
-			}
-			div {
-				(if props.editing_new {
-					view! {
-						ctx,
-						button(disabled=*disable_save.get()) { "Add" }
-						button(type="reset") { "Reset" }
+			div(class="event_log_entry_edit_misc_info") {
+				div(class="event_log_entry_edit_make_video") {
+					label {
+						input(type="checkbox", bind:checked=props.make_video)
+						"Should make video?"
 					}
-				} else {
-					view! {
-						ctx,
-						button(disabled=*disable_save.get()) { "Close" }
+				}
+				div(class="event_log_entry_edit_notes_to_editor") {
+					input(bind:value=props.notes_to_editor, placeholder="Notes to editor")
+				}
+				div(class="event_log_entry_edit_editor") {
+					input(bind:value=editor_entry, placeholder="Editor", list=props.editor_name_datalist_id, class=if editor_error.get().is_some() { "error" } else { "" }, title=(*editor_error.get()).as_ref().unwrap_or(&String::new()))
+				}
+				div(class="event_log_entry_edit_highlighted") {
+					label {
+						input(type="checkbox", bind:checked=props.highlighted)
+						"Highlight row"
 					}
-				})
+				}
+				div(class="event_log_entry_edit_close") {
+					(if props.editing_new {
+						view! {
+							ctx,
+							button(disabled=*disable_save.get()) { "Add" }
+							button(type="reset") { "Reset" }
+						}
+					} else {
+						view! {
+							ctx,
+							button(disabled=*disable_save.get()) { "Close" }
+						}
+					})
+				}
 			}
 		}
 	}
