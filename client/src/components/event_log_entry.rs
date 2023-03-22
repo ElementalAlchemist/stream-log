@@ -776,7 +776,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 										form(on:submit=send_new_tag_creation, class="event_log_entry_edit_new_tags_create") {
 											div { (tag_name) }
 											div {
-												input(bind:value=description_signal)
+												input(bind:value=description_signal, placeholder="Describe this tag")
 											}
 											div {
 												button { "Add Tag" }
