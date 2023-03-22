@@ -540,47 +540,56 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 		});
 	});
 
-	let entered_tag_entry: Vec<&Signal<String>> = props
-		.tags
-		.get()
-		.iter()
-		.map(|tag| create_signal(ctx, tag.name.clone()))
-		.collect();
-	let entered_tag_entry = create_signal(ctx, entered_tag_entry);
+	let entered_tags: Vec<String> = props.tags.get().iter().map(|tag| tag.name.clone()).collect();
+	let entered_tags = create_signal(ctx, entered_tags);
+	let entered_tag_entry: &Signal<Vec<&Signal<String>>> = create_signal(ctx, Vec::new());
 
 	create_effect(ctx, || {
 		let mut tags: Vec<Tag> = Vec::new();
-		for tag_name in entered_tag_entry.get().iter() {
-			let tag_name = tag_name.get();
+		for tag_name in entered_tags.get().iter() {
 			if tag_name.is_empty() {
 				continue;
 			}
-			if let Some(tag) = props.event_tags_name_index.get().get(&*tag_name) {
+			if let Some(tag) = props.event_tags_name_index.get().get(tag_name) {
 				tags.push(tag.clone());
 			}
 		}
 		props.tags.set(tags);
 	});
 
+	create_effect(ctx, || {
+		let tag_names = entered_tags.get();
+		let last_entry = tag_names.last();
+		if let Some(entry) = last_entry {
+			if !entry.is_empty() {
+				entered_tags.modify().push(String::new());
+			}
+		} else {
+			entered_tags.modify().push(String::new());
+		}
+	});
+
 	create_effect(ctx, move || {
-		let entered_tag_names = entered_tag_entry.get();
-		let last_entered_tag = entered_tag_names.last().cloned();
-		if let Some(tag_name_signal) = last_entered_tag {
-			create_effect(ctx, move || {
-				if !tag_name_signal.get().is_empty() {
-					entered_tag_entry.modify().push(create_signal(ctx, String::new()));
-				}
-			});
+		let mut tag_names_entry = entered_tag_entry.modify();
+		for (tag_index, tag_name) in entered_tags.get().iter().enumerate() {
+			if tag_names_entry.len() > tag_index {
+				tag_names_entry[tag_index].set(tag_name.clone());
+			} else {
+				let tag_name_signal = create_signal(ctx, tag_name.clone());
+				tag_names_entry.push(tag_name_signal);
+				create_effect(ctx, move || {
+					entered_tags.modify()[tag_index] = (*tag_name_signal.get()).clone();
+				});
+			}
 		}
 	});
 
 	let new_tag_names = create_memo(ctx, || {
 		let mut names: Vec<String> = Vec::new();
 		props.event_tags_name_index.track();
-		for tag_name in entered_tag_entry.get().iter() {
-			let tag_name = tag_name.get();
-			if !tag_name.is_empty() && props.event_tags_name_index.get().get(&*tag_name).is_none() {
-				names.push((*tag_name).clone());
+		for tag_name in entered_tags.get().iter() {
+			if !tag_name.is_empty() && props.event_tags_name_index.get().get(tag_name).is_none() {
+				names.push(tag_name.clone());
 			}
 		}
 		names
