@@ -297,7 +297,12 @@ input.error {
 	display: inline-flex;
 
 	> div {
-		flex-basis: 75px;
+		flex-basis: 80px;
+		width: 80px;
+
+		> input {
+			width: 75px;
+		}
 	}
 }
 
@@ -332,4 +337,17 @@ input.error {
 .event_log_entry_edit_close {
 	flex-grow: 1;
 	text-align: right;
+}
+
+.event_log_entry_edit_new_tags_fields {
+	display: grid;
+	grid-template-columns: max-content 300px max-content;
+
+	input {
+		width: 290px;
+	}
+}
+
+.event_log_entry_edit_new_tags_create {
+	display: contents;
 }
