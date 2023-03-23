@@ -192,6 +192,7 @@ pub struct EventLogEntryEditProps<'a, TCloseHandler: Fn()> {
 	event_tags_name_index: &'a ReadSignal<HashMap<String, Tag>>,
 	entry_types_datalist_id: &'a str,
 	event_log_entry: &'a ReadSignal<Option<EventLogEntry>>,
+	tags_datalist_id: &'a str,
 	start_time: &'a Signal<DateTime<Utc>>,
 	end_time: &'a Signal<Option<DateTime<Utc>>>,
 	entry_type: &'a Signal<String>,
@@ -725,7 +726,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 							view! {
 								ctx,
 								div {
-									input(bind:value=entry_signal)
+									input(bind:value=entry_signal, list=props.tags_datalist_id)
 								}
 							}
 						}

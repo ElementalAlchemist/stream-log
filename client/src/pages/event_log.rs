@@ -402,6 +402,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 									event_tags_name_index=tags_by_name_index,
 									entry_types_datalist_id="event_entry_types",
 									event_log_entry=event_log_entry_signal,
+									tags_datalist_id="event_tags",
 									start_time=edit_start_time,
 									end_time=edit_end_time,
 									entry_type=edit_entry_type,
@@ -435,6 +436,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 							event_tags_name_index=tags_by_name_index,
 							entry_types_datalist_id="event_entry_types",
 							event_log_entry=new_event_log_entry,
+							tags_datalist_id="event_tags",
 							start_time=new_entry_start_time,
 							end_time=new_entry_end_time,
 							entry_type=new_entry_type,
@@ -470,6 +472,19 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 				}
 			)
 		}
+		datalist(id="event_tags") {
+			Keyed(
+				iterable=tags_signal,
+				key=|tag| tag.id.clone(),
+				view=|ctx, tag| {
+					let tag_name = tag.name;
+					view! {
+						ctx,
+						option(value=tag_name)
+					}
+				}
+			)
+		}
 		datalist(id="editor_names") {
 			Keyed(
 				iterable=available_editors,
@@ -485,24 +500,6 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		}
 	}
 }
-
-/*
-	start_time: &'a Signal<DateTime<Utc>>,
-end_time: &'a Signal<Option<DateTime<Utc>>>,
-entry_type: &'a Signal<String>,
-description: &'a Signal<String>,
-media_link: &'a Signal<String>,
-submitter_or_winner: &'a Signal<String>,
-tags: &'a Signal<Vec<Tag>>,
-make_video: &'a Signal<bool>,
-notes_to_editor: &'a Signal<String>,
-editor: &'a Signal<Option<UserData>>,
-editor_name_index: &'a ReadSignal<HashMap<String, UserData>>,
-editor_name_datalist_id: &'a str,
-highlighted: &'a Signal<bool>,
-close_handler: TCloseHandler,
-editing_new: bool,
-*/
 
 #[component]
 pub fn EventLogView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> View<G> {
