@@ -15,7 +15,7 @@ use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use sycamore::suspense::Suspense;
 use sycamore_router::navigate;
-use web_sys::Event as WebEvent;
+use web_sys::{Event as WebEvent, HtmlButtonElement};
 
 const DEFAULT_COLOR: &str = "#ffffff";
 
@@ -98,6 +98,8 @@ async fn AdminManageEventTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		navigate("/");
 	};
 
+	let add_event_type_button = create_node_ref(ctx);
+
 	view! {
 		ctx,
 		div(id="admin_event_type_list") {
@@ -154,6 +156,10 @@ async fn AdminManageEventTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				event_type_data.color = color;
 
 				selected_event_type_signal.set(None);
+				let add_event_type_button: DomNode = add_event_type_button.get();
+				let add_event_type_button: HtmlButtonElement = add_event_type_button.unchecked_into();
+				// Try to focus on the Add Event Type button after closing so focus is somewhere, and to allow quick entry of many entry types
+				let _ = add_event_type_button.focus();
 
 				if let SelectedIndex::Existing(index) = selected_event_type {
 					event_types_signal.modify()[index] = event_type_data.clone();
@@ -213,8 +219,7 @@ async fn AdminManageEventTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			view! {
 				ctx,
 				form(id="admin_event_type_edit", on:submit=form_submission_handler) {
-					label(for="admin_event_type_edit_name") { "Name" }
-					input(id="admin_event_type_edit_name", on:change=name_field_change_handler, bind:value=entered_name_signal, class=if entered_name_error_signal.get().is_empty() { "" } else { "error" })
+					input(placeholder="Name", on:change=name_field_change_handler, bind:value=entered_name_signal, class=if entered_name_error_signal.get().is_empty() { "" } else { "error" }, autofocus=true)
 					input(type="color", bind:value=entered_color_signal)
 					button { "Update" }
 				}
@@ -224,7 +229,7 @@ async fn AdminManageEventTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		})
 
 		div(id="admin_event_type_controls") {
-			button(on:click=add_event_type_handler) { "Add Event Type" }
+			button(on:click=add_event_type_handler, ref=add_event_type_button) { "Add Event Type" }
 			button(on:click=done_click_handler) { "Done" }
 		}
 	}
