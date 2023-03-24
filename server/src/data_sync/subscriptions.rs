@@ -14,7 +14,7 @@ use diesel::prelude::*;
 use std::collections::HashMap;
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_log::EventLogEntry;
-use stream_log_shared::messages::event_subscription::EventSubscriptionResponse;
+use stream_log_shared::messages::event_subscription::{EventSubscriptionResponse, EventUnsubscriptionResponse};
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::tags::Tag;
@@ -337,6 +337,21 @@ pub async fn subscribe_to_event(
 	Ok(())
 }
 
-pub async fn unsubscribe_all(stream: Arc<Mutex<WebSocketConnection>>, user: &User) {
-	// TODO
+pub async fn unsubscribe_all(
+	stream: Arc<Mutex<WebSocketConnection>>,
+	subscription_manager: Arc<Mutex<SubscriptionManager>>,
+	user: &User,
+) -> Result<(), HandleConnectionError> {
+	let mut subscription_manager = subscription_manager.lock().await;
+	subscription_manager.unsubscribe_user_from_all(user).await;
+
+	let send_result = {
+		let stream = stream.lock().await;
+		let message = EventUnsubscriptionResponse::Success;
+		stream.send_json(&message).await
+	};
+	match send_result {
+		Ok(_) => Ok(()),
+		Err(_) => Err(HandleConnectionError::ConnectionClosed),
+	}
 }

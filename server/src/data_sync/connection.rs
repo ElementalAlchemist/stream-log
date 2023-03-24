@@ -151,7 +151,7 @@ async fn process_messages(
 				)
 				.await?
 			}
-			RequestMessage::UnsubscribeAll => unsubscribe_all(stream, user).await,
+			RequestMessage::UnsubscribeAll => unsubscribe_all(stream, Arc::clone(&subscription_manager), user).await?,
 			RequestMessage::EventSubscriptionUpdate(event, update_data) => todo!(),
 			RequestMessage::Admin(action) => handle_admin(stream, Arc::clone(&db_connection), user, action).await?,
 			RequestMessage::UpdateProfile(update_data) => {
