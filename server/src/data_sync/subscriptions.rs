@@ -98,7 +98,9 @@ pub async fn subscribe_to_event(
 	let send_stream = stream.lock().await;
 	{
 		let mut subscriptions = subscription_manager.lock().await;
-		subscriptions.subscribe_user_to_event(event_id.to_owned(), user, Arc::clone(&stream));
+		subscriptions
+			.subscribe_user_to_event(event_id, user, Arc::clone(&stream))
+			.await;
 	}
 
 	let event_types: Vec<EntryTypeDb> = match entry_types::table
@@ -123,7 +125,8 @@ pub async fn subscribe_to_event(
 			subscription_manager
 				.lock()
 				.await
-				.unsubscribe_user_from_event(event_id, user);
+				.unsubscribe_user_from_event(event_id, user)
+				.await;
 			return Ok(());
 		}
 	};
@@ -140,7 +143,8 @@ pub async fn subscribe_to_event(
 			subscription_manager
 				.lock()
 				.await
-				.unsubscribe_user_from_event(event_id, user);
+				.unsubscribe_user_from_event(event_id, user)
+				.await;
 			return Ok(());
 		}
 	};
@@ -158,7 +162,8 @@ pub async fn subscribe_to_event(
 			subscription_manager
 				.lock()
 				.await
-				.unsubscribe_user_from_event(event_id, user);
+				.unsubscribe_user_from_event(event_id, user)
+				.await;
 			return Ok(());
 		}
 	};
@@ -177,7 +182,8 @@ pub async fn subscribe_to_event(
 			subscription_manager
 				.lock()
 				.await
-				.unsubscribe_user_from_event(event_id, user);
+				.unsubscribe_user_from_event(event_id, user)
+				.await;
 			return Ok(());
 		}
 	};
@@ -197,7 +203,8 @@ pub async fn subscribe_to_event(
 				subscription_manager
 					.lock()
 					.await
-					.unsubscribe_user_from_event(event_id, user);
+					.unsubscribe_user_from_event(event_id, user)
+					.await;
 				return Ok(());
 			}
 		};
@@ -226,7 +233,8 @@ pub async fn subscribe_to_event(
 			subscription_manager
 				.lock()
 				.await
-				.unsubscribe_user_from_event(event_id, user);
+				.unsubscribe_user_from_event(event_id, user)
+				.await;
 			return Ok(());
 		}
 	};
@@ -290,7 +298,8 @@ pub async fn subscribe_to_event(
 					subscription_manager
 						.lock()
 						.await
-						.unsubscribe_user_from_event(event_id, user);
+						.unsubscribe_user_from_event(event_id, user)
+						.await;
 					return Ok(());
 				}
 			},

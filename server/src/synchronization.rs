@@ -1,13 +1,16 @@
 use crate::models::User;
 use async_std::channel::{unbounded, Sender};
 use async_std::sync::{Arc, Mutex};
-use async_std::task::{spawn, JoinHandle};
+use async_std::task::{block_on, spawn, JoinHandle};
+use futures::future::join_all;
 use futures::StreamExt;
 use miette::IntoDiagnostic;
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use stream_log_shared::messages::event_subscription::EventSubscriptionData;
 use tide_websockets::WebSocketConnection;
 
+/// A manager for all the subscriptions we need to track
 pub struct SubscriptionManager {
 	event_subscriptions: HashMap<String, EventSubscriptionManager>,
 }
@@ -19,23 +22,70 @@ impl SubscriptionManager {
 		}
 	}
 
-	pub fn shutdown(&mut self) {}
+	/// Shuts down the subscription manager and all subscription tasks.
+	/// Assumes this is part of a full server shutdown, so this blocks on all the tasks ending.
+	pub fn shutdown(&mut self) {
+		let mut handles = Vec::with_capacity(self.event_subscriptions.len());
+		for (_, subscription_manager) in self.event_subscriptions.drain() {
+			handles.push(subscription_manager.thread_handle);
+		}
+		for handle in handles {
+			block_on(handle);
+		}
+	}
 
-	pub fn subscribe_user_to_event(
+	/// Subscribes the provided user with the provided associated connection to the provided event
+	pub async fn subscribe_user_to_event(
 		&mut self,
-		event_id: String,
+		event_id: &str,
 		subscribing_user: &User,
 		connection: Arc<Mutex<WebSocketConnection>>,
 	) {
+		match self.event_subscriptions.entry(event_id.to_owned()) {
+			Entry::Occupied(mut event_subscription) => {
+				event_subscription
+					.get_mut()
+					.subscribe_user(subscribing_user, connection)
+					.await
+			}
+			Entry::Vacant(event_entry) => {
+				let event_subscription = EventSubscriptionManager::new();
+				event_subscription.subscribe_user(subscribing_user, connection).await;
+				event_entry.insert(event_subscription);
+			}
+		}
 	}
 
-	pub fn unsubscribe_user_from_event(&mut self, event_id: &str, user: &User) {}
+	/// Unsubscribes the provided user from the provided event
+	pub async fn unsubscribe_user_from_event(&self, event_id: &str, user: &User) {
+		if let Some(event_subscription) = self.event_subscriptions.get(event_id) {
+			event_subscription.unsubscribe_user(user).await;
+		}
+	}
 
-	pub fn broadcast_event_message(&mut self, event_id: String, message: EventSubscriptionData) {}
+	/// Sends the given message to all subscribed users for the given event
+	pub async fn broadcast_event_message(
+		&mut self,
+		event_id: &str,
+		message: EventSubscriptionData,
+	) -> miette::Result<()> {
+		if let Some(event_subscription) = self.event_subscriptions.get(event_id) {
+			event_subscription.broadcast_message(message).await?;
+		}
+		Ok(())
+	}
 
-	pub fn unsubscribe_user_from_all(&mut self, user: &User) {}
+	/// Unsubscribes a user from all subscriptions
+	pub async fn unsubscribe_user_from_all(&mut self, user: &User) {
+		let mut futures = Vec::with_capacity(self.event_subscriptions.len());
+		for event_subscription in self.event_subscriptions.values() {
+			futures.push(event_subscription.unsubscribe_user(user));
+		}
+		join_all(futures).await;
+	}
 }
 
+/// Manages subscriptions for a single event
 struct EventSubscriptionManager {
 	thread_handle: JoinHandle<()>,
 	subscription_send_channel: Sender<EventSubscriptionData>,
@@ -72,6 +122,16 @@ impl EventSubscriptionManager {
 			subscription_send_channel: broadcast_tx,
 			subscriptions,
 		}
+	}
+
+	async fn subscribe_user(&self, user: &User, connection: Arc<Mutex<WebSocketConnection>>) {
+		let mut subscriptions = self.subscriptions.lock().await;
+		subscriptions.insert(user.id.clone(), connection);
+	}
+
+	async fn unsubscribe_user(&self, user: &User) {
+		let mut subscriptions = self.subscriptions.lock().await;
+		subscriptions.remove(&user.id);
 	}
 
 	async fn broadcast_message(&self, message: EventSubscriptionData) -> miette::Result<()> {
