@@ -19,4 +19,5 @@ pub struct EventLogEntry {
 	pub editor: Option<UserData>,
 	pub video_link: Option<String>,
 	pub highlighted: bool,
+	pub parent: Option<String>,
 }
