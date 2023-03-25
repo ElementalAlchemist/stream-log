@@ -399,7 +399,6 @@ pub async fn handle_event_update(
 					diesel::insert_into(event_log_tags::table)
 						.values(db_tags)
 						.execute(db_connection)?;
-
 					Ok(())
 				});
 				if let Err(error) = insert_result {
@@ -412,7 +411,24 @@ pub async fn handle_event_update(
 			EventSubscriptionData::NewLogEntry(log_entry_data)
 		}
 		EventSubscriptionUpdate::DeleteLogEntry(deleted_log_entry) => {
-			todo!()
+			{
+				let mut db_connection = db_connection.lock().await;
+				let delete_result: QueryResult<()> = db_connection.transaction(|db_connection| {
+					diesel::delete(event_log_tags::table)
+						.filter(event_log_tags::log_entry.eq(&deleted_log_entry.id))
+						.execute(db_connection)?;
+					diesel::delete(event_log::table)
+						.filter(event_log::id.eq(&deleted_log_entry.id))
+						.execute(db_connection)?;
+					Ok(())
+				});
+				if let Err(error) = delete_result {
+					tide::log::error!("Database error deleting an event log entry: {}", error);
+					return Ok(());
+				}
+			}
+
+			EventSubscriptionData::DeleteLogEntry(deleted_log_entry)
 		}
 		EventSubscriptionUpdate::ChangeStartTime(log_entry, new_start_time) => {
 			todo!()
