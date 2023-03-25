@@ -9,6 +9,7 @@ use crate::schema::{
 };
 use crate::synchronization::SubscriptionManager;
 use async_std::sync::{Arc, Mutex};
+use chrono::Utc;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use std::collections::HashMap;
@@ -341,12 +342,13 @@ pub async fn subscribe_to_event(
 }
 
 pub async fn handle_event_update(
+	db_connection: Arc<Mutex<PgConnection>>,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	event: &Event,
 	user: &User,
 	message: Box<EventSubscriptionUpdate>,
 ) -> Result<(), HandleConnectionError> {
-	let subscription_manager = subscription_manager.lock().await;
+	let mut subscription_manager = subscription_manager.lock().await;
 	let Some(permission_level) = subscription_manager.get_cached_user_permission(&event.id, user).await else {
 		return Ok(());
 	};
@@ -357,8 +359,57 @@ pub async fn handle_event_update(
 	}
 
 	let subscription_data = match *message {
-		EventSubscriptionUpdate::NewLogEntry(log_entry_data) => {
-			todo!()
+		EventSubscriptionUpdate::NewLogEntry(mut log_entry_data) => {
+			let new_id = cuid2::create_id();
+			let db_entry = EventLogEntryDb {
+				id: new_id.clone(),
+				event: event.id.clone(),
+				start_time: log_entry_data.start_time,
+				end_time: log_entry_data.end_time,
+				entry_type: log_entry_data.entry_type.clone(),
+				description: log_entry_data.description.clone(),
+				media_link: log_entry_data.media_link.clone(),
+				submitter_or_winner: log_entry_data.submitter_or_winner.clone(),
+				make_video: log_entry_data.make_video,
+				notes_to_editor: log_entry_data.notes_to_editor.clone(),
+				editor_link: None,
+				editor: log_entry_data.editor.clone().map(|editor| editor.id),
+				video_link: None,
+				highlighted: log_entry_data.highlighted,
+				last_update_user: user.id.clone(),
+				last_updated: Utc::now(),
+				parent: None,
+			};
+
+			let db_tags: Vec<EventLogTag> = log_entry_data
+				.tags
+				.iter()
+				.map(|tag| EventLogTag {
+					tag: tag.id.clone(),
+					log_entry: log_entry_data.id.clone(),
+				})
+				.collect();
+
+			{
+				let mut db_connection = db_connection.lock().await;
+				let insert_result: QueryResult<()> = db_connection.transaction(|db_connection| {
+					diesel::insert_into(event_log::table)
+						.values(db_entry)
+						.execute(db_connection)?;
+					diesel::insert_into(event_log_tags::table)
+						.values(db_tags)
+						.execute(db_connection)?;
+
+					Ok(())
+				});
+				if let Err(error) = insert_result {
+					tide::log::error!("Database error adding an event log entry: {}", error);
+					return Ok(());
+				}
+			}
+
+			log_entry_data.id = new_id;
+			EventSubscriptionData::NewLogEntry(log_entry_data)
 		}
 		EventSubscriptionUpdate::DeleteLogEntry(deleted_log_entry) => {
 			todo!()
