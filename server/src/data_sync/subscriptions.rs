@@ -450,8 +450,25 @@ pub async fn handle_event_update(
 			log_entry.start_time = new_start_time;
 			EventSubscriptionData::UpdateLogEntry(log_entry)
 		}
-		EventSubscriptionUpdate::ChangeEndTime(log_entry, new_end_time) => {
-			todo!()
+		EventSubscriptionUpdate::ChangeEndTime(mut log_entry, new_end_time) => {
+			{
+				let mut db_connection = db_connection.lock().await;
+				let update_result = diesel::update(event_log::table)
+					.filter(event_log::id.eq(&log_entry.id))
+					.set((
+						event_log::end_time.eq(new_end_time),
+						event_log::last_update_user.eq(&user.id),
+						event_log::last_updated.eq(Utc::now()),
+					))
+					.execute(&mut *db_connection);
+				if let Err(error) = update_result {
+					tide::log::error!("Database error updating log entry end time; {}", error);
+					return Ok(());
+				}
+			}
+
+			log_entry.end_time = new_end_time;
+			EventSubscriptionData::UpdateLogEntry(log_entry)
 		}
 		EventSubscriptionUpdate::ChangeEntryType(log_entry, new_entry_type) => {
 			todo!()
