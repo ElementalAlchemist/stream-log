@@ -132,6 +132,7 @@ pub struct EventLogEntry {
 	pub highlighted: bool,
 	pub last_updated: DateTime<Utc>,
 	pub last_update_user: String,
+	pub parent: Option<String>,
 }
 
 #[derive(Insertable, Queryable)]

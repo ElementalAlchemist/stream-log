@@ -41,6 +41,7 @@ diesel::table! {
 		highlighted -> Bool,
 		last_updated -> Timestamptz,
 		last_update_user -> Text,
+		parent -> Nullable<Text>,
 	}
 }
 

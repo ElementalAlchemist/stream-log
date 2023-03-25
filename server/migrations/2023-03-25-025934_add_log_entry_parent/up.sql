@@ -1,0 +1,1 @@
+ALTER TABLE event_log ADD COLUMN parent TEXT REFERENCES event_log;
