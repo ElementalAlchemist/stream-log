@@ -24,6 +24,13 @@ diesel::table! {
 }
 
 diesel::table! {
+	event_editors (event, editor) {
+		event -> Text,
+		editor -> Text,
+	}
+}
+
+diesel::table! {
 	event_log (id) {
 		id -> Text,
 		event -> Text,
@@ -108,6 +115,8 @@ diesel::table! {
 
 diesel::joinable!(available_entry_types_for_event -> entry_types (entry_type));
 diesel::joinable!(available_entry_types_for_event -> events (event_id));
+diesel::joinable!(event_editors -> events (event));
+diesel::joinable!(event_editors -> users (editor));
 diesel::joinable!(event_log -> entry_types (entry_type));
 diesel::joinable!(event_log -> events (event));
 diesel::joinable!(event_log_tags -> event_log (log_entry));
@@ -121,6 +130,7 @@ diesel::joinable!(user_permissions -> users (user_id));
 diesel::allow_tables_to_appear_in_same_query!(
 	available_entry_types_for_event,
 	entry_types,
+	event_editors,
 	event_log,
 	event_log_tags,
 	events,

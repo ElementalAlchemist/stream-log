@@ -1,5 +1,5 @@
 use crate::schema::{
-	available_entry_types_for_event, entry_types, event_log, event_log_tags, events, permission_events,
+	available_entry_types_for_event, entry_types, event_editors, event_log, event_log_tags, events, permission_events,
 	permission_groups, tags, user_permissions, users,
 };
 use chrono::prelude::*;
@@ -139,4 +139,10 @@ pub struct EventLogEntry {
 pub struct EventLogTag {
 	pub tag: String,
 	pub log_entry: String,
+}
+
+#[derive(Insertable, Queryable)]
+pub struct EventEditor {
+	pub event: String,
+	pub editor: String,
 }
