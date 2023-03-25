@@ -510,8 +510,25 @@ pub async fn handle_event_update(
 			log_entry.description = new_description;
 			EventSubscriptionData::UpdateLogEntry(log_entry)
 		}
-		EventSubscriptionUpdate::ChangeMediaLink(log_entry, new_media_link) => {
-			todo!()
+		EventSubscriptionUpdate::ChangeMediaLink(mut log_entry, new_media_link) => {
+			{
+				let mut db_connection = db_connection.lock().await;
+				let update_result = diesel::update(event_log::table)
+					.filter(event_log::id.eq(&log_entry.id))
+					.set((
+						event_log::media_link.eq(&new_media_link),
+						event_log::last_update_user.eq(&user.id),
+						event_log::last_updated.eq(Utc::now()),
+					))
+					.execute(&mut *db_connection);
+				if let Err(error) = update_result {
+					tide::log::error!("Database error updating log entry media link: {}", error);
+					return Ok(());
+				}
+			}
+
+			log_entry.media_link = new_media_link;
+			EventSubscriptionData::UpdateLogEntry(log_entry)
 		}
 		EventSubscriptionUpdate::ChangeSubmitterWinner(log_entry, new_submitter_or_winner) => {
 			todo!()
