@@ -14,7 +14,9 @@ use diesel::prelude::*;
 use std::collections::HashMap;
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_log::EventLogEntry;
-use stream_log_shared::messages::event_subscription::{EventSubscriptionResponse, EventUnsubscriptionResponse};
+use stream_log_shared::messages::event_subscription::{
+	EventSubscriptionData, EventSubscriptionResponse, EventSubscriptionUpdate, EventUnsubscriptionResponse,
+};
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::tags::Tag;
@@ -335,6 +337,81 @@ pub async fn subscribe_to_event(
 	send_stream.send_json(&message).await?;
 
 	Ok(())
+}
+
+pub async fn handle_event_update(
+	subscription_manager: Arc<Mutex<SubscriptionManager>>,
+	event: &Event,
+	user: &User,
+	message: Box<EventSubscriptionUpdate>,
+) -> Result<(), HandleConnectionError> {
+	let subscription_manager = subscription_manager.lock().await;
+	let Some(permission_level) = subscription_manager.get_cached_user_permission(&event.id, user).await else {
+		return Ok(());
+	};
+
+	if permission_level != Permission::Edit {
+		// The user doesn't have access to do this; they should only be viewing the data we send them. So we'll ignore their request in this case.
+		return Ok(());
+	}
+
+	let subscription_data = match *message {
+		EventSubscriptionUpdate::NewLogEntry(log_entry_data) => {
+			todo!()
+		}
+		EventSubscriptionUpdate::DeleteLogEntry(deleted_log_entry) => {
+			todo!()
+		}
+		EventSubscriptionUpdate::ChangeStartTime(log_entry, new_start_time) => {
+			todo!()
+		}
+		EventSubscriptionUpdate::ChangeEndTime(log_entry, new_end_time) => {
+			todo!()
+		}
+		EventSubscriptionUpdate::ChangeEntryType(log_entry, new_entry_type) => {
+			todo!()
+		}
+		EventSubscriptionUpdate::ChangeDescription(log_entry, new_description) => {
+			todo!()
+		}
+		EventSubscriptionUpdate::ChangeMediaLink(log_entry, new_media_link) => {
+			todo!()
+		}
+		EventSubscriptionUpdate::ChangeSubmitterWinner(log_entry, new_submitter_or_winner) => {
+			todo!()
+		}
+		EventSubscriptionUpdate::ChangeTags(log_entry, new_tags) => {
+			todo!()
+		}
+		EventSubscriptionUpdate::ChangeMakeVideo(log_entry, new_make_video_value) => {
+			todo!()
+		}
+		EventSubscriptionUpdate::ChangeNotesToEditor(log_entry, new_notes_to_editor) => {
+			todo!()
+		}
+		EventSubscriptionUpdate::ChangeEditor(log_entry, new_editor) => {
+			todo!()
+		}
+		EventSubscriptionUpdate::ChangeHighlighted(log_entry, new_highlighted_value) => {
+			todo!()
+		}
+		EventSubscriptionUpdate::Typing(typing_data) => {
+			todo!()
+		}
+		EventSubscriptionUpdate::NewTag(new_tag) => {
+			todo!()
+		}
+	};
+	let broadcast_result = subscription_manager
+		.broadcast_event_message(&event.id, subscription_data)
+		.await;
+	match broadcast_result {
+		Ok(_) => Ok(()),
+		Err(error) => {
+			tide::log::error!("Error occurred broadcasting an event: {}", error);
+			Err(HandleConnectionError::ConnectionClosed)
+		}
+	}
 }
 
 pub async fn unsubscribe_all(

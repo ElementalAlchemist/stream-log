@@ -85,7 +85,6 @@ pub enum EventSubscriptionUpdate {
 	ChangeHighlighted(EventLogEntry, bool),
 	Typing(NewTypingData),
 	NewTag(Tag),
-	DeleteTag(Tag),
 }
 
 #[derive(Deserialize, Serialize)]

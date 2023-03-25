@@ -66,6 +66,15 @@ impl SubscriptionManager {
 		}
 	}
 
+	/// Gets the cached permission level for a user in a given event to which that user is subscribed.
+	/// If the user is not subscribed to the event, returns None.
+	pub async fn get_cached_user_permission(&self, event_id: &str, user: &User) -> Option<Permission> {
+		match self.event_subscriptions.get(event_id) {
+			Some(event_data) => event_data.get_cached_user_permission(user).await,
+			None => None,
+		}
+	}
+
 	/// Sends the given message to all subscribed users for the given event
 	pub async fn broadcast_event_message(
 		&mut self,
