@@ -1,4 +1,4 @@
-use crate::models::User;
+use crate::models::{Permission, User};
 use async_std::channel::{unbounded, Sender};
 use async_std::sync::{Arc, Mutex};
 use async_std::task::{block_on, spawn, JoinHandle};
@@ -39,18 +39,21 @@ impl SubscriptionManager {
 		&mut self,
 		event_id: &str,
 		subscribing_user: &User,
+		permission: Permission,
 		connection: Arc<Mutex<WebSocketConnection>>,
 	) {
 		match self.event_subscriptions.entry(event_id.to_owned()) {
 			Entry::Occupied(mut event_subscription) => {
 				event_subscription
 					.get_mut()
-					.subscribe_user(subscribing_user, connection)
+					.subscribe_user(subscribing_user, connection, permission)
 					.await
 			}
 			Entry::Vacant(event_entry) => {
 				let event_subscription = EventSubscriptionManager::new();
-				event_subscription.subscribe_user(subscribing_user, connection).await;
+				event_subscription
+					.subscribe_user(subscribing_user, connection, permission)
+					.await;
 				event_entry.insert(event_subscription);
 			}
 		}
@@ -85,17 +88,22 @@ impl SubscriptionManager {
 	}
 }
 
+struct UserEventSubscriptionData {
+	connection: Arc<Mutex<WebSocketConnection>>,
+	permission: Permission,
+}
+
 /// Manages subscriptions for a single event
 struct EventSubscriptionManager {
 	thread_handle: JoinHandle<()>,
 	subscription_send_channel: Sender<EventSubscriptionData>,
-	subscriptions: Arc<Mutex<HashMap<String, Arc<Mutex<WebSocketConnection>>>>>,
+	subscriptions: Arc<Mutex<HashMap<String, UserEventSubscriptionData>>>,
 }
 
 impl EventSubscriptionManager {
 	fn new() -> Self {
 		let (broadcast_tx, mut broadcast_rx) = unbounded::<EventSubscriptionData>();
-		let subscriptions: Arc<Mutex<HashMap<String, Arc<Mutex<WebSocketConnection>>>>> =
+		let subscriptions: Arc<Mutex<HashMap<String, UserEventSubscriptionData>>> =
 			Arc::new(Mutex::new(HashMap::new()));
 		let thread_handle = spawn({
 			let subscriptions = Arc::clone(&subscriptions);
@@ -103,8 +111,8 @@ impl EventSubscriptionManager {
 				while let Some(broadcast_msg) = broadcast_rx.next().await {
 					let mut dead_connection_users: Vec<String> = Vec::new();
 					let mut subscriptions = subscriptions.lock().await;
-					for (user_id, stream) in subscriptions.iter() {
-						let stream = stream.lock().await;
+					for (user_id, user_subscription) in subscriptions.iter() {
+						let stream = user_subscription.connection.lock().await;
 						let send_result = stream.send_json(&broadcast_msg).await;
 						if send_result.is_err() {
 							dead_connection_users.push(user_id.clone());
@@ -124,9 +132,17 @@ impl EventSubscriptionManager {
 		}
 	}
 
-	async fn subscribe_user(&self, user: &User, connection: Arc<Mutex<WebSocketConnection>>) {
+	async fn subscribe_user(&self, user: &User, connection: Arc<Mutex<WebSocketConnection>>, permission: Permission) {
 		let mut subscriptions = self.subscriptions.lock().await;
-		subscriptions.insert(user.id.clone(), connection);
+		let user_subscription_data = UserEventSubscriptionData { connection, permission };
+		subscriptions.insert(user.id.clone(), user_subscription_data);
+	}
+
+	async fn get_cached_user_permission(&self, user: &User) -> Option<Permission> {
+		let subscriptions = self.subscriptions.lock().await;
+		subscriptions
+			.get(&user.id)
+			.map(|subscription_data| subscription_data.permission)
 	}
 
 	async fn unsubscribe_user(&self, user: &User) {

@@ -99,7 +99,7 @@ pub async fn subscribe_to_event(
 	{
 		let mut subscriptions = subscription_manager.lock().await;
 		subscriptions
-			.subscribe_user_to_event(event_id, user, Arc::clone(&stream))
+			.subscribe_user_to_event(event_id, user, permission_level, Arc::clone(&stream))
 			.await;
 	}
 

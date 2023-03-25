@@ -8,7 +8,7 @@ use diesel_derive_enum::DbEnum;
 use rgb::RGB8;
 use stream_log_shared::messages::permissions::PermissionLevel;
 
-#[derive(DbEnum, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, DbEnum, Debug, Eq, PartialEq)]
 pub enum Permission {
 	View,
 	Edit,
