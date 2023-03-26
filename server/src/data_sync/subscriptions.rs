@@ -550,8 +550,47 @@ pub async fn handle_event_update(
 			log_entry.submitter_or_winner = new_submitter_or_winner;
 			EventSubscriptionData::UpdateLogEntry(log_entry)
 		}
-		EventSubscriptionUpdate::ChangeTags(log_entry, new_tags) => {
-			todo!()
+		EventSubscriptionUpdate::ChangeTags(mut log_entry, new_tags) => {
+			{
+				let mut db_connection = db_connection.lock().await;
+				let update_result: QueryResult<()> = db_connection.transaction(|db_connection| {
+					let new_tag_ids: Vec<String> = new_tags.iter().map(|tag| tag.id.clone()).collect();
+					diesel::delete(event_log_tags::table)
+						.filter(
+							event_log_tags::log_entry
+								.eq(&log_entry.id)
+								.and(event_log_tags::tag.ne_all(&new_tag_ids)),
+						)
+						.execute(&mut *db_connection)?;
+					let existing_tags: Vec<String> = event_log_tags::table
+						.filter(
+							event_log_tags::log_entry
+								.eq(&log_entry.id)
+								.and(event_log_tags::tag.eq_any(&new_tag_ids)),
+						)
+						.select(event_log_tags::tag)
+						.load(&mut *db_connection)?;
+					let insert_tag_ids: Vec<EventLogTag> = new_tag_ids
+						.iter()
+						.filter(|id| !existing_tags.contains(*id))
+						.map(|id| EventLogTag {
+							tag: id.clone(),
+							log_entry: log_entry.id.clone(),
+						})
+						.collect();
+					diesel::insert_into(event_log_tags::table)
+						.values(insert_tag_ids)
+						.execute(&mut *db_connection)?;
+					Ok(())
+				});
+				if let Err(error) = update_result {
+					tide::log::error!("Database error updating log entry tags: {}", error);
+					return Ok(());
+				}
+			}
+
+			log_entry.tags = new_tags;
+			EventSubscriptionData::UpdateLogEntry(log_entry)
 		}
 		EventSubscriptionUpdate::ChangeMakeVideo(log_entry, new_make_video_value) => {
 			todo!()
