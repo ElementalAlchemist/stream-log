@@ -390,283 +390,257 @@ pub async fn handle_event_update(
 				})
 				.collect();
 
-			{
-				let mut db_connection = db_connection.lock().await;
-				let insert_result: QueryResult<()> = db_connection.transaction(|db_connection| {
-					diesel::insert_into(event_log::table)
-						.values(db_entry)
-						.execute(db_connection)?;
-					diesel::insert_into(event_log_tags::table)
-						.values(db_tags)
-						.execute(db_connection)?;
-					Ok(())
-				});
-				if let Err(error) = insert_result {
-					tide::log::error!("Database error adding an event log entry: {}", error);
-					return Ok(());
-				}
+			let mut db_connection = db_connection.lock().await;
+			let insert_result: QueryResult<()> = db_connection.transaction(|db_connection| {
+				diesel::insert_into(event_log::table)
+					.values(db_entry)
+					.execute(db_connection)?;
+				diesel::insert_into(event_log_tags::table)
+					.values(db_tags)
+					.execute(db_connection)?;
+				Ok(())
+			});
+			if let Err(error) = insert_result {
+				tide::log::error!("Database error adding an event log entry: {}", error);
+				return Ok(());
 			}
 
 			log_entry_data.id = new_id;
 			EventSubscriptionData::NewLogEntry(log_entry_data)
 		}
 		EventSubscriptionUpdate::DeleteLogEntry(deleted_log_entry) => {
-			{
-				let mut db_connection = db_connection.lock().await;
-				let delete_result: QueryResult<()> = db_connection.transaction(|db_connection| {
-					diesel::delete(event_log_tags::table)
-						.filter(event_log_tags::log_entry.eq(&deleted_log_entry.id))
-						.execute(db_connection)?;
-					diesel::delete(event_log::table)
-						.filter(event_log::id.eq(&deleted_log_entry.id))
-						.execute(db_connection)?;
-					Ok(())
-				});
-				if let Err(error) = delete_result {
-					tide::log::error!("Database error deleting an event log entry: {}", error);
-					return Ok(());
-				}
+			let mut db_connection = db_connection.lock().await;
+			let delete_result: QueryResult<()> = db_connection.transaction(|db_connection| {
+				diesel::delete(event_log_tags::table)
+					.filter(event_log_tags::log_entry.eq(&deleted_log_entry.id))
+					.execute(db_connection)?;
+				diesel::delete(event_log::table)
+					.filter(event_log::id.eq(&deleted_log_entry.id))
+					.execute(db_connection)?;
+				Ok(())
+			});
+			if let Err(error) = delete_result {
+				tide::log::error!("Database error deleting an event log entry: {}", error);
+				return Ok(());
 			}
 
 			EventSubscriptionData::DeleteLogEntry(deleted_log_entry)
 		}
 		EventSubscriptionUpdate::ChangeStartTime(mut log_entry, new_start_time) => {
-			{
-				let mut db_connection = db_connection.lock().await;
-				let update_result = diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id))
-					.set((
-						event_log::start_time.eq(new_start_time),
-						event_log::last_update_user.eq(&user.id),
-						event_log::last_updated.eq(Utc::now()),
-					))
-					.execute(&mut *db_connection);
-				if let Err(error) = update_result {
-					tide::log::error!("Database error updating log entry start time: {}", error);
-					return Ok(());
-				}
+			let mut db_connection = db_connection.lock().await;
+			let update_result = diesel::update(event_log::table)
+				.filter(event_log::id.eq(&log_entry.id))
+				.set((
+					event_log::start_time.eq(new_start_time),
+					event_log::last_update_user.eq(&user.id),
+					event_log::last_updated.eq(Utc::now()),
+				))
+				.execute(&mut *db_connection);
+			if let Err(error) = update_result {
+				tide::log::error!("Database error updating log entry start time: {}", error);
+				return Ok(());
 			}
 
 			log_entry.start_time = new_start_time;
 			EventSubscriptionData::UpdateLogEntry(log_entry)
 		}
 		EventSubscriptionUpdate::ChangeEndTime(mut log_entry, new_end_time) => {
-			{
-				let mut db_connection = db_connection.lock().await;
-				let update_result = diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id))
-					.set((
-						event_log::end_time.eq(new_end_time),
-						event_log::last_update_user.eq(&user.id),
-						event_log::last_updated.eq(Utc::now()),
-					))
-					.execute(&mut *db_connection);
-				if let Err(error) = update_result {
-					tide::log::error!("Database error updating log entry end time; {}", error);
-					return Ok(());
-				}
+			let mut db_connection = db_connection.lock().await;
+			let update_result = diesel::update(event_log::table)
+				.filter(event_log::id.eq(&log_entry.id))
+				.set((
+					event_log::end_time.eq(new_end_time),
+					event_log::last_update_user.eq(&user.id),
+					event_log::last_updated.eq(Utc::now()),
+				))
+				.execute(&mut *db_connection);
+			if let Err(error) = update_result {
+				tide::log::error!("Database error updating log entry end time; {}", error);
+				return Ok(());
 			}
 
 			log_entry.end_time = new_end_time;
 			EventSubscriptionData::UpdateLogEntry(log_entry)
 		}
 		EventSubscriptionUpdate::ChangeEntryType(mut log_entry, new_entry_type) => {
-			{
-				let mut db_connection = db_connection.lock().await;
-				let update_result = diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id))
-					.set((
-						event_log::entry_type.eq(&new_entry_type),
-						event_log::last_update_user.eq(&user.id),
-						event_log::last_updated.eq(Utc::now()),
-					))
-					.execute(&mut *db_connection);
-				if let Err(error) = update_result {
-					tide::log::error!("Database error updating log entry type: {}", error);
-					return Ok(());
-				}
+			let mut db_connection = db_connection.lock().await;
+			let update_result = diesel::update(event_log::table)
+				.filter(event_log::id.eq(&log_entry.id))
+				.set((
+					event_log::entry_type.eq(&new_entry_type),
+					event_log::last_update_user.eq(&user.id),
+					event_log::last_updated.eq(Utc::now()),
+				))
+				.execute(&mut *db_connection);
+			if let Err(error) = update_result {
+				tide::log::error!("Database error updating log entry type: {}", error);
+				return Ok(());
 			}
 
 			log_entry.entry_type = new_entry_type;
 			EventSubscriptionData::UpdateLogEntry(log_entry)
 		}
 		EventSubscriptionUpdate::ChangeDescription(mut log_entry, new_description) => {
-			{
-				let mut db_connection = db_connection.lock().await;
-				let update_result = diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id))
-					.set((
-						event_log::description.eq(&new_description),
-						event_log::last_update_user.eq(&user.id),
-						event_log::last_updated.eq(Utc::now()),
-					))
-					.execute(&mut *db_connection);
-				if let Err(error) = update_result {
-					tide::log::error!("Database error updating log entry description: {}", error);
-					return Ok(());
-				}
+			let mut db_connection = db_connection.lock().await;
+			let update_result = diesel::update(event_log::table)
+				.filter(event_log::id.eq(&log_entry.id))
+				.set((
+					event_log::description.eq(&new_description),
+					event_log::last_update_user.eq(&user.id),
+					event_log::last_updated.eq(Utc::now()),
+				))
+				.execute(&mut *db_connection);
+			if let Err(error) = update_result {
+				tide::log::error!("Database error updating log entry description: {}", error);
+				return Ok(());
 			}
 
 			log_entry.description = new_description;
 			EventSubscriptionData::UpdateLogEntry(log_entry)
 		}
 		EventSubscriptionUpdate::ChangeMediaLink(mut log_entry, new_media_link) => {
-			{
-				let mut db_connection = db_connection.lock().await;
-				let update_result = diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id))
-					.set((
-						event_log::media_link.eq(&new_media_link),
-						event_log::last_update_user.eq(&user.id),
-						event_log::last_updated.eq(Utc::now()),
-					))
-					.execute(&mut *db_connection);
-				if let Err(error) = update_result {
-					tide::log::error!("Database error updating log entry media link: {}", error);
-					return Ok(());
-				}
+			let mut db_connection = db_connection.lock().await;
+			let update_result = diesel::update(event_log::table)
+				.filter(event_log::id.eq(&log_entry.id))
+				.set((
+					event_log::media_link.eq(&new_media_link),
+					event_log::last_update_user.eq(&user.id),
+					event_log::last_updated.eq(Utc::now()),
+				))
+				.execute(&mut *db_connection);
+			if let Err(error) = update_result {
+				tide::log::error!("Database error updating log entry media link: {}", error);
+				return Ok(());
 			}
 
 			log_entry.media_link = new_media_link;
 			EventSubscriptionData::UpdateLogEntry(log_entry)
 		}
 		EventSubscriptionUpdate::ChangeSubmitterWinner(mut log_entry, new_submitter_or_winner) => {
-			{
-				let mut db_connection = db_connection.lock().await;
-				let update_result = diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id))
-					.set((
-						event_log::submitter_or_winner.eq(&new_submitter_or_winner),
-						event_log::last_update_user.eq(&user.id),
-						event_log::last_updated.eq(Utc::now()),
-					))
-					.execute(&mut *db_connection);
-				if let Err(error) = update_result {
-					tide::log::error!("Database error updating log entry submitter/winner: {}", error);
-					return Ok(());
-				}
+			let mut db_connection = db_connection.lock().await;
+			let update_result = diesel::update(event_log::table)
+				.filter(event_log::id.eq(&log_entry.id))
+				.set((
+					event_log::submitter_or_winner.eq(&new_submitter_or_winner),
+					event_log::last_update_user.eq(&user.id),
+					event_log::last_updated.eq(Utc::now()),
+				))
+				.execute(&mut *db_connection);
+			if let Err(error) = update_result {
+				tide::log::error!("Database error updating log entry submitter/winner: {}", error);
+				return Ok(());
 			}
 
 			log_entry.submitter_or_winner = new_submitter_or_winner;
 			EventSubscriptionData::UpdateLogEntry(log_entry)
 		}
 		EventSubscriptionUpdate::ChangeTags(mut log_entry, new_tags) => {
-			{
-				let mut db_connection = db_connection.lock().await;
-				let update_result: QueryResult<()> = db_connection.transaction(|db_connection| {
-					let new_tag_ids: Vec<String> = new_tags.iter().map(|tag| tag.id.clone()).collect();
-					diesel::delete(event_log_tags::table)
-						.filter(
-							event_log_tags::log_entry
-								.eq(&log_entry.id)
-								.and(event_log_tags::tag.ne_all(&new_tag_ids)),
-						)
-						.execute(db_connection)?;
-					let existing_tags: Vec<String> = event_log_tags::table
-						.filter(
-							event_log_tags::log_entry
-								.eq(&log_entry.id)
-								.and(event_log_tags::tag.eq_any(&new_tag_ids)),
-						)
-						.select(event_log_tags::tag)
-						.load(&mut *db_connection)?;
-					let insert_tag_ids: Vec<EventLogTag> = new_tag_ids
-						.iter()
-						.filter(|id| !existing_tags.contains(*id))
-						.map(|id| EventLogTag {
-							tag: id.clone(),
-							log_entry: log_entry.id.clone(),
-						})
-						.collect();
-					diesel::insert_into(event_log_tags::table)
-						.values(insert_tag_ids)
-						.execute(db_connection)?;
-					Ok(())
-				});
-				if let Err(error) = update_result {
-					tide::log::error!("Database error updating log entry tags: {}", error);
-					return Ok(());
-				}
+			let mut db_connection = db_connection.lock().await;
+			let update_result: QueryResult<()> = db_connection.transaction(|db_connection| {
+				let new_tag_ids: Vec<String> = new_tags.iter().map(|tag| tag.id.clone()).collect();
+				diesel::delete(event_log_tags::table)
+					.filter(
+						event_log_tags::log_entry
+							.eq(&log_entry.id)
+							.and(event_log_tags::tag.ne_all(&new_tag_ids)),
+					)
+					.execute(db_connection)?;
+				let existing_tags: Vec<String> = event_log_tags::table
+					.filter(
+						event_log_tags::log_entry
+							.eq(&log_entry.id)
+							.and(event_log_tags::tag.eq_any(&new_tag_ids)),
+					)
+					.select(event_log_tags::tag)
+					.load(&mut *db_connection)?;
+				let insert_tag_ids: Vec<EventLogTag> = new_tag_ids
+					.iter()
+					.filter(|id| !existing_tags.contains(*id))
+					.map(|id| EventLogTag {
+						tag: id.clone(),
+						log_entry: log_entry.id.clone(),
+					})
+					.collect();
+				diesel::insert_into(event_log_tags::table)
+					.values(insert_tag_ids)
+					.execute(db_connection)?;
+				Ok(())
+			});
+			if let Err(error) = update_result {
+				tide::log::error!("Database error updating log entry tags: {}", error);
+				return Ok(());
 			}
 
 			log_entry.tags = new_tags;
 			EventSubscriptionData::UpdateLogEntry(log_entry)
 		}
 		EventSubscriptionUpdate::ChangeMakeVideo(mut log_entry, new_make_video_value) => {
-			{
-				let mut db_connection = db_connection.lock().await;
-				let update_result = diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id))
-					.set((
-						event_log::make_video.eq(new_make_video_value),
-						event_log::last_update_user.eq(&user.id),
-						event_log::last_updated.eq(Utc::now()),
-					))
-					.execute(&mut *db_connection);
-				if let Err(error) = update_result {
-					tide::log::error!("Database error updating log entry make video flag: {}", error);
-					return Ok(());
-				}
+			let mut db_connection = db_connection.lock().await;
+			let update_result = diesel::update(event_log::table)
+				.filter(event_log::id.eq(&log_entry.id))
+				.set((
+					event_log::make_video.eq(new_make_video_value),
+					event_log::last_update_user.eq(&user.id),
+					event_log::last_updated.eq(Utc::now()),
+				))
+				.execute(&mut *db_connection);
+			if let Err(error) = update_result {
+				tide::log::error!("Database error updating log entry make video flag: {}", error);
+				return Ok(());
 			}
 
 			log_entry.make_video = new_make_video_value;
 			EventSubscriptionData::UpdateLogEntry(log_entry)
 		}
 		EventSubscriptionUpdate::ChangeNotesToEditor(mut log_entry, new_notes_to_editor) => {
-			{
-				let mut db_connection = db_connection.lock().await;
-				let update_result = diesel::update(event_log::table)
-					.filter(event_log::id.eq(&user.id))
-					.set((
-						event_log::notes_to_editor.eq(&new_notes_to_editor),
-						event_log::last_update_user.eq(&user.id),
-						event_log::last_updated.eq(Utc::now()),
-					))
-					.execute(&mut *db_connection);
-				if let Err(error) = update_result {
-					tide::log::error!("Database error updating log entry notes to editor: {}", error);
-					return Ok(());
-				}
+			let mut db_connection = db_connection.lock().await;
+			let update_result = diesel::update(event_log::table)
+				.filter(event_log::id.eq(&user.id))
+				.set((
+					event_log::notes_to_editor.eq(&new_notes_to_editor),
+					event_log::last_update_user.eq(&user.id),
+					event_log::last_updated.eq(Utc::now()),
+				))
+				.execute(&mut *db_connection);
+			if let Err(error) = update_result {
+				tide::log::error!("Database error updating log entry notes to editor: {}", error);
+				return Ok(());
 			}
 
 			log_entry.notes_to_editor = new_notes_to_editor;
 			EventSubscriptionData::UpdateLogEntry(log_entry)
 		}
 		EventSubscriptionUpdate::ChangeEditor(mut log_entry, new_editor) => {
-			{
-				let mut db_connection = db_connection.lock().await;
-				let update_result = diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id))
-					.set((
-						event_log::editor.eq(new_editor.as_ref().map(|user| &user.id)),
-						event_log::last_update_user.eq(&user.id),
-						event_log::last_updated.eq(Utc::now()),
-					))
-					.execute(&mut *db_connection);
-				if let Err(error) = update_result {
-					tide::log::error!("Database error updating log entry editor: {}", error);
-					return Ok(());
-				}
+			let mut db_connection = db_connection.lock().await;
+			let update_result = diesel::update(event_log::table)
+				.filter(event_log::id.eq(&log_entry.id))
+				.set((
+					event_log::editor.eq(new_editor.as_ref().map(|user| &user.id)),
+					event_log::last_update_user.eq(&user.id),
+					event_log::last_updated.eq(Utc::now()),
+				))
+				.execute(&mut *db_connection);
+			if let Err(error) = update_result {
+				tide::log::error!("Database error updating log entry editor: {}", error);
+				return Ok(());
 			}
 
 			log_entry.editor = new_editor;
 			EventSubscriptionData::UpdateLogEntry(log_entry)
 		}
 		EventSubscriptionUpdate::ChangeHighlighted(mut log_entry, new_highlighted_value) => {
-			{
-				let mut db_connection = db_connection.lock().await;
-				let update_result = diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id))
-					.set((
-						event_log::highlighted.eq(new_highlighted_value),
-						event_log::last_update_user.eq(&user.id),
-						event_log::last_updated.eq(Utc::now()),
-					))
-					.execute(&mut *db_connection);
-				if let Err(error) = update_result {
-					tide::log::error!("Database error updating log entry highlight: {}", error);
-					return Ok(());
-				}
+			let mut db_connection = db_connection.lock().await;
+			let update_result = diesel::update(event_log::table)
+				.filter(event_log::id.eq(&log_entry.id))
+				.set((
+					event_log::highlighted.eq(new_highlighted_value),
+					event_log::last_update_user.eq(&user.id),
+					event_log::last_updated.eq(Utc::now()),
+				))
+				.execute(&mut *db_connection);
+			if let Err(error) = update_result {
+				tide::log::error!("Database error updating log entry highlight: {}", error);
+				return Ok(());
 			}
 
 			log_entry.highlighted = new_highlighted_value;
