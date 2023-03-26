@@ -7,6 +7,8 @@ use stream_log_shared::messages::RequestMessage;
 /// Sends an unsubscribe all message to the web server
 /// TODO: Handle race conditions by switching communication paradigms again
 pub async fn send_unsubscribe_all_message(ws: &mut WebSocket) -> Result<(), ErrorData> {
+	return Ok(());
+
 	let message = RequestMessage::UnsubscribeAll;
 	let message_json = match serde_json::to_string(&message) {
 		Ok(msg) => msg,
