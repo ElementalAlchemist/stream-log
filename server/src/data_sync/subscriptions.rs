@@ -17,6 +17,7 @@ use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_log::EventLogEntry;
 use stream_log_shared::messages::event_subscription::{
 	EventSubscriptionData, EventSubscriptionResponse, EventSubscriptionUpdate, EventUnsubscriptionResponse,
+	NewTypingData, TypingData,
 };
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::permissions::PermissionLevel;
@@ -647,10 +648,56 @@ pub async fn handle_event_update(
 			EventSubscriptionData::UpdateLogEntry(log_entry)
 		}
 		EventSubscriptionUpdate::Typing(typing_data) => {
-			todo!()
+			let user_data = UserData {
+				id: user.id.clone(),
+				username: user.name.clone(),
+				is_admin: user.is_admin,
+				color: user.color(),
+			};
+			let typing_data = match typing_data {
+				NewTypingData::StartTime(log_entry, start_time_str) => {
+					TypingData::StartTime(log_entry, start_time_str, user_data)
+				}
+				NewTypingData::EndTime(log_entry, end_time_str) => {
+					TypingData::EndTime(log_entry, end_time_str, user_data)
+				}
+				NewTypingData::EntryType(log_entry, type_str) => TypingData::EntryType(log_entry, type_str, user_data),
+				NewTypingData::Description(log_entry, description) => {
+					TypingData::Description(log_entry, description, user_data)
+				}
+				NewTypingData::MediaLink(log_entry, media_link) => {
+					TypingData::MediaLink(log_entry, media_link, user_data)
+				}
+				NewTypingData::SubmitterWinner(log_entry, submitter_or_winner) => {
+					TypingData::SubmitterWinner(log_entry, submitter_or_winner, user_data)
+				}
+				NewTypingData::NotesToEditor(log_entry, notes_to_editor) => {
+					TypingData::NotesToEditor(log_entry, notes_to_editor, user_data)
+				}
+			};
+			EventSubscriptionData::Typing(event.clone(), typing_data)
 		}
-		EventSubscriptionUpdate::NewTag(new_tag) => {
-			todo!()
+		EventSubscriptionUpdate::NewTag(mut new_tag) => {
+			if new_tag.name.is_empty() || new_tag.name.contains(',') || new_tag.description.is_empty() {
+				return Ok(());
+			}
+			let new_id = cuid2::create_id();
+			new_tag.id = new_id.clone();
+			let mut db_connection = db_connection.lock().await;
+			let new_tag_db = TagDb {
+				id: new_id,
+				for_event: event.id.clone(),
+				tag: new_tag.name.clone(),
+				description: new_tag.description.clone(),
+			};
+			let insert_result = diesel::insert_into(tags::table)
+				.values(new_tag_db)
+				.execute(&mut *db_connection);
+			if let Err(error) = insert_result {
+				tide::log::error!("Database error adding a new tag: {}", error);
+				return Ok(());
+			}
+			EventSubscriptionData::NewTag(event.clone(), new_tag)
 		}
 	};
 	let broadcast_result = subscription_manager
