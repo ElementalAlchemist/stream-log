@@ -1,7 +1,7 @@
 use rgb::RGB8;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct UserData {
 	pub id: String,
 	pub username: String,
@@ -9,7 +9,7 @@ pub struct UserData {
 	pub color: RGB8,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub enum UpdateUser {
 	UpdateColor(RGB8),
 }

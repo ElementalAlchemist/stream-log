@@ -31,7 +31,7 @@ pub enum AdminAction {
 	ReplaceTag(Tag, Tag),
 	CopyTags(Event, Event),
 	ListEditorsForEvent(Event),
-	SetEditorsForEvent(Event, Vec<UserData>)
+	SetEditorsForEvent(Event, Vec<UserData>),
 }
 
 /// A single permission group
