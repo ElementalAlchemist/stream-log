@@ -530,8 +530,25 @@ pub async fn handle_event_update(
 			log_entry.media_link = new_media_link;
 			EventSubscriptionData::UpdateLogEntry(log_entry)
 		}
-		EventSubscriptionUpdate::ChangeSubmitterWinner(log_entry, new_submitter_or_winner) => {
-			todo!()
+		EventSubscriptionUpdate::ChangeSubmitterWinner(mut log_entry, new_submitter_or_winner) => {
+			{
+				let mut db_connection = db_connection.lock().await;
+				let update_result = diesel::update(event_log::table)
+					.filter(event_log::id.eq(&log_entry.id))
+					.set((
+						event_log::submitter_or_winner.eq(&new_submitter_or_winner),
+						event_log::last_update_user.eq(&user.id),
+						event_log::last_updated.eq(Utc::now()),
+					))
+					.execute(&mut *db_connection);
+				if let Err(error) = update_result {
+					tide::log::error!("Database error updating log entry submitter/winner: {}", error);
+					return Ok(());
+				}
+			}
+
+			log_entry.submitter_or_winner = new_submitter_or_winner;
+			EventSubscriptionData::UpdateLogEntry(log_entry)
 		}
 		EventSubscriptionUpdate::ChangeTags(log_entry, new_tags) => {
 			todo!()
