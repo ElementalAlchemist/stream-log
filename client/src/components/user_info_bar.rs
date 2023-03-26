@@ -62,6 +62,11 @@ pub fn UserInfoBar<G: Html>(ctx: Scope) -> View<G> {
 											"Manage Tags"
 										}
 									}
+									li {
+										a(href="/admin/editors") {
+											"Manage Event Editors"
+										}
+									}
 								}
 							}
 						}

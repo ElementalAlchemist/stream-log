@@ -16,6 +16,7 @@ mod websocket;
 use components::user_info_bar::UserInfoBar;
 use pages::admin::assign_event_types::AdminManageEventTypesForEventsView;
 use pages::admin::assign_groups::AssignUsersToGroupsView;
+use pages::admin::manage_editors::AdminManageEditorsView;
 use pages::admin::manage_event_types::AdminManageEventTypesView;
 use pages::admin::manage_events::AdminManageEventsView;
 use pages::admin::manage_groups::AdminManageGroupsView;
@@ -54,6 +55,8 @@ enum AppRoutes {
 	AdminEventTypesForEventManager,
 	#[to("/admin/tags")]
 	AdminTagsManager,
+	#[to("/admin/editors")]
+	AdminEditorsManager,
 	#[to("/user_profile")]
 	UserProfile,
 	#[to("/error")]
@@ -145,6 +148,7 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 						AppRoutes::AdminEventTypeManager => view! { ctx, AdminManageEventTypesView },
 						AppRoutes::AdminEventTypesForEventManager => view! { ctx, AdminManageEventTypesForEventsView },
 						AppRoutes::AdminTagsManager => view! { ctx, AdminManageTagsView },
+						AppRoutes::AdminEditorsManager => view! { ctx, AdminManageEditorsView },
 						AppRoutes::UserProfile => view! { ctx, UserProfileView },
 						AppRoutes::Error => view! { ctx, ErrorView },
 						AppRoutes::NotFound => view! { ctx, NotFoundView }
