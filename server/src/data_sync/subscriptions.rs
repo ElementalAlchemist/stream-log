@@ -632,8 +632,25 @@ pub async fn handle_event_update(
 			log_entry.notes_to_editor = new_notes_to_editor;
 			EventSubscriptionData::UpdateLogEntry(log_entry)
 		}
-		EventSubscriptionUpdate::ChangeEditor(log_entry, new_editor) => {
-			todo!()
+		EventSubscriptionUpdate::ChangeEditor(mut log_entry, new_editor) => {
+			{
+				let mut db_connection = db_connection.lock().await;
+				let update_result = diesel::update(event_log::table)
+					.filter(event_log::id.eq(&log_entry.id))
+					.set((
+						event_log::editor.eq(new_editor.as_ref().map(|user| &user.id)),
+						event_log::last_update_user.eq(&user.id),
+						event_log::last_updated.eq(Utc::now()),
+					))
+					.execute(&mut *db_connection);
+				if let Err(error) = update_result {
+					tide::log::error!("Database error updating log entry editor: {}", error);
+					return Ok(());
+				}
+			}
+
+			log_entry.editor = new_editor;
+			EventSubscriptionData::UpdateLogEntry(log_entry)
 		}
 		EventSubscriptionUpdate::ChangeHighlighted(log_entry, new_highlighted_value) => {
 			todo!()
