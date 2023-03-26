@@ -561,7 +561,7 @@ pub async fn handle_event_update(
 								.eq(&log_entry.id)
 								.and(event_log_tags::tag.ne_all(&new_tag_ids)),
 						)
-						.execute(&mut *db_connection)?;
+						.execute(db_connection)?;
 					let existing_tags: Vec<String> = event_log_tags::table
 						.filter(
 							event_log_tags::log_entry
@@ -580,7 +580,7 @@ pub async fn handle_event_update(
 						.collect();
 					diesel::insert_into(event_log_tags::table)
 						.values(insert_tag_ids)
-						.execute(&mut *db_connection)?;
+						.execute(db_connection)?;
 					Ok(())
 				});
 				if let Err(error) = update_result {
