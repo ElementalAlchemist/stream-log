@@ -1,11 +1,11 @@
 use super::HandleConnectionError;
 use crate::models::{
-	AvailableEntryType, EntryType as EntryTypeDb, Event as EventDb, Permission, PermissionEvent,
+	AvailableEntryType, EntryType as EntryTypeDb, Event as EventDb, EventEditor, Permission, PermissionEvent,
 	PermissionGroup as PermissionGroupDb, Tag as TagDb, User, UserPermission,
 };
 use crate::schema::{
-	available_entry_types_for_event, entry_types, event_log_tags, events, permission_events, permission_groups, tags,
-	user_permissions, users,
+	available_entry_types_for_event, entry_types, event_editors, event_log_tags, events, permission_events,
+	permission_groups, tags, user_permissions, users,
 };
 use async_std::sync::{Arc, Mutex};
 use chrono::prelude::*;
@@ -666,6 +666,61 @@ pub async fn handle_admin(
 				Ok(())
 			});
 			if let Err(error) = tx_result {
+				tide::log::error!("Database error: {}", error);
+				return Err(HandleConnectionError::ConnectionClosed);
+			}
+		}
+		AdminAction::ListEditorsForEvent(event) => {
+			let mut db_connection = db_connection.lock().await;
+			let users: QueryResult<Vec<User>> = users::table
+				.filter(
+					event_editors::table
+						.filter(
+							event_editors::event
+								.eq(&event.id)
+								.and(event_editors::editor.eq(users::id)),
+						)
+						.count()
+						.single_value()
+						.gt(0),
+				)
+				.load(&mut *db_connection);
+			let users: DataMessage<Vec<UserData>> = match users {
+				Ok(users) => Ok(users
+					.iter()
+					.map(|user| UserData {
+						id: user.id.clone(),
+						username: user.name.clone(),
+						is_admin: user.is_admin,
+						color: user.color(),
+					})
+					.collect()),
+				Err(error) => {
+					tide::log::error!("Database error retrieving editors: {}", error);
+					DataMessage::Err(DataError::DatabaseError)
+				}
+			};
+			stream.lock().await.send_json(&users).await?;
+		}
+		AdminAction::SetEditorsForEvent(event, editors) => {
+			let event_editors: Vec<EventEditor> = editors
+				.iter()
+				.map(|user| EventEditor {
+					event: event.id.clone(),
+					editor: user.id.clone(),
+				})
+				.collect();
+			let mut db_connection = db_connection.lock().await;
+			let update_result: QueryResult<()> = db_connection.transaction(|db_connection| {
+				diesel::delete(event_editors::table)
+					.filter(event_editors::event.eq(&event.id))
+					.execute(db_connection)?;
+				diesel::insert_into(event_editors::table)
+					.values(event_editors)
+					.execute(db_connection)?;
+				Ok(())
+			});
+			if let Err(error) = update_result {
 				tide::log::error!("Database error: {}", error);
 				return Err(HandleConnectionError::ConnectionClosed);
 			}

@@ -30,6 +30,8 @@ pub enum AdminAction {
 	RemoveTag(Tag),
 	ReplaceTag(Tag, Tag),
 	CopyTags(Event, Event),
+	ListEditorsForEvent(Event),
+	SetEditorsForEvent(Event, Vec<UserData>)
 }
 
 /// A single permission group
