@@ -4,8 +4,8 @@ use crate::models::{
 	PermissionEvent, Tag as TagDb, User,
 };
 use crate::schema::{
-	available_entry_types_for_event, entry_types, event_log, event_log_tags, events, permission_events, tags,
-	user_permissions, users,
+	available_entry_types_for_event, entry_types, event_editors, event_log, event_log_tags, events, permission_events,
+	tags, user_permissions, users,
 };
 use crate::synchronization::SubscriptionManager;
 use async_std::sync::{Arc, Mutex};
@@ -224,6 +224,24 @@ pub async fn subscribe_to_event(
 			editor_user_ids.push(user_id.clone());
 		}
 	}
+	let editor_user_ids: Vec<String> = match event_editors::table
+		.filter(event_editors::event.eq(event_id))
+		.select(event_editors::editor)
+		.load(&mut *db_connection)
+	{
+		Ok(editors) => editors,
+		Err(error) => {
+			tide::log::error!("Database error retrieving editors for event: {}", error);
+			let message = EventSubscriptionResponse::Error(DataError::DatabaseError);
+			send_stream.send_json(&message).await?;
+			subscription_manager
+				.lock()
+				.await
+				.unsubscribe_user_from_event(event_id, user)
+				.await;
+			return Ok(());
+		}
+	};
 
 	let mut editors: Vec<User> = match users::table
 		.filter(users::id.eq_any(&editor_user_ids))
