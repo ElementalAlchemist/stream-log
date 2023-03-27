@@ -133,7 +133,7 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 					}
 				)
 			}
-			div(class="log_entry_video") {
+			div(class="log_entry_make_video") {
 				(if props.entry.make_video {
 					view! {
 						ctx,
@@ -143,7 +143,7 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 					view! { ctx, }
 				})
 			}
-			div(class="log_entry_editor") {
+			div(class="log_entry_editor_link") {
 				(if let Some(link) = props.entry.editor_link.as_ref() {
 					let link = link.clone();
 					view! {
@@ -154,7 +154,7 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 					view! { ctx, }
 				})
 			}
-			div(class="log_entry_video") {
+			div(class="log_entry_video_link") {
 				(if let Some(link) = props.entry.video_link.as_ref() {
 					let link = link.clone();
 					view! {

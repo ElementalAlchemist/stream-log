@@ -269,6 +269,24 @@ input.error {
 	margin-bottom: 5px;
 }
 
+#event_log_data {
+	display: grid;
+	grid-template-columns: max-content max-content max-content 1fr 150px 150px 150px 50px 50px 50px max-content 200px;
+}
+
+.event_log_header {
+	padding: 2px;
+	font-weight: 700;
+}
+
+.event_log_entry {
+	display: contents;
+	
+	> div {
+		padding: 2px;
+	}
+}
+
 .event_log_entry_edit div {
 	padding: 2px;
 }
