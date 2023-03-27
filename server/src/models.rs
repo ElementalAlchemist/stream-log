@@ -9,6 +9,7 @@ use rgb::RGB8;
 use stream_log_shared::messages::permissions::PermissionLevel;
 
 #[derive(Clone, Copy, DbEnum, Debug, Eq, PartialEq)]
+#[ExistingTypePath = "crate::schema::sql_types::Permission"]
 pub enum Permission {
 	View,
 	Edit,
