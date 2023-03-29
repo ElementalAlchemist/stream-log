@@ -1,5 +1,4 @@
 use super::error::{ErrorData, ErrorView};
-use crate::subscriptions::send_unsubscribe_all_message;
 use crate::websocket::read_websocket;
 use futures::lock::Mutex;
 use futures::SinkExt;
@@ -41,12 +40,6 @@ async fn EventSelectionLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	let event_list_response: DataMessage<EventSelection> = {
 		let ws_context: &Mutex<WebSocket> = use_context(ctx);
 		let mut ws = ws_context.lock().await;
-
-		if let Err(error) = send_unsubscribe_all_message(&mut ws).await {
-			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-			error_signal.set(Some(error));
-			return view! { ctx, ErrorView };
-		}
 
 		if let Err(error) = ws.send(Message::Text(message_json)).await {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);

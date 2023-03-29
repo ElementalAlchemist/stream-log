@@ -1,7 +1,6 @@
 use crate::color_utils::{color_from_rgb_str, rgb_str_from_color};
 use crate::components::color_input_with_contrast::ColorInputWithContrast;
 use crate::pages::error::{ErrorData, ErrorView};
-use crate::subscriptions::send_unsubscribe_all_message;
 use crate::websocket::read_websocket;
 use futures::lock::Mutex;
 use futures::SinkExt;
@@ -69,16 +68,6 @@ async fn get_user_list(ctx: Scope<'_>) -> Result<Vec<UserData>, ()> {
 
 #[component]
 async fn AdminManageUsersLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
-	{
-		let ws_context: &Mutex<WebSocket> = use_context(ctx);
-		let mut ws = ws_context.lock().await;
-		if let Err(error) = send_unsubscribe_all_message(&mut ws).await {
-			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-			error_signal.set(Some(error));
-			return view! { ctx, ErrorView };
-		}
-	}
-
 	let Ok(user_list) = get_user_list(ctx).await else {
 		return view! { ctx, ErrorView };
 	};

@@ -11,7 +11,6 @@ mod color_utils;
 mod components;
 mod event_type_colors;
 mod pages;
-mod subscriptions;
 mod websocket;
 use components::user_info_bar::UserInfoBar;
 use pages::admin::assign_event_types::AdminManageEventTypesForEventsView;

@@ -1,6 +1,5 @@
 use super::error::{ErrorData, ErrorView};
 use crate::components::event_log_entry::{EventLogEntryEdit, EventLogEntryRow};
-use crate::subscriptions::send_unsubscribe_all_message;
 use crate::websocket::read_websocket;
 use chrono::{DateTime, Utc};
 use futures::lock::Mutex;
@@ -43,12 +42,6 @@ enum ModifiedEventLogEntryParts {
 async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> View<G> {
 	let ws_context: &Mutex<WebSocket> = use_context(ctx);
 	let mut ws = ws_context.lock().await;
-
-	if let Err(error) = send_unsubscribe_all_message(&mut ws).await {
-		let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-		error_signal.set(Some(error));
-		return view! { ctx, ErrorView };
-	}
 
 	let subscribe_msg = RequestMessage::SubscribeToEvent(props.id.clone());
 	let subscribe_msg_json = match serde_json::to_string(&subscribe_msg) {

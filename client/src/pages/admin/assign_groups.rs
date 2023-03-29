@@ -1,5 +1,4 @@
 use crate::pages::error::{ErrorData, ErrorView};
-use crate::subscriptions::send_unsubscribe_all_message;
 use crate::websocket::read_websocket;
 use futures::lock::Mutex;
 use futures::SinkExt;
@@ -19,12 +18,6 @@ use web_sys::{Event as WebEvent, HtmlButtonElement};
 async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	let ws_context: &Mutex<WebSocket> = use_context(ctx);
 	let mut ws = ws_context.lock().await;
-
-	if let Err(error) = send_unsubscribe_all_message(&mut ws).await {
-		let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-		error_signal.set(Some(error));
-		return view! { ctx, ErrorView };
-	}
 
 	let users_request = RequestMessage::Admin(AdminAction::ListUsers);
 	let users_request_json = match serde_json::to_string(&users_request) {
