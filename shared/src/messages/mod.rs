@@ -8,6 +8,7 @@ pub mod event_subscription;
 pub mod events;
 pub mod initial;
 pub mod permissions;
+pub mod subscriptions;
 pub mod tags;
 pub mod user;
 pub mod user_register;
@@ -15,6 +16,7 @@ pub mod user_register;
 use admin::AdminAction;
 use event_subscription::EventSubscriptionUpdate;
 use events::Event;
+use subscriptions::{InitialSubscriptionLoadData, SubscriptionData, SubscriptionFailureInfo, SubscriptionType};
 use user::UpdateUser;
 
 #[derive(Deserialize, Serialize)]
@@ -42,4 +44,18 @@ pub enum RequestMessage {
 	EventSubscriptionUpdate(Event, Box<EventSubscriptionUpdate>),
 	Admin(AdminAction),
 	UpdateProfile(UpdateUser),
+}
+
+#[derive(Deserialize, Serialize)]
+pub enum FromClientMessage {
+	StartSubscription(SubscriptionType),
+	EndSubscription(SubscriptionType),
+}
+
+#[derive(Deserialize, Serialize)]
+pub enum FromServerMessage {
+	InitialSubscriptionLoad(Box<InitialSubscriptionLoadData>),
+	SubscriptionMessage(Box<SubscriptionData>),
+	Unsubscribed(SubscriptionType),
+	SubscriptionFailure(SubscriptionType, SubscriptionFailureInfo),
 }

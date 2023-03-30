@@ -66,7 +66,7 @@ pub enum TypingData {
 	NotesToEditor(Option<EventLogEntry>, String, UserData),
 }
 
-/// Event subsription update sent by the client to the server.
+/// Event subscription update sent by the client to the server.
 #[derive(Deserialize, Serialize)]
 pub enum EventSubscriptionUpdate {
 	NewLogEntry(EventLogEntry),
