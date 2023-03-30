@@ -1,7 +1,9 @@
 use futures::lock::Mutex;
+use futures::StreamExt;
 use gloo_net::websocket::futures::WebSocket;
 use stream_log_shared::messages::initial::{InitialMessage, UserDataLoad};
 use stream_log_shared::SYNC_VERSION;
+use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use sycamore::suspense::Suspense;
 use sycamore_router::{HistoryIntegration, Route, Router};
@@ -29,6 +31,7 @@ use pages::not_found::NotFoundView;
 use pages::register::RegistrationView;
 use pages::register_complete::RegistrationCompleteView;
 use pages::user_profile::UserProfileView;
+use subscriptions::{process_messages, DataSignals};
 use websocket::read_websocket;
 
 #[derive(Debug, Route)]
@@ -121,11 +124,19 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 	};
 	provide_context_ref(ctx, create_signal(ctx, user_data));
 
+	let (ws_write, ws_read) = ws.split();
+
 	// Assuming the WASM client for this might multithread at any point in the future is probably way overkill.
 	// That said, we need to await for any websocket operations anyway, so a locking wrapper doesn't hurt us.
 	// Since contention is unlikely, this shouldn't introduce any significant delay.
-	let ws = Mutex::new(ws);
+	let ws = Mutex::new(ws_write);
 	provide_context(ctx, ws);
+
+	let client_data = DataSignals::new(ctx);
+	let client_data = create_signal(ctx, client_data);
+	provide_context_ref(ctx, client_data);
+
+	spawn_local_scoped(ctx, process_messages(ctx, ws_read));
 
 	view! {
 		ctx,
