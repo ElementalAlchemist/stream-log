@@ -1,7 +1,7 @@
-use super::error::ErrorData;
 use crate::color_utils::color_from_rgb_str;
 use crate::components::color_input_with_contrast::ColorInputWithContrast;
-use crate::websocket::read_websocket;
+use crate::subscriptions::errors::ErrorData;
+use crate::subscriptions::DataSignals;
 use futures::lock::Mutex;
 use futures::stream::SplitSink;
 use futures::SinkExt;
@@ -9,10 +9,8 @@ use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::user_register::{
-	RegistrationResponse, UserRegistration, UserRegistrationFinalize, UsernameCheckResponse, UsernameCheckStatus,
-	USERNAME_LENGTH_LIMIT,
+	RegistrationFinalizeResponse, UserRegistration, UserRegistrationFinalize, USERNAME_LENGTH_LIMIT,
 };
-use stream_log_shared::messages::DataMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use sycamore_router::navigate;
@@ -30,8 +28,41 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		}
 	}
 
+	create_effect(ctx, || {
+		let data: &RcSignal<DataSignals> = use_context(ctx);
+		let data = data.get_untracked();
+		let registration_data = data.registration.final_register.get();
+		if let Some(reg_data) = registration_data.as_ref() {
+			match reg_data {
+				RegistrationFinalizeResponse::Success(data) => {
+					let user_signal: &Signal<Option<UserData>> = use_context(ctx);
+					user_signal.set(Some(data.clone()));
+					navigate("/register_complete");
+				}
+				RegistrationFinalizeResponse::NoUsernameSpecified => data.errors.modify().push(ErrorData::new(
+					"You didn't enter a username. Enter your registration data and try again.",
+				)),
+				RegistrationFinalizeResponse::UsernameInUse => data.errors.modify().push(ErrorData::new(
+					"The username you entered is already in use. Select another one and try again.",
+				)),
+				RegistrationFinalizeResponse::UsernameTooLong => data.errors.modify().push(ErrorData::new(
+					"The username you entered is too long. Select a shorter name and try again.",
+				)),
+			}
+		}
+	});
+
+	let data: &RcSignal<DataSignals> = use_context(ctx);
+
 	let username_signal = create_signal(ctx, String::new());
-	let username_in_use_signal = create_signal(ctx, false);
+	let username_in_use_signal = create_memo(ctx, || {
+		username_signal.track();
+		if let Some(check_data) = data.get_untracked().registration.username_check.get().as_ref() {
+			check_data.username == *username_signal.get() && check_data.available
+		} else {
+			false
+		}
+	});
 	let username_empty_signal = create_memo(ctx, || username_signal.get().is_empty());
 	let username_too_long_signal = create_memo(ctx, || username_signal.get().len() > USERNAME_LENGTH_LIMIT);
 	let username_field = create_node_ref(ctx);
@@ -71,78 +102,37 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			let message_json = match serde_json::to_string(&message) {
 				Ok(msg) => msg,
 				Err(error) => {
-					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-					error_signal.set(Some(ErrorData::new_with_error(
+					let data: &RcSignal<DataSignals> = use_context(ctx);
+					data.get().errors.modify().push(ErrorData::new_with_error(
 						"Failed to serialize registration message. Ensure your username is valid and try again.",
 						error,
-					)));
-					navigate("/error");
+					));
 					return;
 				}
 			};
 
 			if let Err(error) = ws.send(Message::Text(message_json)).await {
-				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-				error_signal.set(Some(ErrorData::new_with_error(
-					"Failed to send registration message",
-					error,
-				)));
-				navigate("/error");
+				let data: &RcSignal<DataSignals> = use_context(ctx);
+				data.get()
+					.errors
+					.modify()
+					.push(ErrorData::new_with_error("Failed to send registration message.", error));
 				return;
-			}
-
-			let response: DataMessage<RegistrationResponse> = match read_websocket(&mut ws).await {
-				Ok(data) => data,
-				Err(error) => {
-					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-					error_signal.set(Some(ErrorData::new_with_error(
-						"Failed to receive registration response",
-						error,
-					)));
-					navigate("/error");
-					return;
-				}
-			};
-
-			let response = match response {
-				Ok(resp) => resp,
-				Err(error) => {
-					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-					error_signal.set(Some(ErrorData::new_with_error(
-						"A server error occurred during registration.",
-						error,
-					)));
-					navigate("/error");
-					return;
-				}
-			};
-
-			match response {
-				RegistrationResponse::Success(user) => {
-					let user_data_signal: &Signal<Option<UserData>> = use_context(ctx);
-					user_data_signal.set(Some(user));
-					navigate("/register_complete");
-				}
-				RegistrationResponse::UsernameInUse => username_in_use_signal.set(true),
-				_ => {
-					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-					error_signal.set(Some(ErrorData::new("A desync occurred in validation expectations between the client and the server. Please refresh the page.")));
-					navigate("/error");
-				}
 			}
 		});
 	};
 
 	create_effect(ctx, move || {
 		let username = (*username_signal.get()).clone();
+		let data: &RcSignal<DataSignals> = use_context(ctx);
 
 		if username.is_empty() {
-			username_in_use_signal.set(false);
+			data.get_untracked().registration.username_check.set(None);
 			return;
 		}
 
 		if username.len() > USERNAME_LENGTH_LIMIT {
-			username_in_use_signal.set(false);
+			data.get_untracked().registration.username_check.set(None);
 			return;
 		}
 
@@ -154,57 +144,22 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			let message_json = match serde_json::to_string(&message) {
 				Ok(msg) => msg,
 				Err(error) => {
-					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-					error_signal.set(Some(ErrorData::new_with_error(
+					let data: &RcSignal<DataSignals> = use_context(ctx);
+					data.get().errors.modify().push(ErrorData::new_with_error(
 						"Failed to serialize username availability check. Ensure your username is valid and try again.",
 						error,
-					)));
-					navigate("/error");
+					));
 					return;
 				}
 			};
 
 			if let Err(error) = ws.send(Message::Text(message_json)).await {
-				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-				error_signal.set(Some(ErrorData::new_with_error(
+				let data: &RcSignal<DataSignals> = use_context(ctx);
+				data.get().errors.modify().push(ErrorData::new_with_error(
 					"Failed to send username availability check message.",
 					error,
-				)));
-				navigate("/error");
+				));
 				return;
-			}
-
-			let response: DataMessage<UsernameCheckResponse> = match read_websocket(&mut ws).await {
-				Ok(data) => data,
-				Err(error) => {
-					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-					error_signal.set(Some(ErrorData::new_with_error(
-						"Failed to receive username availability check response.",
-						error,
-					)));
-					navigate("/error");
-					return;
-				}
-			};
-
-			let response = match response {
-				Ok(resp) => resp,
-				Err(error) => {
-					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-					error_signal.set(Some(ErrorData::new_with_error(
-						"A server error occurred checking username availability.",
-						error,
-					)));
-					navigate("/error");
-					return;
-				}
-			};
-
-			if *username_signal.get() == response.username {
-				match response.status {
-					UsernameCheckStatus::Available => username_in_use_signal.set(false),
-					UsernameCheckStatus::Unavailable => username_in_use_signal.set(true),
-				}
 			}
 		});
 	});

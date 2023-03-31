@@ -25,13 +25,7 @@ pub enum RegistrationResponse {
 #[derive(Deserialize, Serialize)]
 pub struct UsernameCheckResponse {
 	pub username: String,
-	pub status: UsernameCheckStatus,
-}
-
-#[derive(Deserialize, Serialize)]
-pub enum UsernameCheckStatus {
-	Available,
-	Unavailable,
+	pub available: bool,
 }
 
 #[derive(Deserialize, Serialize)]
