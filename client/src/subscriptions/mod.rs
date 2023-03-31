@@ -3,6 +3,7 @@ use futures::stream::SplitStream;
 use gloo_net::websocket::futures::WebSocket;
 use std::collections::HashMap;
 use stream_log_shared::messages::subscriptions::InitialSubscriptionLoadData;
+use stream_log_shared::messages::user_register::RegistrationResponse;
 use stream_log_shared::messages::FromServerMessage;
 use sycamore::prelude::*;
 
@@ -77,7 +78,16 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 			FromServerMessage::SubscriptionMessage(subscription_data) => { /* TODO */ }
 			FromServerMessage::Unsubscribed(subscription_type) => { /* TODO */ }
 			FromServerMessage::SubscriptionFailure(subscription_type, failure_info) => { /* TODO */ }
-			FromServerMessage::RegistrationResponse(response) => { /* TODO */ }
+			FromServerMessage::RegistrationResponse(response) => match response {
+				RegistrationResponse::UsernameCheck(check_data) => {
+					data_signals.get().registration.username_check.set(Some(check_data))
+				}
+				RegistrationResponse::Finalize(registration_data) => data_signals
+					.get()
+					.registration
+					.final_register
+					.set(Some(registration_data)),
+			},
 		}
 	}
 }
