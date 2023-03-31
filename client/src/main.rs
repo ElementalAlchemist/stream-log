@@ -25,7 +25,6 @@ use pages::admin::manage_events::AdminManageEventsView;
 use pages::admin::manage_groups::AdminManageGroupsView;
 use pages::admin::manage_tags::AdminManageTagsView;
 use pages::admin::manage_users::AdminManageUsersView;
-use pages::error::{ErrorData, ErrorView};
 use pages::event_log::EventLogView;
 use pages::event_selection::EventSelectionView;
 use pages::not_found::NotFoundView;
@@ -69,19 +68,19 @@ enum AppRoutes {
 
 #[component]
 async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
-	let error_data: Option<ErrorData> = None;
-	provide_context_ref(ctx, create_signal(ctx, error_data));
-
 	let ws = WebSocket::open(websocket_endpoint().as_str());
 	let ws = match ws {
 		Ok(ws) => ws,
 		Err(error) => {
-			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-			error_signal.set(Some(ErrorData::new_with_error(
-				"Unable to load/operate: Failed to form a websocket connection",
-				error,
-			)));
-			return view! { ctx, ErrorView };
+			return view! {
+				ctx,
+				div(id="fatal_startup_error") {
+					div(id="fatal_startup_error_description") {
+						"Unable to load/operate: Failed to form a websocket connection"
+					}
+					div(id="fatal_startup_error_details") { (error) }
+				}
+			}
 		}
 	};
 
@@ -90,37 +89,51 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 	let initial_message: InitialMessage = match read_websocket(&mut ws_read).await {
 		Ok(msg) => msg,
 		Err(error) => {
-			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-			error_signal.set(Some(ErrorData::new_with_error(
-				"Unable to load/operate: Failed to read initial info message",
-				error,
-			)));
-			return view! { ctx, ErrorView };
+			return view! {
+				ctx,
+				div(id="fatal_startup_error") {
+					div(id="fatal_startup_error_description") {
+						"Unable to load/operate: Failed to read initial info message"
+					}
+					div(id="fatal_startup_error_details") { (error) }
+				}
+			}
 		}
 	};
 
 	if initial_message.sync_version != SYNC_VERSION {
-		let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-		error_signal.set(Some(ErrorData::new("A mismatch in communication protocols occurred between the lient and the server. Please refresh the page. If the problem persists, please contact an administrator.")));
-		return view! { ctx, ErrorView };
+		return view! {
+			ctx,
+			div(id="fatal_startup_error") {
+				div(id="fatal_startup_error_description") {
+					"A mismatch in communication protocols occurred between the client and the server. Please refresh the page. If the problem persists, please contact an administrator."
+				}
+			}
+		};
 	}
 
 	let user_data = match initial_message.user_data {
 		UserDataLoad::User(user_data) => Some(user_data),
 		UserDataLoad::NewUser => None,
 		UserDataLoad::MissingId => {
-			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-			error_signal.set(Some(ErrorData::new(
-				"An error occurred reading user data. Please log in again.",
-			)));
-			return view! { ctx, ErrorView };
+			return view! {
+				ctx,
+				div(id="fatal_startup_error") {
+					div(id="fatal_startup_error_description") {
+						"An error occurred reading user data. Please log in again."
+					}
+				}
+			};
 		}
 		UserDataLoad::Error => {
-			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-			error_signal.set(Some(ErrorData::new(
-				"An error occurred with logging in. Please contact an administrator regarding this issue.",
-			)));
-			return view! { ctx, ErrorView };
+			return view! {
+				ctx,
+				div(id="fatal_startup_error") {
+					div(id="fatal_startup_error_description") {
+						"An error occurred logging in. Please contact an administrator."
+					}
+				}
+			}
 		}
 	};
 	provide_context_ref(ctx, create_signal(ctx, user_data));
