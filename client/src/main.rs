@@ -133,7 +133,7 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 	provide_context(ctx, ws);
 
 	let client_data = DataSignals::new(ctx);
-	provide_context_ref(ctx, create_signal(ctx, client_data));
+	provide_context(ctx, create_rc_signal(client_data));
 
 	spawn_local_scoped(ctx, process_messages(ctx, ws_read));
 
