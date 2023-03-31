@@ -1,5 +1,7 @@
 use crate::color_utils::{color_from_rgb_str, rgb_str_from_color};
 use crate::components::color_input_with_contrast::ColorInputWithContrast;
+use crate::subscriptions::errors::ErrorData;
+use crate::subscriptions::DataSignals;
 use futures::lock::Mutex;
 use futures::stream::SplitSink;
 use futures::SinkExt;
@@ -38,9 +40,11 @@ pub fn UserProfileView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			let new_color = match color_from_rgb_str(color_signal.get().as_str()) {
 				Ok(color) => color,
 				Err(error) => {
-					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-					error_signal.set(Some(ErrorData::new_with_error("Failed to handle new color", error)));
-					navigate("/error");
+					let data: &RcSignal<DataSignals> = use_context(ctx);
+					data.get()
+						.errors
+						.modify()
+						.push(ErrorData::new_with_error("Failed to handle new color", error));
 					return;
 				}
 			};
@@ -49,12 +53,11 @@ pub fn UserProfileView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			let message_json = match serde_json::to_string(&message) {
 				Ok(msg) => msg,
 				Err(error) => {
-					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-					error_signal.set(Some(ErrorData::new_with_error(
+					let data: &RcSignal<DataSignals> = use_context(ctx);
+					data.get().errors.modify().push(ErrorData::new_with_error(
 						"Failed to serialize user color update request",
 						error,
-					)));
-					navigate("/error");
+					));
 					return;
 				}
 			};
@@ -66,12 +69,11 @@ pub fn UserProfileView<G: Html>(ctx: Scope<'_>) -> View<G> {
 					let mut ws = ws_context.lock().await;
 
 					if let Err(error) = ws.send(Message::Text(message_json)).await {
-						let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-						error_signal.set(Some(ErrorData::new_with_error(
+						let data: &RcSignal<DataSignals> = use_context(ctx);
+						data.get().errors.modify().push(ErrorData::new_with_error(
 							"Failed to send user color update request",
 							error,
-						)));
-						navigate("/error");
+						));
 						return;
 					}
 
