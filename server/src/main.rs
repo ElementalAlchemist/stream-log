@@ -99,7 +99,6 @@ async fn main() -> miette::Result<()> {
 	establish_alternate_route(&mut app, "/admin/tags")?;
 	establish_alternate_route(&mut app, "/admin/editors")?;
 	establish_alternate_route(&mut app, "/user_profile")?;
-	establish_alternate_route(&mut app, "/error")?;
 
 	app.listen(&config.listen.addr).await.into_diagnostic()?;
 

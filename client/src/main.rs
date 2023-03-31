@@ -63,8 +63,6 @@ enum AppRoutes {
 	AdminEditorsManager,
 	#[to("/user_profile")]
 	UserProfile,
-	#[to("/error")]
-	Error,
 	#[not_found]
 	NotFound,
 }
@@ -162,7 +160,6 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 						AppRoutes::AdminTagsManager => view! { ctx, AdminManageTagsView },
 						AppRoutes::AdminEditorsManager => view! { ctx, AdminManageEditorsView },
 						AppRoutes::UserProfile => view! { ctx, UserProfileView },
-						AppRoutes::Error => view! { ctx, ErrorView },
 						AppRoutes::NotFound => view! { ctx, NotFoundView }
 					})
 				}
