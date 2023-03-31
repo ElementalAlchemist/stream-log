@@ -158,7 +158,7 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 				log::info!("Navigating to route: {:?}", route.get());
 				view! {
 					ctx,
-					UserInfoBar {}
+					UserInfoBar {} // This must remain in the router so its links can be handled by the router
 					(match route.get().as_ref() {
 						AppRoutes::EventSelection => view! { ctx, EventSelectionView },
 						AppRoutes::Register => view! { ctx, RegistrationView },
