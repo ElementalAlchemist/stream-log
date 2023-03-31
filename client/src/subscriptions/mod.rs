@@ -7,6 +7,9 @@ use stream_log_shared::messages::user_register::RegistrationResponse;
 use stream_log_shared::messages::FromServerMessage;
 use sycamore::prelude::*;
 
+pub mod errors;
+use errors::ErrorData;
+
 pub mod event;
 use event::EventSubscriptionSignals;
 
@@ -16,7 +19,7 @@ use registration::RegistrationData;
 /// A struct containing all of the signals that can be updated by server messages.
 #[derive(Clone)]
 pub struct DataSignals<'a> {
-	pub errors: &'a Signal<Vec<String>>,
+	pub errors: &'a Signal<Vec<ErrorData>>,
 	pub events: HashMap<String, EventSubscriptionSignals>,
 	pub registration: RegistrationData,
 }
@@ -39,7 +42,7 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 		let message: FromServerMessage = match read_websocket(&mut ws_read).await {
 			Ok(msg) => msg,
 			Err(_) => {
-				data_signals.get().errors.modify().push(String::from(
+				data_signals.get().errors.modify().push(ErrorData::new(
 					"The connection with the server has broken. If this wasn't expected, refresh the page.",
 				));
 				break;

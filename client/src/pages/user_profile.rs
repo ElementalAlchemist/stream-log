@@ -1,4 +1,3 @@
-use super::error::ErrorData;
 use crate::color_utils::{color_from_rgb_str, rgb_str_from_color};
 use crate::components::color_input_with_contrast::ColorInputWithContrast;
 use futures::lock::Mutex;

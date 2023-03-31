@@ -16,15 +16,7 @@ pub fn ErrorDisplay<G: Html>(ctx: Scope<'_>) -> View<G> {
 					let data: &RcSignal<DataSignals> = use_context(ctx);
 					data.get_untracked().errors.modify().remove(index);
 				};
-				view! {
-					ctx,
-					li(class="page_error_entry") {
-						span(class="page_error_entry_text") { (error) }
-						span(class="page_error_entry_dismiss") {
-							a(class="click") { "[X]" }
-						}
-					}
-				}
+				error.to_view(ctx, dismiss_handler)
 			})
 			.collect(),
 	);
