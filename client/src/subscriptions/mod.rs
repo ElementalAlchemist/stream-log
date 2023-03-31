@@ -9,11 +9,15 @@ use sycamore::prelude::*;
 pub mod event;
 use event::EventSubscriptionSignals;
 
+pub mod registration;
+use registration::RegistrationData;
+
 /// A struct containing all of the signals that can be updated by server messages.
 #[derive(Clone)]
 pub struct DataSignals<'a> {
 	pub errors: &'a Signal<Vec<String>>,
 	pub events: HashMap<String, EventSubscriptionSignals>,
+	pub registration: RegistrationData,
 }
 
 impl<'a> DataSignals<'a> {
@@ -21,6 +25,7 @@ impl<'a> DataSignals<'a> {
 		Self {
 			errors: create_signal(ctx, Vec::new()),
 			events: HashMap::new(),
+			registration: RegistrationData::new(),
 		}
 	}
 }
