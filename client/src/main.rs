@@ -74,7 +74,7 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 	provide_context_ref(ctx, create_signal(ctx, error_data));
 
 	let ws = WebSocket::open(websocket_endpoint().as_str());
-	let mut ws = match ws {
+	let ws = match ws {
 		Ok(ws) => ws,
 		Err(error) => {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
@@ -86,7 +86,9 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 		}
 	};
 
-	let initial_message: InitialMessage = match read_websocket(&mut ws).await {
+	let (ws_write, mut ws_read) = ws.split();
+
+	let initial_message: InitialMessage = match read_websocket(&mut ws_read).await {
 		Ok(msg) => msg,
 		Err(error) => {
 			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
@@ -124,8 +126,6 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 	};
 	provide_context_ref(ctx, create_signal(ctx, user_data));
 
-	let (ws_write, ws_read) = ws.split();
-
 	// Assuming the WASM client for this might multithread at any point in the future is probably way overkill.
 	// That said, we need to await for any websocket operations anyway, so a locking wrapper doesn't hurt us.
 	// Since contention is unlikely, this shouldn't introduce any significant delay.
@@ -133,8 +133,7 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 	provide_context(ctx, ws);
 
 	let client_data = DataSignals::new(ctx);
-	let client_data = create_signal(ctx, client_data);
-	provide_context_ref(ctx, client_data);
+	provide_context_ref(ctx, create_signal(ctx, client_data));
 
 	spawn_local_scoped(ctx, process_messages(ctx, ws_read));
 

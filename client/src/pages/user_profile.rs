@@ -2,6 +2,7 @@ use super::error::ErrorData;
 use crate::color_utils::{color_from_rgb_str, rgb_str_from_color};
 use crate::components::color_input_with_contrast::ColorInputWithContrast;
 use futures::lock::Mutex;
+use futures::stream::SplitSink;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
@@ -62,7 +63,7 @@ pub fn UserProfileView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			spawn_local_scoped(ctx, {
 				let user_data = user_data.clone();
 				async move {
-					let ws_context: &Mutex<WebSocket> = use_context(ctx);
+					let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 					let mut ws = ws_context.lock().await;
 
 					if let Err(error) = ws.send(Message::Text(message_json)).await {

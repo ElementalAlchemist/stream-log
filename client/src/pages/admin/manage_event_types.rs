@@ -3,6 +3,7 @@ use crate::event_type_colors::{use_white_foreground, WHITE};
 use crate::pages::error::{ErrorData, ErrorView};
 use crate::websocket::read_websocket;
 use futures::lock::Mutex;
+use futures::stream::SplitSink;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
@@ -26,7 +27,7 @@ enum SelectedIndex {
 
 #[component]
 async fn AdminManageEventTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
-	let ws_context: &Mutex<WebSocket> = use_context(ctx);
+	let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 	let mut ws = ws_context.lock().await;
 
 	let message = RequestMessage::Admin(AdminAction::ListEventTypes);
@@ -158,7 +159,7 @@ async fn AdminManageEventTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 					event_types_signal.modify()[index] = event_type_data.clone();
 				}
 				spawn_local_scoped(ctx, async move {
-					let ws_context: &Mutex<WebSocket> = use_context(ctx);
+					let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 					let mut ws = ws_context.lock().await;
 
 					let message = if selected_event_type == SelectedIndex::NewType {

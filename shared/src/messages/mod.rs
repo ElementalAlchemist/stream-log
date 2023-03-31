@@ -18,6 +18,7 @@ use event_subscription::EventSubscriptionUpdate;
 use events::Event;
 use subscriptions::{InitialSubscriptionLoadData, SubscriptionData, SubscriptionFailureInfo, SubscriptionType};
 use user::UpdateUser;
+use user_register::{RegistrationResponse, UserRegistration};
 
 #[derive(Deserialize, Serialize)]
 pub enum DataError {
@@ -50,6 +51,7 @@ pub enum RequestMessage {
 pub enum FromClientMessage {
 	StartSubscription(SubscriptionType),
 	EndSubscription(SubscriptionType),
+	RegistrationRequest(UserRegistration),
 }
 
 #[derive(Deserialize, Serialize)]
@@ -58,4 +60,5 @@ pub enum FromServerMessage {
 	SubscriptionMessage(Box<SubscriptionData>),
 	Unsubscribed(SubscriptionType),
 	SubscriptionFailure(SubscriptionType, SubscriptionFailureInfo),
+	RegistrationResponse(RegistrationResponse),
 }

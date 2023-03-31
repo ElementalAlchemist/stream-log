@@ -1,6 +1,7 @@
 use super::error::{ErrorData, ErrorView};
 use crate::websocket::read_websocket;
 use futures::lock::Mutex;
+use futures::stream::SplitSink;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
@@ -38,7 +39,7 @@ async fn EventSelectionLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	};
 
 	let event_list_response: DataMessage<EventSelection> = {
-		let ws_context: &Mutex<WebSocket> = use_context(ctx);
+		let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 		let mut ws = ws_context.lock().await;
 
 		if let Err(error) = ws.send(Message::Text(message_json)).await {

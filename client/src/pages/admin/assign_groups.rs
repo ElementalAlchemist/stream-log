@@ -1,6 +1,7 @@
 use crate::pages::error::{ErrorData, ErrorView};
 use crate::websocket::read_websocket;
 use futures::lock::Mutex;
+use futures::stream::SplitSink;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
@@ -16,7 +17,7 @@ use web_sys::{Event as WebEvent, HtmlButtonElement};
 
 #[component]
 async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
-	let ws_context: &Mutex<WebSocket> = use_context(ctx);
+	let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 	let mut ws = ws_context.lock().await;
 
 	let users_request = RequestMessage::Admin(AdminAction::ListUsers);
@@ -155,7 +156,7 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		};
 
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<WebSocket> = use_context(ctx);
+			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let message = RequestMessage::Admin(AdminAction::ListUserPermissionGroups(initial_selected_user.clone()));
@@ -260,7 +261,7 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		};
 
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<WebSocket> = use_context(ctx);
+			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let permission_group_user = PermissionGroupUser {
@@ -378,7 +379,7 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 										}
 									};
 
-									let ws_context: &Mutex<WebSocket> = use_context(ctx);
+									let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 									let mut ws = ws_context.lock().await;
 
 									if let Err(error) = ws.send(Message::Text(message_json)).await {

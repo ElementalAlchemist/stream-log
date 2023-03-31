@@ -3,6 +3,7 @@ use crate::components::event_log_entry::{EventLogEntryEdit, EventLogEntryRow};
 use crate::websocket::read_websocket;
 use chrono::{DateTime, Utc};
 use futures::lock::Mutex;
+use futures::stream::SplitSink;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
@@ -40,7 +41,7 @@ enum ModifiedEventLogEntryParts {
 
 #[component]
 async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> View<G> {
-	let ws_context: &Mutex<WebSocket> = use_context(ctx);
+	let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 	let mut ws = ws_context.lock().await;
 
 	let subscribe_msg = RequestMessage::SubscribeToEvent(props.id.clone());
@@ -175,7 +176,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		};
 
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<WebSocket> = use_context(ctx);
+			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let message = RequestMessage::EventSubscriptionUpdate(
@@ -364,7 +365,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 
 											let event = (*event_signal.get()).clone();
 
-											let ws_context: &Mutex<WebSocket> = use_context(ctx);
+											let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 											let mut ws = ws_context.lock().await;
 
 											let modified_data = modified_data.modify();

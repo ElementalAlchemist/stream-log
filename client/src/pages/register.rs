@@ -3,6 +3,7 @@ use crate::color_utils::color_from_rgb_str;
 use crate::components::color_input_with_contrast::ColorInputWithContrast;
 use crate::websocket::read_websocket;
 use futures::lock::Mutex;
+use futures::stream::SplitSink;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
@@ -63,7 +64,7 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		};
 
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<WebSocket> = use_context(ctx);
+			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let message = UserRegistration::Finalize(registration_data);
@@ -146,7 +147,7 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		}
 
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<WebSocket> = use_context(ctx);
+			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let message = UserRegistration::CheckUsername(username);

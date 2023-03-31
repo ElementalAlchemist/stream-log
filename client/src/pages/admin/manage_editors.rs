@@ -1,6 +1,7 @@
 use crate::pages::error::{ErrorData, ErrorView};
 use crate::websocket::read_websocket;
 use futures::lock::Mutex;
+use futures::stream::SplitSink;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
@@ -17,7 +18,7 @@ use web_sys::Event as WebEvent;
 
 #[component]
 async fn AdminManageEditorsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
-	let ws_context: &Mutex<WebSocket> = use_context(ctx);
+	let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 	let mut ws = ws_context.lock().await;
 
 	let user_request = RequestMessage::Admin(AdminAction::ListUsers);
@@ -148,7 +149,7 @@ async fn AdminManageEditorsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		event_editors.track();
 		spawn_local_scoped(ctx, async move {
 			let Some(current_event) = (*current_event.get()).clone() else { return; };
-			let ws_context: &Mutex<WebSocket> = use_context(ctx);
+			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let update_message = RequestMessage::Admin(AdminAction::SetEditorsForEvent(
@@ -217,7 +218,7 @@ async fn AdminManageEditorsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				}
 			};
 
-			let ws_context: &Mutex<WebSocket> = use_context(ctx);
+			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			if let Err(error) = ws.send(Message::Text(editors_request_json)).await {

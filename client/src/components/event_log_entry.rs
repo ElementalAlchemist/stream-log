@@ -3,6 +3,7 @@ use crate::pages::error::ErrorData;
 use chrono::{DateTime, Duration, Utc};
 use contrast::contrast;
 use futures::lock::Mutex;
+use futures::stream::SplitSink;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
@@ -259,7 +260,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			return;
 		}
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<WebSocket> = use_context(ctx);
+			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let message = RequestMessage::EventSubscriptionUpdate(
@@ -325,7 +326,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			return;
 		}
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<WebSocket> = use_context(ctx);
+			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let message = RequestMessage::EventSubscriptionUpdate(
@@ -385,7 +386,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			return;
 		}
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<WebSocket> = use_context(ctx);
+			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let message = RequestMessage::EventSubscriptionUpdate(
@@ -426,7 +427,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			return;
 		}
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<WebSocket> = use_context(ctx);
+			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let message = RequestMessage::EventSubscriptionUpdate(
@@ -467,7 +468,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			return;
 		}
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<WebSocket> = use_context(ctx);
+			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let message = RequestMessage::EventSubscriptionUpdate(
@@ -508,7 +509,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			return;
 		}
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<WebSocket> = use_context(ctx);
+			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let message = RequestMessage::EventSubscriptionUpdate(
@@ -604,7 +605,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			return;
 		}
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<WebSocket> = use_context(ctx);
+			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let message = RequestMessage::EventSubscriptionUpdate(
@@ -751,7 +752,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 											event.prevent_default();
 											let tag_name = tag_name.clone();
 											spawn_local_scoped(ctx, async move {
-												let ws_context: &Mutex<WebSocket> = use_context(ctx);
+												let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 												let mut ws = ws_context.lock().await;
 												let new_tag = Tag { id: String::new(), name: tag_name.clone(), description: (*description_signal.get()).clone() };
 												let message = RequestMessage::EventSubscriptionUpdate((*props.event.get()).clone(), Box::new(EventSubscriptionUpdate::NewTag(new_tag)));

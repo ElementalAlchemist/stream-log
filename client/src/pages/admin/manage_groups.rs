@@ -1,6 +1,7 @@
 use crate::pages::error::{ErrorData, ErrorView};
 use crate::websocket::read_websocket;
 use futures::lock::Mutex;
+use futures::stream::SplitSink;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
@@ -68,7 +69,7 @@ impl From<PermissionGroupWithOptionalEvents> for PermissionGroupWithEvents {
 #[component]
 async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	let (events, mut permission_groups) = {
-		let ws_context: &Mutex<WebSocket> = use_context(ctx);
+		let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 		let mut ws = ws_context.lock().await;
 
 		let message = RequestMessage::Admin(AdminAction::ListEvents);
@@ -227,7 +228,7 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				}
 			};
 
-			let ws_context: &Mutex<WebSocket> = use_context(ctx);
+			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 			if let Err(error) = ws.send(Message::Text(message_json)).await {
 				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);

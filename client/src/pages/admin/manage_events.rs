@@ -2,6 +2,7 @@ use crate::pages::error::{ErrorData, ErrorView};
 use crate::websocket::read_websocket;
 use chrono::prelude::*;
 use futures::lock::Mutex;
+use futures::stream::SplitSink;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
@@ -37,7 +38,7 @@ fn parse_time_field_value(value: &str) -> chrono::format::ParseResult<DateTime<U
 }
 
 async fn get_event_list(ctx: Scope<'_>) -> Result<Vec<Event>, ()> {
-	let ws_context: &Mutex<WebSocket> = use_context(ctx);
+	let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 	let mut ws = ws_context.lock().await;
 
 	let event_list_message = RequestMessage::Admin(AdminAction::ListEvents);
@@ -155,7 +156,7 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				};
 
 				spawn_local_scoped(ctx, async move {
-					let ws_context: &Mutex<WebSocket> = use_context(ctx);
+					let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 					let mut ws = ws_context.lock().await;
 					match ws.send(Message::Text(message_json)).await {
 						Ok(_) => navigate("/"),

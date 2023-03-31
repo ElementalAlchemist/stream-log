@@ -1,6 +1,7 @@
 use crate::pages::error::{ErrorData, ErrorView};
 use crate::websocket::read_websocket;
 use futures::lock::Mutex;
+use futures::stream::SplitSink;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
@@ -18,7 +19,7 @@ use web_sys::Event as WebEvent;
 
 #[component]
 async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
-	let ws_context: &Mutex<WebSocket> = use_context(ctx);
+	let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 	let mut ws = ws_context.lock().await;
 
 	let events_request = RequestMessage::Admin(AdminAction::ListEvents);
@@ -134,7 +135,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		entered_new_tag_description_signal.modify().clear();
 
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<WebSocket> = use_context(ctx);
+			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let message = RequestMessage::Admin(AdminAction::AddTag(new_tag, for_event.clone()));
@@ -206,7 +207,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 		tags_signal.modify().clear();
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<WebSocket> = use_context(ctx);
+			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let message = RequestMessage::Admin(AdminAction::ListTagsForEvent(new_selection.clone()));
@@ -324,7 +325,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 							};
 
 							spawn_local_scoped(ctx, async move {
-								let ws_context: &Mutex<WebSocket> = use_context(ctx);
+								let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 								let mut ws = ws_context.lock().await;
 
 								if let Err(error) = ws.send(Message::Text(message_json)).await {
@@ -351,7 +352,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 								let Some((tag_index, _)) = modify_tags.iter().enumerate().find(|(_, t)| tag.id == t.id) else { return; };
 								modify_tags.remove(tag_index);
 
-								let ws_context: &Mutex<WebSocket> = use_context(ctx);
+								let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 								let mut ws = ws_context.lock().await;
 
 								let message = RequestMessage::Admin(AdminAction::RemoveTag(tag));
@@ -411,7 +412,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 									}
 								};
 
-								let ws_context: &Mutex<WebSocket> = use_context(ctx);
+								let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 								let mut ws = ws_context.lock().await;
 
 								if let Err(error) = ws.send(Message::Text(message_json)).await {

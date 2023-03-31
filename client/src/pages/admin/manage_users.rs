@@ -3,6 +3,7 @@ use crate::components::color_input_with_contrast::ColorInputWithContrast;
 use crate::pages::error::{ErrorData, ErrorView};
 use crate::websocket::read_websocket;
 use futures::lock::Mutex;
+use futures::stream::SplitSink;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
@@ -17,7 +18,7 @@ use sycamore_router::navigate;
 use web_sys::{Event as WebEvent, HtmlButtonElement, HtmlInputElement};
 
 async fn get_user_list(ctx: Scope<'_>) -> Result<Vec<UserData>, ()> {
-	let ws_context: &Mutex<WebSocket> = use_context(ctx);
+	let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 	let mut ws = ws_context.lock().await;
 	let message = RequestMessage::Admin(AdminAction::ListUsers);
 	let message_json = match serde_json::to_string(&message) {
@@ -104,7 +105,7 @@ async fn AdminManageUsersLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				}
 			};
 
-			let ws_context: &Mutex<WebSocket> = use_context(ctx);
+			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			if let Err(error) = ws.send(Message::Text(message_json)).await {
