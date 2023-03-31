@@ -11,6 +11,7 @@ use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::user_register::{
 	RegistrationFinalizeResponse, UserRegistration, UserRegistrationFinalize, USERNAME_LENGTH_LIMIT,
 };
+use stream_log_shared::messages::FromClientMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use sycamore_router::navigate;
@@ -98,7 +99,7 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
-			let message = UserRegistration::Finalize(registration_data);
+			let message = FromClientMessage::RegistrationRequest(UserRegistration::Finalize(registration_data));
 			let message_json = match serde_json::to_string(&message) {
 				Ok(msg) => msg,
 				Err(error) => {
@@ -140,7 +141,7 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
-			let message = UserRegistration::CheckUsername(username);
+			let message = FromClientMessage::RegistrationRequest(UserRegistration::CheckUsername(username));
 			let message_json = match serde_json::to_string(&message) {
 				Ok(msg) => msg,
 				Err(error) => {
