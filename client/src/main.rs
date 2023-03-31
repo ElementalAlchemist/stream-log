@@ -15,6 +15,7 @@ mod event_type_colors;
 mod pages;
 mod subscriptions;
 mod websocket;
+use components::error_display::ErrorDisplay;
 use components::user_info_bar::UserInfoBar;
 use pages::admin::assign_event_types::AdminManageEventTypesForEventsView;
 use pages::admin::assign_groups::AssignUsersToGroupsView;
@@ -139,6 +140,7 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 	view! {
 		ctx,
+		ErrorDisplay
 		Router(
 			integration=HistoryIntegration::new(),
 			view=|ctx, route: &ReadSignal<AppRoutes>| {
