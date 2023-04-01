@@ -1,5 +1,6 @@
 use crate::color_utils::rgb_str_from_color;
-use crate::pages::error::ErrorData;
+use crate::subscriptions::errors::ErrorData;
+use crate::subscriptions::DataSignals;
 use chrono::{DateTime, Duration, Utc};
 use contrast::contrast;
 use futures::lock::Mutex;
@@ -18,7 +19,6 @@ use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::RequestMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
-use sycamore_router::navigate;
 use web_sys::Event as WebEvent;
 
 const WHITE: RGB8 = RGB8::new(255, 255, 255);
@@ -273,22 +273,19 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			let message_json = match serde_json::to_string(&message) {
 				Ok(msg) => msg,
 				Err(error) => {
-					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-					error_signal.set(Some(ErrorData::new_with_error(
-						"Failed to serialize typing notification",
+					let data: &DataSignals = use_context(ctx);
+					data.errors.modify().push(ErrorData::new_with_error(
+						"Failed to serialize typing notification.",
 						error,
-					)));
-					navigate("/error");
+					));
 					return;
 				}
 			};
 			if let Err(error) = ws.send(Message::Text(message_json)).await {
-				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-				error_signal.set(Some(ErrorData::new_with_error(
-					"Failed to send typing notification",
-					error,
-				)));
-				navigate("/error");
+				let data: &DataSignals = use_context(ctx);
+				data.errors
+					.modify()
+					.push(ErrorData::new_with_error("Failed to send typing notification.", error));
 			}
 		});
 	});
@@ -339,22 +336,19 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			let message_json = match serde_json::to_string(&message) {
 				Ok(msg) => msg,
 				Err(error) => {
-					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-					error_signal.set(Some(ErrorData::new_with_error(
-						"Failed to serialize typing notification",
+					let data: &DataSignals = use_context(ctx);
+					data.errors.modify().push(ErrorData::new_with_error(
+						"Failed to serialize typing notification.",
 						error,
-					)));
-					navigate("/error");
+					));
 					return;
 				}
 			};
 			if let Err(error) = ws.send(Message::Text(message_json)).await {
-				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-				error_signal.set(Some(ErrorData::new_with_error(
-					"Failed to send typing notification",
-					error,
-				)));
-				navigate("/error");
+				let data: &DataSignals = use_context(ctx);
+				data.errors
+					.modify()
+					.push(ErrorData::new_with_error("Failed to send typing notification.", error));
 			}
 		});
 	});
@@ -399,22 +393,19 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			let message_json = match serde_json::to_string(&message) {
 				Ok(msg) => msg,
 				Err(error) => {
-					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-					error_signal.set(Some(ErrorData::new_with_error(
-						"Failed to serialize typing notification",
+					let data: &DataSignals = use_context(ctx);
+					data.errors.modify().push(ErrorData::new_with_error(
+						"Failed to serialize typing notification.",
 						error,
-					)));
-					navigate("/error");
+					));
 					return;
 				}
 			};
 			if let Err(error) = ws.send(Message::Text(message_json)).await {
-				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-				error_signal.set(Some(ErrorData::new_with_error(
-					"Failed to send typing notification",
-					error,
-				)));
-				navigate("/error");
+				let data: &DataSignals = use_context(ctx);
+				data.errors
+					.modify()
+					.push(ErrorData::new_with_error("Failed to send typing notification.", error));
 			}
 		});
 	});
@@ -440,22 +431,19 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			let message_json = match serde_json::to_string(&message) {
 				Ok(msg) => msg,
 				Err(error) => {
-					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-					error_signal.set(Some(ErrorData::new_with_error(
-						"Failed to serialize typing notification",
+					let data: &DataSignals = use_context(ctx);
+					data.errors.modify().push(ErrorData::new_with_error(
+						"Failed to serialize typing notification.",
 						error,
-					)));
-					navigate("/error");
+					));
 					return;
 				}
 			};
 			if let Err(error) = ws.send(Message::Text(message_json)).await {
-				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-				error_signal.set(Some(ErrorData::new_with_error(
-					"Failed to send typing notification",
-					error,
-				)));
-				navigate("/error");
+				let data: &DataSignals = use_context(ctx);
+				data.errors
+					.modify()
+					.push(ErrorData::new_with_error("Failed to send typing notification.", error));
 			}
 		});
 	});
@@ -481,22 +469,19 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			let message_json = match serde_json::to_string(&message) {
 				Ok(msg) => msg,
 				Err(error) => {
-					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-					error_signal.set(Some(ErrorData::new_with_error(
-						"Failed to serialize typing notification",
+					let data: &DataSignals = use_context(ctx);
+					data.errors.modify().push(ErrorData::new_with_error(
+						"Failed to serialize typing notification.",
 						error,
-					)));
-					navigate("/error");
+					));
 					return;
 				}
 			};
 			if let Err(error) = ws.send(Message::Text(message_json)).await {
-				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-				error_signal.set(Some(ErrorData::new_with_error(
-					"Failed to send typing notification",
-					error,
-				)));
-				navigate("/error");
+				let data: &DataSignals = use_context(ctx);
+				data.errors
+					.modify()
+					.push(ErrorData::new_with_error("Failed to send typing notification.", error));
 			}
 		});
 	});
@@ -522,22 +507,19 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			let message_json = match serde_json::to_string(&message) {
 				Ok(msg) => msg,
 				Err(error) => {
-					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-					error_signal.set(Some(ErrorData::new_with_error(
-						"Failed to serialize typing notification",
+					let data: &DataSignals = use_context(ctx);
+					data.errors.modify().push(ErrorData::new_with_error(
+						"Failed to serialize typing notification.",
 						error,
-					)));
-					navigate("/error");
+					));
 					return;
 				}
 			};
 			if let Err(error) = ws.send(Message::Text(message_json)).await {
-				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-				error_signal.set(Some(ErrorData::new_with_error(
-					"Failed to send typing notification",
-					error,
-				)));
-				navigate("/error");
+				let data: &DataSignals = use_context(ctx);
+				data.errors
+					.modify()
+					.push(ErrorData::new_with_error("Failed to send typing notification.", error));
 			}
 		});
 	});
@@ -618,22 +600,19 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			let message_json = match serde_json::to_string(&message) {
 				Ok(msg) => msg,
 				Err(error) => {
-					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-					error_signal.set(Some(ErrorData::new_with_error(
-						"Failed to serialize typing notification",
+					let data: &DataSignals = use_context(ctx);
+					data.errors.modify().push(ErrorData::new_with_error(
+						"Failed to serialize typing notification.",
 						error,
-					)));
-					navigate("/error");
+					));
 					return;
 				}
 			};
 			if let Err(error) = ws.send(Message::Text(message_json)).await {
-				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-				error_signal.set(Some(ErrorData::new_with_error(
-					"Failed to send typing notification",
-					error,
-				)));
-				navigate("/error");
+				let data: &DataSignals = use_context(ctx);
+				data.errors
+					.modify()
+					.push(ErrorData::new_with_error("Failed to send typing notification.", error));
 			}
 		});
 	});
@@ -759,16 +738,14 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 												let message_json = match serde_json::to_string(&message) {
 													Ok(msg) => msg,
 													Err(error) => {
-														let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-														error_signal.set(Some(ErrorData::new_with_error("Failed to serialize new tag creation message", error)));
-														navigate("/error");
+														let data: &DataSignals = use_context(ctx);
+														data.errors.modify().push(ErrorData::new_with_error("Failed to serialize new tag creation message.", error));
 														return;
 													}
 												};
 												if let Err(error) = ws.send(Message::Text(message_json)).await {
-													let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-													error_signal.set(Some(ErrorData::new_with_error("Failed to send new tag creation message", error)));
-													navigate("/error");
+													let data: &DataSignals = use_context(ctx);
+													data.errors.modify().push(ErrorData::new_with_error("Failed to send new tag creation message.", error));
 												}
 											});
 										}
