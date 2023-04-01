@@ -57,6 +57,6 @@ pub enum SubscriptionFailureInfo {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub enum SubscriptionTargetUpdate {
-	EventUpdate(Event, EventSubscriptionUpdate),
+	EventUpdate(Event, Box<EventSubscriptionUpdate>),
 	AdminUserUpdate(UserData),
 }

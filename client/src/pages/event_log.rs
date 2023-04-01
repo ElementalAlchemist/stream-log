@@ -182,7 +182,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 
 				let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
 					(*event_signal.get()).clone(),
-					EventSubscriptionUpdate::NewLogEntry(new_event_log_entry),
+					Box::new(EventSubscriptionUpdate::NewLogEntry(new_event_log_entry)),
 				)));
 				let message_json = match serde_json::to_string(&message) {
 					Ok(msg) => msg,
@@ -395,7 +395,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 														ModifiedEventLogEntryParts::Editor => EventSubscriptionUpdate::ChangeEditor(log_entry.clone(), (*edit_editor.get()).clone()),
 														ModifiedEventLogEntryParts::Highlighted => EventSubscriptionUpdate::ChangeHighlighted(log_entry.clone(), *edit_highlighted.get())
 													};
-													let event_message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(event.clone(), event_message)));
+													let event_message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(event.clone(), Box::new(event_message))));
 													let event_message = match serde_json::to_string(&event_message) {
 														Ok(msg) => msg,
 														Err(error) => {
