@@ -8,7 +8,7 @@ use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
 use stream_log_shared::messages::user::{UpdateUser, UserData};
-use stream_log_shared::messages::RequestMessage;
+use stream_log_shared::messages::FromClientMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use sycamore_router::navigate;
@@ -49,7 +49,7 @@ pub fn UserProfileView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				}
 			};
 
-			let message = RequestMessage::UpdateProfile(UpdateUser::UpdateColor(new_color));
+			let message = FromClientMessage::UpdateProfile(UpdateUser::UpdateColor(new_color));
 			let message_json = match serde_json::to_string(&message) {
 				Ok(msg) => msg,
 				Err(error) => {
