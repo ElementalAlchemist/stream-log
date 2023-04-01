@@ -30,8 +30,7 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	}
 
 	create_effect(ctx, || {
-		let data: &RcSignal<DataSignals> = use_context(ctx);
-		let data = data.get_untracked();
+		let data: &DataSignals = use_context(ctx);
 		let registration_data = data.registration.final_register.get();
 		if let Some(reg_data) = registration_data.as_ref() {
 			match reg_data {
@@ -53,12 +52,12 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		}
 	});
 
-	let data: &RcSignal<DataSignals> = use_context(ctx);
+	let data: &DataSignals = use_context(ctx);
 
 	let username_signal = create_signal(ctx, String::new());
 	let username_in_use_signal = create_memo(ctx, || {
 		username_signal.track();
-		if let Some(check_data) = data.get_untracked().registration.username_check.get().as_ref() {
+		if let Some(check_data) = data.registration.username_check.get().as_ref() {
 			check_data.username == *username_signal.get() && check_data.available
 		} else {
 			false
@@ -103,8 +102,8 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			let message_json = match serde_json::to_string(&message) {
 				Ok(msg) => msg,
 				Err(error) => {
-					let data: &RcSignal<DataSignals> = use_context(ctx);
-					data.get().errors.modify().push(ErrorData::new_with_error(
+					let data: &DataSignals = use_context(ctx);
+					data.errors.modify().push(ErrorData::new_with_error(
 						"Failed to serialize registration message. Ensure your username is valid and try again.",
 						error,
 					));
@@ -113,9 +112,8 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			};
 
 			if let Err(error) = ws.send(Message::Text(message_json)).await {
-				let data: &RcSignal<DataSignals> = use_context(ctx);
-				data.get()
-					.errors
+				let data: &DataSignals = use_context(ctx);
+				data.errors
 					.modify()
 					.push(ErrorData::new_with_error("Failed to send registration message.", error));
 				return;
@@ -125,15 +123,15 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 	create_effect(ctx, move || {
 		let username = (*username_signal.get()).clone();
-		let data: &RcSignal<DataSignals> = use_context(ctx);
+		let data: &DataSignals = use_context(ctx);
 
 		if username.is_empty() {
-			data.get_untracked().registration.username_check.set(None);
+			data.registration.username_check.set(None);
 			return;
 		}
 
 		if username.len() > USERNAME_LENGTH_LIMIT {
-			data.get_untracked().registration.username_check.set(None);
+			data.registration.username_check.set(None);
 			return;
 		}
 
@@ -145,8 +143,8 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			let message_json = match serde_json::to_string(&message) {
 				Ok(msg) => msg,
 				Err(error) => {
-					let data: &RcSignal<DataSignals> = use_context(ctx);
-					data.get().errors.modify().push(ErrorData::new_with_error(
+					let data: &DataSignals = use_context(ctx);
+					data.errors.modify().push(ErrorData::new_with_error(
 						"Failed to serialize username availability check. Ensure your username is valid and try again.",
 						error,
 					));
@@ -155,8 +153,8 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			};
 
 			if let Err(error) = ws.send(Message::Text(message_json)).await {
-				let data: &RcSignal<DataSignals> = use_context(ctx);
-				data.get().errors.modify().push(ErrorData::new_with_error(
+				let data: &DataSignals = use_context(ctx);
+				data.errors.modify().push(ErrorData::new_with_error(
 					"Failed to send username availability check message.",
 					error,
 				));

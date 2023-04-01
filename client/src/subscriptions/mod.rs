@@ -2,6 +2,7 @@ use crate::websocket::read_websocket;
 use futures::stream::SplitStream;
 use gloo_net::websocket::futures::WebSocket;
 use std::collections::HashMap;
+use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::subscriptions::InitialSubscriptionLoadData;
 use stream_log_shared::messages::user_register::RegistrationResponse;
 use stream_log_shared::messages::FromServerMessage;
@@ -20,29 +21,31 @@ use registration::RegistrationData;
 #[derive(Clone)]
 pub struct DataSignals<'a> {
 	pub errors: &'a Signal<Vec<ErrorData>>,
-	pub events: HashMap<String, EventSubscriptionSignals>,
-	pub registration: RegistrationData,
+	pub events: &'a Signal<HashMap<String, EventSubscriptionSignals>>,
+	pub registration: RegistrationData<'a>,
+	pub available_events: &'a Signal<Vec<Event>>,
 }
 
 impl<'a> DataSignals<'a> {
 	pub fn new(ctx: Scope<'_>) -> Self {
 		Self {
 			errors: create_signal(ctx, Vec::new()),
-			events: HashMap::new(),
-			registration: RegistrationData::new(),
+			events: create_signal(ctx, HashMap::new()),
+			registration: RegistrationData::new(ctx),
+			available_events: create_signal(ctx, Vec::new()),
 		}
 	}
 }
 
 /// The message update loop
 pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket>) {
-	let data_signals: &RcSignal<DataSignals> = use_context(ctx);
+	let data_signals: &DataSignals = use_context(ctx);
 
 	loop {
 		let message: FromServerMessage = match read_websocket(&mut ws_read).await {
 			Ok(msg) => msg,
 			Err(_) => {
-				data_signals.get().errors.modify().push(ErrorData::new(
+				data_signals.errors.modify().push(ErrorData::new(
 					"The connection with the server has broken. If this wasn't expected, refresh the page.",
 				));
 				break;
@@ -73,8 +76,8 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 						event_log_entries,
 					};
 					data_signals
-						.modify()
 						.events
+						.modify()
 						.insert(event.id.clone(), event_subscription_data);
 				}
 			},
@@ -83,13 +86,11 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 			FromServerMessage::SubscriptionFailure(subscription_type, failure_info) => { /* TODO */ }
 			FromServerMessage::RegistrationResponse(response) => match response {
 				RegistrationResponse::UsernameCheck(check_data) => {
-					data_signals.get().registration.username_check.set(Some(check_data))
+					data_signals.registration.username_check.set(Some(check_data))
 				}
-				RegistrationResponse::Finalize(registration_data) => data_signals
-					.get()
-					.registration
-					.final_register
-					.set(Some(registration_data)),
+				RegistrationResponse::Finalize(registration_data) => {
+					data_signals.registration.final_register.set(Some(registration_data))
+				}
 			},
 		}
 	}
