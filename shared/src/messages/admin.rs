@@ -1,38 +1,7 @@
-use super::entry_types::EntryType;
 use super::events::Event;
 use super::permissions::PermissionLevel;
-use super::tags::Tag;
 use super::user::UserData;
 use serde::{Deserialize, Serialize};
-
-/// Request for information in admin workflows
-#[derive(Deserialize, Serialize)]
-pub enum AdminAction {
-	EditEvents(Vec<Event>),
-	ListEvents,
-	ListPermissionGroups,
-	ListPermissionGroupsWithEvents,
-	UpdatePermissionGroups(Vec<PermissionGroupWithEvents>),
-	ListUserPermissionGroups(UserData),
-	AddUserToPermissionGroup(PermissionGroupUser),
-	RemoveUserFromPermissionGroup(PermissionGroupUser),
-	ListUsers,
-	EditUsers(Vec<UserData>),
-	ListUsersWithNoPermissionGroups,
-	ListEventTypes,
-	AddEventType(EntryType),
-	UpdateEventType(EntryType),
-	ListEventTypesForEvent(Event),
-	UpdateEventTypesForEvent(Event, Vec<EntryType>),
-	ListTagsForEvent(Event),
-	AddTag(Tag, Event),
-	UpdateTagDescription(Tag),
-	RemoveTag(Tag),
-	ReplaceTag(Tag, Tag),
-	CopyTags(Event, Event),
-	ListEditorsForEvent(Event),
-	SetEditorsForEvent(Event, Vec<UserData>),
-}
 
 /// A single permission group
 #[derive(Clone, Deserialize, Eq, Hash, PartialEq, Serialize)]
