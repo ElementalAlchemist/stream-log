@@ -62,6 +62,8 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 					editors,
 					event_log_entries,
 				) => {
+					let event_id = event.id.clone();
+					let event = create_rc_signal(event);
 					let permission = create_rc_signal(permission_level);
 					let entry_types = create_rc_signal(entry_types);
 					let tags = create_rc_signal(tags);
@@ -69,16 +71,14 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 					let event_log_entries = create_rc_signal(event_log_entries);
 
 					let event_subscription_data = EventSubscriptionSignals {
+						event,
 						permission,
 						entry_types,
 						tags,
 						editors,
 						event_log_entries,
 					};
-					data_signals
-						.events
-						.modify()
-						.insert(event.id.clone(), event_subscription_data);
+					data_signals.events.modify().insert(event_id, event_subscription_data);
 				}
 			},
 			FromServerMessage::SubscriptionMessage(subscription_data) => { /* TODO */ }
