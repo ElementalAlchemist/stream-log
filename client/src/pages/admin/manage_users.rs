@@ -1,134 +1,74 @@
 use crate::color_utils::{color_from_rgb_str, rgb_str_from_color};
 use crate::components::color_input_with_contrast::ColorInputWithContrast;
-use crate::pages::error::{ErrorData, ErrorView};
-use crate::websocket::read_websocket;
+use crate::subscriptions::errors::ErrorData;
+use crate::subscriptions::DataSignals;
 use futures::lock::Mutex;
 use futures::stream::SplitSink;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
 use std::collections::HashMap;
-use stream_log_shared::messages::admin::AdminAction;
+use stream_log_shared::messages::subscriptions::{SubscriptionTargetUpdate, SubscriptionType};
 use stream_log_shared::messages::user::UserData;
-use stream_log_shared::messages::{DataMessage, RequestMessage};
+use stream_log_shared::messages::FromClientMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use sycamore::suspense::Suspense;
 use sycamore_router::navigate;
-use web_sys::{Event as WebEvent, HtmlButtonElement, HtmlInputElement};
-
-async fn get_user_list(ctx: Scope<'_>) -> Result<Vec<UserData>, ()> {
-	let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
-	let mut ws = ws_context.lock().await;
-	let message = RequestMessage::Admin(AdminAction::ListUsers);
-	let message_json = match serde_json::to_string(&message) {
-		Ok(msg) => msg,
-		Err(error) => {
-			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-			error_signal.set(Some(ErrorData::new_with_error(
-				"Failed to serialize user list request message",
-				error,
-			)));
-			return Err(());
-		}
-	};
-	if let Err(error) = ws.send(Message::Text(message_json)).await {
-		let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-		error_signal.set(Some(ErrorData::new_with_error(
-			"Failed to send user list request message",
-			error,
-		)));
-		return Err(());
-	}
-
-	let user_list_response = read_websocket(&mut ws).await;
-	let user_list: DataMessage<Vec<UserData>> = match user_list_response {
-		Ok(resp) => resp,
-		Err(error) => {
-			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-			error_signal.set(Some(ErrorData::new_with_error(
-				"Failed to receive user list response message",
-				error,
-			)));
-			return Err(());
-		}
-	};
-
-	match user_list {
-		Ok(users) => Ok(users),
-		Err(error) => {
-			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-			error_signal.set(Some(ErrorData::new_with_error(
-				"A server error occurred retrieving the user list",
-				error,
-			)));
-			Err(())
-		}
-	}
-}
+use web_sys::Event as WebEvent;
 
 #[component]
 async fn AdminManageUsersLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
-	let Ok(user_list) = get_user_list(ctx).await else {
-		return view! { ctx, ErrorView };
-	};
+	let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+	let mut ws = ws_context.lock().await;
+	let data: &DataSignals = use_context(ctx);
 
-	let user_list = create_signal(ctx, user_list);
+	let message = FromClientMessage::StartSubscription(SubscriptionType::AdminUsers);
+	let message_json = match serde_json::to_string(&message) {
+		Ok(msg) => msg,
+		Err(error) => {
+			data.errors.modify().push(ErrorData::new_with_error(
+				"Failed to serialize user list subscription message.",
+				error,
+			));
+			return view! { ctx, };
+		}
+	};
+	if let Err(error) = ws.send(Message::Text(message_json)).await {
+		data.errors.modify().push(ErrorData::new_with_error(
+			"Failed to send user list subscription message.",
+			error,
+		));
+	}
 
 	let changed_users: HashMap<String, UserData> = HashMap::new();
 	let changed_users = create_signal(ctx, changed_users);
-	let submit_button = create_node_ref(ctx);
-	let cancel_button = create_node_ref(ctx);
 
-	let form_submission_handler = move |event: WebEvent| {
-		event.prevent_default();
-
-		let submit_button_node: DomNode = submit_button.get();
-		let submit_button: HtmlButtonElement = submit_button_node.unchecked_into();
-		let cancel_button_node: DomNode = cancel_button.get();
-		let cancel_button: HtmlButtonElement = cancel_button_node.unchecked_into();
-
-		submit_button.set_disabled(true);
-		cancel_button.set_disabled(true);
-
+	let done_button_handler = move |_event: WebEvent| {
 		spawn_local_scoped(ctx, async move {
-			let changes: Vec<UserData> = changed_users.get().values().cloned().collect();
-
-			let message = RequestMessage::Admin(AdminAction::EditUsers(changes));
-			let message_json = match serde_json::to_string(&message) {
-				Ok(msg) => msg,
-				Err(error) => {
-					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-					error_signal.set(Some(ErrorData::new_with_error("Failed to serialize user data", error)));
-					navigate("/error");
-					return;
-				}
-			};
-
 			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
+			let message = FromClientMessage::EndSubscription(SubscriptionType::AdminUsers);
+			let message_json = match serde_json::to_string(&message) {
+				Ok(msg) => msg,
+				Err(error) => {
+					let data: &DataSignals = use_context(ctx);
+					data.errors.modify().push(ErrorData::new_with_error(
+						"Failed to serialize admin users unsubscribe message.",
+						error,
+					));
+					return;
+				}
+			};
 			if let Err(error) = ws.send(Message::Text(message_json)).await {
-				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-				error_signal.set(Some(ErrorData::new_with_error(
-					"Failed to send user data updates",
+				let data: &DataSignals = use_context(ctx);
+				data.errors.modify().push(ErrorData::new_with_error(
+					"Failed to send admin users unsubscribe message.",
 					error,
-				)));
-				navigate("/error");
-				return;
+				));
 			}
-			navigate("/");
 		});
-	};
-
-	let cancel_button_handler = |_event: WebEvent| {
-		let submit_button_node: DomNode = submit_button.get();
-		let submit_button: HtmlButtonElement = submit_button_node.unchecked_into();
-		let cancel_button_node: DomNode = cancel_button.get();
-		let cancel_button: HtmlButtonElement = cancel_button_node.unchecked_into();
-
-		submit_button.set_disabled(true);
-		cancel_button.set_disabled(true);
 
 		navigate("/");
 	};
@@ -136,63 +76,79 @@ async fn AdminManageUsersLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	view! {
 		ctx,
 		h1 { "Manage Users" }
-		form(on:submit=form_submission_handler) {
-			table(id="admin_user_manage") {
-				tr {
-					th { "Username" }
-					th { "Admin?" }
-					th { "Color" }
-				}
-				Keyed(
-					iterable=user_list,
-					key=|user| user.id.clone(),
-					view={
-						move |ctx, user| {
-							let checkbox = create_node_ref(ctx);
-							let admin_change_handler = {
-								let user = user.clone();
-								move |_event: WebEvent| {
-									let checkbox_ref: DomNode = checkbox.get();
-									let checkbox: HtmlInputElement = checkbox_ref.unchecked_into();
-									changed_users.modify().entry(user.id.clone()).or_insert_with(|| user.clone()).is_admin = checkbox.checked();
-								}
-							};
+		div(id="admin_user_manage") {
+			div(id="admin_user_manage_headers", class="admin_user_manage_row") {
+				div { "Username" }
+				div { "Admin?" }
+				div { "Color" }
+				div { }
+			}
+			Keyed(
+				iterable=data.all_users,
+				key=|user| user.id.clone(),
+				view={
+					move |ctx, user| {
+						let username_signal = create_signal(ctx, user.username.clone());
+						let is_admin_signal = create_signal(ctx, user.is_admin);
+						let start_color = rgb_str_from_color(user.color);
+						let color_signal = create_signal(ctx, start_color);
 
-							let username_signal = create_signal(ctx, user.username.clone());
-							let start_color = rgb_str_from_color(user.color);
-							let color_signal = create_signal(ctx, start_color);
+						let color_view_id = format!("admin_user_color_{}", user.id);
 
-							create_effect(ctx, {
-								let user = user.clone();
-								move || {
-									let new_color = (*color_signal.get()).clone();
-									let Ok(new_color) = color_from_rgb_str(&new_color) else {
-										return;
+						let form_submit_handler = {
+							let user = user.clone();
+							move |_event: WebEvent| {
+								let Ok(new_color) = color_from_rgb_str(&*color_signal.get()) else {
+									return;
+								};
+								let updated_user = UserData {
+									id: user.id.clone(),
+									username: (*username_signal.get()).clone(),
+									color: new_color,
+									is_admin: *is_admin_signal.get()
+								};
+
+								spawn_local_scoped(ctx, async move {
+									let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+									let mut ws = ws_context.lock().await;
+
+									let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminUserUpdate(updated_user)));
+									let message_json = match serde_json::to_string(&message) {
+										Ok(msg) => msg,
+										Err(error) => {
+											let data: &DataSignals = use_context(ctx);
+											data.errors.modify().push(ErrorData::new_with_error("Failed to serialize user update message.", error));
+											return;
+										}
 									};
-									changed_users.modify().entry(user.id.clone()).or_insert_with(|| user.clone()).color = new_color;
-								}
-							});
-							let color_view_id = format!("admin_user_color_{}", user.id);
+									if let Err(error) = ws.send(Message::Text(message_json)).await {
+										let data: &DataSignals = use_context(ctx);
+										data.errors.modify().push(ErrorData::new_with_error("Failed to send user update message.", error));
+									}
+								});
+							}
+						};
 
-							view! {
-								ctx,
-								tr {
-									td { (user.username) }
-									td(class="admin_user_admin_toggle") {
-										input(type="checkbox", checked=user.is_admin, on:change=admin_change_handler, ref=checkbox)
-									}
-									td(class="admin_user_color_selection") {
-										ColorInputWithContrast(color=color_signal, username=username_signal, view_id=&color_view_id)
-									}
+						view! {
+							ctx,
+							form(class="admin_user_manage_row", on:submit=form_submit_handler) {
+								div { (user.username) }
+								div(class="admin_user_admin_toggle") {
+									input(type="checkbox", bind:checked=is_admin_signal)
+								}
+								div(class="admin_user_color_selection") {
+									ColorInputWithContrast(color=color_signal, username=username_signal, view_id=&color_view_id)
+								}
+								div(class="admin_user_manage_submit") {
+									button { "Update" }
 								}
 							}
 						}
 					}
-				)
-			}
-			button(ref=submit_button) { "Update" }
-			button(type="button", on:click=cancel_button_handler, ref=cancel_button) { "Cancel" }
+				}
+			)
 		}
+		button(type="button", on:click=done_button_handler) { "Done" }
 	}
 }
 
