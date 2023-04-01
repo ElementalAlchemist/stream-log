@@ -13,14 +13,13 @@ pub mod tags;
 pub mod user;
 pub mod user_register;
 
-use admin::AdminAction;
-use event_subscription::EventSubscriptionUpdate;
-use events::Event;
-use subscriptions::{InitialSubscriptionLoadData, SubscriptionData, SubscriptionFailureInfo, SubscriptionType};
+use subscriptions::{
+	InitialSubscriptionLoadData, SubscriptionData, SubscriptionFailureInfo, SubscriptionTargetUpdate, SubscriptionType,
+};
 use user::UpdateUser;
 use user_register::{RegistrationResponse, UserRegistration};
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub enum DataError {
 	DatabaseError,
 	ServerError,
@@ -35,23 +34,13 @@ impl fmt::Display for DataError {
 	}
 }
 
-pub type DataMessage<T> = Result<T, DataError>;
-
-#[derive(Deserialize, Serialize)]
-pub enum RequestMessage {
-	ListAvailableEvents,
-	SubscribeToEvent(String),
-	UnsubscribeAll,
-	EventSubscriptionUpdate(Event, Box<EventSubscriptionUpdate>),
-	Admin(AdminAction),
-	UpdateProfile(UpdateUser),
-}
-
 #[derive(Deserialize, Serialize)]
 pub enum FromClientMessage {
 	StartSubscription(SubscriptionType),
 	EndSubscription(SubscriptionType),
+	SubscriptionMessage(Box<SubscriptionTargetUpdate>),
 	RegistrationRequest(UserRegistration),
+	UpdateProfile(UpdateUser),
 }
 
 #[derive(Deserialize, Serialize)]

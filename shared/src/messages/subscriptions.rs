@@ -1,14 +1,14 @@
 use crate::messages::entry_types::EntryType;
 use crate::messages::event_log::EventLogEntry;
-use crate::messages::event_subscription::EventSubscriptionData;
+use crate::messages::event_subscription::{EventSubscriptionData, EventSubscriptionUpdate};
 use crate::messages::events::Event;
 use crate::messages::permissions::PermissionLevel;
 use crate::messages::tags::Tag;
-use crate::messages::user::UserData;
+use crate::messages::user::{UserData, UserSubscriptionUpdate};
 use crate::messages::DataError;
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub enum SubscriptionType {
 	EventLogData(String),
 	AdminUsers,
@@ -22,7 +22,7 @@ pub enum SubscriptionType {
 }
 
 /// Sent to the client when a new subscription is created.
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub enum InitialSubscriptionLoadData {
 	/// Data for subscribing to an event. Includes the following data:
 	/// - The event to which the user subscribed
@@ -41,14 +41,21 @@ pub enum InitialSubscriptionLoadData {
 	),
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub enum SubscriptionData {
-	EventUpdate(Event, EventSubscriptionData),
+	EventUpdate(Event, Box<EventSubscriptionData>),
+	/// Indicates an update to data related to the logged-in user.
+	UserUpdate(UserSubscriptionUpdate),
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub enum SubscriptionFailureInfo {
 	NoTarget,
 	NotAllowed,
 	Error(DataError),
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub enum SubscriptionTargetUpdate {
+	EventUpdate(Event, EventSubscriptionUpdate),
 }

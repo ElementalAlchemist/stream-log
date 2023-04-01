@@ -7,7 +7,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 /// Event subscription data sent by the server to subscribed clients with information about what changes were made.
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum EventSubscriptionData {
 	NewLogEntry(EventLogEntry),
 	DeleteLogEntry(EventLogEntry),
@@ -23,7 +23,7 @@ pub enum EventSubscriptionData {
 
 /// Typing data sent by the server as part of event subscription data with information on what updates to make to typing
 /// data by other users.
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum TypingData {
 	StartTime(Option<EventLogEntry>, String, UserData),
 	EndTime(Option<EventLogEntry>, String, UserData),
@@ -35,7 +35,7 @@ pub enum TypingData {
 }
 
 /// Event subscription update sent by the client to the server.
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub enum EventSubscriptionUpdate {
 	NewLogEntry(EventLogEntry),
 	DeleteLogEntry(EventLogEntry),
@@ -55,7 +55,7 @@ pub enum EventSubscriptionUpdate {
 	NewTag(Tag),
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub enum NewTypingData {
 	StartTime(Option<EventLogEntry>, String),
 	EndTime(Option<EventLogEntry>, String),

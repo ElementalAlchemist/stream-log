@@ -13,9 +13,10 @@ use std::collections::{HashMap, HashSet};
 use stream_log_shared::messages::event_log::EventLogEntry;
 use stream_log_shared::messages::event_subscription::EventSubscriptionUpdate;
 use stream_log_shared::messages::permissions::PermissionLevel;
+use stream_log_shared::messages::subscriptions::{SubscriptionTargetUpdate, SubscriptionType};
 use stream_log_shared::messages::tags::Tag;
 use stream_log_shared::messages::user::UserData;
-use stream_log_shared::messages::RequestMessage;
+use stream_log_shared::messages::FromClientMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use sycamore::suspense::Suspense;
@@ -47,7 +48,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 
 	let data: &DataSignals = use_context(ctx);
 
-	let subscribe_msg = RequestMessage::SubscribeToEvent(props.id.clone());
+	let subscribe_msg = FromClientMessage::StartSubscription(SubscriptionType::EventLogData(props.id.clone()));
 	let subscribe_msg_json = match serde_json::to_string(&subscribe_msg) {
 		Ok(msg) => msg,
 		Err(error) => {
@@ -179,10 +180,10 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 				let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 				let mut ws = ws_context.lock().await;
 
-				let message = RequestMessage::EventSubscriptionUpdate(
+				let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
 					(*event_signal.get()).clone(),
-					Box::new(EventSubscriptionUpdate::NewLogEntry(new_event_log_entry)),
-				);
+					EventSubscriptionUpdate::NewLogEntry(new_event_log_entry),
+				)));
 				let message_json = match serde_json::to_string(&message) {
 					Ok(msg) => msg,
 					Err(error) => {
@@ -394,7 +395,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 														ModifiedEventLogEntryParts::Editor => EventSubscriptionUpdate::ChangeEditor(log_entry.clone(), (*edit_editor.get()).clone()),
 														ModifiedEventLogEntryParts::Highlighted => EventSubscriptionUpdate::ChangeHighlighted(log_entry.clone(), *edit_highlighted.get())
 													};
-													let event_message = RequestMessage::EventSubscriptionUpdate(event.clone(), Box::new(event_message));
+													let event_message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(event.clone(), event_message)));
 													let event_message = match serde_json::to_string(&event_message) {
 														Ok(msg) => msg,
 														Err(error) => {

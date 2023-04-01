@@ -1,3 +1,4 @@
+use super::events::Event;
 use rgb::RGB8;
 use serde::{Deserialize, Serialize};
 
@@ -12,4 +13,10 @@ pub struct UserData {
 #[derive(Debug, Deserialize, Serialize)]
 pub enum UpdateUser {
 	UpdateColor(RGB8),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct UserSubscriptionUpdate {
+	user: UserData,
+	available_events: Vec<Event>,
 }

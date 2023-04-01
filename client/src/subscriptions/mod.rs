@@ -4,6 +4,7 @@ use gloo_net::websocket::futures::WebSocket;
 use std::collections::HashMap;
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::subscriptions::InitialSubscriptionLoadData;
+use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::user_register::RegistrationResponse;
 use stream_log_shared::messages::FromServerMessage;
 use sycamore::prelude::*;
@@ -24,6 +25,7 @@ pub struct DataSignals<'a> {
 	pub events: &'a Signal<HashMap<String, EventSubscriptionSignals>>,
 	pub registration: RegistrationData<'a>,
 	pub available_events: &'a Signal<Vec<Event>>,
+	pub all_users: &'a Signal<Vec<UserData>>,
 }
 
 impl<'a> DataSignals<'a> {
@@ -33,6 +35,7 @@ impl<'a> DataSignals<'a> {
 			events: create_signal(ctx, HashMap::new()),
 			registration: RegistrationData::new(ctx),
 			available_events: create_signal(ctx, Vec::new()),
+			all_users: create_signal(ctx, Vec::new()),
 		}
 	}
 }

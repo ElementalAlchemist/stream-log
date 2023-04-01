@@ -14,9 +14,10 @@ use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_log::EventLogEntry;
 use stream_log_shared::messages::event_subscription::{EventSubscriptionUpdate, NewTypingData};
 use stream_log_shared::messages::events::Event;
+use stream_log_shared::messages::subscriptions::SubscriptionTargetUpdate;
 use stream_log_shared::messages::tags::Tag;
 use stream_log_shared::messages::user::UserData;
-use stream_log_shared::messages::RequestMessage;
+use stream_log_shared::messages::FromClientMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use web_sys::Event as WebEvent;
@@ -263,13 +264,13 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
-			let message = RequestMessage::EventSubscriptionUpdate(
+			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
 				(*props.event.get()).clone(),
-				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::StartTime(
+				EventSubscriptionUpdate::Typing(NewTypingData::StartTime(
 					(*props.event_log_entry.get()).clone(),
 					(*start_time_input.get()).clone(),
-				))),
-			);
+				)),
+			)));
 			let message_json = match serde_json::to_string(&message) {
 				Ok(msg) => msg,
 				Err(error) => {
@@ -326,13 +327,13 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
-			let message = RequestMessage::EventSubscriptionUpdate(
+			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
 				(*props.event.get()).clone(),
-				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::EndTime(
+				EventSubscriptionUpdate::Typing(NewTypingData::EndTime(
 					(*props.event_log_entry.get()).clone(),
 					(*end_time_input.get()).clone(),
-				))),
-			);
+				)),
+			)));
 			let message_json = match serde_json::to_string(&message) {
 				Ok(msg) => msg,
 				Err(error) => {
@@ -383,13 +384,13 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
-			let message = RequestMessage::EventSubscriptionUpdate(
+			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
 				(*props.event.get()).clone(),
-				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::EntryType(
+				EventSubscriptionUpdate::Typing(NewTypingData::EntryType(
 					(*props.event_log_entry.get()).clone(),
 					(*entry_type_name.get()).clone(),
-				))),
-			);
+				)),
+			)));
 			let message_json = match serde_json::to_string(&message) {
 				Ok(msg) => msg,
 				Err(error) => {
@@ -421,13 +422,13 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
-			let message = RequestMessage::EventSubscriptionUpdate(
+			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
 				(*props.event.get()).clone(),
-				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::Description(
+				EventSubscriptionUpdate::Typing(NewTypingData::Description(
 					(*props.event_log_entry.get()).clone(),
 					(*props.description.get()).clone(),
-				))),
-			);
+				)),
+			)));
 			let message_json = match serde_json::to_string(&message) {
 				Ok(msg) => msg,
 				Err(error) => {
@@ -459,13 +460,13 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
-			let message = RequestMessage::EventSubscriptionUpdate(
+			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
 				(*props.event.get()).clone(),
-				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::MediaLink(
+				EventSubscriptionUpdate::Typing(NewTypingData::MediaLink(
 					(*props.event_log_entry.get()).clone(),
 					(*props.media_link.get()).clone(),
-				))),
-			);
+				)),
+			)));
 			let message_json = match serde_json::to_string(&message) {
 				Ok(msg) => msg,
 				Err(error) => {
@@ -497,13 +498,13 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
-			let message = RequestMessage::EventSubscriptionUpdate(
+			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
 				(*props.event.get()).clone(),
-				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::SubmitterWinner(
+				EventSubscriptionUpdate::Typing(NewTypingData::SubmitterWinner(
 					(*props.event_log_entry.get()).clone(),
 					(*props.submitter_or_winner.get()).clone(),
-				))),
-			);
+				)),
+			)));
 			let message_json = match serde_json::to_string(&message) {
 				Ok(msg) => msg,
 				Err(error) => {
@@ -590,13 +591,13 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
-			let message = RequestMessage::EventSubscriptionUpdate(
+			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
 				(*props.event.get()).clone(),
-				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::NotesToEditor(
+				EventSubscriptionUpdate::Typing(NewTypingData::NotesToEditor(
 					(*props.event_log_entry.get()).clone(),
 					(*props.notes_to_editor.get()).clone(),
-				))),
-			);
+				)),
+			)));
 			let message_json = match serde_json::to_string(&message) {
 				Ok(msg) => msg,
 				Err(error) => {
@@ -734,7 +735,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 												let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 												let mut ws = ws_context.lock().await;
 												let new_tag = Tag { id: String::new(), name: tag_name.clone(), description: (*description_signal.get()).clone() };
-												let message = RequestMessage::EventSubscriptionUpdate((*props.event.get()).clone(), Box::new(EventSubscriptionUpdate::NewTag(new_tag)));
+												let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate((*props.event.get()).clone(), EventSubscriptionUpdate::NewTag(new_tag))));
 												let message_json = match serde_json::to_string(&message) {
 													Ok(msg) => msg,
 													Err(error) => {
