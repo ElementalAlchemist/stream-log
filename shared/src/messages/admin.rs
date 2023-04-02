@@ -1,5 +1,6 @@
 use super::events::Event;
 use super::permissions::PermissionLevel;
+use super::tags::Tag;
 use super::user::UserData;
 use serde::{Deserialize, Serialize};
 
@@ -30,4 +31,12 @@ pub struct PermissionGroupWithEvents {
 pub struct PermissionGroupUser {
 	pub group: PermissionGroup,
 	pub user: UserData,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub enum AdminTagUpdate {
+	UpdateTag(Tag),
+	AddTag(Tag, Event),
+	RemoveTag(Tag),
+	ReplaceTag(Tag, Tag),
 }

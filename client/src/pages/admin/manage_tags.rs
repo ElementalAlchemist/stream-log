@@ -1,16 +1,17 @@
-use crate::pages::error::{ErrorData, ErrorView};
-use crate::websocket::read_websocket;
+use crate::subscriptions::errors::ErrorData;
+use crate::subscriptions::DataSignals;
 use futures::lock::Mutex;
 use futures::stream::SplitSink;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
 use std::collections::{HashMap, HashSet};
-use stream_log_shared::messages::admin::AdminAction;
+use stream_log_shared::messages::admin::AdminTagUpdate;
 use stream_log_shared::messages::events::Event;
+use stream_log_shared::messages::subscriptions::{SubscriptionTargetUpdate, SubscriptionType};
 use stream_log_shared::messages::tags::Tag;
 use stream_log_shared::messages::user::UserData;
-use stream_log_shared::messages::{DataMessage, RequestMessage};
+use stream_log_shared::messages::FromClientMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use sycamore::suspense::Suspense;
@@ -21,55 +22,29 @@ use web_sys::Event as WebEvent;
 async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 	let mut ws = ws_context.lock().await;
+	let data: &DataSignals = use_context(ctx);
 
-	let events_request = RequestMessage::Admin(AdminAction::ListEvents);
-	let events_request_json = match serde_json::to_string(&events_request) {
+	let subscription_message = FromClientMessage::StartSubscription(SubscriptionType::AdminTags);
+	let subscription_message_json = match serde_json::to_string(&subscription_message) {
 		Ok(msg) => msg,
 		Err(error) => {
-			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-			error_signal.set(Some(ErrorData::new_with_error(
-				"Failed to serialize event list request",
+			data.errors.modify().push(ErrorData::new_with_error(
+				"Failed to serialize tag list subscription.",
 				error,
-			)));
-			return view! { ctx, ErrorView };
+			));
+			return view! { ctx, };
 		}
 	};
-	if let Err(error) = ws.send(Message::Text(events_request_json)).await {
-		let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-		error_signal.set(Some(ErrorData::new_with_error(
-			"Failed to send event list request",
+	if let Err(error) = ws.send(Message::Text(subscription_message_json)).await {
+		data.errors.modify().push(ErrorData::new_with_error(
+			"Failed to send tag list subscription.",
 			error,
-		)));
-		return view! { ctx, ErrorView };
+		));
 	}
 
-	let events_response: DataMessage<Vec<Event>> = match read_websocket(&mut ws).await {
-		Ok(resp) => resp,
-		Err(error) => {
-			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-			error_signal.set(Some(ErrorData::new_with_error(
-				"Failed to receive event list response",
-				error,
-			)));
-			return view! { ctx, ErrorView };
-		}
-	};
-
-	let events = match events_response {
-		Ok(events) => events,
-		Err(error) => {
-			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-			error_signal.set(Some(ErrorData::new_with_error(
-				"A server error occurred generating the events list",
-				error,
-			)));
-			return view! { ctx, ErrorView };
-		}
-	};
-
-	let events_signal = create_signal(ctx, events);
 	let event_name_index_signal = create_memo(ctx, || {
-		let index: HashMap<String, Event> = events_signal
+		let index: HashMap<String, Event> = data
+			.all_events
 			.get()
 			.iter()
 			.map(|event| (event.name.clone(), event.clone()))
@@ -91,6 +66,25 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	let entered_new_tag_name_error_signal = create_signal(ctx, String::new());
 	let entered_new_tag_name_has_error_signal =
 		create_memo(ctx, || !entered_new_tag_name_error_signal.get().is_empty());
+
+	let all_tags_by_id_signal = create_memo(ctx, || {
+		let id_index: HashMap<String, Tag> = data
+			.all_tags
+			.get()
+			.iter()
+			.map(|tag| (tag.id.clone(), tag.clone()))
+			.collect();
+		id_index
+	});
+	let all_tags_by_event_signal = create_memo(ctx, || {
+		let mut tags_by_event: HashMap<String, Vec<Tag>> = HashMap::new();
+		all_tags_by_id_signal.track();
+		for association in data.tag_event_associations.get().iter() {
+			let Some(tag) = all_tags_by_id_signal.get().get(&association.tag).cloned() else { continue; };
+			tags_by_event.entry(association.event.clone()).or_default().push(tag);
+		}
+		tags_by_event
+	});
 
 	let event_selection_handler = |event: WebEvent| {
 		event.prevent_default();
@@ -138,60 +132,31 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
-			let message = RequestMessage::Admin(AdminAction::AddTag(new_tag, for_event.clone()));
+			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminTagsUpdate(
+				AdminTagUpdate::AddTag(new_tag, for_event.clone()),
+			)));
 			let message_json = match serde_json::to_string(&message) {
 				Ok(msg) => msg,
 				Err(error) => {
-					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-					error_signal.set(Some(ErrorData::new_with_error(
-						"Failed to serialize add tag request",
-						error,
-					)));
-					navigate("/error");
+					let data: &DataSignals = use_context(ctx);
+					data.errors
+						.modify()
+						.push(ErrorData::new_with_error("Failed to serialize new tag message.", error));
 					return;
 				}
 			};
 
 			if let Err(error) = ws.send(Message::Text(message_json)).await {
-				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-				error_signal.set(Some(ErrorData::new_with_error("Failed to send add tag request", error)));
-				navigate("/error");
-				return;
-			}
-
-			let added_tag: DataMessage<Tag> = match read_websocket(&mut ws).await {
-				Ok(resp) => resp,
-				Err(error) => {
-					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-					error_signal.set(Some(ErrorData::new_with_error(
-						"Failed to receive add tag response",
-						error,
-					)));
-					navigate("/error");
-					return;
-				}
-			};
-
-			let added_tag = match added_tag {
-				Ok(tag) => tag,
-				Err(error) => {
-					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-					error_signal.set(Some(ErrorData::new_with_error(
-						"A server error occurred adding a tag",
-						error,
-					)));
-					navigate("/error");
-					return;
-				}
-			};
-
-			if *selected_event_signal.get() == Some(for_event) {
-				tags_signal.modify().push(added_tag);
+				let data: &DataSignals = use_context(ctx);
+				data.errors
+					.modify()
+					.push(ErrorData::new_with_error("Failed to send new tag message.", error));
 			}
 		});
 	};
 
 	create_effect(ctx, move || {
+		all_tags_by_event_signal.track();
 		let new_selection = match selected_event_signal.get().as_ref() {
 			Some(event) => event.clone(),
 			None => {
@@ -205,65 +170,11 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			}
 		};
 
-		tags_signal.modify().clear();
-		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
-			let mut ws = ws_context.lock().await;
-
-			let message = RequestMessage::Admin(AdminAction::ListTagsForEvent(new_selection.clone()));
-			let message_json = match serde_json::to_string(&message) {
-				Ok(msg) => msg,
-				Err(error) => {
-					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-					error_signal.set(Some(ErrorData::new_with_error(
-						"Failed to serialize tag list request",
-						error,
-					)));
-					navigate("/error");
-					return;
-				}
-			};
-
-			if let Err(error) = ws.send(Message::Text(message_json)).await {
-				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-				error_signal.set(Some(ErrorData::new_with_error(
-					"Failed to send tag list request",
-					error,
-				)));
-				navigate("/error");
-				return;
-			}
-
-			let tag_list_response: DataMessage<Vec<Tag>> = match read_websocket(&mut ws).await {
-				Ok(resp) => resp,
-				Err(error) => {
-					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-					error_signal.set(Some(ErrorData::new_with_error(
-						"Failed to receive tag list response",
-						error,
-					)));
-					navigate("/error");
-					return;
-				}
-			};
-
-			let tag_list = match tag_list_response {
-				Ok(tags) => tags,
-				Err(error) => {
-					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-					error_signal.set(Some(ErrorData::new_with_error(
-						"A server error occurred generating the tag list",
-						error,
-					)));
-					navigate("/error");
-					return;
-				}
-			};
-
-			if *selected_event_signal.get() == Some(new_selection) {
-				tags_signal.set(tag_list);
-			}
-		});
+		let new_tags = match all_tags_by_event_signal.get().get(&new_selection.id) {
+			Some(tags) => tags.clone(),
+			None => Vec::new(),
+		};
+		tags_signal.set(new_tags);
 	});
 
 	view! {
@@ -271,7 +182,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		form(id="admin_manage_tags_event_selection", on:submit=event_selection_handler) {
 			datalist(id="event_names") {
 				Keyed(
-					iterable=events_signal,
+					iterable=data.all_events,
 					key=|event| event.id.clone(),
 					view=|ctx, event| {
 						view! {
@@ -313,13 +224,12 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 							let mut updated_tag = tag.clone();
 							updated_tag.description = new_description;
 
-							let message = RequestMessage::Admin(AdminAction::UpdateTagDescription(updated_tag));
+							let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminTagsUpdate(AdminTagUpdate::UpdateTag(updated_tag))));
 							let message_json = match serde_json::to_string(&message) {
 								Ok(msg) => msg,
 								Err(error) => {
-									let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-									error_signal.set(Some(ErrorData::new_with_error("Failed to serialize tag description update request", error)));
-									navigate("/error");
+									let data: &DataSignals = use_context(ctx);
+									data.errors.modify().push(ErrorData::new_with_error("Failed to serialize tag description update.", error));
 									return;
 								}
 							};
@@ -329,9 +239,8 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 								let mut ws = ws_context.lock().await;
 
 								if let Err(error) = ws.send(Message::Text(message_json)).await {
-									let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-									error_signal.set(Some(ErrorData::new_with_error("Failed to send tag description update request", error)));
-									navigate("/error");
+									let data: &DataSignals = use_context(ctx);
+									data.errors.modify().push(ErrorData::new_with_error("Failed to send tag description update.", error));
 								}
 							});
 						}
@@ -355,21 +264,19 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 								let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 								let mut ws = ws_context.lock().await;
 
-								let message = RequestMessage::Admin(AdminAction::RemoveTag(tag));
+								let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminTagsUpdate(AdminTagUpdate::RemoveTag(tag))));
 								let message_json = match serde_json::to_string(&message) {
 									Ok(msg) => msg,
 									Err(error) => {
-										let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-										error_signal.set(Some(ErrorData::new_with_error("Failed to serialize tag deletion request", error)));
-										navigate("/error");
+										let data: &DataSignals = use_context(ctx);
+										data.errors.modify().push(ErrorData::new_with_error("Failed to serialize tag deletion.", error));
 										return;
 									}
 								};
 
 								if let Err(error) = ws.send(Message::Text(message_json)).await {
-									let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-									error_signal.set(Some(ErrorData::new_with_error("Failed to send tag deletion request", error)));
-									navigate("/error");
+									let data: &DataSignals = use_context(ctx);
+									data.errors.modify().push(ErrorData::new_with_error("Failed to send tag deletion.", error));
 								}
 							});
 						}
@@ -401,13 +308,12 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 								tags_list.remove(replacing_tag_index);
 								entered_replacement_tag_signal.set(String::new());
 
-								let message = RequestMessage::Admin(AdminAction::ReplaceTag(tag, replacement));
+								let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminTagsUpdate(AdminTagUpdate::ReplaceTag(tag, replacement))));
 								let message_json = match serde_json::to_string(&message) {
 									Ok(msg) => msg,
 									Err(error) => {
-										let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-										error_signal.set(Some(ErrorData::new_with_error("Failed to serialize tag replacement request", error)));
-										navigate("/error");
+										let data: &DataSignals = use_context(ctx);
+										data.errors.modify().push(ErrorData::new_with_error("Failed to serialize tag replacement.", error));
 										return;
 									}
 								};
@@ -416,9 +322,8 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 								let mut ws = ws_context.lock().await;
 
 								if let Err(error) = ws.send(Message::Text(message_json)).await {
-									let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-									error_signal.set(Some(ErrorData::new_with_error("Failed to send tag replacement request", error)));
-									navigate("/error");
+									let data: &DataSignals = use_context(ctx);
+									data.errors.modify().push(ErrorData::new_with_error("Failed to send tag replacement.", error));
 								}
 							});
 						}

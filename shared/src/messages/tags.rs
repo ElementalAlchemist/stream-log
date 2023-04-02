@@ -6,3 +6,9 @@ pub struct Tag {
 	pub name: String,
 	pub description: String,
 }
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct TagEventAssociation {
+	pub tag: String,
+	pub event: String,
+}
