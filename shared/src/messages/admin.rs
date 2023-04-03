@@ -5,25 +5,18 @@ use super::user::UserData;
 use serde::{Deserialize, Serialize};
 
 /// A single permission group
-#[derive(Clone, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct PermissionGroup {
 	pub id: String,
 	pub name: String,
 }
 
-/// A description of an event and its permission level, to be used with a permission group
-/// to describe the event's permission level in the group
-#[derive(Clone, Deserialize, Eq, PartialEq, Serialize)]
-pub struct EventPermission {
-	pub event: Event,
-	pub level: PermissionLevel,
-}
-
-/// List item in response to list permission groups
-#[derive(Clone, Deserialize, Eq, PartialEq, Serialize)]
-pub struct PermissionGroupWithEvents {
-	pub group: PermissionGroup,
-	pub events: Vec<EventPermission>,
+/// An association of a permission group and its relevant event permissions
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct PermissionGroupEventAssociation {
+	pub group: String,
+	pub event: String,
+	pub permission: PermissionLevel,
 }
 
 /// A pairing of a permission group and a user
@@ -31,6 +24,14 @@ pub struct PermissionGroupWithEvents {
 pub struct PermissionGroupUser {
 	pub group: PermissionGroup,
 	pub user: UserData,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub enum AdminPermissionGroupUpdate {
+	AddGroup(PermissionGroup),
+	UpdateGroup(PermissionGroup),
+	SetEventPermissionForGroup(PermissionGroupEventAssociation),
+	RemoveEventFromGroup(PermissionGroup, Event),
 }
 
 #[derive(Debug, Deserialize, Serialize)]

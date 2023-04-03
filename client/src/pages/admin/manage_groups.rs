@@ -1,511 +1,300 @@
-use crate::pages::error::{ErrorData, ErrorView};
-use crate::websocket::read_websocket;
+use crate::subscriptions::errors::ErrorData;
+use crate::subscriptions::DataSignals;
 use futures::lock::Mutex;
 use futures::stream::SplitSink;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
-use std::collections::{HashMap, HashSet};
-use std::rc::Rc;
-use std::sync::atomic::{AtomicU32, Ordering};
-use stream_log_shared::messages::admin::{AdminAction, EventPermission, PermissionGroup, PermissionGroupWithEvents};
+use std::collections::HashMap;
+use stream_log_shared::messages::admin::{
+	AdminPermissionGroupUpdate, PermissionGroup, PermissionGroupEventAssociation,
+};
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::permissions::PermissionLevel;
-use stream_log_shared::messages::{DataMessage, RequestMessage};
+use stream_log_shared::messages::subscriptions::{SubscriptionTargetUpdate, SubscriptionType};
+use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::FromClientMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use sycamore::suspense::Suspense;
 use sycamore_router::navigate;
-use web_sys::{Event as WebEvent, HtmlButtonElement, HtmlInputElement, HtmlSpanElement};
-
-#[derive(Clone, Eq, PartialEq)]
-struct OptionalEventPermission {
-	event: Event,
-	level: Option<PermissionLevel>,
-}
-
-impl From<EventPermission> for OptionalEventPermission {
-	fn from(event_permission: EventPermission) -> Self {
-		Self {
-			event: event_permission.event,
-			level: Some(event_permission.level),
-		}
-	}
-}
-
-#[derive(Clone, Eq, PartialEq)]
-struct PermissionGroupWithOptionalEvents {
-	group: PermissionGroup,
-	events: Vec<OptionalEventPermission>,
-}
-
-impl From<PermissionGroupWithEvents> for PermissionGroupWithOptionalEvents {
-	fn from(mut group_data: PermissionGroupWithEvents) -> Self {
-		Self {
-			group: group_data.group,
-			events: group_data.events.drain(..).map(|event| event.into()).collect(),
-		}
-	}
-}
-
-impl From<PermissionGroupWithOptionalEvents> for PermissionGroupWithEvents {
-	fn from(mut group_data: PermissionGroupWithOptionalEvents) -> Self {
-		Self {
-			group: group_data.group,
-			events: group_data
-				.events
-				.drain(..)
-				.filter_map(|event| {
-					Some(EventPermission {
-						event: event.event,
-						level: event.level?,
-					})
-				})
-				.collect(),
-		}
-	}
-}
+use web_sys::Event as WebEvent;
 
 #[component]
 async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
-	let (events, mut permission_groups) = {
-		let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
-		let mut ws = ws_context.lock().await;
+	let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+	let mut ws = ws_context.lock().await;
+	let data: &DataSignals = use_context(ctx);
 
-		let message = RequestMessage::Admin(AdminAction::ListEvents);
-		let message_json = match serde_json::to_string(&message) {
-			Ok(msg) => msg,
-			Err(error) => {
-				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-				error_signal.set(Some(ErrorData::new_with_error(
-					"Failed to serialize events request",
-					error,
-				)));
-				return view! { ctx, ErrorView };
-			}
-		};
-		if let Err(error) = ws.send(Message::Text(message_json)).await {
-			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-			error_signal.set(Some(ErrorData::new_with_error("Failed to send events request", error)));
-			return view! { ctx, ErrorView };
-		}
-
-		let message = RequestMessage::Admin(AdminAction::ListPermissionGroupsWithEvents);
-		let message_json = match serde_json::to_string(&message) {
-			Ok(msg) => msg,
-			Err(error) => {
-				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-				error_signal.set(Some(ErrorData::new_with_error(
-					"Failed to serialize permission groups request",
-					error,
-				)));
-				return view! { ctx, ErrorView };
-			}
-		};
-		if let Err(error) = ws.send(Message::Text(message_json)).await {
-			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-			error_signal.set(Some(ErrorData::new_with_error(
-				"Failed to send permission groups request",
+	let subscription_message = FromClientMessage::StartSubscription(SubscriptionType::AdminPermissionGroups);
+	let subscription_message_json = match serde_json::to_string(&subscription_message) {
+		Ok(msg) => msg,
+		Err(error) => {
+			data.errors.modify().push(ErrorData::new_with_error(
+				"Failed to serialize permission group subscription message.",
 				error,
-			)));
-			return view! { ctx, ErrorView };
+			));
+			return view! { ctx, };
 		}
-
-		let events: DataMessage<Vec<Event>> = match read_websocket(&mut ws).await {
-			Ok(data) => data,
-			Err(error) => {
-				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-				error_signal.set(Some(ErrorData::new_with_error("Failed to receive events data", error)));
-				return view! { ctx, ErrorView };
-			}
-		};
-
-		let permission_groups: DataMessage<Vec<PermissionGroupWithEvents>> = match read_websocket(&mut ws).await {
-			Ok(data) => data,
-			Err(error) => {
-				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-				error_signal.set(Some(ErrorData::new_with_error(
-					"Failed to receive permission groups data",
-					error,
-				)));
-				return view! { ctx, ErrorView };
-			}
-		};
-
-		let events = match events {
-			Ok(events) => events,
-			Err(error) => {
-				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-				error_signal.set(Some(ErrorData::new_with_error(
-					"Server error occurred getting events data",
-					error,
-				)));
-				return view! { ctx, ErrorView };
-			}
-		};
-
-		let permission_groups = match permission_groups {
-			Ok(groups) => groups,
-			Err(error) => {
-				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-				error_signal.set(Some(ErrorData::new_with_error(
-					"Server error occurred getting permission group data",
-					error,
-				)));
-				return view! { ctx, ErrorView };
-			}
-		};
-
-		(events, permission_groups)
 	};
+	if let Err(error) = ws.send(Message::Text(subscription_message_json)).await {
+		data.errors.modify().push(ErrorData::new_with_error(
+			"Failed to send permission group subscription message.",
+			error,
+		));
+	}
 
-	let events_signal = create_signal(ctx, events);
-	let events_names_index_signal = create_memo(ctx, || {
-		let events_names_index: HashMap<String, Event> = events_signal
+	let event_ids_index_signal = create_memo(ctx, || {
+		let event_ids: HashMap<String, Event> = data
+			.all_events
+			.get()
+			.iter()
+			.map(|event| (event.id.clone(), event.clone()))
+			.collect();
+		event_ids
+	});
+	let event_names_index_signal = create_memo(ctx, || {
+		let event_names: HashMap<String, Event> = data
+			.all_events
 			.get()
 			.iter()
 			.map(|event| (event.name.clone(), event.clone()))
 			.collect();
-		events_names_index
+		event_names
 	});
 
-	let permission_groups: Vec<PermissionGroupWithOptionalEvents> = permission_groups
-		.drain(..)
-		.map(|group_data| group_data.into())
-		.collect();
-	let permission_groups_signal = create_signal(ctx, permission_groups);
-	let updated_groups_signal: &Signal<HashSet<String>> = create_signal(ctx, HashSet::new());
-	let expanded_group: &Signal<Option<String>> = create_signal(ctx, None);
-
-	let submit_button = create_node_ref(ctx);
-	let cancel_button = create_node_ref(ctx);
-
-	let next_new_group_id = Rc::new(AtomicU32::new(0));
-
-	let form_submission_handler = move |event: WebEvent| {
+	let new_group_name_signal = create_signal(ctx, String::new());
+	let new_group_error_signal = create_signal(ctx, String::new());
+	let new_group_submit_handler = move |event: WebEvent| {
 		event.prevent_default();
 
-		let submit_button_ref: DomNode = submit_button.get();
-		let submit_button: HtmlButtonElement = submit_button_ref.unchecked_into();
-		let cancel_button_ref: DomNode = cancel_button.get();
-		let cancel_button: HtmlButtonElement = cancel_button_ref.unchecked_into();
-
-		submit_button.set_disabled(true);
-		cancel_button.set_disabled(true);
-
-		let updated_groups = updated_groups_signal.get();
-		let mut submit_groups: Vec<PermissionGroupWithEvents> = permission_groups_signal
-			.get()
-			.iter()
-			.filter(|group_data| updated_groups.contains(&group_data.group.id))
-			.cloned()
-			.map(|group_data| group_data.into())
-			.collect();
-		for group_data in submit_groups.iter_mut() {
-			if !group_data.group.id.starts_with('+') && group_data.group.name.is_empty() {
-				// Field validation should take care of error visibility already
-				submit_button.set_disabled(false);
-				cancel_button.set_disabled(false);
-				return;
-			}
-			if group_data.group.id.starts_with('+') {
-				group_data.group.id = String::new();
-			}
+		let new_group_name = (*new_group_name_signal.get()).clone();
+		if event_names_index_signal.get().contains_key(&new_group_name) {
+			new_group_error_signal.set(format!("The group \"{}\" already exists.", new_group_name));
+			return;
 		}
+		new_group_error_signal.modify().clear();
+		new_group_name_signal.set(String::new());
 
 		spawn_local_scoped(ctx, async move {
-			let message = RequestMessage::Admin(AdminAction::UpdatePermissionGroups(submit_groups));
+			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+			let mut ws = ws_context.lock().await;
+
+			let new_group = PermissionGroup {
+				id: String::new(),
+				name: new_group_name,
+			};
+			let message = FromClientMessage::SubscriptionMessage(Box::new(
+				SubscriptionTargetUpdate::AdminPermissionGroupsUpdate(AdminPermissionGroupUpdate::AddGroup(new_group)),
+			));
 			let message_json = match serde_json::to_string(&message) {
 				Ok(msg) => msg,
 				Err(error) => {
-					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-					error_signal.set(Some(ErrorData::new_with_error(
-						"Failed to serialize permission group update",
+					let data: &DataSignals = use_context(ctx);
+					data.errors.modify().push(ErrorData::new_with_error(
+						"Failed to serialize permission group creation message.",
 						error,
-					)));
-					navigate("/error");
+					));
 					return;
 				}
 			};
-
-			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
-			let mut ws = ws_context.lock().await;
 			if let Err(error) = ws.send(Message::Text(message_json)).await {
-				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-				error_signal.set(Some(ErrorData::new_with_error(
-					"failed to send permission group update",
+				let data: &DataSignals = use_context(ctx);
+				data.errors.modify().push(ErrorData::new_with_error(
+					"Failed to send permission group creation message.",
 					error,
-				)));
-				navigate("/error");
-				return;
+				));
 			}
-
-			navigate("/");
 		});
-	};
-
-	let cancel_button_handler = |_event: WebEvent| {
-		let submit_button_ref: DomNode = submit_button.get();
-		let submit_button: HtmlButtonElement = submit_button_ref.unchecked_into();
-		let cancel_button_ref: DomNode = cancel_button.get();
-		let cancel_button: HtmlButtonElement = cancel_button_ref.unchecked_into();
-
-		submit_button.set_disabled(true);
-		cancel_button.set_disabled(true);
-
-		navigate("/");
-	};
-
-	let add_new_button_handler = {
-		let next_new_group_id = Rc::clone(&next_new_group_id);
-		move |_event: WebEvent| {
-			let group_index_num = next_new_group_id.fetch_add(1, Ordering::AcqRel);
-			let group = PermissionGroup {
-				id: format!("+{}", group_index_num),
-				name: String::new(),
-			};
-			let new_permission_set = PermissionGroupWithOptionalEvents {
-				group,
-				events: Vec::new(),
-			};
-			permission_groups_signal.modify().push(new_permission_set);
-		}
 	};
 
 	view! {
 		ctx,
-		h1 { "Manage Permission Groups" }
-		form(on:submit=form_submission_handler) {
-			div(id="admin_group_manage") {
-				Keyed(
-					iterable=permission_groups_signal,
-					key=|group_with_events| group_with_events.group.id.clone(),
-					view=move |ctx, group_data| {
-						let group_id = group_data.group.id.clone();
-						let this_group_is_open = create_memo(ctx, {
-							let group_id = group_id.clone();
-							move || (*expanded_group.get()).as_ref().map(|g| group_id == *g).unwrap_or(false)
-						});
-						let events_class = create_memo(ctx, || {
-							if *this_group_is_open.get() {
-								"admin_group_events admin_group_events_active"
-							} else {
-								"admin_group_events"
-							}
-						});
+		div(id="admin_manage_groups") {
+			Keyed(
+				iterable=data.all_permission_groups,
+				key=|group| group.id.clone(),
+				view=|ctx, group| {
+					let data: &DataSignals = use_context(ctx);
+					let event_permissions_signal = create_memo(ctx, {
+						let group = group.clone();
+						move || {
+							let event_id_permissions: HashMap<String, PermissionLevel> = data.permission_group_event_associations.get().iter().filter(|assoc| assoc.group == group.id).map(|assoc| (assoc.event.clone(), assoc.permission)).collect();
+							event_id_permissions
+						}
+					});
+					let used_events = create_memo(ctx, || {
+						let event_permissions = event_permissions_signal.get();
+						let events: Vec<(Event, PermissionLevel)> = data.all_events.get().iter().flat_map(|event| event_permissions.get(&event.id).map(|permission| (event.clone(), *permission))).collect();
+						events
+					});
+					let unused_events = create_memo(ctx, || {
+						let event_permissions = event_permissions_signal.get();
+						let events: Vec<Event> = data.all_events.get().iter().filter(|event| !event_permissions.contains_key(&event.id)).cloned().collect();
+						events
+					});
 
-						let group_name_signal = create_signal(ctx, group_data.group.name.clone());
-						let group_name_field = create_node_ref(ctx);
+					let group_name_signal = create_signal(ctx, group.name.clone());
 
-						if !group_id.starts_with('+') {
-							create_effect(ctx, || {
-								let name_empty = group_name_signal.get().is_empty();
+					let submit_group_name_handler = {
+						let group = group.clone();
+						move |event: WebEvent| {
+							event.prevent_default();
+							let group = group.clone();
 
-								let group_name_field_ref: DomNode = match group_name_field.try_get() {
-									Some(node_ref) => node_ref,
-									None => return
+							spawn_local_scoped(ctx, async move {
+								let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+								let mut ws = ws_context.lock().await;
+
+								let mut new_group = group;
+								new_group.name = (*group_name_signal.get()).clone();
+								let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminPermissionGroupsUpdate(AdminPermissionGroupUpdate::UpdateGroup(new_group))));
+								let message_json = match serde_json::to_string(&message) {
+									Ok(msg) => msg,
+									Err(error) => {
+										let data: &DataSignals = use_context(ctx);
+										data.errors.modify().push(ErrorData::new_with_error("Failed to serialize permission group update message.", error));
+										return;
+									}
 								};
-								let group_name_field: HtmlInputElement = group_name_field_ref.unchecked_into();
-								if name_empty {
-									group_name_field.class_list().add_1("error").expect("Class change is valid");
-								} else {
-									group_name_field.class_list().remove_1("error").expect("Class change is valid");
+								if let Err(error) = ws.send(Message::Text(message_json)).await {
+									let data: &DataSignals = use_context(ctx);
+									data.errors.modify().push(ErrorData::new_with_error("Failed to send permission group update message.", error));
 								}
 							});
 						}
-						create_effect(ctx, {
-							let group_id = group_id.clone();
-							move || {
-								let new_name = (*group_name_signal.get()).clone();
-								let mut permission_groups_modification = permission_groups_signal.modify();
-								let group_data = permission_groups_modification.iter_mut().find(|g| g.group.id == group_id).expect("Permission group rendering exists as a permission group");
-								group_data.group.name = new_name;
-								updated_groups_signal.modify().insert(group_id.clone());
-							}
-						});
+					};
 
-						let group_events_signal = create_signal(ctx, group_data.events);
-
-						create_effect(ctx, {
-							let group_id = group_id.clone();
-							move || {
-								let mut modify_permission_groups = permission_groups_signal.modify();
-								let group_data = modify_permission_groups.iter_mut().find(|pg| pg.group.id == group_id).expect("Rendered group exists in the group data");
-								group_data.events = (*group_events_signal.get()).clone();
-								updated_groups_signal.modify().insert(group_id.clone());
-							}
-						});
-
-						let available_events_signal: &ReadSignal<Vec<Event>> = create_memo(ctx, || {
-							(*events_signal.get()).iter().filter(|ev| !group_events_signal.get().iter().any(|ge| ev.id == ge.event.id)).cloned().collect()
-						});
-
-						let group_header_click_handler = {
-							let group_id = group_id.clone();
-							move |_event: WebEvent| {
-								if *this_group_is_open.get() {
-									expanded_group.set(None);
-								} else {
-									expanded_group.set(Some(group_id.clone()));
-								}
-							}
-						};
-
-						let form_error_node = create_node_ref(ctx);
-						let new_event_name_signal = create_signal(ctx, String::new());
-
-						create_effect(ctx, || {
-							let _ = *new_event_name_signal.get(); // We don't need the value, but this should trigger when name changes
-							let error_node_ref: DomNode = match form_error_node.try_get() {
-								Some(node_ref) => node_ref,
-								None => return
-							};
-							let error_node: HtmlSpanElement = error_node_ref.unchecked_into();
-							error_node.set_inner_text("");
-						});
-
-						let add_event_submission_handler = move |event: WebEvent| {
-							event.prevent_default();
-
-							let error_node_ref: DomNode = form_error_node.get();
-							let error_node: HtmlSpanElement = error_node_ref.unchecked_into();
-
-							let entered_event_name = (*new_event_name_signal.get()).clone();
-							let events_index = events_names_index_signal.get();
-							let Some(event_data) = events_index.get(&entered_event_name) else {
-								error_node.set_inner_text("The entered event does not exist");
-								return;
-							};
-							if group_events_signal.get().iter().any(|ev| ev.event.id == event_data.id) {
-								error_node.set_inner_text("That event already has data for this group");
-								return;
-							}
-
-							let new_event_permission = OptionalEventPermission { event: event_data.clone(), level: None };
-							group_events_signal.modify().push(new_event_permission);
-							new_event_name_signal.set(String::new());
-						};
-
-						let group_events_list_id = group_id.clone();
-						view! {
-							ctx,
-							div(class="admin_group") {
-								div(class="admin_group_header", on:click=group_header_click_handler) {
-									input(bind:value=group_name_signal, ref=group_name_field)
-								}
-								div(class=*events_class.get()) {
-									div(class="admin_group_events_grid") {
-										Keyed(
-											iterable=group_events_signal,
-											key=|event_permission| event_permission.event.id.clone(),
-											view={
-												let group_id = group_id.clone();
-												move |ctx, event_permission| {
-													let view_id = format!("admin_group_event_line_view-{}-{}", group_id, event_permission.event.id);
-													let view_id_for = view_id.clone();
-													let edit_id = format!("admin_group_event_line_edit-{}-{}", group_id, event_permission.event.id);
-													let edit_id_for = edit_id.clone();
-
-													let event_permission_signal = create_signal(ctx, event_permission.level);
-													let event_view_signal = create_signal(ctx, event_permission.level.is_some());
-													let event_edit_signal = create_signal(ctx, event_permission.level == Some(PermissionLevel::Edit));
-
-													create_effect(ctx, || {
-														let view_state = *event_view_signal.get();
-														if !view_state {
-															event_edit_signal.set(false);
-														}
-													});
-													create_effect(ctx, || {
-														let edit_state = *event_edit_signal.get();
-														if edit_state {
-															event_view_signal.set(true);
-														}
-													});
-													create_effect(ctx, || {
-														let view_state = *event_view_signal.get();
-														let edit_state = *event_edit_signal.get();
-														let new_level = match (view_state, edit_state) {
-															(_, true) => Some(PermissionLevel::Edit),
-															(true, false) => Some(PermissionLevel::View),
-															_ => None
-														};
-														event_permission_signal.set(new_level);
-													});
-													create_effect(ctx, {
-														let group_id = group_id.clone();
-														move || {
-															let new_level = *event_permission_signal.get();
-															let mut modify_events = group_events_signal.modify();
-															let event_data = modify_events.iter_mut().find(|event| event_permission.event.id == event.event.id).expect("Event being rendered exists in the group event data");
-															event_data.level = new_level;
-															updated_groups_signal.modify().insert(group_id.clone());
-														}
-													});
-													create_effect(ctx, || {
-														let new_level = *event_permission_signal.get();
-														let (view_state, edit_state) = match new_level {
-															Some(PermissionLevel::Edit) => (true, true),
-															Some(PermissionLevel::View) => (true, false),
-															None => (false, false)
-														};
-														event_edit_signal.set(edit_state);
-														event_view_signal.set(view_state);
-													});
-
-													view! {
-														ctx,
-														div { (event_permission.event.name) }
-														div {
-															input(type="checkbox", id=view_id, bind:checked=event_view_signal)
-															label(for=view_id_for) { "View" }
-														}
-														div {
-															input(type="checkbox", id=edit_id, bind:checked=event_edit_signal)
-															label(for=edit_id_for) { "Edit" }
-														}
-													}
-												}
-											}
-										)
+					let add_event_list_id = format!("admin_manage_groups_event_list_{}", group.id);
+					view! {
+						ctx,
+						datalist(id=&add_event_list_id) {
+							Keyed(
+								iterable=used_events,
+								key=|(event, _)| event.id.clone(),
+								view=|ctx, (event, _)| {
+									view! {
+										ctx,
+										option(value=event.name)
 									}
-									(if available_events_signal.get().is_empty() {
-										view! { ctx, }
-									} else {
-										let events_list_id = format!("admin_group_event_list-{}", group_events_list_id);
-										let events_list_id_ref = events_list_id.clone();
-										view! {
-											ctx,
-											form(class="admin_group_events_add", on:submit=add_event_submission_handler) {
-												datalist(id=events_list_id) {
-													Keyed(
-														iterable=available_events_signal,
-														key=|event| event.id.clone(),
-														view=|ctx, event| view! { ctx, option(value=event.name) }
-													)
-												}
-												input(placeholder="Add event", list=events_list_id_ref, bind:value=new_event_name_signal)
-												button { "Add" }
-												span(class="form-error", ref=form_error_node)
-											}
-										}
-									})
 								}
+							)
+						}
+						div(class="admin_manage_groups_name") {
+							form(class="admin_manage_groups_group", on:submit=submit_group_name_handler) {
+								input(bind:value=group_name_signal)
+								button(type="submit") { "Update Name" }
 							}
 						}
-					}
-				)
-			}
+						div(class="admin_manage_groups_events") {
+							div(class="admin_manage_groups_events_header") { "Event" }
+							div(class="admin_manage_groups_events_header") { "View" }
+							div(class="admin_manage_groups_events_header") { "Edit" }
+							div(class="admin_manage_groups_events_header") { }
 
-			button(ref=submit_button) { "Update" }
-			button(type="button", on:click=cancel_button_handler, ref=cancel_button) { "Cancel" }
-			button(type="button", on:click=add_new_button_handler) { "Add New Group" }
+							Keyed(
+								iterable=used_events,
+								key=|(event, _)| event.id.clone(),
+								view=move |ctx, (event, permission)| {
+									let group = group.clone();
+									let event = event.clone();
+									let can_view_signal = create_signal(ctx, true);
+									let can_edit_signal = create_signal(ctx, permission == PermissionLevel::Edit);
+
+									create_effect(ctx, || {
+										if *can_edit_signal.get() {
+											can_view_signal.set(true);
+										}
+									});
+									create_effect(ctx, || {
+										if !*can_view_signal.get() {
+											can_edit_signal.set(false);
+										}
+									});
+
+									let update_handler = {
+										let event = event.clone();
+										move |web_event: WebEvent| {
+											web_event.prevent_default();
+
+											let message = if *can_edit_signal.get() {
+												AdminPermissionGroupUpdate::SetEventPermissionForGroup(PermissionGroupEventAssociation { group: group.id.clone(), event: event.id.clone(), permission: PermissionLevel::Edit })
+											} else if *can_view_signal.get() {
+												AdminPermissionGroupUpdate::SetEventPermissionForGroup(PermissionGroupEventAssociation { group: group.id.clone(), event: event.id.clone(), permission: PermissionLevel::View })
+											} else {
+												AdminPermissionGroupUpdate::RemoveEventFromGroup(group.clone(), event.clone())
+											};
+
+											spawn_local_scoped(ctx, async move {
+												let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+												let mut ws = ws_context.lock().await;
+
+												let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminPermissionGroupsUpdate(message)));
+												let message_json = match serde_json::to_string(&message) {
+													Ok(msg) => msg,
+													Err(error) => {
+														let data: &DataSignals = use_context(ctx);
+														data.errors.modify().push(ErrorData::new_with_error("Failed to serialize permission update for permission group.", error));
+														return;
+													}
+												};
+												if let Err(error) = ws.send(Message::Text(message_json)).await {
+													let data: &DataSignals = use_context(ctx);
+													data.errors.modify().push(ErrorData::new_with_error("Failed to send permission update for permission group.", error));
+												}
+											});
+										}
+									};
+
+									view! {
+										ctx,
+										form(class="admin_manage_groups_events_row", on:submit=update_handler) {
+											div(class="admin_manage_groups_events_name") { (event.name) }
+											div(class="admin_manage_groups_events_view") {
+												input(type="checkbox", bind:checked=can_view_signal)
+											}
+											div(class="admin_manage_groups_events_edit") {
+												input(type="checkbox", bind:checked=can_edit_signal)
+											}
+											div(class="admin_manage_groups_events_update") {
+												button(type="submit") { "Update" }
+											}
+										}
+									}
+								}
+							)
+						}
+					}
+				}
+			)
+			form(id="admin_manage_groups_new_group", on:submit=new_group_submit_handler) {
+				input(bind:value=new_group_name_signal, placeholder="New group name", class=if new_group_error_signal.get().is_empty() { "" } else { "error" })
+				button(type="submit") { "Add group" }
+				span(id="admin_manage_groups_new_group_error") { (new_group_error_signal.get()) }
+			}
 		}
 	}
 }
 
 #[component]
 pub fn AdminManageGroupsView<G: Html>(ctx: Scope<'_>) -> View<G> {
+	let user_signal: &Signal<Option<UserData>> = use_context(ctx);
+	match user_signal.get().as_ref() {
+		Some(user) => {
+			if !user.is_admin {
+				spawn_local_scoped(ctx, async {
+					navigate("/");
+				});
+				return view! { ctx, };
+			}
+		}
+		None => {
+			spawn_local_scoped(ctx, async {
+				navigate("/");
+			});
+			return view! { ctx, };
+		}
+	}
 	view! {
 		ctx,
 		Suspense(
