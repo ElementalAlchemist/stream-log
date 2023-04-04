@@ -4,6 +4,12 @@ use super::tags::Tag;
 use super::user::UserData;
 use serde::{Deserialize, Serialize};
 
+/// An update to an event from the admin events page
+#[derive(Debug, Deserialize, Serialize)]
+pub enum AdminEventUpdate {
+	UpdateEvent(Event),
+}
+
 /// A single permission group
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct PermissionGroup {

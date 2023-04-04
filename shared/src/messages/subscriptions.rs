@@ -1,4 +1,4 @@
-use crate::messages::admin::{AdminPermissionGroupUpdate, AdminTagUpdate};
+use crate::messages::admin::{AdminEventUpdate, AdminPermissionGroupUpdate, AdminTagUpdate};
 use crate::messages::entry_types::EntryType;
 use crate::messages::event_log::EventLogEntry;
 use crate::messages::event_subscription::{EventSubscriptionData, EventSubscriptionUpdate};
@@ -59,6 +59,7 @@ pub enum SubscriptionFailureInfo {
 #[derive(Debug, Deserialize, Serialize)]
 pub enum SubscriptionTargetUpdate {
 	EventUpdate(Event, Box<EventSubscriptionUpdate>),
+	AdminEventsUpdate(AdminEventUpdate),
 	AdminPermissionGroupsUpdate(AdminPermissionGroupUpdate),
 	AdminTagsUpdate(AdminTagUpdate),
 	AdminUserUpdate(UserData),
