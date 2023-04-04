@@ -1,3 +1,4 @@
+use super::entry_types::EntryType;
 use super::events::Event;
 use super::permissions::PermissionLevel;
 use super::tags::Tag;
@@ -8,6 +9,12 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Deserialize, Serialize)]
 pub enum AdminEventUpdate {
 	UpdateEvent(Event),
+}
+
+/// An update to an entry type from the admin entry types page
+#[derive(Debug, Deserialize, Serialize)]
+pub enum AdminEntryTypeUpdate {
+	UpdateEntryType(EntryType),
 }
 
 /// A single permission group

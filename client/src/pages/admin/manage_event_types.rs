@@ -1,21 +1,23 @@
 use crate::color_utils::{color_from_rgb_str, rgb_str_from_color};
-use crate::event_type_colors::{use_white_foreground, WHITE};
-use crate::pages::error::{ErrorData, ErrorView};
-use crate::websocket::read_websocket;
+use crate::event_type_colors::{use_white_foreground, BLACK, WHITE};
+use crate::subscriptions::errors::ErrorData;
+use crate::subscriptions::DataSignals;
 use futures::lock::Mutex;
 use futures::stream::SplitSink;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
-use stream_log_shared::messages::admin::AdminAction;
+use std::collections::HashSet;
+use stream_log_shared::messages::admin::AdminEntryTypeUpdate;
 use stream_log_shared::messages::entry_types::EntryType;
+use stream_log_shared::messages::subscriptions::{SubscriptionTargetUpdate, SubscriptionType};
 use stream_log_shared::messages::user::UserData;
-use stream_log_shared::messages::{DataMessage, RequestMessage};
+use stream_log_shared::messages::FromClientMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use sycamore::suspense::Suspense;
 use sycamore_router::navigate;
-use web_sys::{Event as WebEvent, HtmlButtonElement};
+use web_sys::Event as WebEvent;
 
 const DEFAULT_COLOR: &str = "#ffffff";
 
@@ -29,203 +31,260 @@ enum SelectedIndex {
 async fn AdminManageEventTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 	let mut ws = ws_context.lock().await;
+	let data: &DataSignals = use_context(ctx);
 
-	let message = RequestMessage::Admin(AdminAction::ListEventTypes);
+	let message = FromClientMessage::StartSubscription(SubscriptionType::AdminEntryTypes);
 	let message_json = match serde_json::to_string(&message) {
 		Ok(msg) => msg,
 		Err(error) => {
-			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-			error_signal.set(Some(ErrorData::new_with_error(
-				"Failed to serialize event types list request",
+			data.errors.modify().push(ErrorData::new_with_error(
+				"Failed to serialize entry type subscription message.",
 				error,
-			)));
-			return view! { ctx, ErrorView };
+			));
+			return view! { ctx, };
 		}
 	};
 	if let Err(error) = ws.send(Message::Text(message_json)).await {
-		let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-		error_signal.set(Some(ErrorData::new_with_error(
-			"Failed to send event types list request",
+		data.errors.modify().push(ErrorData::new_with_error(
+			"Failed to send entry type subscription message.",
 			error,
-		)));
-		return view! { ctx, ErrorView };
+		));
 	}
 
-	let event_types_response: DataMessage<Vec<EntryType>> = match read_websocket(&mut ws).await {
-		Ok(data) => data,
-		Err(error) => {
-			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-			error_signal.set(Some(ErrorData::new_with_error(
-				"Failed to receive event types list response",
-				error,
-			)));
-			return view! { ctx, ErrorView };
+	let used_names_signal = create_memo(ctx, || {
+		let names: HashSet<String> = data
+			.all_entry_types
+			.get()
+			.iter()
+			.map(|entry_type| entry_type.name.clone())
+			.collect();
+		names
+	});
+
+	let new_type_name_signal = create_signal(ctx, String::new());
+	let new_type_name_error_signal = create_signal(ctx, String::new());
+	let new_type_color_signal = create_signal(ctx, String::from(DEFAULT_COLOR));
+	let new_type_color_error_signal = create_signal(ctx, String::new());
+	let new_type_use_white_foreground_signal = create_memo(ctx, || {
+		let color = new_type_color_signal.get();
+		match color_from_rgb_str(&*color) {
+			Ok(color) => use_white_foreground(&color),
+			Err(_) => false,
 		}
-	};
+	});
+	let new_type_display_style_signal = create_memo(ctx, || {
+		let background = new_type_color_signal.get();
+		let foreground = match color_from_rgb_str(&*background) {
+			Ok(color) => {
+				if use_white_foreground(&color) {
+					WHITE
+				} else {
+					BLACK
+				}
+			}
+			Err(_) => BLACK,
+		};
+		let foreground = rgb_str_from_color(foreground);
+		format!("font-weight: 700, background: {}, color: {}", background, foreground)
+	});
 
-	let event_types = match event_types_response {
-		Ok(event_types) => event_types,
-		Err(error) => {
-			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-			error_signal.set(Some(ErrorData::new_with_error(
-				"A server error occurred getting the event types list",
-				error,
-			)));
-			return view! { ctx, ErrorView };
+	let new_type_submit_handler = move |event: WebEvent| {
+		event.prevent_default();
+
+		let name = (*new_type_name_signal.get()).clone();
+		if name.is_empty() {
+			new_type_name_error_signal.set(String::from("Name must not be empty."));
+			return;
 		}
+		if used_names_signal.get().contains(&name) {
+			new_type_name_error_signal.set(String::from("That name is already in use."));
+			return;
+		}
+		new_type_name_error_signal.modify().clear();
+
+		let color = match color_from_rgb_str(&*new_type_color_signal.get()) {
+			Ok(color) => color,
+			Err(error) => {
+				new_type_color_error_signal.set(format!("Invalid color: {}", error));
+				return;
+			}
+		};
+		new_type_color_error_signal.modify().clear();
+
+		new_type_name_signal.modify().clear();
+		new_type_color_signal.set(String::from(DEFAULT_COLOR));
+
+		let new_type = EntryType {
+			id: String::new(),
+			name,
+			color,
+		};
+		let message = FromClientMessage::SubscriptionMessage(Box::new(
+			SubscriptionTargetUpdate::AdminEntryTypesUpdate(AdminEntryTypeUpdate::UpdateEntryType(new_type)),
+		));
+		let message_json = match serde_json::to_string(&message) {
+			Ok(msg) => msg,
+			Err(error) => {
+				let data: &DataSignals = use_context(ctx);
+				data.errors.modify().push(ErrorData::new_with_error(
+					"Failed to serialize new entry type message.",
+					error,
+				));
+				return;
+			}
+		};
+
+		spawn_local_scoped(ctx, async move {
+			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+			let mut ws = ws_context.lock().await;
+
+			if let Err(error) = ws.send(Message::Text(message_json)).await {
+				let data: &DataSignals = use_context(ctx);
+				data.errors.modify().push(ErrorData::new_with_error(
+					"Failed to send new entry type message.",
+					error,
+				));
+			}
+		});
 	};
 
-	let event_types_signal = create_signal(ctx, event_types);
-	let selected_event_type_signal: &Signal<Option<SelectedIndex>> = create_signal(ctx, None);
+	let done_click_handler = move |_event: WebEvent| {
+		spawn_local_scoped(ctx, async move {
+			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+			let mut ws = ws_context.lock().await;
 
-	let entered_name_signal = create_signal(ctx, String::new());
-	let entered_color_signal = create_signal(ctx, String::from(DEFAULT_COLOR));
-	let entered_name_error_signal = create_signal(ctx, String::new());
-
-	let add_event_type_handler = |_event: WebEvent| {
-		selected_event_type_signal.set(Some(SelectedIndex::NewType));
-		entered_name_signal.set(String::new());
-		entered_color_signal.set(String::from(DEFAULT_COLOR));
-	};
-
-	let done_click_handler = |_event: WebEvent| {
+			let message = FromClientMessage::EndSubscription(SubscriptionType::AdminEntryTypes);
+			let message_json = match serde_json::to_string(&message) {
+				Ok(msg) => msg,
+				Err(error) => {
+					let data: &DataSignals = use_context(ctx);
+					data.errors.modify().push(ErrorData::new_with_error(
+						"Failed to serialize unsubscription message for entry types data.",
+						error,
+					));
+					return;
+				}
+			};
+			if let Err(error) = ws.send(Message::Text(message_json)).await {
+				let data: &DataSignals = use_context(ctx);
+				data.errors.modify().push(ErrorData::new_with_error(
+					"Failed to send unsubscription message for entry types data.",
+					error,
+				));
+			}
+		});
 		navigate("/");
 	};
 
-	let add_event_type_button = create_node_ref(ctx);
-
 	view! {
 		ctx,
-		div(id="admin_event_type_list") {
+		div(id="admin_manage_entry_types") {
 			Keyed(
-				iterable=event_types_signal,
-				key=|event_type| event_type.id.clone(),
-				view=move |ctx, event_type| {
-					let click_handler = {
-						let event_type = event_type.clone();
-						move |_event: WebEvent| {
-							selected_event_type_signal.set(Some(SelectedIndex::Existing(event_types_signal.get().iter().enumerate().find(|(_, et)| et.id == event_type.id).map(|(index, _)| index).unwrap())));
-							entered_name_signal.set(event_type.name.clone());
+				iterable=data.all_entry_types,
+				key=|entry_type| entry_type.id.clone(),
+				view=move |ctx, entry_type| {
+					let name_signal = create_signal(ctx, entry_type.name.clone());
+					let name_error_signal = create_signal(ctx, String::new());
+					let color_signal = create_signal(ctx, rgb_str_from_color(entry_type.color));
+					let color_error_signal = create_signal(ctx, String::new());
 
-							let color = rgb_str_from_color(event_type.color);
-							entered_color_signal.set(color);
+					let display_style_signal = create_memo(ctx, || {
+						let background = color_signal.get();
+						let foreground = match color_from_rgb_str(&*background) {
+							Ok(color) => {
+								if use_white_foreground(&color) {
+									WHITE
+								} else {
+									BLACK
+								}
+							}
+							Err(_) => BLACK
+						};
+						let foreground = rgb_str_from_color(foreground);
+						format!("font-weight: 700; background: {}, color: {}", background, foreground)
+					});
+
+					let update_type_handler = move |event: WebEvent| {
+						event.prevent_default();
+
+						let name = (*name_signal.get()).clone();
+						if name.is_empty() {
+							name_error_signal.set(String::from("Name must not be empty"));
+							return;
 						}
+						if used_names_signal.get().contains(&name) {
+							name_error_signal.set(String::from("Name is already in use"));
+							return;
+						}
+						name_error_signal.modify().clear();
+
+						let color = color_signal.get();
+						let color = match color_from_rgb_str(&*color) {
+							Ok(color) => color,
+							Err(error) => {
+								color_error_signal.set(format!("Invalid color: {}", error));
+								return;
+							}
+						};
+						color_error_signal.modify().clear();
+
+						let updated_type = EntryType { id: entry_type.id.clone(), name, color };
+						let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminEntryTypesUpdate(AdminEntryTypeUpdate::UpdateEntryType(updated_type))));
+						let message_json = match serde_json::to_string(&message) {
+							Ok(msg) => msg,
+							Err(error) => {
+								let data: &DataSignals = use_context(ctx);
+								data.errors.modify().push(ErrorData::new_with_error("Failed to serialize entry type update message.", error));
+								return;
+							}
+						};
+
+						spawn_local_scoped(ctx, async move {
+							let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+							let mut ws = ws_context.lock().await;
+
+							if let Err(error) = ws.send(Message::Text(message_json)).await {
+								let data: &DataSignals = use_context(ctx);
+								data.errors.modify().push(ErrorData::new_with_error("Failed to send entry type update message.", error));
+							}
+						});
 					};
 
-					let foreground_color = if use_white_foreground(&event_type.color) {
-						"#fff"
-					} else {
-						"#000"
-					};
-
-					let background_color = format!("rgb({}, {}, {})", event_type.color.r, event_type.color.g, event_type.color.b);
-
-					let style = format!("color: {}; background: {}", foreground_color, background_color);
 					view! {
 						ctx,
-						div(class="admin_event_type click", style=style, on:click=click_handler) { (event_type.name) }
+						form(class="admin_manage_entry_types_row", on:submit=update_type_handler) {
+							div(style=display_style_signal.get()) {
+								(name_signal.get())
+							}
+							div {
+								input(bind:value=name_signal, class=if name_error_signal.get().is_empty() { "" } else { "error" }, title=*name_error_signal.get())
+							}
+							div {
+								input(type="color", bind:value=color_signal, class=if color_error_signal.get().is_empty() { "" } else { "error" }, title=*color_error_signal.get())
+							}
+							div {
+								button(type="submit") { "Update" }
+							}
+						}
 					}
 				}
 			)
-		}
-
-		(if let Some(selected_event_type) = *selected_event_type_signal.get() {
-			let form_submission_handler = move |event: WebEvent| {
-				event.prevent_default();
-
-				let name = (*entered_name_signal.get()).clone();
-				if name.is_empty() {
-					entered_name_error_signal.set(String::from("Name cannot be empty."));
-					return;
+			form(class="admin_manage_entry_types_row", on:submit=new_type_submit_handler) {
+				div(style=new_type_display_style_signal.get()) {
+					(new_type_name_signal.get())
 				}
-				// Assuming a functioning browser color input, we don't have error output for this parsing
-				let Ok(color) = color_from_rgb_str(&entered_color_signal.get()) else { return; };
-
-				let mut event_type_data = match selected_event_type {
-					SelectedIndex::NewType => EntryType { id: String::new(), name: String::new(), color: WHITE },
-					SelectedIndex::Existing(index) => event_types_signal.get()[index].clone()
-				};
-
-				event_type_data.name = name;
-				event_type_data.color = color;
-
-				selected_event_type_signal.set(None);
-				let add_event_type_button: DomNode = add_event_type_button.get();
-				let add_event_type_button: HtmlButtonElement = add_event_type_button.unchecked_into();
-				// Try to focus on the Add Event Type button after closing so focus is somewhere, and to allow quick entry of many entry types
-				let _ = add_event_type_button.focus();
-
-				if let SelectedIndex::Existing(index) = selected_event_type {
-					event_types_signal.modify()[index] = event_type_data.clone();
+				div {
+					input(bind:value=new_type_name_signal, class=if new_type_name_error_signal.get().is_empty() { "" } else { "error" }, title=*new_type_name_error_signal.get())
 				}
-				spawn_local_scoped(ctx, async move {
-					let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
-					let mut ws = ws_context.lock().await;
-
-					let message = if selected_event_type == SelectedIndex::NewType {
-						RequestMessage::Admin(AdminAction::AddEventType(event_type_data.clone()))
-					} else {
-						RequestMessage::Admin(AdminAction::UpdateEventType(event_type_data.clone()))
-					};
-					let message_json = match serde_json::to_string(&message) {
-						Ok(msg) => msg,
-						Err(error) => {
-							let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-							error_signal.set(Some(ErrorData::new_with_error("Failed to serialize event type update", error)));
-							navigate("/error");
-							return;
-						}
-					};
-					if let Err(error) = ws.send(Message::Text(message_json)).await {
-						let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-						error_signal.set(Some(ErrorData::new_with_error("Failed to send event type update", error)));
-						navigate("/error");
-						return;
-					}
-
-					if selected_event_type == SelectedIndex::NewType {
-						let id_response: DataMessage<String> = match read_websocket(&mut ws).await {
-							Ok(msg) => msg,
-							Err(error) => {
-								let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-								error_signal.set(Some(ErrorData::new_with_error("Failed to receive new event type ID", error)));
-								navigate("/error");
-								return;
-							}
-						};
-						let id = match id_response {
-							Ok(id) => id,
-							Err(error) => {
-								let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-								error_signal.set(Some(ErrorData::new_with_error("A server error occurred adding the new event type", error)));
-								navigate("/error");
-								return;
-							}
-						};
-						event_type_data.id = id;
-						event_types_signal.modify().push(event_type_data);
-					}
-				});
-			};
-			let name_field_change_handler = |_event: WebEvent| {
-				entered_name_error_signal.modify().clear();
-			};
-			view! {
-				ctx,
-				form(id="admin_event_type_edit", on:submit=form_submission_handler) {
-					input(placeholder="Name", on:change=name_field_change_handler, bind:value=entered_name_signal, class=if entered_name_error_signal.get().is_empty() { "" } else { "error" }, autofocus=true)
-					input(type="color", bind:value=entered_color_signal)
-					button { "Update" }
+				div {
+					input(type="color", bind:value=new_type_color_signal, class=if new_type_color_error_signal.get().is_empty() { "" } else { "error" }, title=*new_type_color_error_signal.get())
+				}
+				div {
+					button(type="submit") { "Add New" }
 				}
 			}
-		} else {
-			view! { ctx, }
-		})
-
-		div(id="admin_event_type_controls") {
-			button(on:click=add_event_type_handler, ref=add_event_type_button) { "Add Event Type" }
-			button(on:click=done_click_handler) { "Done" }
 		}
+		button(on:click=done_click_handler) { "Done" }
 	}
 }
 

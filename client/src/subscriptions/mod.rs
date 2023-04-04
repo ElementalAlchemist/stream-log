@@ -3,6 +3,7 @@ use futures::stream::SplitStream;
 use gloo_net::websocket::futures::WebSocket;
 use std::collections::HashMap;
 use stream_log_shared::messages::admin::{PermissionGroup, PermissionGroupEventAssociation};
+use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::subscriptions::InitialSubscriptionLoadData;
 use stream_log_shared::messages::tags::{Tag, TagEventAssociation};
@@ -29,6 +30,7 @@ pub struct DataSignals<'a> {
 	pub available_events: &'a Signal<Vec<Event>>,
 	pub all_users: &'a Signal<Vec<UserData>>,
 	pub all_events: &'a Signal<Vec<Event>>,
+	pub all_entry_types: &'a Signal<Vec<EntryType>>,
 	pub all_permission_groups: &'a Signal<Vec<PermissionGroup>>,
 	pub permission_group_event_associations: &'a Signal<Vec<PermissionGroupEventAssociation>>,
 	pub all_tags: &'a Signal<Vec<Tag>>,
@@ -44,6 +46,7 @@ impl<'a> DataSignals<'a> {
 			available_events: create_signal(ctx, Vec::new()),
 			all_users: create_signal(ctx, Vec::new()),
 			all_events: create_signal(ctx, Vec::new()),
+			all_entry_types: create_signal(ctx, Vec::new()),
 			all_permission_groups: create_signal(ctx, Vec::new()),
 			permission_group_event_associations: create_signal(ctx, Vec::new()),
 			all_tags: create_signal(ctx, Vec::new()),
