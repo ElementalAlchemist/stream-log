@@ -32,13 +32,6 @@ pub struct PermissionGroupEventAssociation {
 	pub permission: PermissionLevel,
 }
 
-/// A pairing of a permission group and a user
-#[derive(Deserialize, Serialize)]
-pub struct PermissionGroupUser {
-	pub group: PermissionGroup,
-	pub user: UserData,
-}
-
 #[derive(Debug, Deserialize, Serialize)]
 pub enum AdminPermissionGroupUpdate {
 	AddGroup(PermissionGroup),
@@ -65,4 +58,16 @@ pub enum AdminEventEditorUpdate {
 pub struct EditorEventAssociation {
 	pub editor: UserData,
 	pub event: Event,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub enum AdminUserPermissionGroupUpdate {
+	AddUserToGroup(UserPermissionGroupAssociation),
+	RemoveUserFromGroup(UserPermissionGroupAssociation),
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct UserPermissionGroupAssociation {
+	pub user: UserData,
+	pub permission_group: PermissionGroup,
 }

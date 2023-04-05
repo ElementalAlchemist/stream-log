@@ -1,5 +1,6 @@
 use crate::messages::admin::{
 	AdminEntryTypeUpdate, AdminEventEditorUpdate, AdminEventUpdate, AdminPermissionGroupUpdate, AdminTagUpdate,
+	AdminUserPermissionGroupUpdate,
 };
 use crate::messages::entry_types::EntryType;
 use crate::messages::event_log::EventLogEntry;
@@ -22,6 +23,7 @@ pub enum SubscriptionType {
 	AdminEntryTypesEvents,
 	AdminTags,
 	AdminEventEditors,
+	AdminUserPermissionGroupAssignment,
 }
 
 /// Sent to the client when a new subscription is created.
@@ -67,4 +69,5 @@ pub enum SubscriptionTargetUpdate {
 	AdminTagsUpdate(AdminTagUpdate),
 	AdminUserUpdate(UserData),
 	AdminEventEditorsUpdate(AdminEventEditorUpdate),
+	AdminUserPermissionGroupsUpdate(AdminUserPermissionGroupUpdate),
 }

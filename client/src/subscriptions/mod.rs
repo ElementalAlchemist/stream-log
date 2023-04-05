@@ -2,7 +2,9 @@ use crate::websocket::read_websocket;
 use futures::stream::SplitStream;
 use gloo_net::websocket::futures::WebSocket;
 use std::collections::HashMap;
-use stream_log_shared::messages::admin::{EditorEventAssociation, PermissionGroup, PermissionGroupEventAssociation};
+use stream_log_shared::messages::admin::{
+	EditorEventAssociation, PermissionGroup, PermissionGroupEventAssociation, UserPermissionGroupAssociation,
+};
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::subscriptions::InitialSubscriptionLoadData;
@@ -59,6 +61,9 @@ pub struct DataSignals<'a> {
 
 	/// List of all editor user/event pairings
 	pub event_editors: &'a Signal<Vec<EditorEventAssociation>>,
+
+	/// List of all user/permission group pairings
+	pub user_permission_groups: &'a Signal<Vec<UserPermissionGroupAssociation>>,
 }
 
 impl<'a> DataSignals<'a> {
@@ -76,6 +81,7 @@ impl<'a> DataSignals<'a> {
 			all_tags: create_signal(ctx, Vec::new()),
 			tag_event_associations: create_signal(ctx, Vec::new()),
 			event_editors: create_signal(ctx, Vec::new()),
+			user_permission_groups: create_signal(ctx, Vec::new()),
 		}
 	}
 }
