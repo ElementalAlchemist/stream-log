@@ -2,7 +2,7 @@ use crate::websocket::read_websocket;
 use futures::stream::SplitStream;
 use gloo_net::websocket::futures::WebSocket;
 use std::collections::HashMap;
-use stream_log_shared::messages::admin::{PermissionGroup, PermissionGroupEventAssociation};
+use stream_log_shared::messages::admin::{EditorEventAssociation, PermissionGroup, PermissionGroupEventAssociation};
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::subscriptions::InitialSubscriptionLoadData;
@@ -24,17 +24,41 @@ use registration::RegistrationData;
 /// A struct containing all of the signals that can be updated by server messages.
 #[derive(Clone)]
 pub struct DataSignals<'a> {
+	/// List of errors. These are displayed to the user.
 	pub errors: &'a Signal<Vec<ErrorData>>,
+
+	/// Subscription data for each event for which we have a subscription.
 	pub events: &'a Signal<HashMap<String, EventSubscriptionSignals>>,
+
+	/// When we're going through a registration workflow, contains all the data relevant for registering a new account.
 	pub registration: RegistrationData<'a>,
+
+	/// List of events available to the currently logged-in user.
 	pub available_events: &'a Signal<Vec<Event>>,
+
+	/// List of all users registered.
 	pub all_users: &'a Signal<Vec<UserData>>,
+
+	/// List of all events that exist.
 	pub all_events: &'a Signal<Vec<Event>>,
+
+	/// List of all entry types that have been created.
 	pub all_entry_types: &'a Signal<Vec<EntryType>>,
+
+	/// List of all permission groups that have been set up.
 	pub all_permission_groups: &'a Signal<Vec<PermissionGroup>>,
+
+	/// List of associations between permission groups and events
 	pub permission_group_event_associations: &'a Signal<Vec<PermissionGroupEventAssociation>>,
+
+	/// List of all tags that have been created.
 	pub all_tags: &'a Signal<Vec<Tag>>,
+
+	/// Associations of tags and their relevant events.
 	pub tag_event_associations: &'a Signal<Vec<TagEventAssociation>>,
+
+	/// List of all editor user/event pairings
+	pub event_editors: &'a Signal<Vec<EditorEventAssociation>>,
 }
 
 impl<'a> DataSignals<'a> {
@@ -51,6 +75,7 @@ impl<'a> DataSignals<'a> {
 			permission_group_event_associations: create_signal(ctx, Vec::new()),
 			all_tags: create_signal(ctx, Vec::new()),
 			tag_event_associations: create_signal(ctx, Vec::new()),
+			event_editors: create_signal(ctx, Vec::new()),
 		}
 	}
 }

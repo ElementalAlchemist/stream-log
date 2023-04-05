@@ -54,3 +54,15 @@ pub enum AdminTagUpdate {
 	RemoveTag(Tag),
 	ReplaceTag(Tag, Tag),
 }
+
+#[derive(Debug, Deserialize, Serialize)]
+pub enum AdminEventEditorUpdate {
+	AddEditor(EditorEventAssociation),
+	RemoveEditor(EditorEventAssociation),
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct EditorEventAssociation {
+	pub editor: UserData,
+	pub event: Event,
+}
