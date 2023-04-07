@@ -65,13 +65,6 @@ async fn AdminManageEventTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	let new_type_name_error_signal = create_signal(ctx, String::new());
 	let new_type_color_signal = create_signal(ctx, String::from(DEFAULT_COLOR));
 	let new_type_color_error_signal = create_signal(ctx, String::new());
-	let new_type_use_white_foreground_signal = create_memo(ctx, || {
-		let color = new_type_color_signal.get();
-		match color_from_rgb_str(&*color) {
-			Ok(color) => use_white_foreground(&color),
-			Err(_) => false,
-		}
-	});
 	let new_type_display_style_signal = create_memo(ctx, || {
 		let background = new_type_color_signal.get();
 		let foreground = match color_from_rgb_str(&*background) {

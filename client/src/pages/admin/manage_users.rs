@@ -7,7 +7,6 @@ use futures::stream::SplitSink;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
-use std::collections::HashMap;
 use stream_log_shared::messages::subscriptions::{SubscriptionTargetUpdate, SubscriptionType};
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::FromClientMessage;
@@ -40,9 +39,6 @@ async fn AdminManageUsersLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			error,
 		));
 	}
-
-	let changed_users: HashMap<String, UserData> = HashMap::new();
-	let changed_users = create_signal(ctx, changed_users);
 
 	let done_button_handler = move |_event: WebEvent| {
 		spawn_local_scoped(ctx, async move {
