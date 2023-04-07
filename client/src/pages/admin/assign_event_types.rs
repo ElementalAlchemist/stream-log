@@ -1,15 +1,17 @@
+use crate::color_utils::rgb_str_from_color;
 use crate::event_type_colors::use_white_foreground;
-use crate::pages::error::{ErrorData, ErrorView};
-use crate::websocket::read_websocket;
+use crate::subscriptions::errors::ErrorData;
+use crate::subscriptions::DataSignals;
 use futures::lock::Mutex;
 use futures::stream::SplitSink;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
-use stream_log_shared::messages::admin::AdminAction;
-use stream_log_shared::messages::entry_types::EntryType;
+use std::collections::HashMap;
+use stream_log_shared::messages::admin::{AdminEntryTypeEventUpdate, EntryTypeEventAssociation};
 use stream_log_shared::messages::events::Event;
-use stream_log_shared::messages::{DataMessage, RequestMessage};
+use stream_log_shared::messages::subscriptions::{SubscriptionTargetUpdate, SubscriptionType};
+use stream_log_shared::messages::FromClientMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use sycamore::suspense::Suspense;
@@ -20,316 +22,185 @@ use web_sys::Event as WebEvent;
 async fn AdminManageEventTypesForEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 	let mut ws = ws_context.lock().await;
+	let data: &DataSignals = use_context(ctx);
 
-	let event_types_request = RequestMessage::Admin(AdminAction::ListEventTypes);
-	let event_types_request_json = match serde_json::to_string(&event_types_request) {
+	let subscription_message = FromClientMessage::StartSubscription(SubscriptionType::AdminEntryTypesEvents);
+	let subscription_message_json = match serde_json::to_string(&subscription_message) {
 		Ok(msg) => msg,
 		Err(error) => {
-			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-			error_signal.set(Some(ErrorData::new_with_error(
-				"Failed to serialize event type list request",
+			data.errors.modify().push(ErrorData::new_with_error(
+				"Failed to serialize entry types and events subscription message.",
 				error,
-			)));
-			return view! { ctx, ErrorView };
+			));
+			return view! { ctx, };
 		}
 	};
-	if let Err(error) = ws.send(Message::Text(event_types_request_json)).await {
-		let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-		error_signal.set(Some(ErrorData::new_with_error(
-			"Failed to send event type list request",
+	if let Err(error) = ws.send(Message::Text(subscription_message_json)).await {
+		data.errors.modify().push(ErrorData::new_with_error(
+			"Failed to send entry types and events subscription message.",
 			error,
-		)));
-		return view! { ctx, ErrorView };
+		));
 	}
 
-	let events_request = RequestMessage::Admin(AdminAction::ListEvents);
-	let events_request_json = match serde_json::to_string(&events_request) {
-		Ok(msg) => msg,
-		Err(error) => {
-			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-			error_signal.set(Some(ErrorData::new_with_error(
-				"Failed to serialize events list request",
-				error,
-			)));
-			return view! { ctx, ErrorView };
-		}
-	};
-	if let Err(error) = ws.send(Message::Text(events_request_json)).await {
-		let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-		error_signal.set(Some(ErrorData::new_with_error(
-			"Failed to send events list request",
-			error,
-		)));
-		return view! { ctx, ErrorView };
-	}
-
-	let event_types_response: DataMessage<Vec<EntryType>> = match read_websocket(&mut ws).await {
-		Ok(response) => response,
-		Err(error) => {
-			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-			error_signal.set(Some(ErrorData::new_with_error(
-				"Failed to receive event type list response",
-				error,
-			)));
-			return view! { ctx, ErrorView };
-		}
-	};
-	let events_response: DataMessage<Vec<Event>> = match read_websocket(&mut ws).await {
-		Ok(response) => response,
-		Err(error) => {
-			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-			error_signal.set(Some(ErrorData::new_with_error(
-				"Failed to receive events list response",
-				error,
-			)));
-			return view! { ctx, ErrorView };
-		}
-	};
-
-	let event_types = match event_types_response {
-		Ok(resp) => resp,
-		Err(error) => {
-			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-			error_signal.set(Some(ErrorData::new_with_error(
-				"A server error occurred getting event types",
-				error,
-			)));
-			return view! { ctx, ErrorView };
-		}
-	};
-	let events = match events_response {
-		Ok(resp) => resp,
-		Err(error) => {
-			let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-			error_signal.set(Some(ErrorData::new_with_error(
-				"A server error occurred getting events",
-				error,
-			)));
-			return view! { ctx, ErrorView };
-		}
-	};
-
-	let event_types_signal = create_signal(ctx, event_types);
-	let events_signal = create_signal(ctx, events);
 	let selected_event_signal: &Signal<Option<Event>> = create_signal(ctx, None);
-	let selected_event_available_types_signal: &Signal<Vec<EntryType>> = create_signal(ctx, Vec::new());
-	let loading_selected_event = create_signal(ctx, false);
 
 	let entered_event_signal = create_signal(ctx, String::new());
 	let entered_event_error_signal = create_signal(ctx, String::new());
 
-	create_effect(ctx, move || {
-		if let Some(selected_event) = (*selected_event_signal.get()).clone() {
-			spawn_local_scoped(ctx, async move {
-				loading_selected_event.set(true);
-				let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
-				let mut ws = ws_context.lock().await;
-
-				let message = RequestMessage::Admin(AdminAction::ListEventTypesForEvent(selected_event.clone()));
-				let message_json = match serde_json::to_string(&message) {
-					Ok(msg) => msg,
-					Err(error) => {
-						let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-						error_signal.set(Some(ErrorData::new_with_error(
-							"Failed to serialize event type list request for event",
-							error,
-						)));
-						navigate("/error");
-						return;
-					}
-				};
-				if let Err(error) = ws.send(Message::Text(message_json)).await {
-					let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-					error_signal.set(Some(ErrorData::new_with_error(
-						"Failed to send event type list request for event",
-						error,
-					)));
-					navigate("/error");
-					return;
-				}
-
-				let event_types_response: DataMessage<Vec<EntryType>> = match read_websocket(&mut ws).await {
-					Ok(msg) => msg,
-					Err(error) => {
-						let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-						error_signal.set(Some(ErrorData::new_with_error(
-							"Failed to receive event type list response for event",
-							error,
-						)));
-						navigate("/error");
-						return;
-					}
-				};
-
-				let event_types = match event_types_response {
-					Ok(event_types) => event_types,
-					Err(error) => {
-						let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-						error_signal.set(Some(ErrorData::new_with_error(
-							"A server error occurred retrieving the event type list for the event",
-							error,
-						)));
-						navigate("/error");
-						return;
-					}
-				};
-
-				if let Some(current_event) = selected_event_signal.get().as_ref() {
-					if current_event.id == selected_event.id {
-						selected_event_available_types_signal.set(event_types);
-					}
-				}
-				loading_selected_event.set(false);
-			});
-		} else {
-			selected_event_available_types_signal.modify().clear();
-		}
+	let all_events_name_index = create_memo(ctx, || {
+		let name_index: HashMap<String, Event> = data
+			.all_events
+			.get()
+			.iter()
+			.map(|event| (event.name.clone(), event.clone()))
+			.collect();
+		name_index
 	});
-
-	let update_handler = move |event: WebEvent| {
-		event.prevent_default();
-
-		let selected_event_types: Vec<EntryType> = selected_event_available_types_signal.modify().drain(..).collect();
-		let event = if let Some(event) = selected_event_signal.modify().take() {
-			event
-		} else {
-			return;
-		};
-
-		let message = RequestMessage::Admin(AdminAction::UpdateEventTypesForEvent(event, selected_event_types));
-		let message_json = match serde_json::to_string(&message) {
-			Ok(msg) => msg,
-			Err(error) => {
-				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-				error_signal.set(Some(ErrorData::new_with_error(
-					"Failed to serialize event update",
-					error,
-				)));
-				navigate("/error");
-				return;
-			}
-		};
-
-		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
-			let mut ws = ws_context.lock().await;
-
-			if let Err(error) = ws.send(Message::Text(message_json)).await {
-				let error_signal: &Signal<Option<ErrorData>> = use_context(ctx);
-				error_signal.set(Some(ErrorData::new_with_error("Failed to send event update", error)));
-				navigate("/error");
-			}
-		});
-	};
 
 	let switch_event_handler = move |event: WebEvent| {
 		event.prevent_default();
 
-		let events_data = events_signal.get();
-		let Some(event) = events_data.iter().find(|event| *entered_event_signal.get() == event.name) else {
+		let event_names_index = all_events_name_index.get();
+		let Some(event) = event_names_index.get(&*entered_event_signal.get()) else {
 			entered_event_error_signal.set(String::from("The entered event does not exist"));
 			return;
 		};
+		entered_event_error_signal.modify().clear();
 
 		selected_event_signal.set(Some(event.clone()));
-		entered_event_signal.modify().clear();
 	};
 
-	let enter_event_name_handler = |_event: WebEvent| {
-		entered_event_error_signal.modify().clear();
-	};
+	let done_handler = move |_event: WebEvent| {
+		spawn_local_scoped(ctx, async move {
+			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+			let mut ws = ws_context.lock().await;
 
-	let done_handler = |_event: WebEvent| {
+			let message = FromClientMessage::EndSubscription(SubscriptionType::AdminEntryTypesEvents);
+			let message_json = match serde_json::to_string(&message) {
+				Ok(msg) => msg,
+				Err(error) => {
+					let data: &DataSignals = use_context(ctx);
+					data.errors.modify().push(ErrorData::new_with_error(
+						"Failed to serialize entry types and events subscription end message.",
+						error,
+					));
+					return;
+				}
+			};
+			if let Err(error) = ws.send(Message::Text(message_json)).await {
+				let data: &DataSignals = use_context(ctx);
+				data.errors.modify().push(ErrorData::new_with_error(
+					"Failed to send entry types and events subscription end message.",
+					error,
+				));
+			}
+		});
 		navigate("/");
 	};
 
 	view! {
 		ctx,
-		(if let Some(event) = (*selected_event_signal.get()).clone() {
-			if *loading_selected_event.get() {
-				view! { ctx, }
-			} else {
-				view! {
-					ctx,
-					h1 { (event.name) }
-					form(id="admin_event_type_assignment", on:submit=update_handler) {
-						div(id="admin_event_type_assignment_grid") {
-							Keyed(
-								iterable=event_types_signal,
-								key=|event_type| event_type.id.clone(),
-								view=move |ctx, event_type| {
-									let event_has_type = create_memo(ctx, {
-										let event_type = event_type.clone();
-										move || {
-											selected_event_available_types_signal.get().iter().any(|et| event_type.id == et.id)
-										}
-									});
-									let selected_signal = create_signal(ctx, *event_has_type.get());
+		datalist(id="all_event_names") {
+			Keyed(
+				iterable=data.all_events,
+				key=|event| event.id.clone(),
+				view=|ctx, event| {
+					view! {
+						ctx,
+						option(value=event.name)
+					}
+				}
+			)
+		}
+		datalist(id="all_entry_type_names") {
+			Keyed(
+				iterable=data.all_entry_types,
+				key=|entry_type| entry_type.id.clone(),
+				view=|ctx, entry_type| {
+					view! {
+						ctx,
+						option(value=entry_type.name)
+					}
+				}
+			)
+		}
+		form(id="admin_entry_type_assignment_event_selection", on:submit=switch_event_handler) {
+			input(bind:value=entered_event_signal, placeholder="Event name", list="all_event_names")
+			button(type="submit") { "Load" }
+		}
+		(if let Some(event) = selected_event_signal.get().as_ref() {
+			view! {
+				ctx,
+				div(id="admin_event_type_assignment_grid") {
+					Keyed(
+						iterable=data.all_entry_types,
+						key=|entry_type| entry_type.id.clone(),
+						view={
+							let event = event.clone();
+							move |ctx, entry_type| {
+								let default_checked = data.entry_type_event_associations.get().iter().find(|association| association.event.id == event.id && association.entry_type.id == entry_type.id).is_some();
+								let entry_type_active = create_signal(ctx, default_checked);
+								let initial_entry_type_active_change_run = create_signal(ctx, true);
 
-									create_effect(ctx, {
-										let event_type = event_type.clone();
-										move || {
-											if *selected_signal.get() {
-												if !*event_has_type.get() {
-													selected_event_available_types_signal.modify().push(event_type.clone());
-												}
+								create_effect(ctx, {
+									let event = event.clone();
+									let entry_type = entry_type.clone();
+									move || {
+										let event = event.clone();
+										let entry_type = entry_type.clone();
+										let use_entry_type = *entry_type_active.get();
+										if *initial_entry_type_active_change_run.get_untracked() {
+											initial_entry_type_active_change_run.set(false);
+											return;
+										}
+										spawn_local_scoped(ctx, async move {
+											let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+											let mut ws = ws_context.lock().await;
+
+											let association = EntryTypeEventAssociation { entry_type: entry_type.clone(), event: event.clone() };
+											let message = if use_entry_type {
+												AdminEntryTypeEventUpdate::AddTypeToEvent(association)
 											} else {
-												let mut modify_event_types = selected_event_available_types_signal.modify();
-												if let Some(index) = modify_event_types.iter().enumerate().find(|(_, et)| event_type.id == et.id).map(|(index, _)| index) {
-													modify_event_types.remove(index);
+												AdminEntryTypeEventUpdate::RemoveTypeFrommEvent(association)
+											};
+											let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminEntryTypesEventsUpdate(message)));
+											let message_json = match serde_json::to_string(&message) {
+												Ok(msg) => msg,
+												Err(error) => {
+													let data: &DataSignals = use_context(ctx);
+													data.errors.modify().push(ErrorData::new_with_error("Failed to serialize event entry type update message.", error));
+													return;
 												}
+											};
+											if let Err(error) = ws.send(Message::Text(message_json)).await {
+												let data: &DataSignals = use_context(ctx);
+												data.errors.modify().push(ErrorData::new_with_error("Failed to send event entry type update message.", error));
 											}
-										}
-									});
+										});
+									}
+								});
 
-									let foreground_color = if use_white_foreground(&event_type.color) {
-										"#fff"
-									} else {
-										"#000"
-									};
-									let name_style = format!("color: {}; background: rgb({}, {}, {})", foreground_color, event_type.color.r, event_type.color.g, event_type.color.b);
+								let background_color = rgb_str_from_color(entry_type.color);
+								let foreground_color = if use_white_foreground(&entry_type.color) { "#fff" } else { "#000" };
+								let name_style = format!("color: {}; background: {}; font-weight: 700", foreground_color, background_color);
 
-									view! {
-										ctx,
-										div(class="admin_event_type_assignment_row") {
-											div(class="admin_event_type_assignment_name", style=name_style) { (event_type.name) }
-											div(class="admin_event_type_assignment_available") {
-												input(type="checkbox", bind:checked=selected_signal)
-											}
-										}
+								view! {
+									ctx,
+									div(class="admin_event_type_assignment_name", style=name_style) { (entry_type.name) }
+									div(class="admin_event_type_assignment_available") {
+										input(type="checkbox", bind:checked=entry_type_active)
 									}
 								}
-							)
+							}
 						}
-						button { "Update" }
-					}
+					)
 				}
 			}
 		} else {
-			view! {
-				ctx,
-				form(id="admin_event_type_event_selection", on:submit=switch_event_handler) {
-					datalist(id="admin_event_type_event_list") {
-						Keyed(
-							iterable=events_signal,
-							key=|event| event.id.clone(),
-							view=|ctx, event| {
-								view! { ctx, option(value=event.name) }
-							}
-						)
-					}
-					input(
-						list="admin_event_type_event_list",
-						bind:value=entered_event_signal,
-						on:change=enter_event_name_handler,
-						class=if entered_event_error_signal.get().is_empty() { "" } else { "error" }
-					)
-					span(class="input_error") { (*entered_event_error_signal.get()) }
-					button { "Load" }
-				}
-				button(on:click=done_handler) { "Done" }
-			}
+			view! { ctx, }
 		})
+
+		button(type="button", on:click=done_handler) { "Done" }
 	}
 }
 

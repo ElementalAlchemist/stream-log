@@ -71,3 +71,15 @@ pub struct UserPermissionGroupAssociation {
 	pub user: UserData,
 	pub permission_group: PermissionGroup,
 }
+
+#[derive(Debug, Deserialize, Serialize)]
+pub enum AdminEntryTypeEventUpdate {
+	AddTypeToEvent(EntryTypeEventAssociation),
+	RemoveTypeFrommEvent(EntryTypeEventAssociation),
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct EntryTypeEventAssociation {
+	pub entry_type: EntryType,
+	pub event: Event,
+}
