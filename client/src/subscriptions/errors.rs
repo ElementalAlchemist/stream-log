@@ -20,12 +20,14 @@ impl ErrorData {
 		Self { message, error }
 	}
 
-	pub fn to_view<G: Html>(&self, ctx: Scope<'_>, dismiss_handler: impl Fn(WebEvent)) -> View<G> {
+	pub fn to_view<'a, G: Html>(&self, ctx: Scope<'a>, dismiss_handler: impl Fn(WebEvent) + 'a) -> View<G> {
+		let message = self.message.clone();
+		let error_details = self.error.clone();
 		view! {
 			ctx,
 			li(class="page_error_entry") {
-				span(class="page_error_entry_text") { (self.message) }
-				(if let Some(error_details) = self.error.as_ref() {
+				span(class="page_error_entry_text") { (message) }
+				(if let Some(error_details) = error_details.clone() {
 					view! {
 						ctx,
 						span(class="page_error_entry_details") { (error_details) }

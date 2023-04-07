@@ -71,7 +71,7 @@ pub struct DataSignals<'a> {
 }
 
 impl<'a> DataSignals<'a> {
-	pub fn new(ctx: Scope<'_>) -> Self {
+	pub fn new(ctx: Scope<'a>) -> Self {
 		Self {
 			errors: create_signal(ctx, Vec::new()),
 			events: create_signal(ctx, HashMap::new()),
