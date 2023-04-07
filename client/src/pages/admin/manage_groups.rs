@@ -44,15 +44,6 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		));
 	}
 
-	let event_ids_index_signal = create_memo(ctx, || {
-		let event_ids: HashMap<String, Event> = data
-			.all_events
-			.get()
-			.iter()
-			.map(|event| (event.id.clone(), event.clone()))
-			.collect();
-		event_ids
-	});
 	let event_names_index_signal = create_memo(ctx, || {
 		let event_names: HashMap<String, Event> = data
 			.all_events
@@ -123,16 +114,6 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 							event_id_permissions
 						}
 					});
-					let used_events = create_memo(ctx, || {
-						let event_permissions = event_permissions_signal.get();
-						let events: Vec<(Event, PermissionLevel)> = data.all_events.get().iter().flat_map(|event| event_permissions.get(&event.id).map(|permission| (event.clone(), *permission))).collect();
-						events
-					});
-					let unused_events = create_memo(ctx, || {
-						let event_permissions = event_permissions_signal.get();
-						let events: Vec<Event> = data.all_events.get().iter().filter(|event| !event_permissions.contains_key(&event.id)).cloned().collect();
-						events
-					});
 
 					let group_name_signal = create_signal(ctx, group.name.clone());
 
@@ -165,21 +146,8 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 						}
 					};
 
-					let add_event_list_id = format!("admin_manage_groups_event_list_{}", group.id);
 					view! {
 						ctx,
-						datalist(id=&add_event_list_id) {
-							Keyed(
-								iterable=used_events,
-								key=|(event, _)| event.id.clone(),
-								view=|ctx, (event, _)| {
-									view! {
-										ctx,
-										option(value=event.name)
-									}
-								}
-							)
-						}
 						div(class="admin_manage_groups_name") {
 							form(class="admin_manage_groups_group", on:submit=submit_group_name_handler) {
 								input(bind:value=group_name_signal)
@@ -193,13 +161,20 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 							div(class="admin_manage_groups_events_header") { }
 
 							Keyed(
-								iterable=used_events,
-								key=|(event, _)| event.id.clone(),
-								view=move |ctx, (event, permission)| {
+								iterable=data.all_events,
+								key=|event| event.id.clone(),
+								view=move |ctx, event| {
 									let group = group.clone();
 									let event = event.clone();
-									let can_view_signal = create_signal(ctx, true);
-									let can_edit_signal = create_signal(ctx, permission == PermissionLevel::Edit);
+									let event_permissions = event_permissions_signal.get();
+									let permission = event_permissions.get(&event.id);
+									let (can_view, can_edit) = match permission {
+										Some(PermissionLevel::Edit) => (true, true),
+										Some(PermissionLevel::View) => (true, false),
+										None => (false, false)
+									};
+									let can_view_signal = create_signal(ctx, can_view);
+									let can_edit_signal = create_signal(ctx, can_edit);
 
 									create_effect(ctx, || {
 										if *can_edit_signal.get() {
