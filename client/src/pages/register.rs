@@ -29,7 +29,7 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		}
 	}
 
-	create_effect(ctx, || {
+	create_effect(ctx, move || {
 		let data: &DataSignals = use_context(ctx);
 		let registration_data = data.registration.final_register.get();
 		if let Some(reg_data) = registration_data.as_ref() {
