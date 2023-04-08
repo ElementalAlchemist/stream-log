@@ -42,6 +42,9 @@ async fn AdminManageEventTypesForEventsLoadedView<G: Html>(ctx: Scope<'_>) -> Vi
 		));
 	}
 
+	let all_events = create_memo(ctx, || (*data.all_events.get()).clone());
+	let all_entry_types = create_memo(ctx, || (*data.all_entry_types.get()).clone());
+
 	let selected_event_signal: &Signal<Option<Event>> = create_signal(ctx, None);
 
 	let entered_event_signal = create_signal(ctx, String::new());
@@ -102,7 +105,7 @@ async fn AdminManageEventTypesForEventsLoadedView<G: Html>(ctx: Scope<'_>) -> Vi
 		ctx,
 		datalist(id="all_event_names") {
 			Keyed(
-				iterable=data.all_events,
+				iterable=all_events,
 				key=|event| event.id.clone(),
 				view=|ctx, event| {
 					view! {
@@ -114,7 +117,7 @@ async fn AdminManageEventTypesForEventsLoadedView<G: Html>(ctx: Scope<'_>) -> Vi
 		}
 		datalist(id="all_entry_type_names") {
 			Keyed(
-				iterable=data.all_entry_types,
+				iterable=all_entry_types,
 				key=|entry_type| entry_type.id.clone(),
 				view=|ctx, entry_type| {
 					view! {
@@ -133,7 +136,7 @@ async fn AdminManageEventTypesForEventsLoadedView<G: Html>(ctx: Scope<'_>) -> Vi
 				ctx,
 				div(id="admin_event_type_assignment_grid") {
 					Keyed(
-						iterable=data.all_entry_types,
+						iterable=all_entry_types,
 						key=|entry_type| entry_type.id.clone(),
 						view={
 							let event = event.clone();

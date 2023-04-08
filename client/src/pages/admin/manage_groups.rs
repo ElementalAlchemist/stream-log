@@ -44,6 +44,9 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		));
 	}
 
+	let all_permission_groups = create_memo(ctx, || (*data.all_permission_groups.get()).clone());
+	let all_events = create_memo(ctx, || (*data.all_events.get()).clone());
+
 	let event_names_index_signal = create_memo(ctx, || {
 		let event_names: HashMap<String, Event> = data
 			.all_events
@@ -103,9 +106,9 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		ctx,
 		div(id="admin_manage_groups") {
 			Keyed(
-				iterable=data.all_permission_groups,
+				iterable=all_permission_groups,
 				key=|group| group.id.clone(),
-				view=|ctx, group| {
+				view=move |ctx, group| {
 					let data: &DataSignals = use_context(ctx);
 					let event_permissions_signal = create_memo(ctx, {
 						let group = group.clone();
@@ -161,7 +164,7 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 							div(class="admin_manage_groups_events_header") { }
 
 							Keyed(
-								iterable=data.all_events,
+								iterable=all_events,
 								key=|event| event.id.clone(),
 								view=move |ctx, event| {
 									let group = group.clone();

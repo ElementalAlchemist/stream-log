@@ -41,6 +41,8 @@ async fn AdminManageEditorsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		));
 	}
 
+	let all_events = create_memo(ctx, || (*data.all_events.get()).clone());
+
 	let event_entry = create_signal(ctx, String::new());
 	let current_event: &Signal<Option<Event>> = create_signal(ctx, None);
 	let event_editors = create_memo(ctx, || {
@@ -187,7 +189,7 @@ async fn AdminManageEditorsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		}
 		datalist(id="events_selection") {
 			Keyed(
-				iterable=data.all_events,
+				iterable=all_events,
 				key=|event| event.id.clone(),
 				view=|ctx, event| view! { ctx, option(value=&event.name) }
 			)

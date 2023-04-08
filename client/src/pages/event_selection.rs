@@ -17,13 +17,14 @@ pub fn EventSelectionView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	}
 
 	let data: &DataSignals = use_context(ctx);
+	let available_events = create_memo(ctx, || (*data.available_events.get()).clone());
 
 	view! {
 		ctx,
 		h1 { "Select an event" }
 		ul {
 			Keyed(
-				iterable=data.available_events,
+				iterable=available_events,
 				key=|event| event.id.clone(),
 				view=|ctx, event| {
 					let event_name = event.name.clone();

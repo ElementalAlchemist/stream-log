@@ -40,6 +40,8 @@ async fn AdminManageUsersLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		));
 	}
 
+	let all_users = create_memo(ctx, || (*data.all_users.get()).clone());
+
 	let done_button_handler = move |_event: WebEvent| {
 		spawn_local_scoped(ctx, async move {
 			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
@@ -80,7 +82,7 @@ async fn AdminManageUsersLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				div { }
 			}
 			Keyed(
-				iterable=data.all_users,
+				iterable=all_users,
 				key=|user| user.id.clone(),
 				view={
 					move |ctx, user| {

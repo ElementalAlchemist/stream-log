@@ -26,67 +26,67 @@ use registration::RegistrationData;
 
 /// A struct containing all of the signals that can be updated by server messages.
 #[derive(Clone)]
-pub struct DataSignals<'a> {
+pub struct DataSignals {
 	/// List of errors. These are displayed to the user.
-	pub errors: &'a Signal<Vec<ErrorData>>,
+	pub errors: RcSignal<Vec<ErrorData>>,
 
 	/// Subscription data for each event for which we have a subscription.
-	pub events: &'a Signal<HashMap<String, EventSubscriptionSignals>>,
+	pub events: RcSignal<HashMap<String, EventSubscriptionSignals>>,
 
 	/// When we're going through a registration workflow, contains all the data relevant for registering a new account.
-	pub registration: RegistrationData<'a>,
+	pub registration: RegistrationData,
 
 	/// List of events available to the currently logged-in user.
-	pub available_events: &'a Signal<Vec<Event>>,
+	pub available_events: RcSignal<Vec<Event>>,
 
 	/// List of all users registered.
-	pub all_users: &'a Signal<Vec<UserData>>,
+	pub all_users: RcSignal<Vec<UserData>>,
 
 	/// List of all events that exist.
-	pub all_events: &'a Signal<Vec<Event>>,
+	pub all_events: RcSignal<Vec<Event>>,
 
 	/// List of all entry types that have been created.
-	pub all_entry_types: &'a Signal<Vec<EntryType>>,
+	pub all_entry_types: RcSignal<Vec<EntryType>>,
 
 	/// List of all permission groups that have been set up.
-	pub all_permission_groups: &'a Signal<Vec<PermissionGroup>>,
+	pub all_permission_groups: RcSignal<Vec<PermissionGroup>>,
 
 	/// List of associations between permission groups and events
-	pub permission_group_event_associations: &'a Signal<Vec<PermissionGroupEventAssociation>>,
+	pub permission_group_event_associations: RcSignal<Vec<PermissionGroupEventAssociation>>,
 
 	/// List of all tags that have been created.
-	pub all_tags: &'a Signal<Vec<Tag>>,
+	pub all_tags: RcSignal<Vec<Tag>>,
 
 	/// Associations of tags and their relevant events.
-	pub tag_event_associations: &'a Signal<Vec<TagEventAssociation>>,
+	pub tag_event_associations: RcSignal<Vec<TagEventAssociation>>,
 
 	/// List of all editor user/event pairings
-	pub event_editors: &'a Signal<Vec<EditorEventAssociation>>,
+	pub event_editors: RcSignal<Vec<EditorEventAssociation>>,
 
 	/// List of all user/permission group pairings
-	pub user_permission_groups: &'a Signal<Vec<UserPermissionGroupAssociation>>,
+	pub user_permission_groups: RcSignal<Vec<UserPermissionGroupAssociation>>,
 
 	/// List of all pairings of entry types and events
-	pub entry_type_event_associations: &'a Signal<Vec<EntryTypeEventAssociation>>,
+	pub entry_type_event_associations: RcSignal<Vec<EntryTypeEventAssociation>>,
 }
 
-impl<'a> DataSignals<'a> {
-	pub fn new(ctx: Scope<'a>) -> Self {
+impl DataSignals {
+	pub fn new() -> Self {
 		Self {
-			errors: create_signal(ctx, Vec::new()),
-			events: create_signal(ctx, HashMap::new()),
-			registration: RegistrationData::new(ctx),
-			available_events: create_signal(ctx, Vec::new()),
-			all_users: create_signal(ctx, Vec::new()),
-			all_events: create_signal(ctx, Vec::new()),
-			all_entry_types: create_signal(ctx, Vec::new()),
-			all_permission_groups: create_signal(ctx, Vec::new()),
-			permission_group_event_associations: create_signal(ctx, Vec::new()),
-			all_tags: create_signal(ctx, Vec::new()),
-			tag_event_associations: create_signal(ctx, Vec::new()),
-			event_editors: create_signal(ctx, Vec::new()),
-			user_permission_groups: create_signal(ctx, Vec::new()),
-			entry_type_event_associations: create_signal(ctx, Vec::new()),
+			errors: create_rc_signal(Vec::new()),
+			events: create_rc_signal(HashMap::new()),
+			registration: RegistrationData::new(),
+			available_events: create_rc_signal(Vec::new()),
+			all_users: create_rc_signal(Vec::new()),
+			all_events: create_rc_signal(Vec::new()),
+			all_entry_types: create_rc_signal(Vec::new()),
+			all_permission_groups: create_rc_signal(Vec::new()),
+			permission_group_event_associations: create_rc_signal(Vec::new()),
+			all_tags: create_rc_signal(Vec::new()),
+			tag_event_associations: create_rc_signal(Vec::new()),
+			event_editors: create_rc_signal(Vec::new()),
+			user_permission_groups: create_rc_signal(Vec::new()),
+			entry_type_event_associations: create_rc_signal(Vec::new()),
 		}
 	}
 }

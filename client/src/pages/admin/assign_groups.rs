@@ -44,6 +44,8 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		));
 	}
 
+	let all_users = create_memo(ctx, || (*data.all_users.get()).clone());
+
 	let users_name_index_signal = create_memo(ctx, || {
 		let name_indexed_users: HashMap<String, UserData> = data
 			.all_users
@@ -184,7 +186,7 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		ctx,
 		datalist(id="all_users") {
 			Keyed(
-				iterable=data.all_users,
+				iterable=all_users,
 				key=|user| user.id.clone(),
 				view=|ctx, user| {
 					view! {

@@ -21,7 +21,7 @@ impl ErrorData {
 	}
 
 	pub fn to_view<'a, G: Html>(&self, ctx: Scope<'a>, dismiss_handler: impl Fn(WebEvent) + 'a) -> View<G> {
-		let message = self.message.clone();
+		let message = self.message;
 		let error_details = self.error.clone();
 		view! {
 			ctx,

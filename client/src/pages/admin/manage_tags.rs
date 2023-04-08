@@ -42,6 +42,8 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		));
 	}
 
+	let all_events = create_memo(ctx, || (*data.all_events.get()).clone());
+
 	let event_name_index_signal = create_memo(ctx, || {
 		let index: HashMap<String, Event> = data
 			.all_events
@@ -182,7 +184,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		form(id="admin_manage_tags_event_selection", on:submit=event_selection_handler) {
 			datalist(id="event_names") {
 				Keyed(
-					iterable=data.all_events,
+					iterable=all_events,
 					key=|event| event.id.clone(),
 					view=|ctx, event| {
 						view! {

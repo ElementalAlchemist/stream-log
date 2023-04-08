@@ -2,16 +2,16 @@ use stream_log_shared::messages::user_register::{RegistrationFinalizeResponse, U
 use sycamore::prelude::*;
 
 #[derive(Clone)]
-pub struct RegistrationData<'a> {
-	pub username_check: &'a Signal<Option<UsernameCheckResponse>>,
-	pub final_register: &'a Signal<Option<RegistrationFinalizeResponse>>,
+pub struct RegistrationData {
+	pub username_check: RcSignal<Option<UsernameCheckResponse>>,
+	pub final_register: RcSignal<Option<RegistrationFinalizeResponse>>,
 }
 
-impl<'a> RegistrationData<'a> {
-	pub fn new(ctx: Scope<'_>) -> Self {
+impl RegistrationData {
+	pub fn new() -> Self {
 		Self {
-			username_check: create_signal(ctx, None),
-			final_register: create_signal(ctx, None),
+			username_check: create_rc_signal(None),
+			final_register: create_rc_signal(None),
 		}
 	}
 }

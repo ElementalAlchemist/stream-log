@@ -144,7 +144,7 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 	let ws = Mutex::new(ws_write);
 	provide_context(ctx, ws);
 
-	let client_data = DataSignals::new(ctx);
+	let client_data = DataSignals::new();
 	provide_context(ctx, client_data);
 
 	spawn_local_scoped(ctx, process_messages(ctx, ws_read));

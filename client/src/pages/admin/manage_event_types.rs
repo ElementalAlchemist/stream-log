@@ -51,6 +51,8 @@ async fn AdminManageEventTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		));
 	}
 
+	let all_entry_types = create_memo(ctx, || (*data.all_entry_types.get()).clone());
+
 	let used_names_signal = create_memo(ctx, || {
 		let names: HashSet<String> = data
 			.all_entry_types
@@ -173,7 +175,7 @@ async fn AdminManageEventTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		ctx,
 		div(id="admin_manage_entry_types") {
 			Keyed(
-				iterable=data.all_entry_types,
+				iterable=all_entry_types,
 				key=|entry_type| entry_type.id.clone(),
 				view=move |ctx, entry_type| {
 					let name_signal = create_signal(ctx, entry_type.name.clone());

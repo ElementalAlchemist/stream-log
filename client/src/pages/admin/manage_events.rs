@@ -59,6 +59,8 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		));
 	}
 
+	let all_events = create_memo(ctx, || (*data.all_events.get()).clone());
+
 	let used_names_signal = create_memo(ctx, || {
 		let names: HashSet<String> = data.all_events.get().iter().map(|event| event.name.clone()).collect();
 		names
@@ -168,7 +170,7 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				div { }
 			}
 			Keyed(
-				iterable=data.all_events,
+				iterable=all_events,
 				key=|event| event.id.clone(),
 				view=move |ctx, event| {
 					let name_signal = create_signal(ctx, event.name.clone());
