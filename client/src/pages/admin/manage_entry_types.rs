@@ -28,7 +28,7 @@ enum SelectedIndex {
 }
 
 #[component]
-async fn AdminManageEventTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
+async fn AdminManageEntryTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 	let mut ws = ws_context.lock().await;
 	let data: &DataSignals = use_context(ctx);
@@ -284,7 +284,7 @@ async fn AdminManageEventTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 }
 
 #[component]
-pub fn AdminManageEventTypesView<G: Html>(ctx: Scope<'_>) -> View<G> {
+pub fn AdminManageEntryTypesView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	let user_signal: &Signal<Option<UserData>> = use_context(ctx);
 
 	if let Some(user_data) = user_signal.get().as_ref() {
@@ -304,7 +304,7 @@ pub fn AdminManageEventTypesView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	view! {
 		ctx,
 		Suspense(fallback=view! { ctx, "Loading event types data..." }) {
-			AdminManageEventTypesLoadedView
+			AdminManageEntryTypesLoadedView
 		}
 	}
 }

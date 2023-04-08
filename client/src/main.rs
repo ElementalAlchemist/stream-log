@@ -17,10 +17,10 @@ mod subscriptions;
 mod websocket;
 use components::error_display::ErrorDisplay;
 use components::user_info_bar::UserInfoBar;
-use pages::admin::assign_event_types::AdminManageEventTypesForEventsView;
+use pages::admin::assign_entry_types::AdminManageEntryTypesForEventsView;
 use pages::admin::assign_groups::AssignUsersToGroupsView;
 use pages::admin::manage_editors::AdminManageEditorsView;
-use pages::admin::manage_event_types::AdminManageEventTypesView;
+use pages::admin::manage_entry_types::AdminManageEntryTypesView;
 use pages::admin::manage_events::AdminManageEventsView;
 use pages::admin::manage_groups::AdminManageGroupsView;
 use pages::admin::manage_tags::AdminManageTagsView;
@@ -53,9 +53,9 @@ enum AppRoutes {
 	#[to("/admin/assign_groups")]
 	AdminUserGroupAssignmentManager,
 	#[to("/admin/event_types")]
-	AdminEventTypeManager,
+	AdminEntryTypeManager,
 	#[to("/admin/assign_event_types")]
-	AdminEventTypesForEventManager,
+	AdminEntryTypesForEventManager,
 	#[to("/admin/tags")]
 	AdminTagsManager,
 	#[to("/admin/editors")]
@@ -168,8 +168,8 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 						AppRoutes::AdminUserManager => view! { ctx, AdminManageUsersView },
 						AppRoutes::AdminPermissionGroupManager => view! { ctx, AdminManageGroupsView },
 						AppRoutes::AdminUserGroupAssignmentManager => view! { ctx, AssignUsersToGroupsView },
-						AppRoutes::AdminEventTypeManager => view! { ctx, AdminManageEventTypesView },
-						AppRoutes::AdminEventTypesForEventManager => view! { ctx, AdminManageEventTypesForEventsView },
+						AppRoutes::AdminEntryTypeManager => view! { ctx, AdminManageEntryTypesView },
+						AppRoutes::AdminEntryTypesForEventManager => view! { ctx, AdminManageEntryTypesForEventsView },
 						AppRoutes::AdminTagsManager => view! { ctx, AdminManageTagsView },
 						AppRoutes::AdminEditorsManager => view! { ctx, AdminManageEditorsView },
 						AppRoutes::UserProfile => view! { ctx, UserProfileView },

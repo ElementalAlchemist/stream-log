@@ -19,7 +19,7 @@ use sycamore_router::navigate;
 use web_sys::Event as WebEvent;
 
 #[component]
-async fn AdminManageEventTypesForEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
+async fn AdminManageEntryTypesForEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 	let mut ws = ws_context.lock().await;
 	let data: &DataSignals = use_context(ctx);
@@ -208,11 +208,11 @@ async fn AdminManageEventTypesForEventsLoadedView<G: Html>(ctx: Scope<'_>) -> Vi
 }
 
 #[component]
-pub fn AdminManageEventTypesForEventsView<G: Html>(ctx: Scope<'_>) -> View<G> {
+pub fn AdminManageEntryTypesForEventsView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	view! {
 		ctx,
 		Suspense(fallback=view! { ctx, "Loading event type data..." }) {
-			AdminManageEventTypesForEventsLoadedView
+			AdminManageEntryTypesForEventsLoadedView
 		}
 	}
 }
