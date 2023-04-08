@@ -21,12 +21,6 @@ use web_sys::Event as WebEvent;
 
 const DEFAULT_COLOR: &str = "#ffffff";
 
-#[derive(Clone, Copy, Eq, PartialEq)]
-enum SelectedIndex {
-	NewType,
-	Existing(usize),
-}
-
 #[component]
 async fn AdminManageEntryTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
@@ -69,7 +63,7 @@ async fn AdminManageEntryTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	let new_type_color_error_signal = create_signal(ctx, String::new());
 	let new_type_display_style_signal = create_memo(ctx, || {
 		let background = new_type_color_signal.get();
-		let foreground = match color_from_rgb_str(&*background) {
+		let foreground = match color_from_rgb_str(&background) {
 			Ok(color) => {
 				if use_white_foreground(&color) {
 					WHITE
@@ -97,7 +91,7 @@ async fn AdminManageEntryTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		}
 		new_type_name_error_signal.modify().clear();
 
-		let color = match color_from_rgb_str(&*new_type_color_signal.get()) {
+		let color = match color_from_rgb_str(&new_type_color_signal.get()) {
 			Ok(color) => color,
 			Err(error) => {
 				new_type_color_error_signal.set(format!("Invalid color: {}", error));
@@ -185,7 +179,7 @@ async fn AdminManageEntryTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 					let display_style_signal = create_memo(ctx, || {
 						let background = color_signal.get();
-						let foreground = match color_from_rgb_str(&*background) {
+						let foreground = match color_from_rgb_str(&background) {
 							Ok(color) => {
 								if use_white_foreground(&color) {
 									WHITE
@@ -214,7 +208,7 @@ async fn AdminManageEntryTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 						name_error_signal.modify().clear();
 
 						let color = color_signal.get();
-						let color = match color_from_rgb_str(&*color) {
+						let color = match color_from_rgb_str(&color) {
 							Ok(color) => color,
 							Err(error) => {
 								color_error_signal.set(format!("Invalid color: {}", error));

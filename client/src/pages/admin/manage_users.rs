@@ -96,7 +96,7 @@ async fn AdminManageUsersLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 						let form_submit_handler = {
 							let user = user.clone();
 							move |_event: WebEvent| {
-								let Ok(new_color) = color_from_rgb_str(&*color_signal.get()) else {
+								let Ok(new_color) = color_from_rgb_str(&color_signal.get()) else {
 									return;
 								};
 								let updated_user = UserData {

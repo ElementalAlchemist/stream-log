@@ -168,7 +168,6 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 								key=|event| event.id.clone(),
 								view=move |ctx, event| {
 									let group = group.clone();
-									let event = event.clone();
 									let event_permissions = event_permissions_signal.get();
 									let permission = event_permissions.get(&event.id);
 									let (can_view, can_edit) = match permission {

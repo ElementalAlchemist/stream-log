@@ -79,7 +79,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 	let entry_types_signal = event_subscription_data.entry_types.clone();
 	let tags_signal = event_subscription_data.tags.clone();
 	let log_entries = event_subscription_data.event_log_entries.clone();
-	let available_editors = event_subscription_data.editors.clone();
+	let available_editors = event_subscription_data.editors;
 
 	let read_event_signal = create_memo(ctx, {
 		let event_signal = event_signal.clone();
@@ -102,32 +102,23 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		move || (*available_editors.get()).clone()
 	});
 
-	let tags_by_name_index = create_memo(ctx, {
-		let tags_signal = tags_signal.clone();
-		move || {
-			let name_index: HashMap<String, Tag> = tags_signal
-				.get()
-				.iter()
-				.map(|tag| (tag.name.clone(), tag.clone()))
-				.collect();
-			name_index
-		}
+	let tags_by_name_index = create_memo(ctx, move || {
+		let name_index: HashMap<String, Tag> = tags_signal
+			.get()
+			.iter()
+			.map(|tag| (tag.name.clone(), tag.clone()))
+			.collect();
+		name_index
 	});
-	let editors_by_name_index = create_memo(ctx, {
-		let available_editors = available_editors.clone();
-		move || {
-			let name_index: HashMap<String, UserData> = available_editors
-				.get()
-				.iter()
-				.map(|editor| (editor.username.clone(), editor.clone()))
-				.collect();
-			name_index
-		}
+	let editors_by_name_index = create_memo(ctx, move || {
+		let name_index: HashMap<String, UserData> = available_editors
+			.get()
+			.iter()
+			.map(|editor| (editor.username.clone(), editor.clone()))
+			.collect();
+		name_index
 	});
-	let can_edit = create_memo(ctx, {
-		let permission_signal = permission_signal.clone();
-		move || *permission_signal.get() == PermissionLevel::Edit
-	});
+	let can_edit = create_memo(ctx, move || *permission_signal.get() == PermissionLevel::Edit);
 
 	let new_event_log_entry: &Signal<Option<EventLogEntry>> = create_signal(ctx, None);
 	let new_entry_start_time = create_signal(ctx, Utc::now());

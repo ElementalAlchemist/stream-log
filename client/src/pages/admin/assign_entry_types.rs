@@ -141,7 +141,7 @@ async fn AdminManageEntryTypesForEventsLoadedView<G: Html>(ctx: Scope<'_>) -> Vi
 						view={
 							let event = event.clone();
 							move |ctx, entry_type| {
-								let default_checked = data.entry_type_event_associations.get().iter().find(|association| association.event.id == event.id && association.entry_type.id == entry_type.id).is_some();
+								let default_checked = data.entry_type_event_associations.get().iter().any(|association| association.event.id == event.id && association.entry_type.id == entry_type.id);
 								let entry_type_active = create_signal(ctx, default_checked);
 								let initial_entry_type_active_change_run = create_signal(ctx, true);
 

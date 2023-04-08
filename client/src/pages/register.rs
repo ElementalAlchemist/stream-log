@@ -116,7 +116,6 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				data.errors
 					.modify()
 					.push(ErrorData::new_with_error("Failed to send registration message.", error));
-				return;
 			}
 		});
 	};
@@ -158,7 +157,6 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 					"Failed to send username availability check message.",
 					error,
 				));
-				return;
 			}
 		});
 	});

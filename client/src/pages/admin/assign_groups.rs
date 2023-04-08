@@ -234,7 +234,7 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 							} else {
 								return;
 							};
-							let user_permission_group = UserPermissionGroupAssociation { user: user.clone(), permission_group: group.clone() };
+							let user_permission_group = UserPermissionGroupAssociation { user, permission_group: group };
 							let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminUserPermissionGroupsUpdate(AdminUserPermissionGroupUpdate::RemoveUserFromGroup(user_permission_group))));
 							let message_json = match serde_json::to_string(&message) {
 								Ok(msg) => msg,
