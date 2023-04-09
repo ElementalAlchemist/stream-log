@@ -1,7 +1,5 @@
-use super::admin::handle_admin;
-use super::event_selection::send_events;
-use super::register::register_user;
-use super::subscriptions::{handle_event_update, subscribe_to_event, unsubscribe_all};
+use super::register::{check_username, register_user};
+use super::subscriptions::{handle_event_update, subscribe_to_event, unsubscribe_from_event};
 use super::user_profile::handle_profile_update;
 use super::HandleConnectionError;
 use crate::models::User;
@@ -14,7 +12,8 @@ use diesel::prelude::*;
 use rgb::RGB8;
 use stream_log_shared::messages::initial::{InitialMessage, UserDataLoad};
 use stream_log_shared::messages::user::UserData;
-use stream_log_shared::messages::RequestMessage;
+use stream_log_shared::messages::user_register::UserRegistration;
+use stream_log_shared::messages::FromClientMessage;
 use tide::Request;
 use tide_openidconnect::OpenIdConnectRequestExt;
 use tide_websockets::WebSocketConnection;
@@ -57,115 +56,106 @@ pub async fn handle_connection(
 			return Ok(());
 		}
 	};
+	let user_data = user.map(|user| {
+		let color = RGB8::new(
+			user.color_red.try_into().unwrap(),
+			user.color_green.try_into().unwrap(),
+			user.color_blue.try_into().unwrap(),
+		);
+		UserData {
+			id: user.id.clone(),
+			username: user.name.clone(),
+			is_admin: user.is_admin,
+			color,
+		}
+	});
 
 	let stream = Arc::new(Mutex::new(stream));
 
-	match user {
-		Some(user) => {
-			let color = RGB8::new(
-				user.color_red.try_into().unwrap(),
-				user.color_green.try_into().unwrap(),
-				user.color_blue.try_into().unwrap(),
-			);
-			let user_data = UserData {
-				id: user.id.clone(),
-				username: user.name.clone(),
-				is_admin: user.is_admin,
-				color,
-			};
-			let message = InitialMessage::new(UserDataLoad::User(user_data));
-			stream.lock().await.send_json(&message).await?;
-			if let Err(HandleConnectionError::SendError(error)) = process_messages(
-				Arc::clone(&db_connection),
-				Arc::clone(&stream),
-				&user,
-				subscription_manager,
-			)
-			.await
-			{
-				return Err(error);
-			}
-		}
-		None => {
-			let message = InitialMessage::new(UserDataLoad::NewUser);
-			stream.lock().await.send_json(&message).await?;
-			let user = match register_user(Arc::clone(&db_connection), Arc::clone(&stream), &openid_user_id).await {
-				Ok(user) => user,
-				Err(HandleConnectionError::SendError(error)) => return Err(error),
-				Err(_) => return Ok(()),
-			};
-			if user.is_admin {
-				if let Err(HandleConnectionError::SendError(error)) = process_messages(
-					Arc::clone(&db_connection),
-					Arc::clone(&stream),
-					&user,
-					subscription_manager,
-				)
-				.await
-				{
-					return Err(error);
-				}
-			}
-		}
-	}
+	let initial_message = match user_data.as_ref() {
+		Some(user) => InitialMessage::new(UserDataLoad::User(user.clone())),
+		None => InitialMessage::new(UserDataLoad::NewUser),
+	};
+	stream.lock().await.send_json(&initial_message).await?;
 
-	Ok(())
+	let process_messages_result = process_messages(
+		Arc::clone(&db_connection),
+		Arc::clone(&stream),
+		user_data,
+		Arc::clone(&subscription_manager),
+		&openid_user_id,
+	)
+	.await;
+
+	match process_messages_result {
+		Err(HandleConnectionError::SendError(error)) => Err(error),
+		_ => Ok(()),
+	}
 }
 
 /// Handles messages from a user throughout the connection
 async fn process_messages(
 	db_connection: Arc<Mutex<PgConnection>>,
 	stream: Arc<Mutex<WebSocketConnection>>,
-	user: &User,
+	mut user: Option<UserData>,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
+	openid_user_id: &str,
 ) -> Result<(), HandleConnectionError> {
-	loop {
-		let stream = Arc::clone(&stream);
+	let result = loop {
 		let incoming_msg = {
 			let mut stream = stream.lock().await;
 			match recv_msg(&mut stream).await {
 				Ok(msg) => msg,
 				Err(error) => {
 					error.log();
-					return Err(HandleConnectionError::ConnectionClosed);
+					break Err(HandleConnectionError::ConnectionClosed);
 				}
 			}
 		};
-		let incoming_msg: RequestMessage = match serde_json::from_str(&incoming_msg) {
+		let incoming_msg: FromClientMessage = match serde_json::from_str(&incoming_msg) {
 			Ok(msg) => msg,
 			Err(error) => {
 				tide::log::error!("Received an invalid request message: {}", error);
-				return Err(HandleConnectionError::ConnectionClosed);
+				break Err(HandleConnectionError::ConnectionClosed);
 			}
 		};
 
 		match incoming_msg {
-			RequestMessage::ListAvailableEvents => send_events(&db_connection, stream, user).await?,
-			RequestMessage::SubscribeToEvent(event_id) => {
-				subscribe_to_event(
-					Arc::clone(&db_connection),
-					stream,
-					user,
-					Arc::clone(&subscription_manager),
-					&event_id,
-				)
-				.await?
+			FromClientMessage::StartSubscription(subscription_type) => todo!(),
+			FromClientMessage::EndSubscription(subscription_type) => todo!(),
+			FromClientMessage::SubscriptionMessage(subscription_update) => todo!(),
+			FromClientMessage::RegistrationRequest(registration_data) => {
+				if user.is_none() {
+					match registration_data {
+						UserRegistration::CheckUsername(username) => {
+							check_username(Arc::clone(&db_connection), Arc::clone(&stream), &username).await?
+						}
+						UserRegistration::Finalize(registration_data) => {
+							register_user(
+								Arc::clone(&db_connection),
+								Arc::clone(&stream),
+								openid_user_id,
+								registration_data,
+								&mut user,
+							)
+							.await?
+						}
+					}
+				}
 			}
-			RequestMessage::UnsubscribeAll => unsubscribe_all(stream, Arc::clone(&subscription_manager), user).await?,
-			RequestMessage::EventSubscriptionUpdate(event, update_data) => {
-				handle_event_update(
-					Arc::clone(&db_connection),
-					Arc::clone(&subscription_manager),
-					&event,
-					user,
-					update_data,
-				)
-				.await?
-			}
-			RequestMessage::Admin(action) => handle_admin(stream, Arc::clone(&db_connection), user, action).await?,
-			RequestMessage::UpdateProfile(update_data) => {
-				handle_profile_update(Arc::clone(&db_connection), user, update_data).await?
+			FromClientMessage::UpdateProfile(profile_data) => {
+				if let Some(user) = user.as_ref() {
+					if let Err(error) = handle_profile_update(Arc::clone(&db_connection), user, profile_data).await {
+						break Err(error);
+					}
+				}
 			}
 		}
+	};
+
+	if let Some(user) = user.as_ref() {
+		subscription_manager.lock().await.unsubscribe_user_from_all(user).await;
 	}
+
+	result
 }

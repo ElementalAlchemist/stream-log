@@ -1,4 +1,4 @@
-use crate::models::{Permission, User};
+use crate::models::Permission;
 use async_std::channel::{unbounded, Sender};
 use async_std::sync::{Arc, Mutex};
 use async_std::task::{block_on, spawn, JoinHandle};
@@ -8,6 +8,7 @@ use miette::IntoDiagnostic;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use stream_log_shared::messages::event_subscription::EventSubscriptionData;
+use stream_log_shared::messages::user::UserData;
 use tide_websockets::WebSocketConnection;
 
 /// A manager for all the subscriptions we need to track
@@ -38,7 +39,7 @@ impl SubscriptionManager {
 	pub async fn subscribe_user_to_event(
 		&mut self,
 		event_id: &str,
-		subscribing_user: &User,
+		subscribing_user: &UserData,
 		permission: Permission,
 		connection: Arc<Mutex<WebSocketConnection>>,
 	) {
@@ -60,7 +61,7 @@ impl SubscriptionManager {
 	}
 
 	/// Unsubscribes the provided user from the provided event
-	pub async fn unsubscribe_user_from_event(&self, event_id: &str, user: &User) {
+	pub async fn unsubscribe_user_from_event(&self, event_id: &str, user: &UserData) {
 		if let Some(event_subscription) = self.event_subscriptions.get(event_id) {
 			event_subscription.unsubscribe_user(user).await;
 		}
@@ -68,7 +69,7 @@ impl SubscriptionManager {
 
 	/// Gets the cached permission level for a user in a given event to which that user is subscribed.
 	/// If the user is not subscribed to the event, returns None.
-	pub async fn get_cached_user_permission(&self, event_id: &str, user: &User) -> Option<Permission> {
+	pub async fn get_cached_user_permission(&self, event_id: &str, user: &UserData) -> Option<Permission> {
 		match self.event_subscriptions.get(event_id) {
 			Some(event_data) => event_data.get_cached_user_permission(user).await,
 			None => None,
@@ -88,7 +89,7 @@ impl SubscriptionManager {
 	}
 
 	/// Unsubscribes a user from all subscriptions
-	pub async fn unsubscribe_user_from_all(&mut self, user: &User) {
+	pub async fn unsubscribe_user_from_all(&mut self, user: &UserData) {
 		let mut futures = Vec::with_capacity(self.event_subscriptions.len());
 		for event_subscription in self.event_subscriptions.values() {
 			futures.push(event_subscription.unsubscribe_user(user));
@@ -141,20 +142,25 @@ impl EventSubscriptionManager {
 		}
 	}
 
-	async fn subscribe_user(&self, user: &User, connection: Arc<Mutex<WebSocketConnection>>, permission: Permission) {
+	async fn subscribe_user(
+		&self,
+		user: &UserData,
+		connection: Arc<Mutex<WebSocketConnection>>,
+		permission: Permission,
+	) {
 		let mut subscriptions = self.subscriptions.lock().await;
 		let user_subscription_data = UserEventSubscriptionData { connection, permission };
 		subscriptions.insert(user.id.clone(), user_subscription_data);
 	}
 
-	async fn get_cached_user_permission(&self, user: &User) -> Option<Permission> {
+	async fn get_cached_user_permission(&self, user: &UserData) -> Option<Permission> {
 		let subscriptions = self.subscriptions.lock().await;
 		subscriptions
 			.get(&user.id)
 			.map(|subscription_data| subscription_data.permission)
 	}
 
-	async fn unsubscribe_user(&self, user: &User) {
+	async fn unsubscribe_user(&self, user: &UserData) {
 		let mut subscriptions = self.subscriptions.lock().await;
 		subscriptions.remove(&user.id);
 	}

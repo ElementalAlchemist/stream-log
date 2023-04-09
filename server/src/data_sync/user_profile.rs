@@ -1,13 +1,12 @@
 use super::HandleConnectionError;
-use crate::models::User;
 use crate::schema::users;
 use async_std::sync::{Arc, Mutex};
 use diesel::prelude::*;
-use stream_log_shared::messages::user::UpdateUser;
+use stream_log_shared::messages::user::{UpdateUser, UserData};
 
 pub async fn handle_profile_update(
 	db_connection: Arc<Mutex<PgConnection>>,
-	user: &User,
+	user: &UserData,
 	update_data: UpdateUser,
 ) -> Result<(), HandleConnectionError> {
 	let mut db_connection = db_connection.lock().await;

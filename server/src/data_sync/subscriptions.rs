@@ -16,20 +16,22 @@ use std::collections::HashMap;
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_log::EventLogEntry;
 use stream_log_shared::messages::event_subscription::{
-	EventSubscriptionData, EventSubscriptionResponse, EventSubscriptionUpdate, EventUnsubscriptionResponse,
-	NewTypingData, TypingData,
+	EventSubscriptionData, EventSubscriptionUpdate, NewTypingData, TypingData,
 };
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::permissions::PermissionLevel;
+use stream_log_shared::messages::subscriptions::{
+	InitialSubscriptionLoadData, SubscriptionFailureInfo, SubscriptionType,
+};
 use stream_log_shared::messages::tags::Tag;
 use stream_log_shared::messages::user::UserData;
-use stream_log_shared::messages::DataError;
+use stream_log_shared::messages::{DataError, FromServerMessage};
 use tide_websockets::WebSocketConnection;
 
 pub async fn subscribe_to_event(
 	db_connection: Arc<Mutex<PgConnection>>,
 	stream: Arc<Mutex<WebSocketConnection>>,
-	user: &User,
+	user: &UserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	event_id: &str,
 ) -> Result<(), HandleConnectionError> {
@@ -38,7 +40,10 @@ pub async fn subscribe_to_event(
 		Ok(ev) => ev,
 		Err(error) => {
 			tide::log::error!("Database error loading event: {}", error);
-			let message = EventSubscriptionResponse::Error(DataError::DatabaseError);
+			let message = FromServerMessage::SubscriptionFailure(
+				SubscriptionType::EventLogData(event_id.to_string()),
+				SubscriptionFailureInfo::Error(DataError::DatabaseError),
+			);
 			stream.lock().await.send_json(&message).await?;
 			return Ok(());
 		}
@@ -47,7 +52,10 @@ pub async fn subscribe_to_event(
 	let event = match event.pop() {
 		Some(ev) => ev,
 		None => {
-			let message = EventSubscriptionResponse::NoEvent;
+			let message = FromServerMessage::SubscriptionFailure(
+				SubscriptionType::EventLogData(event_id.to_string()),
+				SubscriptionFailureInfo::NoTarget,
+			);
 			stream.lock().await.send_json(&message).await?;
 			return Ok(());
 		}
@@ -72,7 +80,10 @@ pub async fn subscribe_to_event(
 		Ok(data) => data,
 		Err(error) => {
 			tide::log::error!("Database error retrieving event permissions: {}", error);
-			let message = EventSubscriptionResponse::Error(DataError::DatabaseError);
+			let message = FromServerMessage::SubscriptionFailure(
+				SubscriptionType::EventLogData(event_id.to_string()),
+				SubscriptionFailureInfo::Error(DataError::DatabaseError),
+			);
 			stream.lock().await.send_json(&message).await?;
 			return Ok(());
 		}
@@ -92,7 +103,10 @@ pub async fn subscribe_to_event(
 	let permission_level = match highest_permission_level {
 		Some(level) => level,
 		None => {
-			let message = EventSubscriptionResponse::NotAllowed;
+			let message = FromServerMessage::SubscriptionFailure(
+				SubscriptionType::EventLogData(event_id.to_string()),
+				SubscriptionFailureInfo::NotAllowed,
+			);
 			stream.lock().await.send_json(&message).await?;
 			return Ok(());
 		}
@@ -124,7 +138,10 @@ pub async fn subscribe_to_event(
 		Ok(types) => types,
 		Err(error) => {
 			tide::log::error!("Database error getting event types for an event: {}", error);
-			let message = EventSubscriptionResponse::Error(DataError::DatabaseError);
+			let message = FromServerMessage::SubscriptionFailure(
+				SubscriptionType::EventLogData(event_id.to_string()),
+				SubscriptionFailureInfo::Error(DataError::DatabaseError),
+			);
 			send_stream.send_json(&message).await?;
 			subscription_manager
 				.lock()
@@ -142,7 +159,10 @@ pub async fn subscribe_to_event(
 		Ok(tags) => tags,
 		Err(error) => {
 			tide::log::error!("Database error getting tags for an event: {}", error);
-			let message = EventSubscriptionResponse::Error(DataError::DatabaseError);
+			let message = FromServerMessage::SubscriptionFailure(
+				SubscriptionType::EventLogData(event_id.to_string()),
+				SubscriptionFailureInfo::Error(DataError::DatabaseError),
+			);
 			send_stream.send_json(&message).await?;
 			subscription_manager
 				.lock()
@@ -161,7 +181,10 @@ pub async fn subscribe_to_event(
 		Ok(entries) => entries,
 		Err(error) => {
 			tide::log::error!("Database error getting event log entries: {}", error);
-			let message = EventSubscriptionResponse::Error(DataError::DatabaseError);
+			let message = FromServerMessage::SubscriptionFailure(
+				SubscriptionType::EventLogData(event_id.to_string()),
+				SubscriptionFailureInfo::Error(DataError::DatabaseError),
+			);
 			send_stream.send_json(&message).await?;
 			subscription_manager
 				.lock()
@@ -181,7 +204,10 @@ pub async fn subscribe_to_event(
 		Ok(tags) => tags,
 		Err(error) => {
 			tide::log::error!("Database error retrieving tags for event log entries: {}", error);
-			let message = EventSubscriptionResponse::Error(DataError::DatabaseError);
+			let message = FromServerMessage::SubscriptionFailure(
+				SubscriptionType::EventLogData(event_id.to_string()),
+				SubscriptionFailureInfo::Error(DataError::DatabaseError),
+			);
 			send_stream.send_json(&message).await?;
 			subscription_manager
 				.lock()
@@ -202,7 +228,10 @@ pub async fn subscribe_to_event(
 				description: tag.description.clone(),
 			},
 			None => {
-				let message = EventSubscriptionResponse::Error(DataError::ServerError);
+				let message = FromServerMessage::SubscriptionFailure(
+					SubscriptionType::EventLogData(event_id.to_string()),
+					SubscriptionFailureInfo::Error(DataError::ServerError),
+				);
 				send_stream.send_json(&message).await?;
 				subscription_manager
 					.lock()
@@ -232,7 +261,10 @@ pub async fn subscribe_to_event(
 		Ok(editors) => editors,
 		Err(error) => {
 			tide::log::error!("Database error retrieving editors for event: {}", error);
-			let message = EventSubscriptionResponse::Error(DataError::DatabaseError);
+			let message = FromServerMessage::SubscriptionFailure(
+				SubscriptionType::EventLogData(event_id.to_string()),
+				SubscriptionFailureInfo::Error(DataError::DatabaseError),
+			);
 			send_stream.send_json(&message).await?;
 			subscription_manager
 				.lock()
@@ -250,7 +282,10 @@ pub async fn subscribe_to_event(
 		Ok(users) => users,
 		Err(error) => {
 			tide::log::error!("Database error getting editor user data: {}", error);
-			let message = EventSubscriptionResponse::Error(DataError::DatabaseError);
+			let message = FromServerMessage::SubscriptionFailure(
+				SubscriptionType::EventLogData(event_id.to_string()),
+				SubscriptionFailureInfo::Error(DataError::DatabaseError),
+			);
 			send_stream.send_json(&message).await?;
 			subscription_manager
 				.lock()
@@ -279,7 +314,7 @@ pub async fn subscribe_to_event(
 		start_time: event.start_time,
 	};
 	let permission_level: PermissionLevel = permission_level.into();
-	let event_types: Vec<EntryType> = event_types
+	let entry_types: Vec<EntryType> = event_types
 		.iter()
 		.map(|et| EntryType {
 			id: et.id.clone(),
@@ -315,7 +350,10 @@ pub async fn subscribe_to_event(
 						editor,
 						log_entry.id
 					);
-					let message = EventSubscriptionResponse::Error(DataError::DatabaseError);
+					let message = FromServerMessage::SubscriptionFailure(
+						SubscriptionType::EventLogData(event_id.to_string()),
+						SubscriptionFailureInfo::Error(DataError::DatabaseError),
+					);
 					send_stream.send_json(&message).await?;
 					subscription_manager
 						.lock()
@@ -347,14 +385,14 @@ pub async fn subscribe_to_event(
 		event_log_entries.push(send_entry);
 	}
 
-	let message = EventSubscriptionResponse::Subscribed(
+	let message = FromServerMessage::InitialSubscriptionLoad(Box::new(InitialSubscriptionLoadData::Event(
 		event,
 		permission_level,
-		event_types,
+		entry_types,
 		tags,
 		available_editors_list,
 		event_log_entries,
-	);
+	)));
 	send_stream.send_json(&message).await?;
 
 	Ok(())
@@ -364,7 +402,7 @@ pub async fn handle_event_update(
 	db_connection: Arc<Mutex<PgConnection>>,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	event: &Event,
-	user: &User,
+	user: &UserData,
 	message: Box<EventSubscriptionUpdate>,
 ) -> Result<(), HandleConnectionError> {
 	let mut subscription_manager = subscription_manager.lock().await;
@@ -668,9 +706,9 @@ pub async fn handle_event_update(
 		EventSubscriptionUpdate::Typing(typing_data) => {
 			let user_data = UserData {
 				id: user.id.clone(),
-				username: user.name.clone(),
+				username: user.username.clone(),
 				is_admin: user.is_admin,
-				color: user.color(),
+				color: user.color,
 			};
 			let typing_data = match typing_data {
 				NewTypingData::StartTime(log_entry, start_time_str) => {
@@ -730,17 +768,18 @@ pub async fn handle_event_update(
 	}
 }
 
-pub async fn unsubscribe_all(
+pub async fn unsubscribe_from_event(
 	stream: Arc<Mutex<WebSocketConnection>>,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
-	user: &User,
+	user: &UserData,
+	event_id: &str,
 ) -> Result<(), HandleConnectionError> {
-	let mut subscription_manager = subscription_manager.lock().await;
-	subscription_manager.unsubscribe_user_from_all(user).await;
+	let subscription_manager = subscription_manager.lock().await;
+	subscription_manager.unsubscribe_user_from_event(event_id, user).await;
 
 	let send_result = {
 		let stream = stream.lock().await;
-		let message = EventUnsubscriptionResponse::Success;
+		let message = FromServerMessage::Unsubscribed(SubscriptionType::EventLogData(event_id.to_string()));
 		stream.send_json(&message).await
 	};
 	match send_result {
