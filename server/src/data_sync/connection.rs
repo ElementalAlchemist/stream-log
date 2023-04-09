@@ -11,6 +11,7 @@ use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use rgb::RGB8;
 use stream_log_shared::messages::initial::{InitialMessage, UserDataLoad};
+use stream_log_shared::messages::subscriptions::{SubscriptionTargetUpdate, SubscriptionType};
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::user_register::UserRegistration;
 use stream_log_shared::messages::FromClientMessage;
@@ -121,9 +122,41 @@ async fn process_messages(
 		};
 
 		match incoming_msg {
-			FromClientMessage::StartSubscription(subscription_type) => todo!(),
-			FromClientMessage::EndSubscription(subscription_type) => todo!(),
-			FromClientMessage::SubscriptionMessage(subscription_update) => todo!(),
+			FromClientMessage::StartSubscription(subscription_type) => match subscription_type {
+				SubscriptionType::EventLogData(event_id) => todo!(),
+				SubscriptionType::AdminUsers => todo!(),
+				SubscriptionType::AdminEvents => todo!(),
+				SubscriptionType::AdminPermissionGroups => todo!(),
+				SubscriptionType::AdminPermissionGroupUsers => todo!(),
+				SubscriptionType::AdminEntryTypes => todo!(),
+				SubscriptionType::AdminEntryTypesEvents => todo!(),
+				SubscriptionType::AdminTags => todo!(),
+				SubscriptionType::AdminEventEditors => todo!(),
+				SubscriptionType::AdminUserPermissionGroupAssignment => todo!(),
+			},
+			FromClientMessage::EndSubscription(subscription_type) => match subscription_type {
+				SubscriptionType::EventLogData(event_id) => todo!(),
+				SubscriptionType::AdminUsers => todo!(),
+				SubscriptionType::AdminEvents => todo!(),
+				SubscriptionType::AdminPermissionGroups => todo!(),
+				SubscriptionType::AdminPermissionGroupUsers => todo!(),
+				SubscriptionType::AdminEntryTypes => todo!(),
+				SubscriptionType::AdminEntryTypesEvents => todo!(),
+				SubscriptionType::AdminTags => todo!(),
+				SubscriptionType::AdminEventEditors => todo!(),
+				SubscriptionType::AdminUserPermissionGroupAssignment => todo!(),
+			},
+			FromClientMessage::SubscriptionMessage(subscription_update) => match *subscription_update {
+				SubscriptionTargetUpdate::EventUpdate(event, update_data) => todo!(),
+				SubscriptionTargetUpdate::AdminEventsUpdate(update_data) => todo!(),
+				SubscriptionTargetUpdate::AdminEntryTypesUpdate(update_data) => todo!(),
+				SubscriptionTargetUpdate::AdminEntryTypesEventsUpdate(update_data) => todo!(),
+				SubscriptionTargetUpdate::AdminPermissionGroupsUpdate(update_data) => todo!(),
+				SubscriptionTargetUpdate::AdminTagsUpdate(update_data) => todo!(),
+				SubscriptionTargetUpdate::AdminUserUpdate(user) => todo!(),
+				SubscriptionTargetUpdate::AdminEventEditorsUpdate(update_data) => todo!(),
+				SubscriptionTargetUpdate::AdminUserPermissionGroupsUpdate(update_data) => todo!(),
+			},
 			FromClientMessage::RegistrationRequest(registration_data) => {
 				if user.is_none() {
 					match registration_data {
