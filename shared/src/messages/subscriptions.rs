@@ -12,7 +12,7 @@ use crate::messages::user::{UserData, UserSubscriptionUpdate};
 use crate::messages::DataError;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub enum SubscriptionType {
 	EventLogData(String),
 	AdminUsers,

@@ -1,4 +1,5 @@
 use crate::websocket::read_websocket;
+use futures::lock::Mutex;
 use futures::stream::SplitStream;
 use gloo_net::websocket::futures::WebSocket;
 use std::collections::HashMap;
@@ -8,7 +9,7 @@ use stream_log_shared::messages::admin::{
 };
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::events::Event;
-use stream_log_shared::messages::subscriptions::InitialSubscriptionLoadData;
+use stream_log_shared::messages::subscriptions::{InitialSubscriptionLoadData, SubscriptionType};
 use stream_log_shared::messages::tags::{Tag, TagEventAssociation};
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::user_register::RegistrationResponse;
@@ -20,6 +21,9 @@ use errors::ErrorData;
 
 pub mod event;
 use event::EventSubscriptionSignals;
+
+pub mod manager;
+use manager::SubscriptionManager;
 
 pub mod registration;
 use registration::RegistrationData;
@@ -94,6 +98,7 @@ impl DataSignals {
 /// The message update loop
 pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket>) {
 	let data_signals: &DataSignals = use_context(ctx);
+	let subscription_manager: &Mutex<SubscriptionManager> = use_context(ctx);
 
 	loop {
 		let message: FromServerMessage = match read_websocket(&mut ws_read).await {
@@ -116,6 +121,7 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 					editors,
 					event_log_entries,
 				) => {
+					let mut subscription_manager = subscription_manager.lock().await;
 					let event_id = event.id.clone();
 					let event = create_rc_signal(event);
 					let permission = create_rc_signal(permission_level);
@@ -132,12 +138,20 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 						editors,
 						event_log_entries,
 					};
-					data_signals.events.modify().insert(event_id, event_subscription_data);
+					data_signals
+						.events
+						.modify()
+						.insert(event_id.clone(), event_subscription_data);
+					subscription_manager.subscription_confirmation_received(SubscriptionType::EventLogData(event_id));
 				}
 			},
-			FromServerMessage::SubscriptionMessage(subscription_data) => { /* TODO */ }
-			FromServerMessage::Unsubscribed(subscription_type) => { /* TODO */ }
-			FromServerMessage::SubscriptionFailure(subscription_type, failure_info) => { /* TODO */ }
+			FromServerMessage::SubscriptionMessage(subscription_data) => todo!(),
+			FromServerMessage::Unsubscribed(subscription_type) => {
+				todo!("Handle message and update subscription manager")
+			}
+			FromServerMessage::SubscriptionFailure(subscription_type, failure_info) => {
+				todo!("Handle message and update subscription manager")
+			}
 			FromServerMessage::RegistrationResponse(response) => match response {
 				RegistrationResponse::UsernameCheck(check_data) => {
 					data_signals.registration.username_check.set(Some(check_data))
