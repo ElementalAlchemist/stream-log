@@ -12,18 +12,31 @@ use crate::messages::user::{UserData, UserSubscriptionUpdate};
 use crate::messages::DataError;
 use serde::{Deserialize, Serialize};
 
+/// Types of subscriptions to server data
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub enum SubscriptionType {
+	/// A subscription to the event log for a particular event. An event ID is provided with this variant.
 	EventLogData(String),
+	/// A subscription to all user data.
 	AdminUsers,
+	/// A subscription to all events.
 	AdminEvents,
+	/// A subscription to all permission groups.
 	AdminPermissionGroups,
+	/// A subscription to relationships between permission groups and events.
+	AdminPermissionGroupEvents,
+	/// A subscription to relationships between permission groups and users.
 	AdminPermissionGroupUsers,
+	/// A subscription to all entry types.
 	AdminEntryTypes,
+	/// A subscription to relationships between entry types and events.
 	AdminEntryTypesEvents,
+	/// A subscription to all tags.
 	AdminTags,
+	/// A subscription to relationships between tags and events.
+	AdminTagEvents,
+	/// A subscription to relationships between users (as video editors) and events.
 	AdminEventEditors,
-	AdminUserPermissionGroupAssignment,
 }
 
 /// Sent to the client when a new subscription is created.

@@ -4,6 +4,7 @@ use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::{Message, WebSocketError};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::fmt;
 use stream_log_shared::messages::subscriptions::SubscriptionType;
 use stream_log_shared::messages::FromClientMessage;
 
@@ -21,6 +22,15 @@ impl From<serde_json::Error> for SubscriptionError {
 impl From<WebSocketError> for SubscriptionError {
 	fn from(value: WebSocketError) -> Self {
 		Self::SendError(value)
+	}
+}
+
+impl fmt::Display for SubscriptionError {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self {
+			Self::SerializeError(error) => write!(f, "An error occurred during serialization: {}", error),
+			Self::SendError(error) => write!(f, "An error occurred when sending: {}", error),
+		}
 	}
 }
 

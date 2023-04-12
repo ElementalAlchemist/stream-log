@@ -1,4 +1,5 @@
 use crate::subscriptions::errors::ErrorData;
+use crate::subscriptions::manager::SubscriptionManager;
 use crate::subscriptions::DataSignals;
 use futures::lock::Mutex;
 use futures::stream::SplitSink;
@@ -24,20 +25,19 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	let mut ws = ws_context.lock().await;
 	let data: &DataSignals = use_context(ctx);
 
-	let subscription_message = FromClientMessage::StartSubscription(SubscriptionType::AdminTags);
-	let subscription_message_json = match serde_json::to_string(&subscription_message) {
-		Ok(msg) => msg,
-		Err(error) => {
-			data.errors.modify().push(ErrorData::new_with_error(
-				"Failed to serialize tag list subscription.",
-				error,
-			));
-			return view! { ctx, };
-		}
+	let add_subscriptions_result = {
+		let subscriptions = vec![
+			SubscriptionType::AdminTags,
+			SubscriptionType::AdminEvents,
+			SubscriptionType::AdminTagEvents,
+		];
+		let subscription_manager: &Mutex<SubscriptionManager> = use_context(ctx);
+		let mut subscription_manager = subscription_manager.lock().await;
+		subscription_manager.add_subscriptions(subscriptions, &mut ws).await
 	};
-	if let Err(error) = ws.send(Message::Text(subscription_message_json)).await {
+	if let Err(error) = add_subscriptions_result {
 		data.errors.modify().push(ErrorData::new_with_error(
-			"Failed to send tag list subscription.",
+			"Couldn't send tag subscription message.",
 			error,
 		));
 	}

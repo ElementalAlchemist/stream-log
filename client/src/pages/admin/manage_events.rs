@@ -1,4 +1,5 @@
 use crate::subscriptions::errors::ErrorData;
+use crate::subscriptions::manager::SubscriptionManager;
 use crate::subscriptions::DataSignals;
 use chrono::prelude::*;
 use futures::lock::Mutex;
@@ -41,20 +42,16 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	let mut ws = ws_context.lock().await;
 	let data: &DataSignals = use_context(ctx);
 
-	let subscription_message = FromClientMessage::StartSubscription(SubscriptionType::AdminEvents);
-	let subscription_message_json = match serde_json::to_string(&subscription_message) {
-		Ok(msg) => msg,
-		Err(error) => {
-			data.errors.modify().push(ErrorData::new_with_error(
-				"Failed to serialize event subscription message.",
-				error,
-			));
-			return view! { ctx, };
-		}
+	let add_subscription_result = {
+		let subscription_manager: &Mutex<SubscriptionManager> = use_context(ctx);
+		let mut subscription_manager = subscription_manager.lock().await;
+		subscription_manager
+			.add_subscription(SubscriptionType::AdminEvents, &mut ws)
+			.await
 	};
-	if let Err(error) = ws.send(Message::Text(subscription_message_json)).await {
+	if let Err(error) = add_subscription_result {
 		data.errors.modify().push(ErrorData::new_with_error(
-			"Failed to send event subscription message",
+			"Couldn't send event subscription message.",
 			error,
 		));
 	}

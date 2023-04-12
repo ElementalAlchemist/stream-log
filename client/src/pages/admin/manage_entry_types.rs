@@ -1,6 +1,7 @@
 use crate::color_utils::{color_from_rgb_str, rgb_str_from_color};
 use crate::event_type_colors::{use_white_foreground, BLACK, WHITE};
 use crate::subscriptions::errors::ErrorData;
+use crate::subscriptions::manager::SubscriptionManager;
 use crate::subscriptions::DataSignals;
 use futures::lock::Mutex;
 use futures::stream::SplitSink;
@@ -27,20 +28,16 @@ async fn AdminManageEntryTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	let mut ws = ws_context.lock().await;
 	let data: &DataSignals = use_context(ctx);
 
-	let message = FromClientMessage::StartSubscription(SubscriptionType::AdminEntryTypes);
-	let message_json = match serde_json::to_string(&message) {
-		Ok(msg) => msg,
-		Err(error) => {
-			data.errors.modify().push(ErrorData::new_with_error(
-				"Failed to serialize entry type subscription message.",
-				error,
-			));
-			return view! { ctx, };
-		}
+	let add_subscription_result = {
+		let subscription_manager: &Mutex<SubscriptionManager> = use_context(ctx);
+		let mut subscription_manager = subscription_manager.lock().await;
+		subscription_manager
+			.add_subscription(SubscriptionType::AdminEntryTypes, &mut ws)
+			.await
 	};
-	if let Err(error) = ws.send(Message::Text(message_json)).await {
+	if let Err(error) = add_subscription_result {
 		data.errors.modify().push(ErrorData::new_with_error(
-			"Failed to send entry type subscription message.",
+			"Couldn't send entry type subscription message.",
 			error,
 		));
 	}

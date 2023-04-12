@@ -1,5 +1,6 @@
 use crate::components::event_log_entry::{EventLogEntryEdit, EventLogEntryRow};
 use crate::subscriptions::errors::ErrorData;
+use crate::subscriptions::manager::SubscriptionManager;
 use crate::subscriptions::DataSignals;
 use chrono::{DateTime, Utc};
 use futures::future::poll_fn;
@@ -48,24 +49,18 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 
 	let data: &DataSignals = use_context(ctx);
 
-	let subscribe_msg = FromClientMessage::StartSubscription(SubscriptionType::EventLogData(props.id.clone()));
-	let subscribe_msg_json = match serde_json::to_string(&subscribe_msg) {
-		Ok(msg) => msg,
-		Err(error) => {
-			data.errors.modify().push(ErrorData::new_with_error(
-				"Failed to serialize event subscription request message.",
-				error,
-			));
-			return view! { ctx, };
-		}
+	let add_subscription_data = {
+		let subscription_manager: &Mutex<SubscriptionManager> = use_context(ctx);
+		let mut subscription_manager = subscription_manager.lock().await;
+		subscription_manager
+			.add_subscription(SubscriptionType::EventLogData(props.id.clone()), &mut ws)
+			.await
 	};
-
-	if let Err(error) = ws.send(Message::Text(subscribe_msg_json)).await {
+	if let Err(error) = add_subscription_data {
 		data.errors.modify().push(ErrorData::new_with_error(
-			"Failed to send event subscription request message.",
+			"Couldn't send event subscription message.",
 			error,
 		));
-		return view! { ctx, };
 	}
 
 	let event_subscription_data = poll_fn(|_: &mut Context<'_>| match data.events.get().get(&props.id) {
