@@ -31,6 +31,7 @@ use pages::not_found::NotFoundView;
 use pages::register::RegistrationView;
 use pages::register_complete::RegistrationCompleteView;
 use pages::user_profile::UserProfileView;
+use subscriptions::manager::SubscriptionManager;
 use subscriptions::{process_messages, DataSignals};
 use websocket::read_websocket;
 
@@ -146,6 +147,8 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 	let client_data = DataSignals::new();
 	provide_context(ctx, client_data);
+	let subscription_manager = Mutex::new(SubscriptionManager::default());
+	provide_context(ctx, subscription_manager);
 
 	spawn_local_scoped(ctx, process_messages(ctx, ws_read));
 
