@@ -33,7 +33,7 @@ async fn AdminManageEntryTypesForEventsLoadedView<G: Html>(ctx: Scope<'_>) -> Vi
 		];
 		let subscription_manager: &Mutex<SubscriptionManager> = use_context(ctx);
 		let mut subscription_manager = subscription_manager.lock().await;
-		subscription_manager.add_subscriptions(subscriptions, &mut ws).await
+		subscription_manager.set_subscriptions(subscriptions, &mut ws).await
 	};
 	if let Err(error) = add_subscriptions_result {
 		data.errors.modify().push(ErrorData::new_with_error(
@@ -74,30 +74,6 @@ async fn AdminManageEntryTypesForEventsLoadedView<G: Html>(ctx: Scope<'_>) -> Vi
 	};
 
 	let done_handler = move |_event: WebEvent| {
-		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
-			let mut ws = ws_context.lock().await;
-
-			let message = FromClientMessage::EndSubscription(SubscriptionType::AdminEntryTypesEvents);
-			let message_json = match serde_json::to_string(&message) {
-				Ok(msg) => msg,
-				Err(error) => {
-					let data: &DataSignals = use_context(ctx);
-					data.errors.modify().push(ErrorData::new_with_error(
-						"Failed to serialize entry types and events subscription end message.",
-						error,
-					));
-					return;
-				}
-			};
-			if let Err(error) = ws.send(Message::Text(message_json)).await {
-				let data: &DataSignals = use_context(ctx);
-				data.errors.modify().push(ErrorData::new_with_error(
-					"Failed to send entry types and events subscription end message.",
-					error,
-				));
-			}
-		});
 		navigate("/");
 	};
 

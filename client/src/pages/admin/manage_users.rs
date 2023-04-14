@@ -27,7 +27,7 @@ async fn AdminManageUsersLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		let subscription_manager: &Mutex<SubscriptionManager> = use_context(ctx);
 		let mut subscription_manager = subscription_manager.lock().await;
 		subscription_manager
-			.add_subscription(SubscriptionType::AdminUsers, &mut ws)
+			.set_subscription(SubscriptionType::AdminUsers, &mut ws)
 			.await
 	};
 	if let Err(error) = add_subscription_result {
@@ -40,31 +40,6 @@ async fn AdminManageUsersLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	let all_users = create_memo(ctx, || (*data.all_users.get()).clone());
 
 	let done_button_handler = move |_event: WebEvent| {
-		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
-			let mut ws = ws_context.lock().await;
-
-			let message = FromClientMessage::EndSubscription(SubscriptionType::AdminUsers);
-			let message_json = match serde_json::to_string(&message) {
-				Ok(msg) => msg,
-				Err(error) => {
-					let data: &DataSignals = use_context(ctx);
-					data.errors.modify().push(ErrorData::new_with_error(
-						"Failed to serialize admin users unsubscribe message.",
-						error,
-					));
-					return;
-				}
-			};
-			if let Err(error) = ws.send(Message::Text(message_json)).await {
-				let data: &DataSignals = use_context(ctx);
-				data.errors.modify().push(ErrorData::new_with_error(
-					"Failed to send admin users unsubscribe message.",
-					error,
-				));
-			}
-		});
-
 		navigate("/");
 	};
 

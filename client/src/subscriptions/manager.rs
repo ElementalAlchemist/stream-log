@@ -126,6 +126,104 @@ impl SubscriptionManager {
 		Ok(())
 	}
 
+	/// Changes the current set of subscriptions so that it contains only the one specified subscription type.
+	pub async fn set_subscription(
+		&mut self,
+		subscription_type: SubscriptionType,
+		stream: &mut SplitSink<WebSocket, Message>,
+	) -> Result<(), SubscriptionError> {
+		let mut new_active_subscriptions: HashMap<SubscriptionType, u32> = HashMap::new();
+		let mut new_requested_subscriptions: HashMap<SubscriptionType, u32> = HashMap::new();
+		let mut unsubscription_messages: Vec<Message> = Vec::new();
+		for (current_subscription, _) in self.active_subscriptions.iter() {
+			if *current_subscription == subscription_type {
+				new_active_subscriptions.insert(current_subscription.clone(), 1);
+			} else {
+				let unsubscription_message = FromClientMessage::EndSubscription(current_subscription.clone());
+				let unsubscription_message_json = serde_json::to_string(&unsubscription_message)?;
+				unsubscription_messages.push(Message::Text(unsubscription_message_json));
+			}
+		}
+		for (current_subscription, _) in self.requested_subscriptions.iter() {
+			if *current_subscription == subscription_type {
+				new_requested_subscriptions.insert(current_subscription.clone(), 1);
+			} else {
+				let unsubscription_message = FromClientMessage::EndSubscription(current_subscription.clone());
+				let unsubscription_message_json = serde_json::to_string(&unsubscription_message)?;
+				unsubscription_messages.push(Message::Text(unsubscription_message_json));
+			}
+		}
+
+		for message in unsubscription_messages {
+			stream.feed(message).await?;
+		}
+		stream.flush().await?;
+
+		self.active_subscriptions = new_active_subscriptions;
+		self.requested_subscriptions = new_requested_subscriptions;
+
+		if self.active_subscriptions.is_empty() && self.requested_subscriptions.is_empty() {
+			let subscription_message = FromClientMessage::StartSubscription(subscription_type.clone());
+			let subscription_message_json = serde_json::to_string(&subscription_message)?;
+			stream.send(Message::Text(subscription_message_json)).await?;
+			self.requested_subscriptions.insert(subscription_type, 1);
+		}
+
+		Ok(())
+	}
+
+	/// Changes the current set of subscriptions to match a specific set of subscriptions
+	pub async fn set_subscriptions(
+		&mut self,
+		subscription_types: Vec<SubscriptionType>,
+		stream: &mut SplitSink<WebSocket, Message>,
+	) -> Result<(), SubscriptionError> {
+		let mut subscription_update_messages: Vec<Message> = Vec::new();
+		let mut new_subscriptions: HashMap<SubscriptionType, u32> = HashMap::new();
+		for subscription in subscription_types {
+			*new_subscriptions.entry(subscription).or_default() += 1;
+		}
+
+		let mut new_active_subscriptions = HashMap::new();
+		for current_subscription in self.active_subscriptions.keys() {
+			if let Some(new_count) = new_subscriptions.remove(current_subscription) {
+				new_active_subscriptions.insert(current_subscription.clone(), new_count);
+			} else {
+				let unsubscription_message = FromClientMessage::EndSubscription(current_subscription.clone());
+				let unsubscription_message_json = serde_json::to_string(&unsubscription_message)?;
+				subscription_update_messages.push(Message::Text(unsubscription_message_json));
+			}
+		}
+
+		let mut new_requested_subscriptions = HashMap::new();
+		for current_subscription in self.requested_subscriptions.keys() {
+			if let Some(new_count) = new_subscriptions.remove(current_subscription) {
+				new_requested_subscriptions.insert(current_subscription.clone(), new_count);
+			} else {
+				let unsubscription_message = FromClientMessage::EndSubscription(current_subscription.clone());
+				let unsubscription_message_json = serde_json::to_string(&unsubscription_message)?;
+				subscription_update_messages.push(Message::Text(unsubscription_message_json));
+			}
+		}
+
+		for (new_subscription, new_count) in new_subscriptions.drain() {
+			let subscription_message = FromClientMessage::StartSubscription(new_subscription.clone());
+			let subscription_message_json = serde_json::to_string(&subscription_message)?;
+			subscription_update_messages.push(Message::Text(subscription_message_json));
+			new_requested_subscriptions.insert(new_subscription, new_count);
+		}
+
+		for message in subscription_update_messages {
+			stream.feed(message).await?;
+		}
+		stream.flush().await?;
+
+		self.active_subscriptions = new_active_subscriptions;
+		self.requested_subscriptions = new_requested_subscriptions;
+
+		Ok(())
+	}
+
 	/// To be called when a subscription confirmation is received from the server. Updates tracking from requested subscription to active.
 	pub fn subscription_confirmation_received(&mut self, subscription_type: SubscriptionType) {
 		let subscription_count = self.requested_subscriptions.remove(&subscription_type);

@@ -53,7 +53,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		let subscription_manager: &Mutex<SubscriptionManager> = use_context(ctx);
 		let mut subscription_manager = subscription_manager.lock().await;
 		subscription_manager
-			.add_subscription(SubscriptionType::EventLogData(props.id.clone()), &mut ws)
+			.set_subscription(SubscriptionType::EventLogData(props.id.clone()), &mut ws)
 			.await
 	};
 	if let Err(error) = add_subscription_data {

@@ -46,7 +46,7 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		let subscription_manager: &Mutex<SubscriptionManager> = use_context(ctx);
 		let mut subscription_manager = subscription_manager.lock().await;
 		subscription_manager
-			.add_subscription(SubscriptionType::AdminEvents, &mut ws)
+			.set_subscription(SubscriptionType::AdminEvents, &mut ws)
 			.await
 	};
 	if let Err(error) = add_subscription_result {
@@ -129,31 +129,6 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	};
 
 	let done_handler = move |_: WebEvent| {
-		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
-			let mut ws = ws_context.lock().await;
-
-			let message = FromClientMessage::EndSubscription(SubscriptionType::AdminEvents);
-			let message_json = match serde_json::to_string(&message) {
-				Ok(msg) => msg,
-				Err(error) => {
-					let data: &DataSignals = use_context(ctx);
-					data.errors.modify().push(ErrorData::new_with_error(
-						"Failed to serialize end of event subscription message.",
-						error,
-					));
-					return;
-				}
-			};
-
-			if let Err(error) = ws.send(Message::Text(message_json)).await {
-				let data: &DataSignals = use_context(ctx);
-				data.errors.modify().push(ErrorData::new_with_error(
-					"Failed to send end of event subscription message.",
-					error,
-				));
-			}
-		});
 		navigate("/");
 	};
 

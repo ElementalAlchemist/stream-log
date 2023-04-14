@@ -33,7 +33,7 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		];
 		let subscription_manager: &Mutex<SubscriptionManager> = use_context(ctx);
 		let mut subscription_manager = subscription_manager.lock().await;
-		subscription_manager.add_subscriptions(subscriptions, &mut ws).await
+		subscription_manager.set_subscriptions(subscriptions, &mut ws).await
 	};
 	if let Err(error) = add_subscriptions_result {
 		data.errors.modify().push(ErrorData::new_with_error(
