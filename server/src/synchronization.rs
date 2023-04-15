@@ -14,12 +14,14 @@ use tide_websockets::WebSocketConnection;
 /// A manager for all the subscriptions we need to track
 pub struct SubscriptionManager {
 	event_subscriptions: HashMap<String, EventSubscriptionManager>,
+	user_subscriptions: HashMap<String, UserSubscription>,
 }
 
 impl SubscriptionManager {
 	pub fn new() -> Self {
 		Self {
 			event_subscriptions: HashMap::new(),
+			user_subscriptions: HashMap::new(),
 		}
 	}
 
@@ -94,7 +96,13 @@ impl SubscriptionManager {
 		for event_subscription in self.event_subscriptions.values() {
 			futures.push(event_subscription.unsubscribe_user(user));
 		}
+		self.user_subscriptions.remove(&user.id);
 		join_all(futures).await;
+	}
+
+	pub fn add_user_subscription(&mut self, user: &UserData, connection: Arc<Mutex<WebSocketConnection>>) {
+		self.user_subscriptions
+			.insert(user.id.clone(), UserSubscription { connection });
 	}
 }
 
@@ -168,4 +176,9 @@ impl EventSubscriptionManager {
 	async fn broadcast_message(&self, message: EventSubscriptionData) -> miette::Result<()> {
 		self.subscription_send_channel.send(message).await.into_diagnostic()
 	}
+}
+
+/// Manages the login subscription for a user
+struct UserSubscription {
+	connection: Arc<Mutex<WebSocketConnection>>,
 }
