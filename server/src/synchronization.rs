@@ -8,7 +8,9 @@ use miette::IntoDiagnostic;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use stream_log_shared::messages::event_subscription::EventSubscriptionData;
+use stream_log_shared::messages::subscriptions::SubscriptionType;
 use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::FromServerMessage;
 use tide_websockets::WebSocketConnection;
 
 /// A manager for all the subscriptions we need to track
@@ -53,7 +55,7 @@ impl SubscriptionManager {
 					.await
 			}
 			Entry::Vacant(event_entry) => {
-				let event_subscription = EventSubscriptionManager::new();
+				let event_subscription = EventSubscriptionManager::new(event_id);
 				event_subscription
 					.subscribe_user(subscribing_user, connection, permission)
 					.await;
@@ -63,10 +65,11 @@ impl SubscriptionManager {
 	}
 
 	/// Unsubscribes the provided user from the provided event
-	pub async fn unsubscribe_user_from_event(&self, event_id: &str, user: &UserData) {
+	pub async fn unsubscribe_user_from_event(&self, event_id: &str, user: &UserData) -> tide::Result<()> {
 		if let Some(event_subscription) = self.event_subscriptions.get(event_id) {
-			event_subscription.unsubscribe_user(user).await;
+			event_subscription.unsubscribe_user(user).await?;
 		}
+		Ok(())
 	}
 
 	/// Gets the cached permission level for a user in a given event to which that user is subscribed.
@@ -113,13 +116,14 @@ struct UserEventSubscriptionData {
 
 /// Manages subscriptions for a single event
 struct EventSubscriptionManager {
+	event_id: String,
 	thread_handle: JoinHandle<()>,
 	subscription_send_channel: Sender<EventSubscriptionData>,
 	subscriptions: Arc<Mutex<HashMap<String, UserEventSubscriptionData>>>,
 }
 
 impl EventSubscriptionManager {
-	fn new() -> Self {
+	fn new(event_id: &str) -> Self {
 		let (broadcast_tx, mut broadcast_rx) = unbounded::<EventSubscriptionData>();
 		let subscriptions: Arc<Mutex<HashMap<String, UserEventSubscriptionData>>> =
 			Arc::new(Mutex::new(HashMap::new()));
@@ -144,6 +148,7 @@ impl EventSubscriptionManager {
 		});
 
 		Self {
+			event_id: event_id.to_string(),
 			thread_handle,
 			subscription_send_channel: broadcast_tx,
 			subscriptions,
@@ -168,9 +173,14 @@ impl EventSubscriptionManager {
 			.map(|subscription_data| subscription_data.permission)
 	}
 
-	async fn unsubscribe_user(&self, user: &UserData) {
+	async fn unsubscribe_user(&self, user: &UserData) -> tide::Result<()> {
 		let mut subscriptions = self.subscriptions.lock().await;
-		subscriptions.remove(&user.id);
+		if let Some(user_sub_data) = subscriptions.remove(&user.id) {
+			let connection = user_sub_data.connection.lock().await;
+			let message = FromServerMessage::Unsubscribed(SubscriptionType::EventLogData(self.event_id.clone()));
+			connection.send_json(&message).await?
+		}
+		Ok(())
 	}
 
 	async fn broadcast_message(&self, message: EventSubscriptionData) -> miette::Result<()> {

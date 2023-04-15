@@ -147,7 +147,7 @@ pub async fn subscribe_to_event(
 				.lock()
 				.await
 				.unsubscribe_user_from_event(event_id, user)
-				.await;
+				.await?;
 			return Ok(());
 		}
 	};
@@ -168,7 +168,7 @@ pub async fn subscribe_to_event(
 				.lock()
 				.await
 				.unsubscribe_user_from_event(event_id, user)
-				.await;
+				.await?;
 			return Ok(());
 		}
 	};
@@ -190,7 +190,7 @@ pub async fn subscribe_to_event(
 				.lock()
 				.await
 				.unsubscribe_user_from_event(event_id, user)
-				.await;
+				.await?;
 			return Ok(());
 		}
 	};
@@ -213,7 +213,7 @@ pub async fn subscribe_to_event(
 				.lock()
 				.await
 				.unsubscribe_user_from_event(event_id, user)
-				.await;
+				.await?;
 			return Ok(());
 		}
 	};
@@ -237,7 +237,7 @@ pub async fn subscribe_to_event(
 					.lock()
 					.await
 					.unsubscribe_user_from_event(event_id, user)
-					.await;
+					.await?;
 				return Ok(());
 			}
 		};
@@ -270,7 +270,7 @@ pub async fn subscribe_to_event(
 				.lock()
 				.await
 				.unsubscribe_user_from_event(event_id, user)
-				.await;
+				.await?;
 			return Ok(());
 		}
 	};
@@ -291,7 +291,7 @@ pub async fn subscribe_to_event(
 				.lock()
 				.await
 				.unsubscribe_user_from_event(event_id, user)
-				.await;
+				.await?;
 			return Ok(());
 		}
 	};
@@ -359,7 +359,7 @@ pub async fn subscribe_to_event(
 						.lock()
 						.await
 						.unsubscribe_user_from_event(event_id, user)
-						.await;
+						.await?;
 					return Ok(());
 				}
 			},
@@ -773,17 +773,7 @@ pub async fn unsubscribe_from_event(
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	user: &UserData,
 	event_id: &str,
-) -> Result<(), HandleConnectionError> {
+) -> tide::Result<()> {
 	let subscription_manager = subscription_manager.lock().await;
-	subscription_manager.unsubscribe_user_from_event(event_id, user).await;
-
-	let send_result = {
-		let stream = stream.lock().await;
-		let message = FromServerMessage::Unsubscribed(SubscriptionType::EventLogData(event_id.to_string()));
-		stream.send_json(&message).await
-	};
-	match send_result {
-		Ok(_) => Ok(()),
-		Err(_) => Err(HandleConnectionError::ConnectionClosed),
-	}
+	subscription_manager.unsubscribe_user_from_event(event_id, user).await
 }
