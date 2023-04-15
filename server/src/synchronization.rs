@@ -8,8 +8,8 @@ use miette::IntoDiagnostic;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use stream_log_shared::messages::event_subscription::EventSubscriptionData;
-use stream_log_shared::messages::subscriptions::SubscriptionType;
-use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::subscriptions::{SubscriptionData, SubscriptionType};
+use stream_log_shared::messages::user::{UserData, UserSubscriptionUpdate};
 use stream_log_shared::messages::FromServerMessage;
 use tide_websockets::WebSocketConnection;
 
@@ -191,4 +191,16 @@ impl EventSubscriptionManager {
 /// Manages the login subscription for a user
 struct UserSubscription {
 	connection: Arc<Mutex<WebSocketConnection>>,
+}
+
+impl UserSubscription {
+	fn new(connection: Arc<Mutex<WebSocketConnection>>) -> Self {
+		Self { connection }
+	}
+
+	async fn send_message(&self, message: UserSubscriptionUpdate) -> tide::Result<()> {
+		let message = FromServerMessage::SubscriptionMessage(Box::new(SubscriptionData::UserUpdate(message)));
+		let connection = self.connection.lock().await;
+		connection.send_json(&message).await
+	}
 }
