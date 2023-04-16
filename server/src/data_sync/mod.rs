@@ -4,7 +4,7 @@ mod subscription_manager;
 mod subscriptions;
 mod user_profile;
 
-pub use subscription_manager::SubscriptionManager;
+pub use subscription_manager::{SubscriptionManager, UserDataUpdate};
 
 pub enum HandleConnectionError {
 	ConnectionClosed,

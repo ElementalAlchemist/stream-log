@@ -2,13 +2,15 @@ use super::register::{check_username, register_user};
 use super::subscriptions::{handle_event_update, subscribe_to_event, unsubscribe_from_event};
 use super::user_profile::handle_profile_update;
 use super::HandleConnectionError;
-use crate::data_sync::SubscriptionManager;
+use crate::data_sync::{SubscriptionManager, UserDataUpdate};
 use crate::models::{Permission, User};
 use crate::schema::users;
 use crate::websocket_msg::recv_msg;
+use async_std::channel::{unbounded, Receiver};
 use async_std::sync::{Arc, Mutex};
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
+use futures::select;
 use rgb::RGB8;
 use std::collections::HashMap;
 use stream_log_shared::messages::initial::{InitialMessage, UserDataLoad};
@@ -104,6 +106,7 @@ async fn process_messages(
 	openid_user_id: &str,
 ) -> Result<(), HandleConnectionError> {
 	let mut event_permission_cache: HashMap<String, Option<Permission>> = HashMap::new();
+	let (user_update_tx, mut user_update_rx) = unbounded::<UserDataUpdate>();
 	let result = loop {
 		if let Err(error) = process_message(
 			&db_connection,
