@@ -23,8 +23,6 @@ use data_sync::SubscriptionManager;
 mod database;
 use database::{connect_db, run_embedded_migrations};
 
-mod synchronization;
-
 mod websocket_msg;
 
 mod models;
