@@ -769,7 +769,6 @@ pub async fn handle_event_update(
 }
 
 pub async fn unsubscribe_from_event(
-	stream: Arc<Mutex<WebSocketConnection>>,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	user: &UserData,
 	event_id: &str,

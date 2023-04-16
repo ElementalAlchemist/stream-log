@@ -174,19 +174,24 @@ async fn process_message(
 				SubscriptionType::AdminEventEditors => todo!(),
 			}
 		}
-		FromClientMessage::EndSubscription(subscription_type) => match subscription_type {
-			SubscriptionType::EventLogData(event_id) => todo!(),
-			SubscriptionType::AdminUsers => todo!(),
-			SubscriptionType::AdminEvents => todo!(),
-			SubscriptionType::AdminPermissionGroups => todo!(),
-			SubscriptionType::AdminPermissionGroupEvents => todo!(),
-			SubscriptionType::AdminPermissionGroupUsers => todo!(),
-			SubscriptionType::AdminEntryTypes => todo!(),
-			SubscriptionType::AdminEntryTypesEvents => todo!(),
-			SubscriptionType::AdminTags => todo!(),
-			SubscriptionType::AdminTagEvents => todo!(),
-			SubscriptionType::AdminEventEditors => todo!(),
-		},
+		FromClientMessage::EndSubscription(subscription_type) => {
+			let Some(user) = user.as_ref() else { return Ok(()); }; // Users who aren't logged in can't be subscribed
+			match subscription_type {
+				SubscriptionType::EventLogData(event_id) => {
+					unsubscribe_from_event(Arc::clone(subscription_manager), user, &event_id).await?
+				}
+				SubscriptionType::AdminUsers => todo!(),
+				SubscriptionType::AdminEvents => todo!(),
+				SubscriptionType::AdminPermissionGroups => todo!(),
+				SubscriptionType::AdminPermissionGroupEvents => todo!(),
+				SubscriptionType::AdminPermissionGroupUsers => todo!(),
+				SubscriptionType::AdminEntryTypes => todo!(),
+				SubscriptionType::AdminEntryTypesEvents => todo!(),
+				SubscriptionType::AdminTags => todo!(),
+				SubscriptionType::AdminTagEvents => todo!(),
+				SubscriptionType::AdminEventEditors => todo!(),
+			}
+		}
 		FromClientMessage::SubscriptionMessage(subscription_update) => match *subscription_update {
 			SubscriptionTargetUpdate::EventUpdate(event, update_data) => todo!(),
 			SubscriptionTargetUpdate::AdminEventsUpdate(update_data) => todo!(),
