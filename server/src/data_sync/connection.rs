@@ -192,17 +192,29 @@ async fn process_message(
 				SubscriptionType::AdminEventEditors => todo!(),
 			}
 		}
-		FromClientMessage::SubscriptionMessage(subscription_update) => match *subscription_update {
-			SubscriptionTargetUpdate::EventUpdate(event, update_data) => todo!(),
-			SubscriptionTargetUpdate::AdminEventsUpdate(update_data) => todo!(),
-			SubscriptionTargetUpdate::AdminEntryTypesUpdate(update_data) => todo!(),
-			SubscriptionTargetUpdate::AdminEntryTypesEventsUpdate(update_data) => todo!(),
-			SubscriptionTargetUpdate::AdminPermissionGroupsUpdate(update_data) => todo!(),
-			SubscriptionTargetUpdate::AdminTagsUpdate(update_data) => todo!(),
-			SubscriptionTargetUpdate::AdminUserUpdate(user) => todo!(),
-			SubscriptionTargetUpdate::AdminEventEditorsUpdate(update_data) => todo!(),
-			SubscriptionTargetUpdate::AdminUserPermissionGroupsUpdate(update_data) => todo!(),
-		},
+		FromClientMessage::SubscriptionMessage(subscription_update) => {
+			let Some(user) = user.as_ref() else { return Ok(()); }; // One must be subscribed (and therefore logged in) to send a subscription update message
+			match *subscription_update {
+				SubscriptionTargetUpdate::EventUpdate(event, update_data) => {
+					handle_event_update(
+						Arc::clone(db_connection),
+						Arc::clone(subscription_manager),
+						&event,
+						user,
+						update_data,
+					)
+					.await?
+				}
+				SubscriptionTargetUpdate::AdminEventsUpdate(update_data) => todo!(),
+				SubscriptionTargetUpdate::AdminEntryTypesUpdate(update_data) => todo!(),
+				SubscriptionTargetUpdate::AdminEntryTypesEventsUpdate(update_data) => todo!(),
+				SubscriptionTargetUpdate::AdminPermissionGroupsUpdate(update_data) => todo!(),
+				SubscriptionTargetUpdate::AdminTagsUpdate(update_data) => todo!(),
+				SubscriptionTargetUpdate::AdminUserUpdate(user) => todo!(),
+				SubscriptionTargetUpdate::AdminEventEditorsUpdate(update_data) => todo!(),
+				SubscriptionTargetUpdate::AdminUserPermissionGroupsUpdate(update_data) => todo!(),
+			}
+		}
 		FromClientMessage::RegistrationRequest(registration_data) => {
 			if user.is_none() {
 				match registration_data {
