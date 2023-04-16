@@ -18,12 +18,12 @@ use config::parse_config;
 
 mod data_sync;
 use data_sync::connection::handle_connection;
+use data_sync::SubscriptionManager;
 
 mod database;
 use database::{connect_db, run_embedded_migrations};
 
 mod synchronization;
-use synchronization::SubscriptionManager;
 
 mod websocket_msg;
 

@@ -1,4 +1,5 @@
 use super::HandleConnectionError;
+use crate::data_sync::SubscriptionManager;
 use crate::models::{
 	EntryType as EntryTypeDb, Event as EventDb, EventLogEntry as EventLogEntryDb, EventLogTag, Permission,
 	PermissionEvent, Tag as TagDb, User,
@@ -7,7 +8,6 @@ use crate::schema::{
 	available_entry_types_for_event, entry_types, event_editors, event_log, event_log_tags, events, permission_events,
 	tags, user_permissions, users,
 };
-use crate::synchronization::SubscriptionManager;
 use async_std::sync::{Arc, Mutex};
 use chrono::Utc;
 use diesel::pg::PgConnection;
@@ -21,7 +21,7 @@ use stream_log_shared::messages::event_subscription::{
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::subscriptions::{
-	InitialSubscriptionLoadData, SubscriptionFailureInfo, SubscriptionType,
+	InitialSubscriptionLoadData, SubscriptionData, SubscriptionFailureInfo, SubscriptionType,
 };
 use stream_log_shared::messages::tags::Tag;
 use stream_log_shared::messages::user::UserData;
@@ -34,6 +34,7 @@ pub async fn subscribe_to_event(
 	user: &UserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	event_id: &str,
+	event_permission_cache: &mut HashMap<String, Option<Permission>>,
 ) -> Result<(), HandleConnectionError> {
 	let mut db_connection = db_connection.lock().await;
 	let mut event: Vec<EventDb> = match events::table.filter(events::id.eq(event_id)).load(&mut *db_connection) {
@@ -100,6 +101,8 @@ pub async fn subscribe_to_event(
 		}
 	}
 
+	event_permission_cache.insert(event_id.to_string(), highest_permission_level);
+
 	let permission_level = match highest_permission_level {
 		Some(level) => level,
 		None => {
@@ -117,7 +120,7 @@ pub async fn subscribe_to_event(
 	{
 		let mut subscriptions = subscription_manager.lock().await;
 		subscriptions
-			.subscribe_user_to_event(event_id, user, permission_level, Arc::clone(&stream))
+			.subscribe_user_to_event(event_id, user, Arc::clone(&stream))
 			.await;
 	}
 
@@ -403,17 +406,22 @@ pub async fn handle_event_update(
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	event: &Event,
 	user: &UserData,
+	event_permission_cache: &HashMap<String, Option<Permission>>,
 	message: Box<EventSubscriptionUpdate>,
 ) -> Result<(), HandleConnectionError> {
-	let mut subscription_manager = subscription_manager.lock().await;
-	let Some(permission_level) = subscription_manager.get_cached_user_permission(&event.id, user).await else {
+	let Some(permission_level) = event_permission_cache.get(&event.id) else {
+		// If the user is interacting with the event, they should be subscribed. Subscribing adds the event to the
+		// permission cache, so we can safely abort if they don't have a cached value.
 		return Ok(());
 	};
 
-	if permission_level != Permission::Edit {
-		// The user doesn't have access to do this; they should only be viewing the data we send them. So we'll ignore their request in this case.
+	if *permission_level != Some(Permission::Edit) {
+		// The user doesn't have access to do this; they should either only view the data we send them or not interact
+		// with it at all. Therefore, we'll ignore their request in this case.
 		return Ok(());
 	}
+
+	let mut subscription_manager = subscription_manager.lock().await;
 
 	let subscription_data = match *message {
 		EventSubscriptionUpdate::NewLogEntry(mut log_entry_data) => {
@@ -756,6 +764,7 @@ pub async fn handle_event_update(
 			EventSubscriptionData::NewTag(event.clone(), new_tag)
 		}
 	};
+	let subscription_data = SubscriptionData::EventUpdate(event.clone(), Box::new(subscription_data));
 	let broadcast_result = subscription_manager
 		.broadcast_event_message(&event.id, subscription_data)
 		.await;

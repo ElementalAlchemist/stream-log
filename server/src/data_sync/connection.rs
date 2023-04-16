@@ -2,14 +2,15 @@ use super::register::{check_username, register_user};
 use super::subscriptions::{handle_event_update, subscribe_to_event, unsubscribe_from_event};
 use super::user_profile::handle_profile_update;
 use super::HandleConnectionError;
-use crate::models::User;
+use crate::data_sync::SubscriptionManager;
+use crate::models::{Permission, User};
 use crate::schema::users;
-use crate::synchronization::SubscriptionManager;
 use crate::websocket_msg::recv_msg;
 use async_std::sync::{Arc, Mutex};
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use rgb::RGB8;
+use std::collections::HashMap;
 use stream_log_shared::messages::initial::{InitialMessage, UserDataLoad};
 use stream_log_shared::messages::subscriptions::{SubscriptionTargetUpdate, SubscriptionType};
 use stream_log_shared::messages::user::UserData;
@@ -102,6 +103,7 @@ async fn process_messages(
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	openid_user_id: &str,
 ) -> Result<(), HandleConnectionError> {
+	let mut event_permission_cache: HashMap<String, Option<Permission>> = HashMap::new();
 	let result = loop {
 		if let Err(error) = process_message(
 			&db_connection,
@@ -109,6 +111,7 @@ async fn process_messages(
 			&mut user,
 			&subscription_manager,
 			openid_user_id,
+			&mut event_permission_cache,
 		)
 		.await
 		{
@@ -129,6 +132,7 @@ async fn process_message(
 	user: &mut Option<UserData>,
 	subscription_manager: &Arc<Mutex<SubscriptionManager>>,
 	openid_user_id: &str,
+	event_permission_cache: &mut HashMap<String, Option<Permission>>,
 ) -> Result<(), HandleConnectionError> {
 	let incoming_msg = {
 		let mut stream = stream.lock().await;
@@ -159,6 +163,7 @@ async fn process_message(
 						user,
 						Arc::clone(subscription_manager),
 						&event_id,
+						event_permission_cache,
 					)
 					.await?
 				}
@@ -201,6 +206,7 @@ async fn process_message(
 						Arc::clone(subscription_manager),
 						&event,
 						user,
+						event_permission_cache,
 						update_data,
 					)
 					.await?

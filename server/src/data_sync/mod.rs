@@ -1,7 +1,10 @@
 pub mod connection;
 mod register;
+mod subscription_manager;
 mod subscriptions;
 mod user_profile;
+
+pub use subscription_manager::SubscriptionManager;
 
 pub enum HandleConnectionError {
 	ConnectionClosed,

@@ -73,6 +73,7 @@ pub enum SubscriptionFailureInfo {
 	Error(DataError),
 }
 
+/// A client-initiated description detailing for what subscriptions it'd like to send updates
 #[derive(Debug, Deserialize, Serialize)]
 pub enum SubscriptionTargetUpdate {
 	EventUpdate(Event, Box<EventSubscriptionUpdate>),
