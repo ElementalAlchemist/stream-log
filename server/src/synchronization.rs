@@ -105,7 +105,7 @@ impl SubscriptionManager {
 
 	pub fn add_user_subscription(&mut self, user: &UserData, connection: Arc<Mutex<WebSocketConnection>>) {
 		self.user_subscriptions
-			.insert(user.id.clone(), UserSubscription { connection });
+			.insert(user.id.clone(), UserSubscription::new(connection));
 	}
 }
 
