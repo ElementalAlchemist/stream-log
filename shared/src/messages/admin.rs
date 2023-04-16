@@ -43,7 +43,7 @@ pub enum AdminPermissionGroupUpdate {
 #[derive(Debug, Deserialize, Serialize)]
 pub enum AdminTagUpdate {
 	UpdateTag(Tag),
-	AddTag(Tag, Event),
+	AddTag(Tag),
 	RemoveTag(Tag),
 	ReplaceTag(Tag, Tag),
 }

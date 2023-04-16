@@ -22,7 +22,6 @@ pub struct SubscriptionManager {
 	admin_entry_type_subscriptions: SingleSubscriptionManager,
 	admin_entry_type_event_subscriptions: SingleSubscriptionManager,
 	admin_tag_subscriptions: SingleSubscriptionManager,
-	admin_tag_event_subscriptions: SingleSubscriptionManager,
 	admin_event_editor_subscriptions: SingleSubscriptionManager,
 }
 
@@ -47,7 +46,6 @@ impl SubscriptionManager {
 				SubscriptionType::AdminEntryTypesEvents,
 			),
 			admin_tag_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AdminTags),
-			admin_tag_event_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AdminTagEvents),
 			admin_event_editor_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AdminEventEditors),
 		}
 	}

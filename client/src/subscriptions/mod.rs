@@ -10,7 +10,7 @@ use stream_log_shared::messages::admin::{
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::subscriptions::{InitialSubscriptionLoadData, SubscriptionType};
-use stream_log_shared::messages::tags::{Tag, TagEventAssociation};
+use stream_log_shared::messages::tags::Tag;
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::user_register::RegistrationResponse;
 use stream_log_shared::messages::FromServerMessage;
@@ -61,9 +61,6 @@ pub struct DataSignals {
 	/// List of all tags that have been created.
 	pub all_tags: RcSignal<Vec<Tag>>,
 
-	/// Associations of tags and their relevant events.
-	pub tag_event_associations: RcSignal<Vec<TagEventAssociation>>,
-
 	/// List of all editor user/event pairings
 	pub event_editors: RcSignal<Vec<EditorEventAssociation>>,
 
@@ -87,7 +84,6 @@ impl DataSignals {
 			all_permission_groups: create_rc_signal(Vec::new()),
 			permission_group_event_associations: create_rc_signal(Vec::new()),
 			all_tags: create_rc_signal(Vec::new()),
-			tag_event_associations: create_rc_signal(Vec::new()),
 			event_editors: create_rc_signal(Vec::new()),
 			user_permission_groups: create_rc_signal(Vec::new()),
 			entry_type_event_associations: create_rc_signal(Vec::new()),

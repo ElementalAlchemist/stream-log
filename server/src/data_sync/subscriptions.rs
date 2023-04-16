@@ -155,10 +155,7 @@ pub async fn subscribe_to_event(
 		}
 	};
 
-	let tags: Vec<TagDb> = match tags::table
-		.filter(tags::for_event.eq(event_id))
-		.load(&mut *db_connection)
-	{
+	let tags: Vec<TagDb> = match tags::table.load(&mut *db_connection) {
 		Ok(tags) => tags,
 		Err(error) => {
 			tide::log::error!("Database error getting tags for an event: {}", error);
@@ -750,7 +747,6 @@ pub async fn handle_event_update(
 			let mut db_connection = db_connection.lock().await;
 			let new_tag_db = TagDb {
 				id: new_id,
-				for_event: event.id.clone(),
 				tag: new_tag.name.clone(),
 				description: new_tag.description.clone(),
 			};

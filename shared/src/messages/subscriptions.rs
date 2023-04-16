@@ -33,8 +33,6 @@ pub enum SubscriptionType {
 	AdminEntryTypesEvents,
 	/// A subscription to all tags.
 	AdminTags,
-	/// A subscription to relationships between tags and events.
-	AdminTagEvents,
 	/// A subscription to relationships between users (as video editors) and events.
 	AdminEventEditors,
 }

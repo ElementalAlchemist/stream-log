@@ -178,7 +178,6 @@ async fn process_message(
 				SubscriptionType::AdminEntryTypes => todo!(),
 				SubscriptionType::AdminEntryTypesEvents => todo!(),
 				SubscriptionType::AdminTags => todo!(),
-				SubscriptionType::AdminTagEvents => todo!(),
 				SubscriptionType::AdminEventEditors => todo!(),
 			}
 		}
@@ -196,7 +195,6 @@ async fn process_message(
 				SubscriptionType::AdminEntryTypes => todo!(),
 				SubscriptionType::AdminEntryTypesEvents => todo!(),
 				SubscriptionType::AdminTags => todo!(),
-				SubscriptionType::AdminTagEvents => todo!(),
 				SubscriptionType::AdminEventEditors => todo!(),
 			}
 		}

@@ -109,7 +109,6 @@ pub struct AvailableEntryType {
 #[derive(Insertable, Queryable)]
 pub struct Tag {
 	pub id: String,
-	pub for_event: String,
 	pub tag: String,
 	pub description: String,
 }
