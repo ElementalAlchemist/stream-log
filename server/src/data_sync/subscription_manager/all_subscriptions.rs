@@ -1,5 +1,6 @@
 use super::one_subscription::SingleSubscriptionManager;
-use super::user::UserSubscription;
+use super::user::{UserDataUpdate, UserSubscription};
+use async_std::channel::Sender;
 use async_std::sync::{Arc, Mutex};
 use async_std::task::block_on;
 use futures::future::join_all;
@@ -84,8 +85,15 @@ impl SubscriptionManager {
 		join_all(futures).await;
 	}
 
-	pub fn add_user_subscription(&mut self, user: &UserData, connection: Arc<Mutex<WebSocketConnection>>) {
-		self.user_subscriptions
-			.insert(user.id.clone(), UserSubscription::new(connection));
+	pub fn add_user_subscription(
+		&mut self,
+		user: &UserData,
+		connection: Arc<Mutex<WebSocketConnection>>,
+		server_update_channel: Sender<UserDataUpdate>,
+	) {
+		self.user_subscriptions.insert(
+			user.id.clone(),
+			UserSubscription::new(connection, server_update_channel),
+		);
 	}
 }
