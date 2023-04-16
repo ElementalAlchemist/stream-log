@@ -103,88 +103,16 @@ async fn process_messages(
 	openid_user_id: &str,
 ) -> Result<(), HandleConnectionError> {
 	let result = loop {
-		let incoming_msg = {
-			let mut stream = stream.lock().await;
-			match recv_msg(&mut stream).await {
-				Ok(msg) => msg,
-				Err(error) => {
-					error.log();
-					break Err(HandleConnectionError::ConnectionClosed);
-				}
-			}
-		};
-		let incoming_msg: FromClientMessage = match serde_json::from_str(&incoming_msg) {
-			Ok(msg) => msg,
-			Err(error) => {
-				tide::log::error!("Received an invalid request message: {}", error);
-				break Err(HandleConnectionError::ConnectionClosed);
-			}
-		};
-
-		match incoming_msg {
-			FromClientMessage::StartSubscription(subscription_type) => match subscription_type {
-				SubscriptionType::EventLogData(event_id) => todo!(),
-				SubscriptionType::AdminUsers => todo!(),
-				SubscriptionType::AdminEvents => todo!(),
-				SubscriptionType::AdminPermissionGroups => todo!(),
-				SubscriptionType::AdminPermissionGroupEvents => todo!(),
-				SubscriptionType::AdminPermissionGroupUsers => todo!(),
-				SubscriptionType::AdminEntryTypes => todo!(),
-				SubscriptionType::AdminEntryTypesEvents => todo!(),
-				SubscriptionType::AdminTags => todo!(),
-				SubscriptionType::AdminTagEvents => todo!(),
-				SubscriptionType::AdminEventEditors => todo!(),
-			},
-			FromClientMessage::EndSubscription(subscription_type) => match subscription_type {
-				SubscriptionType::EventLogData(event_id) => todo!(),
-				SubscriptionType::AdminUsers => todo!(),
-				SubscriptionType::AdminEvents => todo!(),
-				SubscriptionType::AdminPermissionGroups => todo!(),
-				SubscriptionType::AdminPermissionGroupEvents => todo!(),
-				SubscriptionType::AdminPermissionGroupUsers => todo!(),
-				SubscriptionType::AdminEntryTypes => todo!(),
-				SubscriptionType::AdminEntryTypesEvents => todo!(),
-				SubscriptionType::AdminTags => todo!(),
-				SubscriptionType::AdminTagEvents => todo!(),
-				SubscriptionType::AdminEventEditors => todo!(),
-			},
-			FromClientMessage::SubscriptionMessage(subscription_update) => match *subscription_update {
-				SubscriptionTargetUpdate::EventUpdate(event, update_data) => todo!(),
-				SubscriptionTargetUpdate::AdminEventsUpdate(update_data) => todo!(),
-				SubscriptionTargetUpdate::AdminEntryTypesUpdate(update_data) => todo!(),
-				SubscriptionTargetUpdate::AdminEntryTypesEventsUpdate(update_data) => todo!(),
-				SubscriptionTargetUpdate::AdminPermissionGroupsUpdate(update_data) => todo!(),
-				SubscriptionTargetUpdate::AdminTagsUpdate(update_data) => todo!(),
-				SubscriptionTargetUpdate::AdminUserUpdate(user) => todo!(),
-				SubscriptionTargetUpdate::AdminEventEditorsUpdate(update_data) => todo!(),
-				SubscriptionTargetUpdate::AdminUserPermissionGroupsUpdate(update_data) => todo!(),
-			},
-			FromClientMessage::RegistrationRequest(registration_data) => {
-				if user.is_none() {
-					match registration_data {
-						UserRegistration::CheckUsername(username) => {
-							check_username(Arc::clone(&db_connection), Arc::clone(&stream), &username).await?
-						}
-						UserRegistration::Finalize(registration_data) => {
-							register_user(
-								Arc::clone(&db_connection),
-								Arc::clone(&stream),
-								openid_user_id,
-								registration_data,
-								&mut user,
-							)
-							.await?
-						}
-					}
-				}
-			}
-			FromClientMessage::UpdateProfile(profile_data) => {
-				if let Some(user) = user.as_ref() {
-					if let Err(error) = handle_profile_update(Arc::clone(&db_connection), user, profile_data).await {
-						break Err(error);
-					}
-				}
-			}
+		if let Err(error) = process_message(
+			&db_connection,
+			&stream,
+			&mut user,
+			&subscription_manager,
+			openid_user_id,
+		)
+		.await
+		{
+			break Err(error);
 		}
 	};
 
@@ -193,4 +121,108 @@ async fn process_messages(
 	}
 
 	result
+}
+
+async fn process_message(
+	db_connection: &Arc<Mutex<PgConnection>>,
+	stream: &Arc<Mutex<WebSocketConnection>>,
+	user: &mut Option<UserData>,
+	subscription_manager: &Arc<Mutex<SubscriptionManager>>,
+	openid_user_id: &str,
+) -> Result<(), HandleConnectionError> {
+	let incoming_msg = {
+		let mut stream = stream.lock().await;
+		match recv_msg(&mut stream).await {
+			Ok(msg) => msg,
+			Err(error) => {
+				error.log();
+				return Err(HandleConnectionError::ConnectionClosed);
+			}
+		}
+	};
+	let incoming_msg: FromClientMessage = match serde_json::from_str(&incoming_msg) {
+		Ok(msg) => msg,
+		Err(error) => {
+			tide::log::error!("Received an invalid request message: {}", error);
+			return Err(HandleConnectionError::ConnectionClosed);
+		}
+	};
+
+	match incoming_msg {
+		FromClientMessage::StartSubscription(subscription_type) => {
+			let Some(user) = user.as_ref() else { return Ok(()); }; // Only logged-in users can subscribe
+			match subscription_type {
+				SubscriptionType::EventLogData(event_id) => {
+					subscribe_to_event(
+						Arc::clone(db_connection),
+						Arc::clone(stream),
+						user,
+						Arc::clone(subscription_manager),
+						&event_id,
+					)
+					.await?
+				}
+				SubscriptionType::AdminUsers => todo!(),
+				SubscriptionType::AdminEvents => todo!(),
+				SubscriptionType::AdminPermissionGroups => todo!(),
+				SubscriptionType::AdminPermissionGroupEvents => todo!(),
+				SubscriptionType::AdminPermissionGroupUsers => todo!(),
+				SubscriptionType::AdminEntryTypes => todo!(),
+				SubscriptionType::AdminEntryTypesEvents => todo!(),
+				SubscriptionType::AdminTags => todo!(),
+				SubscriptionType::AdminTagEvents => todo!(),
+				SubscriptionType::AdminEventEditors => todo!(),
+			}
+		}
+		FromClientMessage::EndSubscription(subscription_type) => match subscription_type {
+			SubscriptionType::EventLogData(event_id) => todo!(),
+			SubscriptionType::AdminUsers => todo!(),
+			SubscriptionType::AdminEvents => todo!(),
+			SubscriptionType::AdminPermissionGroups => todo!(),
+			SubscriptionType::AdminPermissionGroupEvents => todo!(),
+			SubscriptionType::AdminPermissionGroupUsers => todo!(),
+			SubscriptionType::AdminEntryTypes => todo!(),
+			SubscriptionType::AdminEntryTypesEvents => todo!(),
+			SubscriptionType::AdminTags => todo!(),
+			SubscriptionType::AdminTagEvents => todo!(),
+			SubscriptionType::AdminEventEditors => todo!(),
+		},
+		FromClientMessage::SubscriptionMessage(subscription_update) => match *subscription_update {
+			SubscriptionTargetUpdate::EventUpdate(event, update_data) => todo!(),
+			SubscriptionTargetUpdate::AdminEventsUpdate(update_data) => todo!(),
+			SubscriptionTargetUpdate::AdminEntryTypesUpdate(update_data) => todo!(),
+			SubscriptionTargetUpdate::AdminEntryTypesEventsUpdate(update_data) => todo!(),
+			SubscriptionTargetUpdate::AdminPermissionGroupsUpdate(update_data) => todo!(),
+			SubscriptionTargetUpdate::AdminTagsUpdate(update_data) => todo!(),
+			SubscriptionTargetUpdate::AdminUserUpdate(user) => todo!(),
+			SubscriptionTargetUpdate::AdminEventEditorsUpdate(update_data) => todo!(),
+			SubscriptionTargetUpdate::AdminUserPermissionGroupsUpdate(update_data) => todo!(),
+		},
+		FromClientMessage::RegistrationRequest(registration_data) => {
+			if user.is_none() {
+				match registration_data {
+					UserRegistration::CheckUsername(username) => {
+						check_username(Arc::clone(db_connection), Arc::clone(stream), &username).await?
+					}
+					UserRegistration::Finalize(registration_data) => {
+						register_user(
+							Arc::clone(db_connection),
+							Arc::clone(stream),
+							openid_user_id,
+							registration_data,
+							user,
+						)
+						.await?
+					}
+				}
+			}
+		}
+		FromClientMessage::UpdateProfile(profile_data) => {
+			if let Some(user) = user.as_ref() {
+				handle_profile_update(Arc::clone(db_connection), user, profile_data).await?;
+			}
+		}
+	}
+
+	Ok(())
 }
