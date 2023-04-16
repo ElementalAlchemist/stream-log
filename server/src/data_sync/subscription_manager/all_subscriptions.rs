@@ -14,6 +14,16 @@ use tide_websockets::WebSocketConnection;
 pub struct SubscriptionManager {
 	event_subscriptions: HashMap<String, SingleSubscriptionManager>,
 	user_subscriptions: HashMap<String, UserSubscription>,
+	admin_user_subscriptions: SingleSubscriptionManager,
+	admin_event_subscriptions: SingleSubscriptionManager,
+	admin_permission_group_subscriptions: SingleSubscriptionManager,
+	admin_permission_group_event_subscriptions: SingleSubscriptionManager,
+	admin_permission_group_user_subscriptions: SingleSubscriptionManager,
+	admin_entry_type_subscriptions: SingleSubscriptionManager,
+	admin_entry_type_event_subscriptions: SingleSubscriptionManager,
+	admin_tag_subscriptions: SingleSubscriptionManager,
+	admin_tag_event_subscriptions: SingleSubscriptionManager,
+	admin_event_editor_subscriptions: SingleSubscriptionManager,
 }
 
 impl SubscriptionManager {
@@ -21,6 +31,24 @@ impl SubscriptionManager {
 		Self {
 			event_subscriptions: HashMap::new(),
 			user_subscriptions: HashMap::new(),
+			admin_user_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AdminUsers),
+			admin_event_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AdminEvents),
+			admin_permission_group_subscriptions: SingleSubscriptionManager::new(
+				SubscriptionType::AdminPermissionGroups,
+			),
+			admin_permission_group_event_subscriptions: SingleSubscriptionManager::new(
+				SubscriptionType::AdminPermissionGroupEvents,
+			),
+			admin_permission_group_user_subscriptions: SingleSubscriptionManager::new(
+				SubscriptionType::AdminPermissionGroupUsers,
+			),
+			admin_entry_type_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AdminEntryTypes),
+			admin_entry_type_event_subscriptions: SingleSubscriptionManager::new(
+				SubscriptionType::AdminEntryTypesEvents,
+			),
+			admin_tag_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AdminTags),
+			admin_tag_event_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AdminTagEvents),
+			admin_event_editor_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AdminEventEditors),
 		}
 	}
 
