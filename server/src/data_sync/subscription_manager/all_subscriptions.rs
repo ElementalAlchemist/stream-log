@@ -1,14 +1,13 @@
 use super::one_subscription::SingleSubscriptionManager;
-use super::user::{UserDataUpdate, UserSubscription};
+use super::user::UserSubscription;
+use crate::data_sync::connection::ConnectionUpdate;
 use async_std::channel::Sender;
-use async_std::sync::{Arc, Mutex};
 use async_std::task::block_on;
 use futures::future::join_all;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use stream_log_shared::messages::subscriptions::{SubscriptionData, SubscriptionType};
 use stream_log_shared::messages::user::UserData;
-use tide_websockets::WebSocketConnection;
 
 /// A manager for all the subscriptions we need to track
 pub struct SubscriptionManager {
@@ -67,19 +66,21 @@ impl SubscriptionManager {
 		&mut self,
 		event_id: &str,
 		subscribing_user: &UserData,
-		connection: Arc<Mutex<WebSocketConnection>>,
+		conn_update_tx: Sender<ConnectionUpdate>,
 	) {
 		match self.event_subscriptions.entry(event_id.to_owned()) {
 			Entry::Occupied(mut event_subscription) => {
 				event_subscription
 					.get_mut()
-					.subscribe_user(subscribing_user, connection)
+					.subscribe_user(subscribing_user, conn_update_tx)
 					.await
 			}
 			Entry::Vacant(event_entry) => {
 				let event_subscription =
 					SingleSubscriptionManager::new(SubscriptionType::EventLogData(event_id.to_string()));
-				event_subscription.subscribe_user(subscribing_user, connection).await;
+				event_subscription
+					.subscribe_user(subscribing_user, conn_update_tx)
+					.await;
 				event_entry.insert(event_subscription);
 			}
 		}
@@ -111,15 +112,8 @@ impl SubscriptionManager {
 		join_all(futures).await;
 	}
 
-	pub fn add_user_subscription(
-		&mut self,
-		user: &UserData,
-		connection: Arc<Mutex<WebSocketConnection>>,
-		server_update_channel: Sender<UserDataUpdate>,
-	) {
-		self.user_subscriptions.insert(
-			user.id.clone(),
-			UserSubscription::new(connection, server_update_channel),
-		);
+	pub fn add_user_subscription(&mut self, user: &UserData, update_channel: Sender<ConnectionUpdate>) {
+		self.user_subscriptions
+			.insert(user.id.clone(), UserSubscription::new(update_channel));
 	}
 }

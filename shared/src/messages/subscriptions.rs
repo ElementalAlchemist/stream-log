@@ -57,7 +57,7 @@ pub enum InitialSubscriptionLoadData {
 	),
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum SubscriptionData {
 	EventUpdate(Event, Box<EventSubscriptionData>),
 	/// Indicates an update to data related to the logged-in user.

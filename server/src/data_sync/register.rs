@@ -1,6 +1,8 @@
+use super::connection::ConnectionUpdate;
 use super::HandleConnectionError;
 use crate::models::User;
 use crate::schema::users;
+use async_std::channel::Sender;
 use async_std::sync::{Arc, Mutex};
 use diesel::prelude::*;
 use diesel::result::DatabaseErrorKind;
@@ -11,12 +13,11 @@ use stream_log_shared::messages::user_register::{
 	USERNAME_LENGTH_LIMIT,
 };
 use stream_log_shared::messages::FromServerMessage;
-use tide_websockets::WebSocketConnection;
 
 /// Checks whether the username being queried is already registered
 pub async fn check_username(
 	db_connection: Arc<Mutex<PgConnection>>,
-	stream: Arc<Mutex<WebSocketConnection>>,
+	conn_update_tx: Sender<ConnectionUpdate>,
 	username: &str,
 ) -> Result<(), HandleConnectionError> {
 	if username.len() > USERNAME_LENGTH_LIMIT {
@@ -25,8 +26,9 @@ pub async fn check_username(
 				username: username.to_string(),
 				available: false,
 			}));
-		let stream = stream.lock().await;
-		stream.send_json(&response).await?;
+		conn_update_tx
+			.send(ConnectionUpdate::SendData(Box::new(response)))
+			.await?;
 		return Ok(());
 	}
 	let check_results: QueryResult<Vec<User>> = {
@@ -40,8 +42,9 @@ pub async fn check_username(
 				username: username.to_string(),
 				available,
 			}));
-		let stream = stream.lock().await;
-		stream.send_json(&response).await?;
+		conn_update_tx
+			.send(ConnectionUpdate::SendData(Box::new(response)))
+			.await?;
 	}
 	Ok(())
 }
@@ -49,7 +52,7 @@ pub async fn check_username(
 /// Registers the user if the registration is valid
 pub async fn register_user(
 	db_connection: Arc<Mutex<PgConnection>>,
-	stream: Arc<Mutex<WebSocketConnection>>,
+	conn_update_tx: Sender<ConnectionUpdate>,
 	openid_user_id: &str,
 	registration_data: UserRegistrationFinalize,
 	user: &mut Option<UserData>,
@@ -131,7 +134,8 @@ pub async fn register_user(
 		}
 	};
 
-	let stream = stream.lock().await;
-	stream.send_json(&response).await?;
+	conn_update_tx
+		.send(ConnectionUpdate::SendData(Box::new(response)))
+		.await?;
 	Ok(())
 }

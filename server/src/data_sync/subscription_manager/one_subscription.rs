@@ -1,4 +1,5 @@
-use async_std::channel::{unbounded, Sender};
+use crate::data_sync::connection::ConnectionUpdate;
+use async_std::channel::{unbounded, SendError, Sender};
 use async_std::stream::StreamExt;
 use async_std::sync::{Arc, Mutex};
 use async_std::task::{spawn, JoinHandle};
@@ -7,7 +8,6 @@ use std::collections::HashMap;
 use stream_log_shared::messages::subscriptions::{SubscriptionData, SubscriptionType};
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::FromServerMessage;
-use tide_websockets::WebSocketConnection;
 
 /// Manages subscriptions for a single set of subscription events
 pub struct SingleSubscriptionManager {
@@ -28,8 +28,10 @@ impl SingleSubscriptionManager {
 					let mut subscriptions = subscriptions.lock().await;
 					let mut dead_connection_users: Vec<String> = Vec::new();
 					for (user_id, user_subscription) in subscriptions.iter() {
-						let stream = user_subscription.connection.lock().await;
-						let send_result = stream.send_json(&broadcast_msg).await;
+						let send_result = user_subscription
+							.channel
+							.send(ConnectionUpdate::SendData(Box::new(broadcast_msg.clone())))
+							.await;
 						if send_result.is_err() {
 							dead_connection_users.push(user_id.clone());
 						}
@@ -49,18 +51,18 @@ impl SingleSubscriptionManager {
 		}
 	}
 
-	pub async fn subscribe_user(&self, user: &UserData, connection: Arc<Mutex<WebSocketConnection>>) {
+	pub async fn subscribe_user(&self, user: &UserData, channel: Sender<ConnectionUpdate>) {
 		let mut subscriptions = self.subscriptions.lock().await;
-		let user_subscription_data = UserSubscriptionData { connection };
+		let user_subscription_data = UserSubscriptionData { channel };
 		subscriptions.insert(user.id.clone(), user_subscription_data);
 	}
 
-	pub async fn unsubscribe_user(&self, user: &UserData) -> tide::Result<()> {
+	pub async fn unsubscribe_user(&self, user: &UserData) -> Result<(), SendError<ConnectionUpdate>> {
 		let mut subscriptions = self.subscriptions.lock().await;
 		if let Some(user_subscription_data) = subscriptions.remove(&user.id) {
-			let connection = user_subscription_data.connection.lock().await;
 			let message = FromServerMessage::Unsubscribed(self.subscription_type.clone());
-			connection.send_json(&message).await?;
+			let message = ConnectionUpdate::SendData(Box::new(message));
+			user_subscription_data.channel.send(message).await?;
 		}
 		Ok(())
 	}
@@ -71,5 +73,5 @@ impl SingleSubscriptionManager {
 }
 
 struct UserSubscriptionData {
-	connection: Arc<Mutex<WebSocketConnection>>,
+	channel: Sender<ConnectionUpdate>,
 }

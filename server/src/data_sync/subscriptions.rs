@@ -1,3 +1,4 @@
+use super::connection::ConnectionUpdate;
 use super::HandleConnectionError;
 use crate::data_sync::SubscriptionManager;
 use crate::models::{
@@ -8,6 +9,7 @@ use crate::schema::{
 	available_entry_types_for_event, entry_types, event_editors, event_log, event_log_tags, events, permission_events,
 	tags, user_permissions, users,
 };
+use async_std::channel::Sender;
 use async_std::sync::{Arc, Mutex};
 use chrono::Utc;
 use diesel::pg::PgConnection;
@@ -26,11 +28,10 @@ use stream_log_shared::messages::subscriptions::{
 use stream_log_shared::messages::tags::Tag;
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::{DataError, FromServerMessage};
-use tide_websockets::WebSocketConnection;
 
 pub async fn subscribe_to_event(
 	db_connection: Arc<Mutex<PgConnection>>,
-	stream: Arc<Mutex<WebSocketConnection>>,
+	conn_update_tx: Sender<ConnectionUpdate>,
 	user: &UserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	event_id: &str,
@@ -45,7 +46,9 @@ pub async fn subscribe_to_event(
 				SubscriptionType::EventLogData(event_id.to_string()),
 				SubscriptionFailureInfo::Error(DataError::DatabaseError),
 			);
-			stream.lock().await.send_json(&message).await?;
+			conn_update_tx
+				.send(ConnectionUpdate::SendData(Box::new(message)))
+				.await?;
 			return Ok(());
 		}
 	};
@@ -57,7 +60,9 @@ pub async fn subscribe_to_event(
 				SubscriptionType::EventLogData(event_id.to_string()),
 				SubscriptionFailureInfo::NoTarget,
 			);
-			stream.lock().await.send_json(&message).await?;
+			conn_update_tx
+				.send(ConnectionUpdate::SendData(Box::new(message)))
+				.await?;
 			return Ok(());
 		}
 	};
@@ -85,7 +90,9 @@ pub async fn subscribe_to_event(
 				SubscriptionType::EventLogData(event_id.to_string()),
 				SubscriptionFailureInfo::Error(DataError::DatabaseError),
 			);
-			stream.lock().await.send_json(&message).await?;
+			conn_update_tx
+				.send(ConnectionUpdate::SendData(Box::new(message)))
+				.await?;
 			return Ok(());
 		}
 	};
@@ -110,17 +117,17 @@ pub async fn subscribe_to_event(
 				SubscriptionType::EventLogData(event_id.to_string()),
 				SubscriptionFailureInfo::NotAllowed,
 			);
-			stream.lock().await.send_json(&message).await?;
+			conn_update_tx
+				.send(ConnectionUpdate::SendData(Box::new(message)))
+				.await?;
 			return Ok(());
 		}
 	};
 
-	// We lock the stream before adding it as a subscription to ensure the initial data sync occurs before subscription messages start flowing in
-	let send_stream = stream.lock().await;
 	{
 		let mut subscriptions = subscription_manager.lock().await;
 		subscriptions
-			.subscribe_user_to_event(event_id, user, Arc::clone(&stream))
+			.subscribe_user_to_event(event_id, user, conn_update_tx.clone())
 			.await;
 	}
 
@@ -145,7 +152,9 @@ pub async fn subscribe_to_event(
 				SubscriptionType::EventLogData(event_id.to_string()),
 				SubscriptionFailureInfo::Error(DataError::DatabaseError),
 			);
-			send_stream.send_json(&message).await?;
+			conn_update_tx
+				.send(ConnectionUpdate::SendData(Box::new(message)))
+				.await?;
 			subscription_manager
 				.lock()
 				.await
@@ -163,7 +172,9 @@ pub async fn subscribe_to_event(
 				SubscriptionType::EventLogData(event_id.to_string()),
 				SubscriptionFailureInfo::Error(DataError::DatabaseError),
 			);
-			send_stream.send_json(&message).await?;
+			conn_update_tx
+				.send(ConnectionUpdate::SendData(Box::new(message)))
+				.await?;
 			subscription_manager
 				.lock()
 				.await
@@ -185,7 +196,9 @@ pub async fn subscribe_to_event(
 				SubscriptionType::EventLogData(event_id.to_string()),
 				SubscriptionFailureInfo::Error(DataError::DatabaseError),
 			);
-			send_stream.send_json(&message).await?;
+			conn_update_tx
+				.send(ConnectionUpdate::SendData(Box::new(message)))
+				.await?;
 			subscription_manager
 				.lock()
 				.await
@@ -208,7 +221,10 @@ pub async fn subscribe_to_event(
 				SubscriptionType::EventLogData(event_id.to_string()),
 				SubscriptionFailureInfo::Error(DataError::DatabaseError),
 			);
-			send_stream.send_json(&message).await?;
+
+			conn_update_tx
+				.send(ConnectionUpdate::SendData(Box::new(message)))
+				.await?;
 			subscription_manager
 				.lock()
 				.await
@@ -232,7 +248,9 @@ pub async fn subscribe_to_event(
 					SubscriptionType::EventLogData(event_id.to_string()),
 					SubscriptionFailureInfo::Error(DataError::ServerError),
 				);
-				send_stream.send_json(&message).await?;
+				conn_update_tx
+					.send(ConnectionUpdate::SendData(Box::new(message)))
+					.await?;
 				subscription_manager
 					.lock()
 					.await
@@ -265,7 +283,9 @@ pub async fn subscribe_to_event(
 				SubscriptionType::EventLogData(event_id.to_string()),
 				SubscriptionFailureInfo::Error(DataError::DatabaseError),
 			);
-			send_stream.send_json(&message).await?;
+			conn_update_tx
+				.send(ConnectionUpdate::SendData(Box::new(message)))
+				.await?;
 			subscription_manager
 				.lock()
 				.await
@@ -286,7 +306,9 @@ pub async fn subscribe_to_event(
 				SubscriptionType::EventLogData(event_id.to_string()),
 				SubscriptionFailureInfo::Error(DataError::DatabaseError),
 			);
-			send_stream.send_json(&message).await?;
+			conn_update_tx
+				.send(ConnectionUpdate::SendData(Box::new(message)))
+				.await?;
 			subscription_manager
 				.lock()
 				.await
@@ -354,7 +376,9 @@ pub async fn subscribe_to_event(
 						SubscriptionType::EventLogData(event_id.to_string()),
 						SubscriptionFailureInfo::Error(DataError::DatabaseError),
 					);
-					send_stream.send_json(&message).await?;
+					conn_update_tx
+						.send(ConnectionUpdate::SendData(Box::new(message)))
+						.await?;
 					subscription_manager
 						.lock()
 						.await
@@ -393,7 +417,9 @@ pub async fn subscribe_to_event(
 		available_editors_list,
 		event_log_entries,
 	)));
-	send_stream.send_json(&message).await?;
+	conn_update_tx
+		.send(ConnectionUpdate::SendData(Box::new(message)))
+		.await?;
 
 	Ok(())
 }

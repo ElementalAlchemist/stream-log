@@ -1,29 +1,24 @@
+use crate::data_sync::connection::ConnectionUpdate;
 use crate::models::Permission;
-use async_std::channel::Sender;
-use async_std::sync::{Arc, Mutex};
+use async_std::channel::{SendError, Sender};
 use stream_log_shared::messages::subscriptions::SubscriptionData;
 use stream_log_shared::messages::user::{UserData, UserSubscriptionUpdate};
 use stream_log_shared::messages::FromServerMessage;
-use tide_websockets::WebSocketConnection;
 
 /// Manages the login subscription for a user
 pub struct UserSubscription {
-	connection: Arc<Mutex<WebSocketConnection>>,
-	server_channel: Sender<UserDataUpdate>,
+	channel: Sender<ConnectionUpdate>,
 }
 
 impl UserSubscription {
-	pub fn new(connection: Arc<Mutex<WebSocketConnection>>, server_channel: Sender<UserDataUpdate>) -> Self {
-		Self {
-			connection,
-			server_channel,
-		}
+	pub fn new(channel: Sender<ConnectionUpdate>) -> Self {
+		Self { channel }
 	}
 
-	pub async fn send_message(&self, message: UserSubscriptionUpdate) -> tide::Result<()> {
+	pub async fn send_message(&self, message: UserSubscriptionUpdate) -> Result<(), SendError<ConnectionUpdate>> {
 		let message = FromServerMessage::SubscriptionMessage(Box::new(SubscriptionData::UserUpdate(message)));
-		let connection = self.connection.lock().await;
-		connection.send_json(&message).await
+		let message = ConnectionUpdate::SendData(Box::new(message));
+		self.channel.send(message).await
 	}
 }
 
