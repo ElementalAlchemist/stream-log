@@ -1,5 +1,4 @@
 use super::one_subscription::SingleSubscriptionManager;
-use super::user::UserSubscription;
 use crate::data_sync::connection::ConnectionUpdate;
 use async_std::channel::Sender;
 use async_std::task::block_on;
@@ -12,7 +11,6 @@ use stream_log_shared::messages::user::UserData;
 /// A manager for all the subscriptions we need to track
 pub struct SubscriptionManager {
 	event_subscriptions: HashMap<String, SingleSubscriptionManager>,
-	user_subscriptions: HashMap<String, UserSubscription>,
 	admin_user_subscriptions: SingleSubscriptionManager,
 	admin_event_subscriptions: SingleSubscriptionManager,
 	admin_permission_group_subscriptions: SingleSubscriptionManager,
@@ -28,7 +26,6 @@ impl SubscriptionManager {
 	pub fn new() -> Self {
 		Self {
 			event_subscriptions: HashMap::new(),
-			user_subscriptions: HashMap::new(),
 			admin_user_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AdminUsers),
 			admin_event_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AdminEvents),
 			admin_permission_group_subscriptions: SingleSubscriptionManager::new(
@@ -95,7 +92,7 @@ impl SubscriptionManager {
 	}
 
 	/// Sends the given message to all subscribed users for the given event
-	pub async fn broadcast_event_message(&mut self, event_id: &str, message: SubscriptionData) -> miette::Result<()> {
+	pub async fn broadcast_event_message(&self, event_id: &str, message: SubscriptionData) -> miette::Result<()> {
 		if let Some(event_subscription) = self.event_subscriptions.get(event_id) {
 			event_subscription.broadcast_message(message).await?;
 		}
@@ -108,12 +105,16 @@ impl SubscriptionManager {
 		for event_subscription in self.event_subscriptions.values() {
 			futures.push(event_subscription.unsubscribe_user(user));
 		}
-		self.user_subscriptions.remove(&user.id);
 		join_all(futures).await;
 	}
 
-	pub fn add_user_subscription(&mut self, user: &UserData, update_channel: Sender<ConnectionUpdate>) {
-		self.user_subscriptions
-			.insert(user.id.clone(), UserSubscription::new(update_channel));
+	/// Adds a user to the admin user list subscription
+	pub async fn add_admin_user_subscription(&mut self, user: &UserData, update_channel: Sender<ConnectionUpdate>) {
+		self.admin_user_subscriptions.subscribe_user(user, update_channel).await;
+	}
+
+	/// Sends the given message to all subscribed users for the admin user list
+	pub async fn broadcast_admin_user_message(&self, message: SubscriptionData) -> miette::Result<()> {
+		self.admin_user_subscriptions.broadcast_message(message).await
 	}
 }
