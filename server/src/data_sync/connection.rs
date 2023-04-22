@@ -159,7 +159,7 @@ async fn process_message(
 						}
 						ConnectionUpdate::UserUpdate(user_data_update) => match user_data_update {
 							UserDataUpdate::User(new_user_data) => *user = Some(new_user_data),
-							UserDataUpdate::EventPermissions(event_id, new_permission) => todo!()
+							UserDataUpdate::EventPermissions(event_id, new_permission) => { event_permission_cache.insert(event_id, new_permission); }
 						}
 					}
 					Err(_) => return Err(HandleConnectionError::ConnectionClosed)
