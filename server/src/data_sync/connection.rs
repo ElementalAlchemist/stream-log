@@ -113,18 +113,17 @@ async fn process_messages(
 	let mut event_permission_cache: HashMap<Event, Option<Permission>> = HashMap::new();
 	let (conn_update_tx, conn_update_rx) = unbounded::<ConnectionUpdate>();
 	let result = loop {
-		if let Err(error) = process_message(
-			&db_connection,
+		let args = ProcessMessageParams {
+			db_connection: &db_connection,
 			stream,
-			&mut user,
-			&subscription_manager,
+			user: &mut user,
+			subscription_manager: &subscription_manager,
 			openid_user_id,
-			&mut event_permission_cache,
-			conn_update_tx.clone(),
-			&conn_update_rx,
-		)
-		.await
-		{
+			event_permission_cache: &mut event_permission_cache,
+			conn_update_tx: conn_update_tx.clone(),
+			conn_update_rx: &conn_update_rx,
+		};
+		if let Err(error) = process_message(args).await {
 			break Err(error);
 		}
 	};
@@ -136,21 +135,23 @@ async fn process_messages(
 	result
 }
 
-async fn process_message(
-	db_connection: &Arc<Mutex<PgConnection>>,
-	stream: &mut WebSocketConnection,
-	user: &mut Option<UserData>,
-	subscription_manager: &Arc<Mutex<SubscriptionManager>>,
-	openid_user_id: &str,
-	event_permission_cache: &mut HashMap<Event, Option<Permission>>,
+struct ProcessMessageParams<'a> {
+	db_connection: &'a Arc<Mutex<PgConnection>>,
+	stream: &'a mut WebSocketConnection,
+	user: &'a mut Option<UserData>,
+	subscription_manager: &'a Arc<Mutex<SubscriptionManager>>,
+	openid_user_id: &'a str,
+	event_permission_cache: &'a mut HashMap<Event, Option<Permission>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
-	conn_update_rx: &Receiver<ConnectionUpdate>,
-) -> Result<(), HandleConnectionError> {
+	conn_update_rx: &'a Receiver<ConnectionUpdate>,
+}
+
+async fn process_message(args: ProcessMessageParams<'_>) -> Result<(), HandleConnectionError> {
 	let mut message_to_send: Option<Box<dyn Serialize + Send + Sync>> = None;
 
 	{
-		let mut conn_update_future = conn_update_rx.recv().fuse();
-		let mut recv_msg_future = Box::pin(recv_msg(stream).fuse());
+		let mut conn_update_future = args.conn_update_rx.recv().fuse();
+		let mut recv_msg_future = Box::pin(recv_msg(args.stream).fuse());
 		select! {
 			conn_update_result = conn_update_future => {
 				match conn_update_result {
@@ -160,11 +161,11 @@ async fn process_message(
 						}
 						ConnectionUpdate::UserUpdate(user_data_update) => {
 							match user_data_update {
-								UserDataUpdate::User(new_user_data) => *user = Some(new_user_data),
-								UserDataUpdate::EventPermissions(event, new_permission) => { event_permission_cache.insert(event, new_permission); }
+								UserDataUpdate::User(new_user_data) => *args.user = Some(new_user_data),
+								UserDataUpdate::EventPermissions(event, new_permission) => { args.event_permission_cache.insert(event, new_permission); }
 							}
-							if let Some(user) = user.clone() {
-								let available_events: Vec<Event> = event_permission_cache.iter().filter(|(_, permission)| permission.is_some()).map(|(event, _)| event.clone()).collect();
+							if let Some(user) = args.user.clone() {
+								let available_events: Vec<Event> = args.event_permission_cache.iter().filter(|(_, permission)| permission.is_some()).map(|(event, _)| event.clone()).collect();
 								let user_subscription_data = UserSubscriptionUpdate { user, available_events };
 								let message = FromServerMessage::SubscriptionMessage(Box::new(SubscriptionData::UserUpdate(user_subscription_data)));
 								message_to_send = Some(Box::new(message));
@@ -194,16 +195,16 @@ async fn process_message(
 
 				match incoming_msg {
 					FromClientMessage::StartSubscription(subscription_type) => {
-						let Some(user) = user.as_ref() else { return Ok(()); }; // Only logged-in users can subscribe
+						let Some(user) = args.user.as_ref() else { return Ok(()); }; // Only logged-in users can subscribe
 						match subscription_type {
 							SubscriptionType::EventLogData(event_id) => {
 								subscribe_to_event(
-									Arc::clone(db_connection),
-									conn_update_tx,
+									Arc::clone(args.db_connection),
+									args.conn_update_tx,
 									user,
-									Arc::clone(subscription_manager),
+									Arc::clone(args.subscription_manager),
 									&event_id,
-									event_permission_cache,
+									args.event_permission_cache,
 								)
 								.await?
 							}
@@ -219,10 +220,10 @@ async fn process_message(
 						}
 					}
 					FromClientMessage::EndSubscription(subscription_type) => {
-						let Some(user) = user.as_ref() else { return Ok(()); }; // Users who aren't logged in can't be subscribed
+						let Some(user) = args.user.as_ref() else { return Ok(()); }; // Users who aren't logged in can't be subscribed
 						match subscription_type {
 							SubscriptionType::EventLogData(event_id) => {
-								unsubscribe_from_event(Arc::clone(subscription_manager), user, &event_id).await?
+								unsubscribe_from_event(Arc::clone(args.subscription_manager), user, &event_id).await?
 							}
 							SubscriptionType::AdminUsers => todo!(),
 							SubscriptionType::AdminEvents => todo!(),
@@ -236,15 +237,15 @@ async fn process_message(
 						}
 					}
 					FromClientMessage::SubscriptionMessage(subscription_update) => {
-						let Some(user) = user.as_ref() else { return Ok(()); }; // One must be subscribed (and therefore logged in) to send a subscription update message
+						let Some(user) = args.user.as_ref() else { return Ok(()); }; // One must be subscribed (and therefore logged in) to send a subscription update message
 						match *subscription_update {
 							SubscriptionTargetUpdate::EventUpdate(event, update_data) => {
 								handle_event_update(
-									Arc::clone(db_connection),
-									Arc::clone(subscription_manager),
+									Arc::clone(args.db_connection),
+									Arc::clone(args.subscription_manager),
 									&event,
 									user,
-									event_permission_cache,
+									args.event_permission_cache,
 									update_data,
 								)
 								.await?
@@ -260,18 +261,18 @@ async fn process_message(
 						}
 					}
 					FromClientMessage::RegistrationRequest(registration_data) => {
-						if user.is_none() {
+						if args.user.is_none() {
 							match registration_data {
 								UserRegistration::CheckUsername(username) => {
-									check_username(Arc::clone(db_connection), conn_update_tx, &username).await?
+									check_username(Arc::clone(args.db_connection), args.conn_update_tx, &username).await?
 								}
 								UserRegistration::Finalize(registration_data) => {
 									register_user(
-										Arc::clone(db_connection),
-										conn_update_tx,
-										openid_user_id,
+										Arc::clone(args.db_connection),
+										args.conn_update_tx,
+										args.openid_user_id,
 										registration_data,
-										user,
+										args.user,
 									)
 									.await?
 								}
@@ -279,8 +280,8 @@ async fn process_message(
 						}
 					}
 					FromClientMessage::UpdateProfile(profile_data) => {
-						if let Some(user) = user.as_ref() {
-							handle_profile_update(Arc::clone(db_connection), user, profile_data).await?;
+						if let Some(user) = args.user.as_ref() {
+							handle_profile_update(Arc::clone(args.db_connection), user, profile_data).await?;
 						}
 					}
 				}
@@ -289,7 +290,7 @@ async fn process_message(
 	}
 
 	if let Some(message) = message_to_send {
-		stream.send_json(&message).await?;
+		args.stream.send_json(&message).await?;
 	}
 	Ok(())
 }

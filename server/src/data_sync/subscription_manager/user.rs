@@ -23,6 +23,7 @@ impl UserSubscription {
 	}
 }
 
+#[derive(Clone)]
 pub enum UserDataUpdate {
 	User(UserData),
 	EventPermissions(Event, Option<Permission>),

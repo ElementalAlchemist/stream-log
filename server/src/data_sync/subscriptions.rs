@@ -433,7 +433,7 @@ pub async fn handle_event_update(
 	event_permission_cache: &HashMap<Event, Option<Permission>>,
 	message: Box<EventSubscriptionUpdate>,
 ) -> Result<(), HandleConnectionError> {
-	let Some(permission_level) = event_permission_cache.get(&event) else {
+	let Some(permission_level) = event_permission_cache.get(event) else {
 		// If the user is interacting with the event, they should be subscribed. Subscribing adds the event to the
 		// permission cache, so we can safely abort if they don't have a cached value.
 		return Ok(());
