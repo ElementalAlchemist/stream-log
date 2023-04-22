@@ -157,7 +157,10 @@ async fn process_message(
 						ConnectionUpdate::SendData(send_message) => {
 							message_to_send = Some(send_message);
 						}
-						ConnectionUpdate::UserUpdate(user_data_update) => todo!()
+						ConnectionUpdate::UserUpdate(user_data_update) => match user_data_update {
+							UserDataUpdate::User(new_user_data) => *user = Some(new_user_data),
+							UserDataUpdate::EventPermissions(event_id, new_permission) => todo!()
+						}
 					}
 					Err(_) => return Err(HandleConnectionError::ConnectionClosed)
 				}
