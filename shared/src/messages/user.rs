@@ -17,6 +17,6 @@ pub enum UpdateUser {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct UserSubscriptionUpdate {
-	user: UserData,
-	available_events: Vec<Event>,
+	pub user: UserData,
+	pub available_events: Vec<Event>,
 }

@@ -6,6 +6,7 @@ use chrono::prelude::*;
 use diesel::{Insertable, Queryable};
 use diesel_derive_enum::DbEnum;
 use rgb::RGB8;
+use stream_log_shared::messages::events::Event as EventWs;
 use stream_log_shared::messages::permissions::PermissionLevel;
 
 #[derive(Clone, Copy, DbEnum, Debug, Eq, PartialEq)]
@@ -54,11 +55,21 @@ impl User {
 	}
 }
 
-#[derive(Insertable, Queryable)]
+#[derive(Clone, Insertable, Queryable)]
 pub struct Event {
 	pub id: String,
 	pub name: String,
 	pub start_time: DateTime<Utc>,
+}
+
+impl From<Event> for EventWs {
+	fn from(value: Event) -> Self {
+		EventWs {
+			id: value.id,
+			name: value.name,
+			start_time: value.start_time,
+		}
+	}
 }
 
 #[derive(Insertable, Queryable)]

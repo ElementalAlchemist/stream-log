@@ -14,11 +14,12 @@ use erased_serde::Serialize;
 use futures::{select, FutureExt};
 use rgb::RGB8;
 use std::collections::HashMap;
+use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::initial::{InitialMessage, UserDataLoad};
-use stream_log_shared::messages::subscriptions::{SubscriptionTargetUpdate, SubscriptionType};
-use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::subscriptions::{SubscriptionData, SubscriptionTargetUpdate, SubscriptionType};
+use stream_log_shared::messages::user::{UserData, UserSubscriptionUpdate};
 use stream_log_shared::messages::user_register::UserRegistration;
-use stream_log_shared::messages::FromClientMessage;
+use stream_log_shared::messages::{FromClientMessage, FromServerMessage};
 use tide::Request;
 use tide_openidconnect::OpenIdConnectRequestExt;
 use tide_websockets::WebSocketConnection;
@@ -109,7 +110,7 @@ async fn process_messages(
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	openid_user_id: &str,
 ) -> Result<(), HandleConnectionError> {
-	let mut event_permission_cache: HashMap<String, Option<Permission>> = HashMap::new();
+	let mut event_permission_cache: HashMap<Event, Option<Permission>> = HashMap::new();
 	let (conn_update_tx, conn_update_rx) = unbounded::<ConnectionUpdate>();
 	let result = loop {
 		if let Err(error) = process_message(
@@ -141,7 +142,7 @@ async fn process_message(
 	user: &mut Option<UserData>,
 	subscription_manager: &Arc<Mutex<SubscriptionManager>>,
 	openid_user_id: &str,
-	event_permission_cache: &mut HashMap<String, Option<Permission>>,
+	event_permission_cache: &mut HashMap<Event, Option<Permission>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
 	conn_update_rx: &Receiver<ConnectionUpdate>,
 ) -> Result<(), HandleConnectionError> {
@@ -157,9 +158,17 @@ async fn process_message(
 						ConnectionUpdate::SendData(send_message) => {
 							message_to_send = Some(send_message);
 						}
-						ConnectionUpdate::UserUpdate(user_data_update) => match user_data_update {
-							UserDataUpdate::User(new_user_data) => *user = Some(new_user_data),
-							UserDataUpdate::EventPermissions(event_id, new_permission) => { event_permission_cache.insert(event_id, new_permission); }
+						ConnectionUpdate::UserUpdate(user_data_update) => {
+							match user_data_update {
+								UserDataUpdate::User(new_user_data) => *user = Some(new_user_data),
+								UserDataUpdate::EventPermissions(event, new_permission) => { event_permission_cache.insert(event, new_permission); }
+							}
+							if let Some(user) = user.clone() {
+								let available_events: Vec<Event> = event_permission_cache.iter().filter(|(_, permission)| permission.is_some()).map(|(event, _)| event.clone()).collect();
+								let user_subscription_data = UserSubscriptionUpdate { user, available_events };
+								let message = FromServerMessage::SubscriptionMessage(Box::new(SubscriptionData::UserUpdate(user_subscription_data)));
+								message_to_send = Some(Box::new(message));
+							}
 						}
 					}
 					Err(_) => return Err(HandleConnectionError::ConnectionClosed)

@@ -1,6 +1,7 @@
 use crate::data_sync::connection::ConnectionUpdate;
 use crate::models::Permission;
 use async_std::channel::{SendError, Sender};
+use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::subscriptions::SubscriptionData;
 use stream_log_shared::messages::user::{UserData, UserSubscriptionUpdate};
 use stream_log_shared::messages::FromServerMessage;
@@ -24,5 +25,5 @@ impl UserSubscription {
 
 pub enum UserDataUpdate {
 	User(UserData),
-	EventPermissions(String, Option<Permission>),
+	EventPermissions(Event, Option<Permission>),
 }
