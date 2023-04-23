@@ -1,5 +1,5 @@
 use super::register::{check_username, register_user};
-use super::subscriptions::{handle_event_update, subscribe_to_event, unsubscribe_from_event};
+use super::subscriptions::events::{handle_event_update, subscribe_to_event, unsubscribe_from_event};
 use super::user_profile::handle_profile_update;
 use super::HandleConnectionError;
 use crate::data_sync::{SubscriptionManager, UserDataUpdate};

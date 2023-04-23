@@ -1,5 +1,5 @@
-use super::connection::ConnectionUpdate;
-use super::HandleConnectionError;
+use super::super::connection::ConnectionUpdate;
+use super::super::HandleConnectionError;
 use crate::data_sync::SubscriptionManager;
 use crate::models::{
 	EntryType as EntryTypeDb, Event as EventDb, EventLogEntry as EventLogEntryDb, EventLogTag, Permission,
