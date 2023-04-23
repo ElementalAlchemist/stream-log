@@ -6,8 +6,8 @@ use super::HandleConnectionError;
 use crate::data_sync::{SubscriptionManager, UserDataUpdate};
 use crate::models::{Event as EventDb, Permission, PermissionEvent, User};
 use crate::schema::{events, permission_events, user_permissions, users};
-use crate::websocket_msg::recv_msg;
-use async_std::channel::{unbounded, Receiver, Sender};
+use crate::websocket_msg::{recv_msg, WebSocketRecvError};
+use async_std::channel::{unbounded, Receiver, RecvError, Sender};
 use async_std::sync::{Arc, Mutex};
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
@@ -200,150 +200,190 @@ struct ProcessMessageParams<'a> {
 }
 
 async fn process_message(args: ProcessMessageParams<'_>) -> Result<(), HandleConnectionError> {
-	let mut message_to_send: Option<Box<dyn Serialize + Send + Sync>> = None;
-
-	{
+	let process_result = {
 		let mut conn_update_future = args.conn_update_rx.recv().fuse();
 		let mut recv_msg_future = Box::pin(recv_msg(args.stream).fuse());
 		select! {
-			conn_update_result = conn_update_future => {
-				match conn_update_result {
-					Ok(conn_update) => match conn_update {
-						ConnectionUpdate::SendData(send_message) => {
-							message_to_send = Some(send_message);
-						}
-						ConnectionUpdate::UserUpdate(user_data_update) => {
-							match user_data_update {
-								UserDataUpdate::User(new_user_data) => *args.user = Some(new_user_data),
-								UserDataUpdate::EventPermissions(event, new_permission) => { args.event_permission_cache.insert(event, new_permission); }
-							}
-							if let Some(user) = args.user.clone() {
-								let available_events: Vec<Event> = args.event_permission_cache.iter().filter(|(_, permission)| permission.is_some()).map(|(event, _)| event.clone()).collect();
-								let user_subscription_data = UserSubscriptionUpdate { user, available_events };
-								let message = FromServerMessage::SubscriptionMessage(Box::new(SubscriptionData::UserUpdate(user_subscription_data)));
-								message_to_send = Some(Box::new(message));
-							}
-						}
+			conn_update_result = conn_update_future => process_connection_update(conn_update_result, args.user, args.event_permission_cache),
+			recv_msg_result = recv_msg_future => match process_incoming_message(recv_msg_result, args.db_connection, args.conn_update_tx, args.user, args.subscription_manager, args.openid_user_id, args.event_permission_cache).await {
+				Ok(_) => Ok(None),
+				Err(error) => Err(error)
+			}
+		}
+	};
+
+	match process_result {
+		Ok(message) => {
+			if let Some(message_to_send) = message {
+				args.stream.send_json(&message_to_send).await?;
+			}
+			Ok(())
+		}
+		Err(error) => Err(error),
+	}
+}
+
+fn process_connection_update(
+	conn_update_result: Result<ConnectionUpdate, RecvError>,
+	user: &mut Option<UserData>,
+	event_permission_cache: &mut HashMap<Event, Option<Permission>>,
+) -> Result<Option<Box<dyn Serialize + Send + Sync>>, HandleConnectionError> {
+	match conn_update_result {
+		Ok(conn_update) => match conn_update {
+			ConnectionUpdate::SendData(send_message) => Ok(Some(send_message)),
+			ConnectionUpdate::UserUpdate(user_data_update) => {
+				match user_data_update {
+					UserDataUpdate::User(new_user_data) => *user = Some(new_user_data),
+					UserDataUpdate::EventPermissions(event, new_permission) => {
+						event_permission_cache.insert(event, new_permission);
 					}
-					Err(_) => return Err(HandleConnectionError::ConnectionClosed)
+				}
+				if let Some(user) = user.clone() {
+					let available_events: Vec<Event> = event_permission_cache
+						.iter()
+						.filter(|(_, permission)| permission.is_some())
+						.map(|(event, _)| event.clone())
+						.collect();
+					let user_subscription_data = UserSubscriptionUpdate { user, available_events };
+					let message = FromServerMessage::SubscriptionMessage(Box::new(SubscriptionData::UserUpdate(
+						user_subscription_data,
+					)));
+					Ok(Some(Box::new(message)))
+				} else {
+					Ok(None)
 				}
 			}
-			recv_msg_result = recv_msg_future => {
-				let incoming_msg = {
-					match recv_msg_result {
-						Ok(msg) => msg,
-						Err(error) => {
-							error.log();
-							return Err(HandleConnectionError::ConnectionClosed);
-						}
-					}
-				};
-				let incoming_msg: FromClientMessage = match serde_json::from_str(&incoming_msg) {
-					Ok(msg) => msg,
-					Err(error) => {
-						tide::log::error!("Received an invalid request message: {}", error);
-						return Err(HandleConnectionError::ConnectionClosed);
-					}
-				};
+		},
+		Err(_) => Err(HandleConnectionError::ConnectionClosed),
+	}
+}
 
-				match incoming_msg {
-					FromClientMessage::StartSubscription(subscription_type) => {
-						let Some(user) = args.user.as_ref() else { return Ok(()); }; // Only logged-in users can subscribe
-						match subscription_type {
-							SubscriptionType::EventLogData(event_id) => {
-								subscribe_to_event(
-									Arc::clone(args.db_connection),
-									args.conn_update_tx,
-									user,
-									Arc::clone(args.subscription_manager),
-									&event_id,
-									args.event_permission_cache,
-								)
-								.await?
-							}
-							SubscriptionType::AdminUsers => subscribe_to_admin_users(Arc::clone(args.db_connection), args.conn_update_tx, user, Arc::clone(args.subscription_manager)).await?,
-							SubscriptionType::AdminEvents => todo!(),
-							SubscriptionType::AdminPermissionGroups => todo!(),
-							SubscriptionType::AdminPermissionGroupEvents => todo!(),
-							SubscriptionType::AdminPermissionGroupUsers => todo!(),
-							SubscriptionType::AdminEntryTypes => todo!(),
-							SubscriptionType::AdminEntryTypesEvents => todo!(),
-							SubscriptionType::AdminTags => todo!(),
-							SubscriptionType::AdminEventEditors => todo!(),
-						}
+async fn process_incoming_message(
+	recv_msg_result: Result<String, WebSocketRecvError>,
+	db_connection: &Arc<Mutex<PgConnection>>,
+	conn_update_tx: Sender<ConnectionUpdate>,
+	user: &mut Option<UserData>,
+	subscription_manager: &Arc<Mutex<SubscriptionManager>>,
+	openid_user_id: &str,
+	event_permission_cache: &mut HashMap<Event, Option<Permission>>,
+) -> Result<(), HandleConnectionError> {
+	let incoming_msg = {
+		match recv_msg_result {
+			Ok(msg) => msg,
+			Err(error) => {
+				error.log();
+				return Err(HandleConnectionError::ConnectionClosed);
+			}
+		}
+	};
+	let incoming_msg: FromClientMessage = match serde_json::from_str(&incoming_msg) {
+		Ok(msg) => msg,
+		Err(error) => {
+			tide::log::error!("Received an invalid request message: {}", error);
+			return Err(HandleConnectionError::ConnectionClosed);
+		}
+	};
+
+	match incoming_msg {
+		FromClientMessage::StartSubscription(subscription_type) => {
+			let Some(user) = user.as_ref() else { return Ok(()); }; // Only logged-in users can subscribe
+			match subscription_type {
+				SubscriptionType::EventLogData(event_id) => {
+					subscribe_to_event(
+						Arc::clone(db_connection),
+						conn_update_tx,
+						user,
+						Arc::clone(subscription_manager),
+						&event_id,
+						event_permission_cache,
+					)
+					.await?
+				}
+				SubscriptionType::AdminUsers => {
+					subscribe_to_admin_users(
+						Arc::clone(db_connection),
+						conn_update_tx,
+						user,
+						Arc::clone(subscription_manager),
+					)
+					.await?
+				}
+				SubscriptionType::AdminEvents => todo!(),
+				SubscriptionType::AdminPermissionGroups => todo!(),
+				SubscriptionType::AdminPermissionGroupEvents => todo!(),
+				SubscriptionType::AdminPermissionGroupUsers => todo!(),
+				SubscriptionType::AdminEntryTypes => todo!(),
+				SubscriptionType::AdminEntryTypesEvents => todo!(),
+				SubscriptionType::AdminTags => todo!(),
+				SubscriptionType::AdminEventEditors => todo!(),
+			}
+		}
+		FromClientMessage::EndSubscription(subscription_type) => {
+			let Some(user) = user.as_ref() else { return Ok(()); }; // Users who aren't logged in can't be subscribed
+			match subscription_type {
+				SubscriptionType::EventLogData(event_id) => {
+					unsubscribe_from_event(Arc::clone(subscription_manager), user, &event_id).await?
+				}
+				SubscriptionType::AdminUsers => todo!(),
+				SubscriptionType::AdminEvents => todo!(),
+				SubscriptionType::AdminPermissionGroups => todo!(),
+				SubscriptionType::AdminPermissionGroupEvents => todo!(),
+				SubscriptionType::AdminPermissionGroupUsers => todo!(),
+				SubscriptionType::AdminEntryTypes => todo!(),
+				SubscriptionType::AdminEntryTypesEvents => todo!(),
+				SubscriptionType::AdminTags => todo!(),
+				SubscriptionType::AdminEventEditors => todo!(),
+			}
+		}
+		FromClientMessage::SubscriptionMessage(subscription_update) => {
+			let Some(user) = user.as_ref() else { return Ok(()); }; // One must be subscribed (and therefore logged in) to send a subscription update message
+			match *subscription_update {
+				SubscriptionTargetUpdate::EventUpdate(event, update_data) => {
+					handle_event_update(
+						Arc::clone(db_connection),
+						Arc::clone(subscription_manager),
+						&event,
+						user,
+						event_permission_cache,
+						update_data,
+					)
+					.await?
+				}
+				SubscriptionTargetUpdate::AdminEventsUpdate(update_data) => todo!(),
+				SubscriptionTargetUpdate::AdminEntryTypesUpdate(update_data) => todo!(),
+				SubscriptionTargetUpdate::AdminEntryTypesEventsUpdate(update_data) => todo!(),
+				SubscriptionTargetUpdate::AdminPermissionGroupsUpdate(update_data) => todo!(),
+				SubscriptionTargetUpdate::AdminTagsUpdate(update_data) => todo!(),
+				SubscriptionTargetUpdate::AdminUserUpdate(user) => todo!(),
+				SubscriptionTargetUpdate::AdminEventEditorsUpdate(update_data) => todo!(),
+				SubscriptionTargetUpdate::AdminUserPermissionGroupsUpdate(update_data) => todo!(),
+			}
+		}
+		FromClientMessage::RegistrationRequest(registration_data) => {
+			if user.is_none() {
+				match registration_data {
+					UserRegistration::CheckUsername(username) => {
+						check_username(Arc::clone(db_connection), conn_update_tx, &username).await?
 					}
-					FromClientMessage::EndSubscription(subscription_type) => {
-						let Some(user) = args.user.as_ref() else { return Ok(()); }; // Users who aren't logged in can't be subscribed
-						match subscription_type {
-							SubscriptionType::EventLogData(event_id) => {
-								unsubscribe_from_event(Arc::clone(args.subscription_manager), user, &event_id).await?
-							}
-							SubscriptionType::AdminUsers => todo!(),
-							SubscriptionType::AdminEvents => todo!(),
-							SubscriptionType::AdminPermissionGroups => todo!(),
-							SubscriptionType::AdminPermissionGroupEvents => todo!(),
-							SubscriptionType::AdminPermissionGroupUsers => todo!(),
-							SubscriptionType::AdminEntryTypes => todo!(),
-							SubscriptionType::AdminEntryTypesEvents => todo!(),
-							SubscriptionType::AdminTags => todo!(),
-							SubscriptionType::AdminEventEditors => todo!(),
-						}
-					}
-					FromClientMessage::SubscriptionMessage(subscription_update) => {
-						let Some(user) = args.user.as_ref() else { return Ok(()); }; // One must be subscribed (and therefore logged in) to send a subscription update message
-						match *subscription_update {
-							SubscriptionTargetUpdate::EventUpdate(event, update_data) => {
-								handle_event_update(
-									Arc::clone(args.db_connection),
-									Arc::clone(args.subscription_manager),
-									&event,
-									user,
-									args.event_permission_cache,
-									update_data,
-								)
-								.await?
-							}
-							SubscriptionTargetUpdate::AdminEventsUpdate(update_data) => todo!(),
-							SubscriptionTargetUpdate::AdminEntryTypesUpdate(update_data) => todo!(),
-							SubscriptionTargetUpdate::AdminEntryTypesEventsUpdate(update_data) => todo!(),
-							SubscriptionTargetUpdate::AdminPermissionGroupsUpdate(update_data) => todo!(),
-							SubscriptionTargetUpdate::AdminTagsUpdate(update_data) => todo!(),
-							SubscriptionTargetUpdate::AdminUserUpdate(user) => todo!(),
-							SubscriptionTargetUpdate::AdminEventEditorsUpdate(update_data) => todo!(),
-							SubscriptionTargetUpdate::AdminUserPermissionGroupsUpdate(update_data) => todo!(),
-						}
-					}
-					FromClientMessage::RegistrationRequest(registration_data) => {
-						if args.user.is_none() {
-							match registration_data {
-								UserRegistration::CheckUsername(username) => {
-									check_username(Arc::clone(args.db_connection), args.conn_update_tx, &username).await?
-								}
-								UserRegistration::Finalize(registration_data) => {
-									register_user(
-										Arc::clone(args.db_connection),
-										args.conn_update_tx,
-										args.openid_user_id,
-										registration_data,
-										args.user,
-									)
-									.await?
-								}
-							}
-						}
-					}
-					FromClientMessage::UpdateProfile(profile_data) => {
-						if let Some(user) = args.user.as_ref() {
-							handle_profile_update(Arc::clone(args.db_connection), user, profile_data).await?;
-						}
+					UserRegistration::Finalize(registration_data) => {
+						register_user(
+							Arc::clone(db_connection),
+							conn_update_tx,
+							openid_user_id,
+							registration_data,
+							user,
+						)
+						.await?
 					}
 				}
 			}
 		}
-	}
+		FromClientMessage::UpdateProfile(profile_data) => {
+			if let Some(user) = user.as_ref() {
+				handle_profile_update(Arc::clone(db_connection), user, profile_data).await?;
+			}
+		}
+	};
 
-	if let Some(message) = message_to_send {
-		args.stream.send_json(&message).await?;
-	}
 	Ok(())
 }
