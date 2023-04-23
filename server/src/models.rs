@@ -8,6 +8,7 @@ use diesel_derive_enum::DbEnum;
 use rgb::RGB8;
 use stream_log_shared::messages::events::Event as EventWs;
 use stream_log_shared::messages::permissions::PermissionLevel;
+use stream_log_shared::messages::user::UserData;
 
 #[derive(Clone, Copy, DbEnum, Debug, Eq, PartialEq)]
 #[ExistingTypePath = "crate::schema::sql_types::Permission"]
@@ -52,6 +53,26 @@ impl User {
 		let green: u8 = self.color_green.try_into().unwrap();
 		let blue: u8 = self.color_blue.try_into().unwrap();
 		RGB8::new(red, green, blue)
+	}
+}
+
+impl From<User> for UserData {
+	fn from(value: User) -> Self {
+		let id = value.id;
+		let username = value.name;
+		let is_admin = value.is_admin;
+
+		let r: u8 = value.color_red.try_into().unwrap();
+		let g: u8 = value.color_green.try_into().unwrap();
+		let b: u8 = value.color_blue.try_into().unwrap();
+		let color = RGB8::new(r, g, b);
+
+		Self {
+			id,
+			username,
+			is_admin,
+			color,
+		}
 	}
 }
 

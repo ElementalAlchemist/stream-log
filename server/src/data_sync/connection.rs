@@ -1,4 +1,5 @@
 use super::register::{check_username, register_user};
+use super::subscriptions::admin_users::subscribe_to_admin_users;
 use super::subscriptions::events::{handle_event_update, subscribe_to_event, unsubscribe_from_event};
 use super::user_profile::handle_profile_update;
 use super::HandleConnectionError;
@@ -260,7 +261,7 @@ async fn process_message(args: ProcessMessageParams<'_>) -> Result<(), HandleCon
 								)
 								.await?
 							}
-							SubscriptionType::AdminUsers => todo!(),
+							SubscriptionType::AdminUsers => subscribe_to_admin_users(Arc::clone(args.db_connection), args.conn_update_tx, user, Arc::clone(args.subscription_manager)).await?,
 							SubscriptionType::AdminEvents => todo!(),
 							SubscriptionType::AdminPermissionGroups => todo!(),
 							SubscriptionType::AdminPermissionGroupEvents => todo!(),
