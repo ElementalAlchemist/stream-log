@@ -1,3 +1,4 @@
+use super::events::Event;
 use super::user::UserData;
 use crate::SYNC_VERSION;
 use serde::{Deserialize, Serialize};
@@ -19,7 +20,7 @@ impl InitialMessage {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub enum UserDataLoad {
-	User(UserData),
+	User(UserData, Vec<Event>),
 	NewUser,
 	MissingId,
 	Error,

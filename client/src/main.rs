@@ -113,8 +113,8 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 		};
 	}
 
-	let user_data = match initial_message.user_data {
-		UserDataLoad::User(user_data) => Some(user_data),
+	let initial_data = match initial_message.user_data {
+		UserDataLoad::User(user_data, available_events) => Some((user_data, available_events)),
 		UserDataLoad::NewUser => None,
 		UserDataLoad::MissingId => {
 			return view! {
@@ -137,6 +137,11 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 			}
 		}
 	};
+	let (user_data, available_events) = if let Some((user, events)) = initial_data {
+		(Some(user), Some(events))
+	} else {
+		(None, None)
+	};
 	provide_context_ref(ctx, create_signal(ctx, user_data));
 
 	// Assuming the WASM client for this might multithread at any point in the future is probably way overkill.
@@ -145,7 +150,10 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 	let ws = Mutex::new(ws_write);
 	provide_context(ctx, ws);
 
-	let client_data = DataSignals::new();
+	let mut client_data = DataSignals::new();
+	if let Some(events) = available_events {
+		client_data.available_events = create_rc_signal(events);
+	}
 	provide_context(ctx, client_data);
 	let subscription_manager = Mutex::new(SubscriptionManager::default());
 	provide_context(ctx, subscription_manager);

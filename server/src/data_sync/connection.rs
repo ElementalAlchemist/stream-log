@@ -3,8 +3,8 @@ use super::subscriptions::{handle_event_update, subscribe_to_event, unsubscribe_
 use super::user_profile::handle_profile_update;
 use super::HandleConnectionError;
 use crate::data_sync::{SubscriptionManager, UserDataUpdate};
-use crate::models::{Permission, User};
-use crate::schema::users;
+use crate::models::{Event as EventDb, Permission, PermissionEvent, User};
+use crate::schema::{events, permission_events, user_permissions, users};
 use crate::websocket_msg::recv_msg;
 use async_std::channel::{unbounded, Receiver, Sender};
 use async_std::sync::{Arc, Mutex};
@@ -42,12 +42,10 @@ pub async fn handle_connection(
 		return Ok(());
 	};
 
-	let results = {
-		let mut db_connection = db_connection.lock().await;
-		users::table
-			.filter(users::openid_user_id.eq(&openid_user_id))
-			.load::<User>(&mut *db_connection)
-	};
+	let mut db_conn = db_connection.lock().await;
+	let results: QueryResult<Vec<User>> = users::table
+		.filter(users::openid_user_id.eq(&openid_user_id))
+		.load(&mut *db_conn);
 
 	let user = match results {
 		Ok(mut users) => {
@@ -61,7 +59,7 @@ pub async fn handle_connection(
 			}
 		}
 		Err(error) => {
-			tide::log::error!("Failed to retrive user data from database: {}", error);
+			tide::log::error!("Failed to retrieve user data from database: {}", error);
 			let message = InitialMessage::new(UserDataLoad::Error);
 			stream.send_json(&message).await?;
 			return Ok(());
@@ -81,8 +79,61 @@ pub async fn handle_connection(
 		}
 	});
 
+	let event_permission_cache: HashMap<Event, Option<Permission>> = if let Some(user) = user_data.as_ref() {
+		let permission_events: QueryResult<Vec<PermissionEvent>> = permission_events::table
+			.filter(
+				permission_events::permission_group.eq_any(
+					user_permissions::table
+						.filter(user_permissions::user_id.eq(&user.id))
+						.select(user_permissions::permission_group),
+				),
+			)
+			.load(&mut *db_conn);
+		let permission_events = match permission_events {
+			Ok(permission_events) => permission_events,
+			Err(error) => {
+				tide::log::error!("Failed to retrieve available events from database: {}", error);
+				let message = InitialMessage::new(UserDataLoad::Error);
+				stream.send_json(&message).await?;
+				return Ok(());
+			}
+		};
+		let event_ids: Vec<String> = permission_events
+			.iter()
+			.map(|permission_event| permission_event.event.clone())
+			.collect();
+		let mut events: Vec<EventDb> = match events::table.filter(events::id.eq_any(&event_ids)).load(&mut *db_conn) {
+			Ok(events) => events,
+			Err(error) => {
+				tide::log::error!("Failed to retrieve events from database: {}", error);
+				let message = InitialMessage::new(UserDataLoad::Error);
+				stream.send_json(&message).await?;
+				return Ok(());
+			}
+		};
+		let events: HashMap<String, Event> = events.drain(..).map(|event| (event.id.clone(), event.into())).collect();
+		let mut available_events: HashMap<Event, Option<Permission>> = HashMap::new();
+		for permission_event in permission_events {
+			// We can expect the events we found to remain in the database, as nothing should remove them.
+			let event = events.get(&permission_event.event).unwrap().clone();
+			available_events.insert(event, Some(permission_event.level));
+		}
+		available_events
+	} else {
+		HashMap::new()
+	};
+
+	drop(db_conn);
+
 	let initial_message = match user_data.as_ref() {
-		Some(user) => InitialMessage::new(UserDataLoad::User(user.clone())),
+		Some(user) => {
+			let available_events: Vec<Event> = event_permission_cache
+				.iter()
+				.filter(|(_, permission)| permission.is_some())
+				.map(|(event, _)| event.clone())
+				.collect();
+			InitialMessage::new(UserDataLoad::User(user.clone(), available_events))
+		}
 		None => InitialMessage::new(UserDataLoad::NewUser),
 	};
 	stream.send_json(&initial_message).await?;
@@ -93,6 +144,7 @@ pub async fn handle_connection(
 		user_data,
 		Arc::clone(&subscription_manager),
 		&openid_user_id,
+		event_permission_cache,
 	)
 	.await;
 
@@ -109,8 +161,8 @@ async fn process_messages(
 	mut user: Option<UserData>,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	openid_user_id: &str,
+	mut event_permission_cache: HashMap<Event, Option<Permission>>,
 ) -> Result<(), HandleConnectionError> {
-	let mut event_permission_cache: HashMap<Event, Option<Permission>> = HashMap::new();
 	let (conn_update_tx, conn_update_rx) = unbounded::<ConnectionUpdate>();
 	let result = loop {
 		let args = ProcessMessageParams {
