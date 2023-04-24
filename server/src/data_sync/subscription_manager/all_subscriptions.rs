@@ -139,4 +139,25 @@ impl SubscriptionManager {
 	) -> Result<(), SendError<SubscriptionData>> {
 		self.admin_event_subscriptions.broadcast_message(message).await
 	}
+
+	/// Adds a user to the admin permission group list subscription
+	pub async fn add_admin_permission_group_subscription(
+		&mut self,
+		user: &UserData,
+		update_channel: Sender<ConnectionUpdate>,
+	) {
+		self.admin_permission_group_subscriptions
+			.subscribe_user(user, update_channel)
+			.await;
+	}
+
+	/// Sends the given message to all subscribed users for the admin permission group list
+	pub async fn broadcast_admin_permission_groups_message(
+		&self,
+		message: SubscriptionData,
+	) -> Result<(), SendError<SubscriptionData>> {
+		self.admin_permission_group_subscriptions
+			.broadcast_message(message)
+			.await
+	}
 }
