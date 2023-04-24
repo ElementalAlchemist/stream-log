@@ -3,7 +3,6 @@ use async_std::channel::{unbounded, SendError, Sender};
 use async_std::stream::StreamExt;
 use async_std::sync::{Arc, Mutex};
 use async_std::task::{spawn, JoinHandle};
-use miette::IntoDiagnostic;
 use std::collections::HashMap;
 use stream_log_shared::messages::subscriptions::{SubscriptionData, SubscriptionType};
 use stream_log_shared::messages::user::UserData;
@@ -67,8 +66,8 @@ impl SingleSubscriptionManager {
 		Ok(())
 	}
 
-	pub async fn broadcast_message(&self, message: SubscriptionData) -> miette::Result<()> {
-		self.subscription_send_channel.send(message).await.into_diagnostic()
+	pub async fn broadcast_message(&self, message: SubscriptionData) -> Result<(), SendError<SubscriptionData>> {
+		self.subscription_send_channel.send(message).await
 	}
 }
 

@@ -1,6 +1,6 @@
 use super::one_subscription::SingleSubscriptionManager;
 use crate::data_sync::connection::ConnectionUpdate;
-use async_std::channel::Sender;
+use async_std::channel::{SendError, Sender};
 use async_std::task::block_on;
 use futures::future::join_all;
 use std::collections::hash_map::Entry;
@@ -92,7 +92,11 @@ impl SubscriptionManager {
 	}
 
 	/// Sends the given message to all subscribed users for the given event
-	pub async fn broadcast_event_message(&self, event_id: &str, message: SubscriptionData) -> miette::Result<()> {
+	pub async fn broadcast_event_message(
+		&self,
+		event_id: &str,
+		message: SubscriptionData,
+	) -> Result<(), SendError<SubscriptionData>> {
 		if let Some(event_subscription) = self.event_subscriptions.get(event_id) {
 			event_subscription.broadcast_message(message).await?;
 		}
@@ -114,7 +118,25 @@ impl SubscriptionManager {
 	}
 
 	/// Sends the given message to all subscribed users for the admin user list
-	pub async fn broadcast_admin_user_message(&self, message: SubscriptionData) -> miette::Result<()> {
+	pub async fn broadcast_admin_user_message(
+		&self,
+		message: SubscriptionData,
+	) -> Result<(), SendError<SubscriptionData>> {
 		self.admin_user_subscriptions.broadcast_message(message).await
+	}
+
+	/// Adds a user to the admin event list subscription
+	pub async fn add_admin_event_subscription(&mut self, user: &UserData, update_channel: Sender<ConnectionUpdate>) {
+		self.admin_event_subscriptions
+			.subscribe_user(user, update_channel)
+			.await;
+	}
+
+	/// Sends the given message to all subscribed users for the admin event list
+	pub async fn broadcast_admin_event_message(
+		&self,
+		message: SubscriptionData,
+	) -> Result<(), SendError<SubscriptionData>> {
+		self.admin_event_subscriptions.broadcast_message(message).await
 	}
 }

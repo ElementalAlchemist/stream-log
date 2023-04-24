@@ -56,6 +56,7 @@ pub enum InitialSubscriptionLoadData {
 		Vec<EventLogEntry>,
 	),
 	AdminUsers(Vec<UserData>),
+	AdminEvents(Vec<Event>),
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
