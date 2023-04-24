@@ -160,4 +160,25 @@ impl SubscriptionManager {
 			.broadcast_message(message)
 			.await
 	}
+
+	/// Adds a user to the admin permission group event associations subscription
+	pub async fn add_admin_permission_group_events_subscription(
+		&mut self,
+		user: &UserData,
+		update_channel: Sender<ConnectionUpdate>,
+	) {
+		self.admin_permission_group_event_subscriptions
+			.subscribe_user(user, update_channel)
+			.await;
+	}
+
+	/// Sends the given message to all subscribed users for admin permission group event associations
+	pub async fn broadcast_admin_permission_group_events_message(
+		&self,
+		message: SubscriptionData,
+	) -> Result<(), SendError<SubscriptionData>> {
+		self.admin_permission_group_event_subscriptions
+			.broadcast_message(message)
+			.await
+	}
 }

@@ -6,7 +6,7 @@ use chrono::prelude::*;
 use diesel::{Insertable, Queryable};
 use diesel_derive_enum::DbEnum;
 use rgb::RGB8;
-use stream_log_shared::messages::admin::PermissionGroup as PermissionGroupWs;
+use stream_log_shared::messages::admin::{PermissionGroup as PermissionGroupWs, PermissionGroupEventAssociation};
 use stream_log_shared::messages::events::Event as EventWs;
 use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::user::UserData;
@@ -113,6 +113,19 @@ pub struct PermissionEvent {
 	pub permission_group: String,
 	pub event: String,
 	pub level: Permission,
+}
+
+impl From<PermissionEvent> for PermissionGroupEventAssociation {
+	fn from(value: PermissionEvent) -> Self {
+		let group = value.permission_group;
+		let event = value.event;
+		let permission = value.level.into();
+		Self {
+			group,
+			event,
+			permission,
+		}
+	}
 }
 
 #[derive(Insertable, Queryable)]
