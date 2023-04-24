@@ -17,14 +17,8 @@ pub async fn subscribe_to_admin_users(
 	user: &UserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 ) -> Result<(), HandleConnectionError> {
-	let mut subscription_manager = subscription_manager.lock().await;
-	subscription_manager
-		.add_admin_user_subscription(user, conn_update_tx.clone())
-		.await;
-	let all_users: QueryResult<Vec<User>> = {
-		let mut db_connection = db_connection.lock().await;
-		users::table.load(&mut *db_connection)
-	};
+	let mut db_connection = db_connection.lock().await;
+	let all_users: QueryResult<Vec<User>> = users::table.load(&mut *db_connection);
 	let mut all_users = match all_users {
 		Ok(users) => users,
 		Err(error) => {
@@ -39,6 +33,11 @@ pub async fn subscribe_to_admin_users(
 			return Ok(());
 		}
 	};
+
+	let mut subscription_manager = subscription_manager.lock().await;
+	subscription_manager
+		.add_admin_user_subscription(user, conn_update_tx.clone())
+		.await;
 
 	let all_user_data: Vec<UserData> = all_users.drain(..).map(|user| user.into()).collect();
 	let message =

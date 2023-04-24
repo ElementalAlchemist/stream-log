@@ -17,15 +17,8 @@ pub async fn subscribe_to_admin_events(
 	user: &UserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 ) -> Result<(), HandleConnectionError> {
-	let mut subscription_manager = subscription_manager.lock().await;
-	subscription_manager
-		.add_admin_event_subscription(user, conn_update_tx.clone())
-		.await;
-
-	let events: QueryResult<Vec<EventDb>> = {
-		let mut db_connection = db_connection.lock().await;
-		events::table.load(&mut *db_connection)
-	};
+	let mut db_connection = db_connection.lock().await;
+	let events: QueryResult<Vec<EventDb>> = events::table.load(&mut *db_connection);
 	let events: Vec<Event> = match events {
 		Ok(mut events) => events.drain(..).map(|event| event.into()).collect(),
 		Err(error) => {
@@ -40,6 +33,11 @@ pub async fn subscribe_to_admin_events(
 			return Ok(());
 		}
 	};
+
+	let mut subscription_manager = subscription_manager.lock().await;
+	subscription_manager
+		.add_admin_event_subscription(user, conn_update_tx.clone())
+		.await;
 
 	let message =
 		FromServerMessage::InitialSubscriptionLoad(Box::new(InitialSubscriptionLoadData::AdminEvents(events)));
