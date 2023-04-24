@@ -108,39 +108,84 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 		};
 
 		match message {
-			FromServerMessage::InitialSubscriptionLoad(subscription_load_data) => match *subscription_load_data {
-				InitialSubscriptionLoadData::Event(
-					event,
-					permission_level,
-					entry_types,
-					tags,
-					editors,
-					event_log_entries,
-				) => {
-					let mut subscription_manager = subscription_manager.lock().await;
-					let event_id = event.id.clone();
-					let event = create_rc_signal(event);
-					let permission = create_rc_signal(permission_level);
-					let entry_types = create_rc_signal(entry_types);
-					let tags = create_rc_signal(tags);
-					let editors = create_rc_signal(editors);
-					let event_log_entries = create_rc_signal(event_log_entries);
-
-					let event_subscription_data = EventSubscriptionSignals {
+			FromServerMessage::InitialSubscriptionLoad(subscription_load_data) => {
+				let mut subscription_manager = subscription_manager.lock().await;
+				match *subscription_load_data {
+					InitialSubscriptionLoadData::Event(
 						event,
-						permission,
+						permission_level,
 						entry_types,
 						tags,
 						editors,
 						event_log_entries,
-					};
-					data_signals
-						.events
-						.modify()
-						.insert(event_id.clone(), event_subscription_data);
-					subscription_manager.subscription_confirmation_received(SubscriptionType::EventLogData(event_id));
+					) => {
+						let event_id = event.id.clone();
+						let event = create_rc_signal(event);
+						let permission = create_rc_signal(permission_level);
+						let entry_types = create_rc_signal(entry_types);
+						let tags = create_rc_signal(tags);
+						let editors = create_rc_signal(editors);
+						let event_log_entries = create_rc_signal(event_log_entries);
+
+						let event_subscription_data = EventSubscriptionSignals {
+							event,
+							permission,
+							entry_types,
+							tags,
+							editors,
+							event_log_entries,
+						};
+						data_signals
+							.events
+							.modify()
+							.insert(event_id.clone(), event_subscription_data);
+						subscription_manager
+							.subscription_confirmation_received(SubscriptionType::EventLogData(event_id));
+					}
+					InitialSubscriptionLoadData::AdminUsers(users) => {
+						data_signals.all_users.set(users);
+						subscription_manager.subscription_confirmation_received(SubscriptionType::AdminUsers);
+					}
+					InitialSubscriptionLoadData::AdminEvents(events) => {
+						data_signals.all_events.set(events);
+						subscription_manager.subscription_confirmation_received(SubscriptionType::AdminEvents);
+					}
+					InitialSubscriptionLoadData::AdminPermissionGroups(permission_groups) => {
+						data_signals.all_permission_groups.set(permission_groups);
+						subscription_manager
+							.subscription_confirmation_received(SubscriptionType::AdminPermissionGroups);
+					}
+					InitialSubscriptionLoadData::AdminPermissionGroupEvents(permission_group_events) => {
+						data_signals
+							.permission_group_event_associations
+							.set(permission_group_events);
+						subscription_manager
+							.subscription_confirmation_received(SubscriptionType::AdminPermissionGroupEvents);
+					}
+					InitialSubscriptionLoadData::AdminPermissionGroupUsers(user_permission_groups) => {
+						data_signals.user_permission_groups.set(user_permission_groups);
+						subscription_manager
+							.subscription_confirmation_received(SubscriptionType::AdminPermissionGroupUsers);
+					}
+					InitialSubscriptionLoadData::AdminEntryTypes(entry_types) => {
+						data_signals.all_entry_types.set(entry_types);
+						subscription_manager.subscription_confirmation_received(SubscriptionType::AdminEntryTypes);
+					}
+					InitialSubscriptionLoadData::AdminEntryTypesEvents(entry_types_events) => {
+						data_signals.entry_type_event_associations.set(entry_types_events);
+						subscription_manager
+							.subscription_confirmation_received(SubscriptionType::AdminEntryTypesEvents);
+					}
+					InitialSubscriptionLoadData::AdminTags(tags) => {
+						data_signals.all_tags.set(tags);
+						subscription_manager.subscription_confirmation_received(SubscriptionType::AdminTags);
+					}
+					InitialSubscriptionLoadData::AdminEventEditors(event_editors) => {
+						data_signals.event_editors.set(event_editors);
+						subscription_manager.subscription_confirmation_received(SubscriptionType::AdminEventEditors);
+					}
 				}
-			},
+			}
 			FromServerMessage::SubscriptionMessage(subscription_data) => todo!(),
 			FromServerMessage::Unsubscribed(subscription_type) => {
 				todo!("Handle message and update subscription manager")
