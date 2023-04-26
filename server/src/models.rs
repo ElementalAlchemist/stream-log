@@ -6,7 +6,9 @@ use chrono::prelude::*;
 use diesel::{Insertable, Queryable};
 use diesel_derive_enum::DbEnum;
 use rgb::RGB8;
-use stream_log_shared::messages::admin::{PermissionGroup as PermissionGroupWs, PermissionGroupEventAssociation};
+use stream_log_shared::messages::admin::{
+	PermissionGroup as PermissionGroupWs, PermissionGroupEventAssociation, UserPermissionGroupAssociation,
+};
 use stream_log_shared::messages::events::Event as EventWs;
 use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::user::UserData;

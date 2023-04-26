@@ -2,6 +2,7 @@ use super::register::{check_username, register_user};
 use super::subscriptions::admin_events::subscribe_to_admin_events;
 use super::subscriptions::admin_permission_groups::{
 	subscribe_to_admin_permission_groups, subscribe_to_admin_permission_groups_events,
+	subscribe_to_admin_permission_groups_users,
 };
 use super::subscriptions::admin_users::subscribe_to_admin_users;
 use super::subscriptions::events::{handle_event_update, subscribe_to_event, unsubscribe_from_event};
@@ -339,7 +340,15 @@ async fn process_incoming_message(
 					)
 					.await?
 				}
-				SubscriptionType::AdminPermissionGroupUsers => todo!(),
+				SubscriptionType::AdminPermissionGroupUsers => {
+					subscribe_to_admin_permission_groups_users(
+						Arc::clone(db_connection),
+						conn_update_tx,
+						user,
+						Arc::clone(subscription_manager),
+					)
+					.await?
+				}
 				SubscriptionType::AdminEntryTypes => todo!(),
 				SubscriptionType::AdminEntryTypesEvents => todo!(),
 				SubscriptionType::AdminTags => todo!(),
