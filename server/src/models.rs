@@ -6,9 +6,8 @@ use chrono::prelude::*;
 use diesel::{Insertable, Queryable};
 use diesel_derive_enum::DbEnum;
 use rgb::RGB8;
-use stream_log_shared::messages::admin::{
-	PermissionGroup as PermissionGroupWs, PermissionGroupEventAssociation, UserPermissionGroupAssociation,
-};
+use stream_log_shared::messages::admin::{PermissionGroup as PermissionGroupWs, PermissionGroupEventAssociation};
+use stream_log_shared::messages::entry_types::EntryType as EntryTypeWs;
 use stream_log_shared::messages::events::Event as EventWs;
 use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::user::UserData;
@@ -152,6 +151,15 @@ impl EntryType {
 		let green: u8 = self.color_green.try_into().unwrap();
 		let blue: u8 = self.color_blue.try_into().unwrap();
 		RGB8::new(red, green, blue)
+	}
+}
+
+impl From<EntryType> for EntryTypeWs {
+	fn from(value: EntryType) -> Self {
+		let color = value.color();
+		let id = value.id;
+		let name = value.name;
+		Self { id, name, color }
 	}
 }
 
