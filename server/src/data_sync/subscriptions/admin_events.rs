@@ -17,6 +17,15 @@ pub async fn subscribe_to_admin_events(
 	user: &UserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 ) -> Result<(), HandleConnectionError> {
+	if !user.is_admin {
+		let message =
+			FromServerMessage::SubscriptionFailure(SubscriptionType::AdminEvents, SubscriptionFailureInfo::NotAllowed);
+		conn_update_tx
+			.send(ConnectionUpdate::SendData(Box::new(message)))
+			.await?;
+		return Ok(());
+	}
+
 	let mut db_connection = db_connection.lock().await;
 	let events: QueryResult<Vec<EventDb>> = events::table.load(&mut *db_connection);
 	let events: Vec<Event> = match events {

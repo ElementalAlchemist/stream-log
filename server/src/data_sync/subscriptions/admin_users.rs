@@ -17,6 +17,15 @@ pub async fn subscribe_to_admin_users(
 	user: &UserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 ) -> Result<(), HandleConnectionError> {
+	if !user.is_admin {
+		let message =
+			FromServerMessage::SubscriptionFailure(SubscriptionType::AdminUsers, SubscriptionFailureInfo::NotAllowed);
+		conn_update_tx
+			.send(ConnectionUpdate::SendData(Box::new(message)))
+			.await?;
+		return Ok(());
+	}
+
 	let mut db_connection = db_connection.lock().await;
 	let all_users: QueryResult<Vec<User>> = users::table.load(&mut *db_connection);
 	let mut all_users = match all_users {

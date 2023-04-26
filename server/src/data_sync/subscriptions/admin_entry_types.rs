@@ -17,6 +17,17 @@ pub async fn subscribe_to_admin_entry_types(
 	user: &UserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 ) -> Result<(), HandleConnectionError> {
+	if !user.is_admin {
+		let message = FromServerMessage::SubscriptionFailure(
+			SubscriptionType::AdminEntryTypes,
+			SubscriptionFailureInfo::NotAllowed,
+		);
+		conn_update_tx
+			.send(ConnectionUpdate::SendData(Box::new(message)))
+			.await?;
+		return Ok(());
+	}
+
 	let mut db_connection = db_connection.lock().await;
 	let entry_types: QueryResult<Vec<EntryTypeDb>> = entry_types::table.load(&mut *db_connection);
 

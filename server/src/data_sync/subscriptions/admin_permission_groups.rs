@@ -20,6 +20,17 @@ pub async fn subscribe_to_admin_permission_groups(
 	user: &UserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 ) -> Result<(), HandleConnectionError> {
+	if !user.is_admin {
+		let message = FromServerMessage::SubscriptionFailure(
+			SubscriptionType::AdminPermissionGroups,
+			SubscriptionFailureInfo::NotAllowed,
+		);
+		conn_update_tx
+			.send(ConnectionUpdate::SendData(Box::new(message)))
+			.await?;
+		return Ok(());
+	}
+
 	let mut db_connection = db_connection.lock().await;
 	let permission_groups: QueryResult<Vec<PermissionGroupDb>> = permission_groups::table.load(&mut *db_connection);
 	let permission_groups: Vec<PermissionGroup> = match permission_groups {
@@ -58,6 +69,17 @@ pub async fn subscribe_to_admin_permission_groups_events(
 	user: &UserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 ) -> Result<(), HandleConnectionError> {
+	if !user.is_admin {
+		let message = FromServerMessage::SubscriptionFailure(
+			SubscriptionType::AdminPermissionGroupEvents,
+			SubscriptionFailureInfo::NotAllowed,
+		);
+		conn_update_tx
+			.send(ConnectionUpdate::SendData(Box::new(message)))
+			.await?;
+		return Ok(());
+	}
+
 	let mut db_connection = db_connection.lock().await;
 	let permission_group_events: QueryResult<Vec<PermissionEvent>> = permission_events::table.load(&mut *db_connection);
 
@@ -104,6 +126,17 @@ pub async fn subscribe_to_admin_permission_groups_users(
 	user: &UserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 ) -> Result<(), HandleConnectionError> {
+	if !user.is_admin {
+		let message = FromServerMessage::SubscriptionFailure(
+			SubscriptionType::AdminPermissionGroupUsers,
+			SubscriptionFailureInfo::NotAllowed,
+		);
+		conn_update_tx
+			.send(ConnectionUpdate::SendData(Box::new(message)))
+			.await?;
+		return Ok(());
+	}
+
 	let mut db_connection = db_connection.lock().await;
 	let permission_group_users: QueryResult<Vec<UserPermission>> = user_permissions::table.load(&mut *db_connection);
 
