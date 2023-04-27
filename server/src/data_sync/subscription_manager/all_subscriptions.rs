@@ -221,4 +221,25 @@ impl SubscriptionManager {
 	) -> Result<(), SendError<SubscriptionData>> {
 		self.admin_entry_type_subscriptions.broadcast_message(message).await
 	}
+
+	/// Adds a user to the admin entry types and event associations subscription
+	pub async fn add_admin_entry_types_events_subscription(
+		&mut self,
+		user: &UserData,
+		update_channel: Sender<ConnectionUpdate>,
+	) {
+		self.admin_entry_type_event_subscriptions
+			.subscribe_user(user, update_channel)
+			.await;
+	}
+
+	/// Sends the given message to all subscribed users for admin entry type and event associations
+	pub async fn broadcast_admin_entry_types_events_message(
+		&self,
+		message: SubscriptionData,
+	) -> Result<(), SendError<SubscriptionData>> {
+		self.admin_entry_type_event_subscriptions
+			.broadcast_message(message)
+			.await
+	}
 }
