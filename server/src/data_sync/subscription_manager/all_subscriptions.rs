@@ -242,4 +242,17 @@ impl SubscriptionManager {
 			.broadcast_message(message)
 			.await
 	}
+
+	/// Adds a user to the admin tags subscription
+	pub async fn add_admin_tags_subscription(&mut self, user: &UserData, update_channel: Sender<ConnectionUpdate>) {
+		self.admin_tag_subscriptions.subscribe_user(user, update_channel).await;
+	}
+
+	/// Sends the given message to all subscribed users for admin tags
+	pub async fn broadcast_admin_tags_message(
+		&self,
+		message: SubscriptionData,
+	) -> Result<(), SendError<SubscriptionData>> {
+		self.admin_tag_subscriptions.broadcast_message(message).await
+	}
 }

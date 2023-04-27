@@ -10,6 +10,7 @@ use stream_log_shared::messages::admin::{PermissionGroup as PermissionGroupWs, P
 use stream_log_shared::messages::entry_types::EntryType as EntryTypeWs;
 use stream_log_shared::messages::events::Event as EventWs;
 use stream_log_shared::messages::permissions::PermissionLevel;
+use stream_log_shared::messages::tags::Tag as TagWs;
 use stream_log_shared::messages::user::UserData;
 
 #[derive(Clone, Copy, DbEnum, Debug, Eq, PartialEq)]
@@ -175,6 +176,15 @@ pub struct Tag {
 	pub id: String,
 	pub tag: String,
 	pub description: String,
+}
+
+impl From<Tag> for TagWs {
+	fn from(value: Tag) -> Self {
+		let id = value.id;
+		let name = value.tag;
+		let description = value.description;
+		Self { id, name, description }
+	}
 }
 
 #[derive(Insertable, Queryable)]
