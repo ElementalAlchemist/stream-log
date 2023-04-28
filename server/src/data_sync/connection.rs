@@ -8,7 +8,7 @@ use super::subscriptions::admin_permission_groups::{
 };
 use super::subscriptions::admin_tags::subscribe_to_admin_tags;
 use super::subscriptions::admin_users::subscribe_to_admin_users;
-use super::subscriptions::events::{handle_event_update, subscribe_to_event, unsubscribe_from_event};
+use super::subscriptions::events::{handle_event_update, subscribe_to_event};
 use super::user_profile::handle_profile_update;
 use super::HandleConnectionError;
 use crate::data_sync::{SubscriptionManager, UserDataUpdate};
@@ -396,19 +396,42 @@ async fn process_incoming_message(
 		}
 		FromClientMessage::EndSubscription(subscription_type) => {
 			let Some(user) = user.as_ref() else { return Ok(()); }; // Users who aren't logged in can't be subscribed
+			let subscription_manager = subscription_manager.lock().await;
 			match subscription_type {
 				SubscriptionType::EventLogData(event_id) => {
-					unsubscribe_from_event(Arc::clone(subscription_manager), user, &event_id).await?
+					subscription_manager
+						.unsubscribe_user_from_event(&event_id, user)
+						.await?
 				}
-				SubscriptionType::AdminUsers => todo!(),
-				SubscriptionType::AdminEvents => todo!(),
-				SubscriptionType::AdminPermissionGroups => todo!(),
-				SubscriptionType::AdminPermissionGroupEvents => todo!(),
-				SubscriptionType::AdminPermissionGroupUsers => todo!(),
-				SubscriptionType::AdminEntryTypes => todo!(),
-				SubscriptionType::AdminEntryTypesEvents => todo!(),
-				SubscriptionType::AdminTags => todo!(),
-				SubscriptionType::AdminEventEditors => todo!(),
+				SubscriptionType::AdminUsers => subscription_manager.remove_admin_user_subscription(user).await?,
+				SubscriptionType::AdminEvents => subscription_manager.remove_admin_event_subscription(user).await?,
+				SubscriptionType::AdminPermissionGroups => {
+					subscription_manager
+						.remove_admin_permission_group_subscription(user)
+						.await?
+				}
+				SubscriptionType::AdminPermissionGroupEvents => {
+					subscription_manager
+						.remove_admin_permission_group_events_subscription(user)
+						.await?
+				}
+				SubscriptionType::AdminPermissionGroupUsers => {
+					subscription_manager
+						.remove_admin_permission_group_users_subscription(user)
+						.await?
+				}
+				SubscriptionType::AdminEntryTypes => {
+					subscription_manager.remove_admin_entry_types_subscription(user).await?
+				}
+				SubscriptionType::AdminEntryTypesEvents => {
+					subscription_manager
+						.remove_admin_entry_types_events_subscription(user)
+						.await?
+				}
+				SubscriptionType::AdminTags => subscription_manager.remove_admin_tags_subscription(user).await?,
+				SubscriptionType::AdminEventEditors => {
+					subscription_manager.remove_admin_editors_subscription(user).await?
+				}
 			}
 		}
 		FromClientMessage::SubscriptionMessage(subscription_update) => {

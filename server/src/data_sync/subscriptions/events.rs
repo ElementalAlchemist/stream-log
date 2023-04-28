@@ -798,12 +798,3 @@ pub async fn handle_event_update(
 		}
 	}
 }
-
-pub async fn unsubscribe_from_event(
-	subscription_manager: Arc<Mutex<SubscriptionManager>>,
-	user: &UserData,
-	event_id: &str,
-) -> tide::Result<()> {
-	let subscription_manager = subscription_manager.lock().await;
-	subscription_manager.unsubscribe_user_from_event(event_id, user).await
-}

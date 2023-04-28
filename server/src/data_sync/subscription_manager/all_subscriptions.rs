@@ -104,7 +104,7 @@ impl SubscriptionManager {
 	}
 
 	/// Unsubscribes a user from all subscriptions
-	pub async fn unsubscribe_user_from_all(&mut self, user: &UserData) -> Result<(), SendError<ConnectionUpdate>> {
+	pub async fn unsubscribe_user_from_all(&self, user: &UserData) -> Result<(), SendError<ConnectionUpdate>> {
 		let mut futures = Vec::with_capacity(self.event_subscriptions.len());
 		for event_subscription in self.event_subscriptions.values() {
 			futures.push(event_subscription.unsubscribe_user(user));
