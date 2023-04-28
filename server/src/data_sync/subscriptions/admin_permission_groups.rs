@@ -48,7 +48,7 @@ pub async fn subscribe_to_admin_permission_groups(
 		}
 	};
 
-	let mut subscription_manager = subscription_manager.lock().await;
+	let subscription_manager = subscription_manager.lock().await;
 	subscription_manager
 		.add_admin_permission_group_subscription(user, conn_update_tx.clone())
 		.await;
@@ -105,7 +105,7 @@ pub async fn subscribe_to_admin_permission_groups_events(
 		.map(|association| association.into())
 		.collect();
 
-	let mut subscription_manager = subscription_manager.lock().await;
+	let subscription_manager = subscription_manager.lock().await;
 	subscription_manager
 		.add_admin_permission_group_events_subscription(user, conn_update_tx.clone())
 		.await;
@@ -226,7 +226,7 @@ pub async fn subscribe_to_admin_permission_groups_users(
 		permission_group_user_associations.push(UserPermissionGroupAssociation { user, permission_group });
 	}
 
-	let mut subscription_manager = subscription_manager.lock().await;
+	let subscription_manager = subscription_manager.lock().await;
 	subscription_manager
 		.add_admin_permission_group_users_subscription(user, conn_update_tx.clone())
 		.await;

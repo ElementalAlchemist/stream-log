@@ -127,8 +127,13 @@ impl SubscriptionManager {
 	}
 
 	/// Adds a user to the admin user list subscription
-	pub async fn add_admin_user_subscription(&mut self, user: &UserData, update_channel: Sender<ConnectionUpdate>) {
+	pub async fn add_admin_user_subscription(&self, user: &UserData, update_channel: Sender<ConnectionUpdate>) {
 		self.admin_user_subscriptions.subscribe_user(user, update_channel).await;
+	}
+
+	/// Removes a user from the admin user list subscription
+	pub async fn remove_admin_user_subscription(&self, user: &UserData) -> Result<(), SendError<ConnectionUpdate>> {
+		self.admin_user_subscriptions.unsubscribe_user(user).await
 	}
 
 	/// Sends the given message to all subscribed users for the admin user list
@@ -140,10 +145,15 @@ impl SubscriptionManager {
 	}
 
 	/// Adds a user to the admin event list subscription
-	pub async fn add_admin_event_subscription(&mut self, user: &UserData, update_channel: Sender<ConnectionUpdate>) {
+	pub async fn add_admin_event_subscription(&self, user: &UserData, update_channel: Sender<ConnectionUpdate>) {
 		self.admin_event_subscriptions
 			.subscribe_user(user, update_channel)
 			.await;
+	}
+
+	/// Removes a user from the admin event list subscription
+	pub async fn remove_admin_event_subscription(&self, user: &UserData) -> Result<(), SendError<ConnectionUpdate>> {
+		self.admin_event_subscriptions.unsubscribe_user(user).await
 	}
 
 	/// Sends the given message to all subscribed users for the admin event list
@@ -156,13 +166,21 @@ impl SubscriptionManager {
 
 	/// Adds a user to the admin permission group list subscription
 	pub async fn add_admin_permission_group_subscription(
-		&mut self,
+		&self,
 		user: &UserData,
 		update_channel: Sender<ConnectionUpdate>,
 	) {
 		self.admin_permission_group_subscriptions
 			.subscribe_user(user, update_channel)
 			.await;
+	}
+
+	/// Removes a user from the admin permission group list subscription
+	pub async fn remove_admin_permission_group_subscription(
+		&self,
+		user: &UserData,
+	) -> Result<(), SendError<ConnectionUpdate>> {
+		self.admin_permission_group_subscriptions.unsubscribe_user(user).await
 	}
 
 	/// Sends the given message to all subscribed users for the admin permission group list
@@ -177,13 +195,23 @@ impl SubscriptionManager {
 
 	/// Adds a user to the admin permission group event associations subscription
 	pub async fn add_admin_permission_group_events_subscription(
-		&mut self,
+		&self,
 		user: &UserData,
 		update_channel: Sender<ConnectionUpdate>,
 	) {
 		self.admin_permission_group_event_subscriptions
 			.subscribe_user(user, update_channel)
 			.await;
+	}
+
+	/// Removes a user from the admin permission group event associations subscription
+	pub async fn remove_admin_permission_group_events_subscription(
+		&self,
+		user: &UserData,
+	) -> Result<(), SendError<ConnectionUpdate>> {
+		self.admin_permission_group_event_subscriptions
+			.unsubscribe_user(user)
+			.await
 	}
 
 	/// Sends the given message to all subscribed users for admin permission group event associations
@@ -198,13 +226,23 @@ impl SubscriptionManager {
 
 	/// Adds a user to the admin permission group user associations subscription
 	pub async fn add_admin_permission_group_users_subscription(
-		&mut self,
+		&self,
 		user: &UserData,
 		update_channel: Sender<ConnectionUpdate>,
 	) {
 		self.admin_permission_group_user_subscriptions
 			.subscribe_user(user, update_channel)
 			.await;
+	}
+
+	/// Removes a user from the admin permission group user associations subscription
+	pub async fn remove_admin_permission_group_users_subscription(
+		&self,
+		user: &UserData,
+	) -> Result<(), SendError<ConnectionUpdate>> {
+		self.admin_permission_group_user_subscriptions
+			.unsubscribe_user(user)
+			.await
 	}
 
 	/// Sends the given message to all subscribed users for admin permission group user associations
@@ -218,14 +256,18 @@ impl SubscriptionManager {
 	}
 
 	/// Adds a user to the admin entry types subscription
-	pub async fn add_admin_entry_types_subscription(
-		&mut self,
-		user: &UserData,
-		update_channel: Sender<ConnectionUpdate>,
-	) {
+	pub async fn add_admin_entry_types_subscription(&self, user: &UserData, update_channel: Sender<ConnectionUpdate>) {
 		self.admin_entry_type_subscriptions
 			.subscribe_user(user, update_channel)
 			.await;
+	}
+
+	/// Removes a user from the admin entry types subscription
+	pub async fn remove_admin_entry_types_subscription(
+		&self,
+		user: &UserData,
+	) -> Result<(), SendError<ConnectionUpdate>> {
+		self.admin_entry_type_subscriptions.unsubscribe_user(user).await
 	}
 
 	/// Sends the given message to all subscribed users for admin entry types
@@ -238,13 +280,21 @@ impl SubscriptionManager {
 
 	/// Adds a user to the admin entry types and event associations subscription
 	pub async fn add_admin_entry_types_events_subscription(
-		&mut self,
+		&self,
 		user: &UserData,
 		update_channel: Sender<ConnectionUpdate>,
 	) {
 		self.admin_entry_type_event_subscriptions
 			.subscribe_user(user, update_channel)
 			.await;
+	}
+
+	/// Removes a user from the admin entry types and event associations subscription
+	pub async fn remove_admin_entry_types_events_subscription(
+		&self,
+		user: &UserData,
+	) -> Result<(), SendError<ConnectionUpdate>> {
+		self.admin_entry_type_event_subscriptions.unsubscribe_user(user).await
 	}
 
 	/// Sends the given message to all subscribed users for admin entry type and event associations
@@ -258,8 +308,13 @@ impl SubscriptionManager {
 	}
 
 	/// Adds a user to the admin tags subscription
-	pub async fn add_admin_tags_subscription(&mut self, user: &UserData, update_channel: Sender<ConnectionUpdate>) {
+	pub async fn add_admin_tags_subscription(&self, user: &UserData, update_channel: Sender<ConnectionUpdate>) {
 		self.admin_tag_subscriptions.subscribe_user(user, update_channel).await;
+	}
+
+	/// Removes a user from the admin tags subscription
+	pub async fn remove_admin_tags_subscription(&self, user: &UserData) -> Result<(), SendError<ConnectionUpdate>> {
+		self.admin_tag_subscriptions.unsubscribe_user(user).await
 	}
 
 	/// Sends the given message to all subscribed users for admin tags
@@ -271,10 +326,15 @@ impl SubscriptionManager {
 	}
 
 	/// Adds a user to the admin event editors subscription
-	pub async fn add_admin_editors_subscription(&mut self, user: &UserData, update_channel: Sender<ConnectionUpdate>) {
+	pub async fn add_admin_editors_subscription(&self, user: &UserData, update_channel: Sender<ConnectionUpdate>) {
 		self.admin_event_editor_subscriptions
 			.subscribe_user(user, update_channel)
 			.await;
+	}
+
+	/// Removes a user from the admin event editors subscription
+	pub async fn remove_admin_editors_subscription(&self, user: &UserData) -> Result<(), SendError<ConnectionUpdate>> {
+		self.admin_event_editor_subscriptions.unsubscribe_user(user).await
 	}
 
 	/// Sends the given message to all subscribed users for admin event editors

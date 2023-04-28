@@ -115,7 +115,7 @@ pub async fn subscribe_to_admin_editors(
 		event_editors.push(EditorEventAssociation { editor, event });
 	}
 
-	let mut subscription_manager = subscription_manager.lock().await;
+	let subscription_manager = subscription_manager.lock().await;
 	subscription_manager
 		.add_admin_editors_subscription(user, conn_update_tx.clone())
 		.await;

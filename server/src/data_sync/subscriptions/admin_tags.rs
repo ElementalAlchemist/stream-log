@@ -46,7 +46,7 @@ pub async fn subscribe_to_admin_tags(
 		}
 	};
 
-	let mut subscription_manager = subscription_manager.lock().await;
+	let subscription_manager = subscription_manager.lock().await;
 	subscription_manager
 		.add_admin_tags_subscription(user, conn_update_tx.clone())
 		.await;

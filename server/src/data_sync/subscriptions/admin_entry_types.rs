@@ -52,7 +52,7 @@ pub async fn subscribe_to_admin_entry_types(
 		}
 	};
 
-	let mut subscription_manager = subscription_manager.lock().await;
+	let subscription_manager = subscription_manager.lock().await;
 	subscription_manager
 		.add_admin_entry_types_subscription(user, conn_update_tx.clone())
 		.await;
@@ -166,7 +166,7 @@ pub async fn subscribe_to_admin_entry_types_events(
 		entry_type_event_associations.push(EntryTypeEventAssociation { entry_type, event });
 	}
 
-	let mut subscription_manager = subscription_manager.lock().await;
+	let subscription_manager = subscription_manager.lock().await;
 	subscription_manager
 		.add_admin_entry_types_events_subscription(user, conn_update_tx.clone())
 		.await;
