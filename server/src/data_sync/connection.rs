@@ -190,7 +190,11 @@ async fn process_messages(
 	};
 
 	if let Some(user) = user.as_ref() {
-		subscription_manager.lock().await.unsubscribe_user_from_all(user).await;
+		subscription_manager
+			.lock()
+			.await
+			.unsubscribe_user_from_all(user)
+			.await?;
 	}
 
 	result

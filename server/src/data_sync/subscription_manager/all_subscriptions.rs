@@ -104,12 +104,26 @@ impl SubscriptionManager {
 	}
 
 	/// Unsubscribes a user from all subscriptions
-	pub async fn unsubscribe_user_from_all(&mut self, user: &UserData) {
+	pub async fn unsubscribe_user_from_all(&mut self, user: &UserData) -> Result<(), SendError<ConnectionUpdate>> {
 		let mut futures = Vec::with_capacity(self.event_subscriptions.len());
 		for event_subscription in self.event_subscriptions.values() {
 			futures.push(event_subscription.unsubscribe_user(user));
 		}
-		join_all(futures).await;
+		futures.push(self.admin_user_subscriptions.unsubscribe_user(user));
+		futures.push(self.admin_event_subscriptions.unsubscribe_user(user));
+		futures.push(self.admin_permission_group_subscriptions.unsubscribe_user(user));
+		futures.push(self.admin_permission_group_event_subscriptions.unsubscribe_user(user));
+		futures.push(self.admin_permission_group_user_subscriptions.unsubscribe_user(user));
+		futures.push(self.admin_entry_type_subscriptions.unsubscribe_user(user));
+		futures.push(self.admin_entry_type_event_subscriptions.unsubscribe_user(user));
+		futures.push(self.admin_tag_subscriptions.unsubscribe_user(user));
+		futures.push(self.admin_event_editor_subscriptions.unsubscribe_user(user));
+
+		let results = join_all(futures).await;
+		for result in results {
+			result?;
+		}
+		Ok(())
 	}
 
 	/// Adds a user to the admin user list subscription
