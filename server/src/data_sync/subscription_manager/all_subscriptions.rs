@@ -103,6 +103,14 @@ impl SubscriptionManager {
 		Ok(())
 	}
 
+	/// Checks whether the given user is subscribed to the given event
+	pub async fn user_is_subscribed_to_event(&self, event_id: &str, user: &UserData) -> bool {
+		match self.event_subscriptions.get(event_id) {
+			Some(event_subscription) => event_subscription.user_is_subscribed(user).await,
+			None => false,
+		}
+	}
+
 	/// Unsubscribes a user from all subscriptions
 	pub async fn unsubscribe_user_from_all(&self, user: &UserData) -> Result<(), SendError<ConnectionUpdate>> {
 		let mut futures = Vec::with_capacity(self.event_subscriptions.len());
@@ -144,6 +152,11 @@ impl SubscriptionManager {
 		self.admin_user_subscriptions.broadcast_message(message).await
 	}
 
+	/// Checks whether a user is subscribed to admin users
+	pub async fn user_is_subscribed_to_admin_users(&self, user: &UserData) -> bool {
+		self.admin_user_subscriptions.user_is_subscribed(user).await
+	}
+
 	/// Adds a user to the admin event list subscription
 	pub async fn add_admin_event_subscription(&self, user: &UserData, update_channel: Sender<ConnectionUpdate>) {
 		self.admin_event_subscriptions
@@ -162,6 +175,11 @@ impl SubscriptionManager {
 		message: SubscriptionData,
 	) -> Result<(), SendError<SubscriptionData>> {
 		self.admin_event_subscriptions.broadcast_message(message).await
+	}
+
+	/// Checks whether a user is subscribed to admin events
+	pub async fn user_is_subscribed_to_admin_events(&self, user: &UserData) -> bool {
+		self.admin_event_subscriptions.user_is_subscribed(user).await
 	}
 
 	/// Adds a user to the admin permission group list subscription
@@ -193,6 +211,11 @@ impl SubscriptionManager {
 			.await
 	}
 
+	/// Checks whether a user is subscribed to admin permission groups
+	pub async fn user_is_subscribed_to_admin_permission_groups(&self, user: &UserData) -> bool {
+		self.admin_permission_group_subscriptions.user_is_subscribed(user).await
+	}
+
 	/// Adds a user to the admin permission group event associations subscription
 	pub async fn add_admin_permission_group_events_subscription(
 		&self,
@@ -221,6 +244,13 @@ impl SubscriptionManager {
 	) -> Result<(), SendError<SubscriptionData>> {
 		self.admin_permission_group_event_subscriptions
 			.broadcast_message(message)
+			.await
+	}
+
+	/// Checks whether a user is subscribed to admin permission group event associations
+	pub async fn user_is_subscribed_to_admin_permission_group_events(&self, user: &UserData) -> bool {
+		self.admin_permission_group_event_subscriptions
+			.user_is_subscribed(user)
 			.await
 	}
 
@@ -255,6 +285,13 @@ impl SubscriptionManager {
 			.await
 	}
 
+	/// Checks whether a user is subscribed to admin permission group user associations
+	pub async fn user_is_subscribed_to_admin_permission_group_users(&self, user: &UserData) -> bool {
+		self.admin_permission_group_user_subscriptions
+			.user_is_subscribed(user)
+			.await
+	}
+
 	/// Adds a user to the admin entry types subscription
 	pub async fn add_admin_entry_types_subscription(&self, user: &UserData, update_channel: Sender<ConnectionUpdate>) {
 		self.admin_entry_type_subscriptions
@@ -276,6 +313,11 @@ impl SubscriptionManager {
 		message: SubscriptionData,
 	) -> Result<(), SendError<SubscriptionData>> {
 		self.admin_entry_type_subscriptions.broadcast_message(message).await
+	}
+
+	/// Checks whether a user is subscribed to admin entry types
+	pub async fn user_is_subscribed_to_admin_entry_types(&self, user: &UserData) -> bool {
+		self.admin_entry_type_subscriptions.user_is_subscribed(user).await
 	}
 
 	/// Adds a user to the admin entry types and event associations subscription
@@ -307,6 +349,11 @@ impl SubscriptionManager {
 			.await
 	}
 
+	/// Checks whether a user is subscribed to admin entry type and event associations
+	pub async fn user_is_subscribed_to_admin_entry_types_events(&self, user: &UserData) -> bool {
+		self.admin_entry_type_event_subscriptions.user_is_subscribed(user).await
+	}
+
 	/// Adds a user to the admin tags subscription
 	pub async fn add_admin_tags_subscription(&self, user: &UserData, update_channel: Sender<ConnectionUpdate>) {
 		self.admin_tag_subscriptions.subscribe_user(user, update_channel).await;
@@ -323,6 +370,11 @@ impl SubscriptionManager {
 		message: SubscriptionData,
 	) -> Result<(), SendError<SubscriptionData>> {
 		self.admin_tag_subscriptions.broadcast_message(message).await
+	}
+
+	/// Checks whether a user is subscribed to admin tags
+	pub async fn user_is_subscribed_to_admin_tags(&self, user: &UserData) -> bool {
+		self.admin_tag_subscriptions.user_is_subscribed(user).await
 	}
 
 	/// Adds a user to the admin event editors subscription
@@ -343,5 +395,10 @@ impl SubscriptionManager {
 		message: SubscriptionData,
 	) -> Result<(), SendError<SubscriptionData>> {
 		self.admin_event_editor_subscriptions.broadcast_message(message).await
+	}
+
+	/// Checks whether a user is subscribed to admin editors
+	pub async fn user_is_subscribed_to_admin_editors(&self, user: &UserData) -> bool {
+		self.admin_event_editor_subscriptions.user_is_subscribed(user).await
 	}
 }

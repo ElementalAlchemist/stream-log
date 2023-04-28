@@ -66,6 +66,10 @@ impl SingleSubscriptionManager {
 		Ok(())
 	}
 
+	pub async fn user_is_subscribed(&self, user: &UserData) -> bool {
+		self.subscriptions.lock().await.contains_key(&user.id)
+	}
+
 	pub async fn broadcast_message(&self, message: SubscriptionData) -> Result<(), SendError<SubscriptionData>> {
 		self.subscription_send_channel.send(message).await
 	}
