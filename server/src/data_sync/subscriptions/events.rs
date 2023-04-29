@@ -762,7 +762,7 @@ pub async fn handle_event_update(
 					TypingData::NotesToEditor(log_entry, notes_to_editor, user_data)
 				}
 			};
-			EventSubscriptionData::Typing(event.clone(), typing_data)
+			EventSubscriptionData::Typing(typing_data)
 		}
 		EventSubscriptionUpdate::NewTag(mut new_tag) => {
 			if new_tag.name.is_empty() || new_tag.name.contains(',') || new_tag.description.is_empty() {
@@ -783,7 +783,7 @@ pub async fn handle_event_update(
 				tide::log::error!("Database error adding a new tag: {}", error);
 				return Ok(());
 			}
-			EventSubscriptionData::NewTag(event.clone(), new_tag)
+			EventSubscriptionData::NewTag(new_tag)
 		}
 	};
 	let subscription_data = SubscriptionData::EventUpdate(event.clone(), Box::new(subscription_data));
