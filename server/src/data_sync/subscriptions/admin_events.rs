@@ -64,9 +64,9 @@ pub async fn handle_admin_event_message(
 	user: &UserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	update_message: AdminEventUpdate,
-) -> Result<(), HandleConnectionError> {
+) {
 	if !user.is_admin {
-		return Ok(());
+		return;
 	}
 	if !subscription_manager
 		.lock()
@@ -74,7 +74,7 @@ pub async fn handle_admin_event_message(
 		.user_is_subscribed_to_admin_events(user)
 		.await
 	{
-		return Ok(());
+		return;
 	}
 
 	match update_message {
@@ -100,7 +100,7 @@ pub async fn handle_admin_event_message(
 			};
 			if let Err(error) = db_result {
 				tide::log::error!("A database error occurred updating event data: {}", error);
-				return Ok(());
+				return;
 			}
 
 			let subscription_manager = subscription_manager.lock().await;
@@ -121,6 +121,4 @@ pub async fn handle_admin_event_message(
 			}
 		}
 	}
-
-	Ok(())
 }

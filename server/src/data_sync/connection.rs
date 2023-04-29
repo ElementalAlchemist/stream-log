@@ -455,7 +455,7 @@ async fn process_incoming_message(
 						Arc::clone(subscription_manager),
 						update_data,
 					)
-					.await?
+					.await
 				}
 				SubscriptionTargetUpdate::AdminEntryTypesUpdate(update_data) => todo!(),
 				SubscriptionTargetUpdate::AdminEntryTypesEventsUpdate(update_data) => todo!(),
