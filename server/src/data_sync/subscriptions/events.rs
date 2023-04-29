@@ -444,8 +444,6 @@ pub async fn handle_event_update(
 		return Ok(());
 	}
 
-	let subscription_manager = subscription_manager.lock().await;
-
 	let subscription_data = match *message {
 		EventSubscriptionUpdate::NewLogEntry(mut log_entry_data) => {
 			let new_id = cuid2::create_id();
@@ -786,6 +784,7 @@ pub async fn handle_event_update(
 			EventSubscriptionData::NewTag(new_tag)
 		}
 	};
+	let subscription_manager = subscription_manager.lock().await;
 	let subscription_data = SubscriptionData::EventUpdate(event.clone(), Box::new(subscription_data));
 	let broadcast_result = subscription_manager
 		.broadcast_event_message(&event.id, subscription_data)
