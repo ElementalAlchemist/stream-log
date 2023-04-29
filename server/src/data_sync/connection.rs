@@ -6,8 +6,8 @@ use super::subscriptions::admin_entry_types::{
 };
 use super::subscriptions::admin_events::{handle_admin_event_message, subscribe_to_admin_events};
 use super::subscriptions::admin_permission_groups::{
-	subscribe_to_admin_permission_groups, subscribe_to_admin_permission_groups_events,
-	subscribe_to_admin_permission_groups_users,
+	handle_admin_permission_groups_message, subscribe_to_admin_permission_groups,
+	subscribe_to_admin_permission_groups_events, subscribe_to_admin_permission_groups_users,
 };
 use super::subscriptions::admin_tags::subscribe_to_admin_tags;
 use super::subscriptions::admin_users::subscribe_to_admin_users;
@@ -176,6 +176,12 @@ async fn process_messages(
 	mut event_permission_cache: HashMap<Event, Option<Permission>>,
 ) -> Result<(), HandleConnectionError> {
 	let (conn_update_tx, conn_update_rx) = unbounded::<ConnectionUpdate>();
+
+	if let Some(user) = user.as_ref() {
+		let mut subscription_manager = subscription_manager.lock().await;
+		subscription_manager.subscribe_user_to_self(user, conn_update_tx.clone());
+	}
+
 	let result = loop {
 		let args = ProcessMessageParams {
 			db_connection: &db_connection,
@@ -478,7 +484,15 @@ async fn process_incoming_message(
 					)
 					.await
 				}
-				SubscriptionTargetUpdate::AdminPermissionGroupsUpdate(update_data) => todo!(),
+				SubscriptionTargetUpdate::AdminPermissionGroupsUpdate(update_data) => {
+					handle_admin_permission_groups_message(
+						Arc::clone(db_connection),
+						user,
+						Arc::clone(subscription_manager),
+						update_data,
+					)
+					.await
+				}
 				SubscriptionTargetUpdate::AdminTagsUpdate(update_data) => todo!(),
 				SubscriptionTargetUpdate::AdminUserUpdate(user) => todo!(),
 				SubscriptionTargetUpdate::AdminEventEditorsUpdate(update_data) => todo!(),
@@ -498,6 +512,7 @@ async fn process_incoming_message(
 							openid_user_id,
 							registration_data,
 							user,
+							Arc::clone(subscription_manager),
 						)
 						.await?
 					}

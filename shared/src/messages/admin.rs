@@ -50,6 +50,13 @@ pub enum AdminPermissionGroupUpdate {
 	RemoveEventFromGroup(PermissionGroup, Event),
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum AdminPermissionGroupData {
+	UpdateGroup(PermissionGroup),
+	SetEventPermissionForGroup(PermissionGroupEventAssociation),
+	RemoveEventFromGroup(PermissionGroup, Event),
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub enum AdminTagUpdate {
 	UpdateTag(Tag),

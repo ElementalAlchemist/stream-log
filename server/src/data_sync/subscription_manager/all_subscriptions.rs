@@ -11,6 +11,7 @@ use stream_log_shared::messages::user::UserData;
 /// A manager for all the subscriptions we need to track
 pub struct SubscriptionManager {
 	event_subscriptions: HashMap<String, SingleSubscriptionManager>,
+	user_subscriptions: HashMap<String, Sender<ConnectionUpdate>>,
 	admin_user_subscriptions: SingleSubscriptionManager,
 	admin_event_subscriptions: SingleSubscriptionManager,
 	admin_permission_group_subscriptions: SingleSubscriptionManager,
@@ -26,6 +27,7 @@ impl SubscriptionManager {
 	pub fn new() -> Self {
 		Self {
 			event_subscriptions: HashMap::new(),
+			user_subscriptions: HashMap::new(),
 			admin_user_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AdminUsers),
 			admin_event_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AdminEvents),
 			admin_permission_group_subscriptions: SingleSubscriptionManager::new(
@@ -103,27 +105,25 @@ impl SubscriptionManager {
 		Ok(())
 	}
 
-	/// Unsubscribes a user from all subscriptions
-	pub async fn unsubscribe_user_from_all(&self, user: &UserData) -> Result<(), SendError<ConnectionUpdate>> {
-		let mut futures = Vec::with_capacity(self.event_subscriptions.len());
-		for event_subscription in self.event_subscriptions.values() {
-			futures.push(event_subscription.unsubscribe_user(user));
+	/// Adds a user self-subscription for the provided user
+	pub fn subscribe_user_to_self(&mut self, user: &UserData, conn_update_tx: Sender<ConnectionUpdate>) {
+		let old_connection = self.user_subscriptions.insert(user.id.clone(), conn_update_tx);
+		if let Some(connection) = old_connection {
+			// We need to prevent any *other* data going to this connection so they don't get partial updates and think the connection is still alive.
+			connection.close();
 		}
-		futures.push(self.admin_user_subscriptions.unsubscribe_user(user));
-		futures.push(self.admin_event_subscriptions.unsubscribe_user(user));
-		futures.push(self.admin_permission_group_subscriptions.unsubscribe_user(user));
-		futures.push(self.admin_permission_group_event_subscriptions.unsubscribe_user(user));
-		futures.push(self.admin_permission_group_user_subscriptions.unsubscribe_user(user));
-		futures.push(self.admin_entry_type_subscriptions.unsubscribe_user(user));
-		futures.push(self.admin_entry_type_event_subscriptions.unsubscribe_user(user));
-		futures.push(self.admin_tag_subscriptions.unsubscribe_user(user));
-		futures.push(self.admin_event_editor_subscriptions.unsubscribe_user(user));
+	}
 
-		let results = join_all(futures).await;
-		for result in results {
-			result?;
+	/// Sends a message to a particular user
+	pub async fn send_message_to_user(&mut self, user_id: &str, message: ConnectionUpdate) {
+		let channel = self.user_subscriptions.get(user_id);
+		if let Some(channel) = channel {
+			let send_result = channel.send(message).await;
+			if send_result.is_err() {
+				channel.close(); // Be extra sure that the channel is closed
+				self.user_subscriptions.remove(user_id);
+			}
 		}
-		Ok(())
 	}
 
 	/// Adds a user to the admin user list subscription
@@ -392,5 +392,29 @@ impl SubscriptionManager {
 	/// Checks whether a user is subscribed to admin editors
 	pub async fn user_is_subscribed_to_admin_editors(&self, user: &UserData) -> bool {
 		self.admin_event_editor_subscriptions.user_is_subscribed(user).await
+	}
+
+	/// Unsubscribes a user from all subscriptions
+	pub async fn unsubscribe_user_from_all(&mut self, user: &UserData) -> Result<(), SendError<ConnectionUpdate>> {
+		self.user_subscriptions.remove(&user.id);
+		let mut futures = Vec::with_capacity(self.event_subscriptions.len());
+		for event_subscription in self.event_subscriptions.values() {
+			futures.push(event_subscription.unsubscribe_user(user));
+		}
+		futures.push(self.admin_user_subscriptions.unsubscribe_user(user));
+		futures.push(self.admin_event_subscriptions.unsubscribe_user(user));
+		futures.push(self.admin_permission_group_subscriptions.unsubscribe_user(user));
+		futures.push(self.admin_permission_group_event_subscriptions.unsubscribe_user(user));
+		futures.push(self.admin_permission_group_user_subscriptions.unsubscribe_user(user));
+		futures.push(self.admin_entry_type_subscriptions.unsubscribe_user(user));
+		futures.push(self.admin_entry_type_event_subscriptions.unsubscribe_user(user));
+		futures.push(self.admin_tag_subscriptions.unsubscribe_user(user));
+		futures.push(self.admin_event_editor_subscriptions.unsubscribe_user(user));
+
+		let results = join_all(futures).await;
+		for result in results {
+			result?;
+		}
+		Ok(())
 	}
 }

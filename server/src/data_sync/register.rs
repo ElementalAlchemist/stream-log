@@ -1,5 +1,5 @@
 use super::connection::ConnectionUpdate;
-use super::HandleConnectionError;
+use super::{HandleConnectionError, SubscriptionManager};
 use crate::models::User;
 use crate::schema::users;
 use async_std::channel::Sender;
@@ -56,6 +56,7 @@ pub async fn register_user(
 	openid_user_id: &str,
 	registration_data: UserRegistrationFinalize,
 	user: &mut Option<UserData>,
+	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 ) -> Result<(), HandleConnectionError> {
 	let response = if registration_data.name.is_empty() {
 		FromServerMessage::RegistrationResponse(RegistrationResponse::Finalize(
@@ -112,6 +113,10 @@ pub async fn register_user(
 					color,
 				};
 				*user = Some(user_data.clone());
+				subscription_manager
+					.lock()
+					.await
+					.subscribe_user_to_self(&user_data, conn_update_tx.clone());
 				FromServerMessage::RegistrationResponse(RegistrationResponse::Finalize(
 					RegistrationFinalizeResponse::Success(user_data),
 				))

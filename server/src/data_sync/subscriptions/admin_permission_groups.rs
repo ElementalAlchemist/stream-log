@@ -1,15 +1,19 @@
+use crate::data_sync::user::UserDataUpdate;
 use crate::data_sync::{ConnectionUpdate, HandleConnectionError, SubscriptionManager};
-use crate::models::{PermissionEvent, PermissionGroup as PermissionGroupDb, User, UserPermission};
-use crate::schema::{permission_events, permission_groups, user_permissions, users};
+use crate::models::{
+	Event as EventDb, Permission, PermissionEvent, PermissionGroup as PermissionGroupDb, User, UserPermission,
+};
+use crate::schema::{events, permission_events, permission_groups, user_permissions, users};
 use async_std::channel::Sender;
 use async_std::sync::{Arc, Mutex};
 use diesel::prelude::*;
 use std::collections::HashMap;
 use stream_log_shared::messages::admin::{
-	PermissionGroup, PermissionGroupEventAssociation, UserPermissionGroupAssociation,
+	AdminPermissionGroupData, AdminPermissionGroupUpdate, PermissionGroup, PermissionGroupEventAssociation,
+	UserPermissionGroupAssociation,
 };
 use stream_log_shared::messages::subscriptions::{
-	InitialSubscriptionLoadData, SubscriptionFailureInfo, SubscriptionType,
+	InitialSubscriptionLoadData, SubscriptionData, SubscriptionFailureInfo, SubscriptionType,
 };
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::{DataError, FromServerMessage};
@@ -61,6 +65,196 @@ pub async fn subscribe_to_admin_permission_groups(
 		.await?;
 
 	Ok(())
+}
+
+pub async fn handle_admin_permission_groups_message(
+	db_connection: Arc<Mutex<PgConnection>>,
+	user: &UserData,
+	subscription_manager: Arc<Mutex<SubscriptionManager>>,
+	update_message: AdminPermissionGroupUpdate,
+) {
+	if !user.is_admin {
+		return;
+	}
+	if !subscription_manager
+		.lock()
+		.await
+		.user_is_subscribed_to_admin_permission_groups(user)
+		.await
+	{
+		return;
+	}
+
+	match update_message {
+		AdminPermissionGroupUpdate::UpdateGroup(mut group) => {
+			{
+				let mut db_connection = db_connection.lock().await;
+				if group.id.is_empty() {
+					group.id = cuid2::create_id();
+					let group_db = PermissionGroupDb {
+						id: group.id.clone(),
+						name: group.name.clone(),
+					};
+					let db_result = diesel::insert_into(permission_groups::table)
+						.values(group_db)
+						.execute(&mut *db_connection);
+					if let Err(error) = db_result {
+						tide::log::error!("A database error occurred adding a new permission group: {}", error);
+						return;
+					}
+				} else {
+					let db_result = diesel::update(permission_groups::table)
+						.filter(permission_groups::id.eq(&group.id))
+						.set(permission_groups::name.eq(&group.name))
+						.execute(&mut *db_connection);
+					if let Err(error) = db_result {
+						tide::log::error!("A database error occurred updating a permission group: {}", error);
+						return;
+					}
+				}
+			}
+
+			let subscription_manager = subscription_manager.lock().await;
+			let message = SubscriptionData::AdminPermissionGroupsUpdate(AdminPermissionGroupData::UpdateGroup(group));
+			let send_result = subscription_manager
+				.broadcast_admin_permission_groups_message(message)
+				.await;
+			if let Err(error) = send_result {
+				tide::log::error!("Failed to send admin permission group update: {}", error);
+			}
+		}
+		AdminPermissionGroupUpdate::SetEventPermissionForGroup(event_group_association) => {
+			let (user_permissions, event) = {
+				let mut db_connection = db_connection.lock().await;
+				let permission_event = PermissionEvent {
+					permission_group: event_group_association.group.clone(),
+					event: event_group_association.event.clone(),
+					level: event_group_association.permission.into(),
+				};
+				let db_result = diesel::insert_into(permission_events::table)
+					.values(&permission_event)
+					.on_conflict((permission_events::permission_group, permission_events::event))
+					.do_update()
+					.set(permission_events::level.eq(permission_event.level))
+					.execute(&mut *db_connection);
+				if let Err(error) = db_result {
+					tide::log::error!(
+						"A database error occurred setting permissions for an event in a permission group: {}",
+						error
+					);
+					return;
+				}
+
+				// If this update lowered the event's permissions in this group, each user's other groups *might* have a higher permission level for the event.
+				let user_permissions: QueryResult<Vec<(String, Option<Permission>)>> = user_permissions::table
+					.filter(user_permissions::permission_group.eq(&event_group_association.group))
+					.left_outer_join(
+						permission_events::table
+							.on(user_permissions::permission_group.eq(permission_events::permission_group)),
+					)
+					.filter(permission_events::event.eq(&event_group_association.event))
+					.select((user_permissions::user_id, permission_events::level.nullable()))
+					.load(&mut *db_connection);
+				let event: QueryResult<EventDb> = events::table
+					.find(&event_group_association.event)
+					.first(&mut *db_connection);
+				let event =
+					match event {
+						Ok(event) => event,
+						Err(error) => {
+							tide::log::error!("A database error occurred getting the event associated with a permission group update: {}", error);
+							return;
+						}
+					};
+
+				(user_permissions, event)
+			};
+
+			let mut subscription_manager = subscription_manager.lock().await;
+			let admin_message = SubscriptionData::AdminPermissionGroupsUpdate(
+				AdminPermissionGroupData::SetEventPermissionForGroup(event_group_association),
+			);
+			let send_result = subscription_manager
+				.broadcast_admin_permission_group_events_message(admin_message)
+				.await;
+			if let Err(error) = send_result {
+				tide::log::error!("Failed to send permission group events update admin message: {}", error);
+			}
+
+			match user_permissions {
+				Ok(users) => {
+					for (user, permission) in users {
+						let message = ConnectionUpdate::UserUpdate(UserDataUpdate::EventPermissions(
+							event.clone().into(),
+							permission,
+						));
+						subscription_manager.send_message_to_user(&user, message).await;
+					}
+				}
+				Err(error) => tide::log::error!(
+					"Failed to get users and their permissions associated with a permission group and event: {}",
+					error
+				),
+			}
+		}
+		AdminPermissionGroupUpdate::RemoveEventFromGroup(group, event) => {
+			let user_permissions: QueryResult<Vec<(String, Option<Permission>)>> = {
+				let mut db_connection = db_connection.lock().await;
+				let db_result = diesel::delete(permission_events::table)
+					.filter(
+						permission_events::permission_group
+							.eq(&group.id)
+							.and(permission_events::event.eq(&event.id)),
+					)
+					.execute(&mut *db_connection);
+				if let Err(error) = db_result {
+					tide::log::error!(
+						"A database error occurred removing an event from a permission group: {}",
+						error
+					);
+					return;
+				}
+
+				user_permissions::table
+					.filter(user_permissions::permission_group.eq(&event.id))
+					.left_outer_join(
+						permission_events::table
+							.on(user_permissions::permission_group.eq(permission_events::permission_group)),
+					)
+					.filter(permission_events::event.eq(&event.id))
+					.select((user_permissions::user_id, permission_events::level.nullable()))
+					.load(&mut *db_connection)
+			};
+
+			let mut subscription_manager = subscription_manager.lock().await;
+			let admin_message = SubscriptionData::AdminPermissionGroupsUpdate(
+				AdminPermissionGroupData::RemoveEventFromGroup(group.clone(), event.clone()),
+			);
+			let send_result = subscription_manager
+				.broadcast_admin_permission_group_events_message(admin_message)
+				.await;
+			if let Err(error) = send_result {
+				tide::log::error!(
+					"Failed to send message to remove event from permission group: {}",
+					error
+				);
+			}
+
+			match user_permissions {
+				Ok(users) => {
+					for (user, permission) in users {
+						let message =
+							ConnectionUpdate::UserUpdate(UserDataUpdate::EventPermissions(event.clone(), permission));
+						subscription_manager.send_message_to_user(&user, message).await;
+					}
+				}
+				Err(error) => tide::log::error!(
+					"Failed to get users and their permissions associated with a permission group and event: {}",
+					error
+				),
+			}
+		}
+	};
 }
 
 pub async fn subscribe_to_admin_permission_groups_events(
