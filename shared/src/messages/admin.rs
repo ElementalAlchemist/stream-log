@@ -45,7 +45,6 @@ pub struct PermissionGroupEventAssociation {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub enum AdminPermissionGroupUpdate {
-	AddGroup(PermissionGroup),
 	UpdateGroup(PermissionGroup),
 	SetEventPermissionForGroup(PermissionGroupEventAssociation),
 	RemoveEventFromGroup(PermissionGroup, Event),

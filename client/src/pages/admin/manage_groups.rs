@@ -79,7 +79,9 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				name: new_group_name,
 			};
 			let message = FromClientMessage::SubscriptionMessage(Box::new(
-				SubscriptionTargetUpdate::AdminPermissionGroupsUpdate(AdminPermissionGroupUpdate::AddGroup(new_group)),
+				SubscriptionTargetUpdate::AdminPermissionGroupsUpdate(AdminPermissionGroupUpdate::UpdateGroup(
+					new_group,
+				)),
 			));
 			let message_json = match serde_json::to_string(&message) {
 				Ok(msg) => msg,
