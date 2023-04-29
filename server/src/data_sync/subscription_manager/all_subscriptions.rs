@@ -103,14 +103,6 @@ impl SubscriptionManager {
 		Ok(())
 	}
 
-	/// Checks whether the given user is subscribed to the given event
-	pub async fn user_is_subscribed_to_event(&self, event_id: &str, user: &UserData) -> bool {
-		match self.event_subscriptions.get(event_id) {
-			Some(event_subscription) => event_subscription.user_is_subscribed(user).await,
-			None => false,
-		}
-	}
-
 	/// Unsubscribes a user from all subscriptions
 	pub async fn unsubscribe_user_from_all(&self, user: &UserData) -> Result<(), SendError<ConnectionUpdate>> {
 		let mut futures = Vec::with_capacity(self.event_subscriptions.len());
