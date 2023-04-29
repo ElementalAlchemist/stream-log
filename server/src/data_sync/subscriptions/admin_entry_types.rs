@@ -5,7 +5,10 @@ use async_std::channel::Sender;
 use async_std::sync::{Arc, Mutex};
 use diesel::prelude::*;
 use std::collections::HashMap;
-use stream_log_shared::messages::admin::{AdminEntryTypeData, AdminEntryTypeUpdate, EntryTypeEventAssociation};
+use stream_log_shared::messages::admin::{
+	AdminEntryTypeData, AdminEntryTypeEventData, AdminEntryTypeEventUpdate, AdminEntryTypeUpdate,
+	EntryTypeEventAssociation,
+};
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_subscription::EventSubscriptionData;
 use stream_log_shared::messages::events::Event;
@@ -283,4 +286,98 @@ pub async fn subscribe_to_admin_entry_types_events(
 		.await?;
 
 	Ok(())
+}
+
+pub async fn handle_admin_entry_type_event_message(
+	db_connection: Arc<Mutex<PgConnection>>,
+	user: &UserData,
+	subscription_manager: Arc<Mutex<SubscriptionManager>>,
+	update_message: AdminEntryTypeEventUpdate,
+) {
+	if !user.is_admin {
+		return;
+	}
+	if !subscription_manager
+		.lock()
+		.await
+		.user_is_subscribed_to_admin_entry_types_events(user)
+		.await
+	{
+		return;
+	}
+
+	let (admin_message, event_id, event_message) = match update_message {
+		AdminEntryTypeEventUpdate::AddTypeToEvent(association) => {
+			let mut db_connection = db_connection.lock().await;
+			let available_entry_type = AvailableEntryType {
+				entry_type: association.entry_type.id.clone(),
+				event_id: association.event.id.clone(),
+			};
+			let insert_result = diesel::insert_into(available_entry_types_for_event::table)
+				.values(available_entry_type)
+				.execute(&mut *db_connection);
+			if let Err(error) = insert_result {
+				tide::log::error!(
+					"A database error occurred adding event type + entry association: {}",
+					error
+				);
+				return;
+			}
+
+			let event_id = association.event.id.clone();
+			let admin_message = SubscriptionData::AdminEntryTypesEventsUpdate(AdminEntryTypeEventData::AddTypeToEvent(
+				association.clone(),
+			));
+			let event_message = SubscriptionData::EventUpdate(
+				association.event,
+				Box::new(EventSubscriptionData::AddEntryType(association.entry_type)),
+			);
+			(admin_message, event_id, event_message)
+		}
+		AdminEntryTypeEventUpdate::RemoveTypeFromEvent(association) => {
+			let mut db_connection = db_connection.lock().await;
+			let delete_result = diesel::delete(available_entry_types_for_event::table)
+				.filter(
+					available_entry_types_for_event::entry_type
+						.eq(&association.entry_type.id)
+						.and(available_entry_types_for_event::event_id.eq(&association.event.id)),
+				)
+				.execute(&mut *db_connection);
+			if let Err(error) = delete_result {
+				tide::log::error!(
+					"A database error occurred deleting event type + entry association: {}",
+					error
+				);
+				return;
+			}
+
+			let event_id = association.event.id.clone();
+			let admin_message = SubscriptionData::AdminEntryTypesEventsUpdate(
+				AdminEntryTypeEventData::RemoveTypeFromEvent(association.clone()),
+			);
+			let event_message = SubscriptionData::EventUpdate(
+				association.event,
+				Box::new(EventSubscriptionData::DeleteEntryType(association.entry_type)),
+			);
+			(admin_message, event_id, event_message)
+		}
+	};
+
+	let subscription_manager = subscription_manager.lock().await;
+	let send_result = subscription_manager
+		.broadcast_admin_entry_types_events_message(admin_message)
+		.await;
+	if let Err(error) = send_result {
+		tide::log::error!(
+			"Failed to broadcast entry type and event update to administrators: {}",
+			error
+		);
+	}
+
+	let send_result = subscription_manager
+		.broadcast_event_message(&event_id, event_message)
+		.await;
+	if let Err(error) = send_result {
+		tide::log::error!("Failed to broadcast entry type and event update to users: {}", error);
+	}
 }
