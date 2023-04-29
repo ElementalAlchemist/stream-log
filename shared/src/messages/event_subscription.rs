@@ -16,6 +16,7 @@ pub enum EventSubscriptionData {
 	NewTag(Tag),
 	DeleteTag(Tag),
 	AddEntryType(EntryType),
+	UpdateEntryType(EntryType),
 	DeleteEntryType(EntryType),
 	AddEditor(UserData),
 	RemoveEditor(UserData),

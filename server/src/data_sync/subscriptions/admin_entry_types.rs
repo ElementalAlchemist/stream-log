@@ -5,11 +5,12 @@ use async_std::channel::Sender;
 use async_std::sync::{Arc, Mutex};
 use diesel::prelude::*;
 use std::collections::HashMap;
-use stream_log_shared::messages::admin::EntryTypeEventAssociation;
+use stream_log_shared::messages::admin::{AdminEntryTypeData, AdminEntryTypeUpdate, EntryTypeEventAssociation};
 use stream_log_shared::messages::entry_types::EntryType;
+use stream_log_shared::messages::event_subscription::EventSubscriptionData;
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::subscriptions::{
-	InitialSubscriptionLoadData, SubscriptionFailureInfo, SubscriptionType,
+	InitialSubscriptionLoadData, SubscriptionData, SubscriptionFailureInfo, SubscriptionType,
 };
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::{DataError, FromServerMessage};
@@ -64,6 +65,109 @@ pub async fn subscribe_to_admin_entry_types(
 		.await?;
 
 	Ok(())
+}
+
+pub async fn handle_admin_entry_type_message(
+	db_connection: Arc<Mutex<PgConnection>>,
+	user: &UserData,
+	subscription_manager: Arc<Mutex<SubscriptionManager>>,
+	update_message: AdminEntryTypeUpdate,
+) {
+	if !user.is_admin {
+		return;
+	}
+	if !subscription_manager
+		.lock()
+		.await
+		.user_is_subscribed_to_admin_entry_types(user)
+		.await
+	{
+		return;
+	}
+
+	match update_message {
+		AdminEntryTypeUpdate::UpdateEntryType(mut entry_type) => {
+			let (update_result, event_data_result) = {
+				let mut db_connection = db_connection.lock().await;
+				let update_result = if entry_type.id.is_empty() {
+					entry_type.id = cuid2::create_id();
+					let db_entry_type = EntryTypeDb {
+						id: entry_type.id.clone(),
+						name: entry_type.name.clone(),
+						color_red: entry_type.color.r.into(),
+						color_green: entry_type.color.g.into(),
+						color_blue: entry_type.color.b.into(),
+					};
+					diesel::insert_into(entry_types::table)
+						.values(db_entry_type)
+						.execute(&mut *db_connection)
+				} else {
+					let red: i32 = entry_type.color.r.into();
+					let green: i32 = entry_type.color.g.into();
+					let blue: i32 = entry_type.color.b.into();
+					diesel::update(entry_types::table)
+						.filter(entry_types::id.eq(&entry_type.id))
+						.set((
+							entry_types::name.eq(&entry_type.name),
+							entry_types::color_red.eq(red),
+							entry_types::color_green.eq(green),
+							entry_types::color_blue.eq(blue),
+						))
+						.execute(&mut *db_connection)
+				};
+
+				let event_ids: QueryResult<Vec<String>> = available_entry_types_for_event::table
+					.filter(available_entry_types_for_event::entry_type.eq(&entry_type.id))
+					.select(available_entry_types_for_event::event_id)
+					.load(&mut *db_connection);
+				match event_ids {
+					Ok(event_ids) => {
+						let events: QueryResult<Vec<EventDb>> = events::table
+							.filter(events::id.eq_any(&event_ids))
+							.load(&mut *db_connection);
+						(update_result, events)
+					}
+					Err(error) => (update_result, Err(error)),
+				}
+			};
+			if let Err(error) = update_result {
+				tide::log::error!("A database error occurred updating an entry type: {}", error);
+				return;
+			}
+			let events = match event_data_result {
+				Ok(events) => events,
+				Err(error) => {
+					tide::log::error!("A database error occurred getting events for an entry type: {}", error);
+					return;
+				}
+			};
+
+			let subscription_manager = subscription_manager.lock().await;
+			let admin_message =
+				SubscriptionData::AdminEntryTypesUpdate(AdminEntryTypeData::UpdateEntryType(entry_type.clone()));
+			let send_result = subscription_manager
+				.broadcast_admin_entry_types_message(admin_message)
+				.await;
+			if let Err(error) = send_result {
+				tide::log::error!("Failed to broadcast admin entry type update message: {}", error);
+			}
+
+			for event in events {
+				let event: Event = event.into();
+				let event_id = event.id.clone();
+				let event_message = SubscriptionData::EventUpdate(
+					event,
+					Box::new(EventSubscriptionData::UpdateEntryType(entry_type.clone())),
+				);
+				let send_result = subscription_manager
+					.broadcast_event_message(&event_id, event_message)
+					.await;
+				if let Err(error) = send_result {
+					tide::log::error!("Failed to broadcast event entry type update message: {}", error);
+				}
+			}
+		}
+	}
 }
 
 pub async fn subscribe_to_admin_entry_types_events(

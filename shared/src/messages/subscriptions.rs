@@ -1,7 +1,8 @@
 use crate::messages::admin::{
-	AdminEntryTypeEventUpdate, AdminEntryTypeUpdate, AdminEventData, AdminEventEditorUpdate, AdminEventUpdate,
-	AdminPermissionGroupUpdate, AdminTagUpdate, AdminUserPermissionGroupUpdate, EditorEventAssociation,
-	EntryTypeEventAssociation, PermissionGroup, PermissionGroupEventAssociation, UserPermissionGroupAssociation,
+	AdminEntryTypeData, AdminEntryTypeEventUpdate, AdminEntryTypeUpdate, AdminEventData, AdminEventEditorUpdate,
+	AdminEventUpdate, AdminPermissionGroupUpdate, AdminTagUpdate, AdminUserPermissionGroupUpdate,
+	EditorEventAssociation, EntryTypeEventAssociation, PermissionGroup, PermissionGroupEventAssociation,
+	UserPermissionGroupAssociation,
 };
 use crate::messages::entry_types::EntryType;
 use crate::messages::event_log::EventLogEntry;
@@ -73,6 +74,7 @@ pub enum SubscriptionData {
 	/// Indicates an update to data related to the logged-in user.
 	UserUpdate(UserSubscriptionUpdate),
 	AdminEventsUpdate(AdminEventData),
+	AdminEntryTypesUpdate(AdminEntryTypeData),
 }
 
 #[derive(Debug, Deserialize, Serialize)]

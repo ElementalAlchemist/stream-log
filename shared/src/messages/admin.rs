@@ -23,6 +23,11 @@ pub enum AdminEntryTypeUpdate {
 	UpdateEntryType(EntryType),
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum AdminEntryTypeData {
+	UpdateEntryType(EntryType),
+}
+
 /// A single permission group
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct PermissionGroup {
