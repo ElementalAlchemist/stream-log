@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 /// Event subscription data sent by the server to subscribed clients with information about what changes were made.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum EventSubscriptionData {
+	UpdateEvent,
 	NewLogEntry(EventLogEntry),
 	DeleteLogEntry(EventLogEntry),
 	UpdateLogEntry(EventLogEntry),

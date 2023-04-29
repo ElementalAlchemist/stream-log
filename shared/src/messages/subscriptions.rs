@@ -1,5 +1,5 @@
 use crate::messages::admin::{
-	AdminEntryTypeEventUpdate, AdminEntryTypeUpdate, AdminEventEditorUpdate, AdminEventUpdate,
+	AdminEntryTypeEventUpdate, AdminEntryTypeUpdate, AdminEventData, AdminEventEditorUpdate, AdminEventUpdate,
 	AdminPermissionGroupUpdate, AdminTagUpdate, AdminUserPermissionGroupUpdate, EditorEventAssociation,
 	EntryTypeEventAssociation, PermissionGroup, PermissionGroupEventAssociation, UserPermissionGroupAssociation,
 };
@@ -72,6 +72,7 @@ pub enum SubscriptionData {
 	EventUpdate(Event, Box<EventSubscriptionData>),
 	/// Indicates an update to data related to the logged-in user.
 	UserUpdate(UserSubscriptionUpdate),
+	AdminEventsUpdate(AdminEventData),
 }
 
 #[derive(Debug, Deserialize, Serialize)]

@@ -11,6 +11,12 @@ pub enum AdminEventUpdate {
 	UpdateEvent(Event),
 }
 
+/// Data for a server-processed change for the admin events page
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum AdminEventData {
+	UpdateEvent(Event),
+}
+
 /// An update to an entry type from the admin entry types page
 #[derive(Debug, Deserialize, Serialize)]
 pub enum AdminEntryTypeUpdate {

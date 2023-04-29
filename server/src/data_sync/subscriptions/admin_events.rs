@@ -4,9 +4,11 @@ use crate::schema::events;
 use async_std::channel::Sender;
 use async_std::sync::{Arc, Mutex};
 use diesel::prelude::*;
+use stream_log_shared::messages::admin::{AdminEventData, AdminEventUpdate};
+use stream_log_shared::messages::event_subscription::EventSubscriptionData;
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::subscriptions::{
-	InitialSubscriptionLoadData, SubscriptionFailureInfo, SubscriptionType,
+	InitialSubscriptionLoadData, SubscriptionData, SubscriptionFailureInfo, SubscriptionType,
 };
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::{DataError, FromServerMessage};
@@ -53,6 +55,72 @@ pub async fn subscribe_to_admin_events(
 	conn_update_tx
 		.send(ConnectionUpdate::SendData(Box::new(message)))
 		.await?;
+
+	Ok(())
+}
+
+pub async fn handle_admin_event_message(
+	db_connection: Arc<Mutex<PgConnection>>,
+	user: &UserData,
+	subscription_manager: Arc<Mutex<SubscriptionManager>>,
+	update_message: AdminEventUpdate,
+) -> Result<(), HandleConnectionError> {
+	if !user.is_admin {
+		return Ok(());
+	}
+	if !subscription_manager
+		.lock()
+		.await
+		.user_is_subscribed_to_admin_events(user)
+		.await
+	{
+		return Ok(());
+	}
+
+	match update_message {
+		AdminEventUpdate::UpdateEvent(mut event) => {
+			let db_result = {
+				let mut db_connection = db_connection.lock().await;
+				if event.id.is_empty() {
+					event.id = cuid2::create_id();
+					let event_db = EventDb {
+						id: event.id.clone(),
+						name: event.name.clone(),
+						start_time: event.start_time,
+					};
+					diesel::insert_into(events::table)
+						.values(event_db)
+						.execute(&mut *db_connection)
+				} else {
+					diesel::update(events::table)
+						.filter(events::id.eq(&event.id))
+						.set((events::name.eq(&event.name), events::start_time.eq(event.start_time)))
+						.execute(&mut *db_connection)
+				}
+			};
+			if let Err(error) = db_result {
+				tide::log::error!("A database error occurred updating event data: {}", error);
+				return Ok(());
+			}
+
+			let subscription_manager = subscription_manager.lock().await;
+			let admin_message = SubscriptionData::AdminEventsUpdate(AdminEventData::UpdateEvent(event.clone()));
+			let broadcast_result = subscription_manager.broadcast_admin_event_message(admin_message).await;
+			if let Err(error) = broadcast_result {
+				tide::log::error!("Failed to broadcast an admin event update: {}", error);
+			}
+
+			let event_id = event.id.clone();
+			let event_message =
+				SubscriptionData::EventUpdate(event.clone(), Box::new(EventSubscriptionData::UpdateEvent));
+			let broadcast_result = subscription_manager
+				.broadcast_event_message(&event_id, event_message)
+				.await;
+			if let Err(error) = broadcast_result {
+				tide::log::error!("Failed to broadcast an event update: {}", error);
+			}
+		}
+	}
 
 	Ok(())
 }
