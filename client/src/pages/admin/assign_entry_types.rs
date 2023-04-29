@@ -140,7 +140,7 @@ async fn AdminManageEntryTypesForEventsLoadedView<G: Html>(ctx: Scope<'_>) -> Vi
 											let message = if use_entry_type {
 												AdminEntryTypeEventUpdate::AddTypeToEvent(association)
 											} else {
-												AdminEntryTypeEventUpdate::RemoveTypeFrommEvent(association)
+												AdminEntryTypeEventUpdate::RemoveTypeFromEvent(association)
 											};
 											let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminEntryTypesEventsUpdate(message)));
 											let message_json = match serde_json::to_string(&message) {
