@@ -7,7 +7,7 @@ use super::subscriptions::admin_entry_types::{
 use super::subscriptions::admin_events::{handle_admin_event_message, subscribe_to_admin_events};
 use super::subscriptions::admin_permission_groups::{
 	handle_admin_permission_groups_message, subscribe_to_admin_permission_groups,
-	subscribe_to_admin_permission_groups_events, subscribe_to_admin_permission_groups_users,
+	subscribe_to_admin_permission_groups_users,
 };
 use super::subscriptions::admin_tags::{handle_admin_tags_message, subscribe_to_admin_tags};
 use super::subscriptions::admin_users::{handle_admin_users_message, subscribe_to_admin_users};
@@ -347,15 +347,6 @@ async fn process_incoming_message(
 					)
 					.await?
 				}
-				SubscriptionType::AdminPermissionGroupEvents => {
-					subscribe_to_admin_permission_groups_events(
-						Arc::clone(db_connection),
-						conn_update_tx,
-						user,
-						Arc::clone(subscription_manager),
-					)
-					.await?
-				}
 				SubscriptionType::AdminPermissionGroupUsers => {
 					subscribe_to_admin_permission_groups_users(
 						Arc::clone(db_connection),
@@ -417,11 +408,6 @@ async fn process_incoming_message(
 				SubscriptionType::AdminPermissionGroups => {
 					subscription_manager
 						.remove_admin_permission_group_subscription(user)
-						.await?
-				}
-				SubscriptionType::AdminPermissionGroupEvents => {
-					subscription_manager
-						.remove_admin_permission_group_events_subscription(user)
 						.await?
 				}
 				SubscriptionType::AdminPermissionGroupUsers => {

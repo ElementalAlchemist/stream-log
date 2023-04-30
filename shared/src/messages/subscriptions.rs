@@ -23,10 +23,8 @@ pub enum SubscriptionType {
 	AdminUsers,
 	/// A subscription to all events.
 	AdminEvents,
-	/// A subscription to all permission groups.
+	/// A subscription to all permission groups and their event associations.
 	AdminPermissionGroups,
-	/// A subscription to relationships between permission groups and events.
-	AdminPermissionGroupEvents,
 	/// A subscription to relationships between permission groups and users.
 	AdminPermissionGroupUsers,
 	/// A subscription to all entry types.
@@ -59,8 +57,7 @@ pub enum InitialSubscriptionLoadData {
 	),
 	AdminUsers(Vec<UserData>),
 	AdminEvents(Vec<Event>),
-	AdminPermissionGroups(Vec<PermissionGroup>),
-	AdminPermissionGroupEvents(Vec<PermissionGroupEventAssociation>),
+	AdminPermissionGroups(Vec<PermissionGroup>, Vec<PermissionGroupEventAssociation>),
 	AdminPermissionGroupUsers(Vec<UserPermissionGroupAssociation>),
 	AdminEntryTypes(Vec<EntryType>),
 	AdminEntryTypesEvents(Vec<EntryTypeEventAssociation>),

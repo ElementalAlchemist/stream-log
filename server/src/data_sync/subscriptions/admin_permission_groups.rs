@@ -35,12 +35,31 @@ pub async fn subscribe_to_admin_permission_groups(
 		return Ok(());
 	}
 
-	let mut db_connection = db_connection.lock().await;
-	let permission_groups: QueryResult<Vec<PermissionGroupDb>> = permission_groups::table.load(&mut *db_connection);
+	let (permission_groups, permission_group_events) = {
+		let mut db_connection = db_connection.lock().await;
+		let permission_groups: QueryResult<Vec<PermissionGroupDb>> = permission_groups::table.load(&mut *db_connection);
+		let permission_group_events: QueryResult<Vec<PermissionEvent>> =
+			permission_events::table.load(&mut *db_connection);
+		(permission_groups, permission_group_events)
+	};
 	let permission_groups: Vec<PermissionGroup> = match permission_groups {
 		Ok(mut permission_groups) => permission_groups.drain(..).map(|group| group.into()).collect(),
 		Err(error) => {
 			tide::log::error!("A database error occurred getting the permission groups for an admin permission groups subscription: {}", error);
+			let message = FromServerMessage::SubscriptionFailure(
+				SubscriptionType::AdminPermissionGroups,
+				SubscriptionFailureInfo::Error(DataError::DatabaseError),
+			);
+			conn_update_tx
+				.send(ConnectionUpdate::SendData(Box::new(message)))
+				.await?;
+			return Ok(());
+		}
+	};
+	let permission_group_events: Vec<PermissionGroupEventAssociation> = match permission_group_events {
+		Ok(mut group_events) => group_events.drain(..).map(|association| association.into()).collect(),
+		Err(error) => {
+			tide::log::error!("A database error occurred getting the permission group and event associations for an admin permission groups subscription: {}", error);
 			let message = FromServerMessage::SubscriptionFailure(
 				SubscriptionType::AdminPermissionGroups,
 				SubscriptionFailureInfo::Error(DataError::DatabaseError),
@@ -58,7 +77,7 @@ pub async fn subscribe_to_admin_permission_groups(
 		.await;
 
 	let message = FromServerMessage::InitialSubscriptionLoad(Box::new(
-		InitialSubscriptionLoadData::AdminPermissionGroups(permission_groups),
+		InitialSubscriptionLoadData::AdminPermissionGroups(permission_groups, permission_group_events),
 	));
 	conn_update_tx
 		.send(ConnectionUpdate::SendData(Box::new(message)))
@@ -175,7 +194,7 @@ pub async fn handle_admin_permission_groups_message(
 				AdminPermissionGroupData::SetEventPermissionForGroup(event_group_association),
 			);
 			let send_result = subscription_manager
-				.broadcast_admin_permission_group_events_message(admin_message)
+				.broadcast_admin_permission_groups_message(admin_message)
 				.await;
 			if let Err(error) = send_result {
 				tide::log::error!("Failed to send permission group events update admin message: {}", error);
@@ -231,7 +250,7 @@ pub async fn handle_admin_permission_groups_message(
 				AdminPermissionGroupData::RemoveEventFromGroup(group.clone(), event.clone()),
 			);
 			let send_result = subscription_manager
-				.broadcast_admin_permission_group_events_message(admin_message)
+				.broadcast_admin_permission_groups_message(admin_message)
 				.await;
 			if let Err(error) = send_result {
 				tide::log::error!(
@@ -255,63 +274,6 @@ pub async fn handle_admin_permission_groups_message(
 			}
 		}
 	};
-}
-
-pub async fn subscribe_to_admin_permission_groups_events(
-	db_connection: Arc<Mutex<PgConnection>>,
-	conn_update_tx: Sender<ConnectionUpdate>,
-	user: &UserData,
-	subscription_manager: Arc<Mutex<SubscriptionManager>>,
-) -> Result<(), HandleConnectionError> {
-	if !user.is_admin {
-		let message = FromServerMessage::SubscriptionFailure(
-			SubscriptionType::AdminPermissionGroupEvents,
-			SubscriptionFailureInfo::NotAllowed,
-		);
-		conn_update_tx
-			.send(ConnectionUpdate::SendData(Box::new(message)))
-			.await?;
-		return Ok(());
-	}
-
-	let mut db_connection = db_connection.lock().await;
-	let permission_group_events: QueryResult<Vec<PermissionEvent>> = permission_events::table.load(&mut *db_connection);
-
-	let mut permission_group_events = match permission_group_events {
-		Ok(data) => data,
-		Err(error) => {
-			tide::log::error!(
-				"A database error occurred getting permission group event data for the admin subscription: {}",
-				error
-			);
-			let message = FromServerMessage::SubscriptionFailure(
-				SubscriptionType::AdminPermissionGroupEvents,
-				SubscriptionFailureInfo::Error(DataError::DatabaseError),
-			);
-			conn_update_tx
-				.send(ConnectionUpdate::SendData(Box::new(message)))
-				.await?;
-			return Ok(());
-		}
-	};
-	let permission_group_events: Vec<PermissionGroupEventAssociation> = permission_group_events
-		.drain(..)
-		.map(|association| association.into())
-		.collect();
-
-	let subscription_manager = subscription_manager.lock().await;
-	subscription_manager
-		.add_admin_permission_group_events_subscription(user, conn_update_tx.clone())
-		.await;
-
-	let message = FromServerMessage::InitialSubscriptionLoad(Box::new(
-		InitialSubscriptionLoadData::AdminPermissionGroupEvents(permission_group_events),
-	));
-	conn_update_tx
-		.send(ConnectionUpdate::SendData(Box::new(message)))
-		.await?;
-
-	Ok(())
 }
 
 pub async fn subscribe_to_admin_permission_groups_users(

@@ -150,17 +150,13 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 						data_signals.all_events.set(events);
 						subscription_manager.subscription_confirmation_received(SubscriptionType::AdminEvents);
 					}
-					InitialSubscriptionLoadData::AdminPermissionGroups(permission_groups) => {
+					InitialSubscriptionLoadData::AdminPermissionGroups(permission_groups, permission_group_events) => {
 						data_signals.all_permission_groups.set(permission_groups);
-						subscription_manager
-							.subscription_confirmation_received(SubscriptionType::AdminPermissionGroups);
-					}
-					InitialSubscriptionLoadData::AdminPermissionGroupEvents(permission_group_events) => {
 						data_signals
 							.permission_group_event_associations
 							.set(permission_group_events);
 						subscription_manager
-							.subscription_confirmation_received(SubscriptionType::AdminPermissionGroupEvents);
+							.subscription_confirmation_received(SubscriptionType::AdminPermissionGroups);
 					}
 					InitialSubscriptionLoadData::AdminPermissionGroupUsers(user_permission_groups) => {
 						data_signals.user_permission_groups.set(user_permission_groups);

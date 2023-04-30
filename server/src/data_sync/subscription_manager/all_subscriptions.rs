@@ -15,7 +15,6 @@ pub struct SubscriptionManager {
 	admin_user_subscriptions: SingleSubscriptionManager,
 	admin_event_subscriptions: SingleSubscriptionManager,
 	admin_permission_group_subscriptions: SingleSubscriptionManager,
-	admin_permission_group_event_subscriptions: SingleSubscriptionManager,
 	admin_permission_group_user_subscriptions: SingleSubscriptionManager,
 	admin_entry_type_subscriptions: SingleSubscriptionManager,
 	admin_entry_type_event_subscriptions: SingleSubscriptionManager,
@@ -32,9 +31,6 @@ impl SubscriptionManager {
 			admin_event_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AdminEvents),
 			admin_permission_group_subscriptions: SingleSubscriptionManager::new(
 				SubscriptionType::AdminPermissionGroups,
-			),
-			admin_permission_group_event_subscriptions: SingleSubscriptionManager::new(
-				SubscriptionType::AdminPermissionGroupEvents,
 			),
 			admin_permission_group_user_subscriptions: SingleSubscriptionManager::new(
 				SubscriptionType::AdminPermissionGroupUsers,
@@ -208,44 +204,6 @@ impl SubscriptionManager {
 		self.admin_permission_group_subscriptions.user_is_subscribed(user).await
 	}
 
-	/// Adds a user to the admin permission group event associations subscription
-	pub async fn add_admin_permission_group_events_subscription(
-		&self,
-		user: &UserData,
-		update_channel: Sender<ConnectionUpdate>,
-	) {
-		self.admin_permission_group_event_subscriptions
-			.subscribe_user(user, update_channel)
-			.await;
-	}
-
-	/// Removes a user from the admin permission group event associations subscription
-	pub async fn remove_admin_permission_group_events_subscription(
-		&self,
-		user: &UserData,
-	) -> Result<(), SendError<ConnectionUpdate>> {
-		self.admin_permission_group_event_subscriptions
-			.unsubscribe_user(user)
-			.await
-	}
-
-	/// Sends the given message to all subscribed users for admin permission group event associations
-	pub async fn broadcast_admin_permission_group_events_message(
-		&self,
-		message: SubscriptionData,
-	) -> Result<(), SendError<SubscriptionData>> {
-		self.admin_permission_group_event_subscriptions
-			.broadcast_message(message)
-			.await
-	}
-
-	/// Checks whether a user is subscribed to admin permission group event associations
-	pub async fn user_is_subscribed_to_admin_permission_group_events(&self, user: &UserData) -> bool {
-		self.admin_permission_group_event_subscriptions
-			.user_is_subscribed(user)
-			.await
-	}
-
 	/// Adds a user to the admin permission group user associations subscription
 	pub async fn add_admin_permission_group_users_subscription(
 		&self,
@@ -404,7 +362,6 @@ impl SubscriptionManager {
 		futures.push(self.admin_user_subscriptions.unsubscribe_user(user));
 		futures.push(self.admin_event_subscriptions.unsubscribe_user(user));
 		futures.push(self.admin_permission_group_subscriptions.unsubscribe_user(user));
-		futures.push(self.admin_permission_group_event_subscriptions.unsubscribe_user(user));
 		futures.push(self.admin_permission_group_user_subscriptions.unsubscribe_user(user));
 		futures.push(self.admin_entry_type_subscriptions.unsubscribe_user(user));
 		futures.push(self.admin_entry_type_event_subscriptions.unsubscribe_user(user));

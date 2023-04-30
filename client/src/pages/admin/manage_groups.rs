@@ -28,11 +28,7 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	let data: &DataSignals = use_context(ctx);
 
 	let add_subscription_result = {
-		let subscriptions = vec![
-			SubscriptionType::AdminEvents,
-			SubscriptionType::AdminPermissionGroups,
-			SubscriptionType::AdminPermissionGroupEvents,
-		];
+		let subscriptions = vec![SubscriptionType::AdminEvents, SubscriptionType::AdminPermissionGroups];
 		let subscription_manager: &Mutex<SubscriptionManager> = use_context(ctx);
 		let mut subscription_manager = subscription_manager.lock().await;
 		subscription_manager.set_subscriptions(subscriptions, &mut ws).await
