@@ -537,7 +537,13 @@ async fn process_incoming_message(
 		}
 		FromClientMessage::UpdateProfile(profile_data) => {
 			if let Some(user) = user.as_ref() {
-				handle_profile_update(Arc::clone(db_connection), user, profile_data).await?;
+				handle_profile_update(
+					Arc::clone(db_connection),
+					user,
+					Arc::clone(subscription_manager),
+					profile_data,
+				)
+				.await?;
 			}
 		}
 	};
