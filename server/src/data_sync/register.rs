@@ -7,6 +7,7 @@ use async_std::sync::{Arc, Mutex};
 use diesel::prelude::*;
 use diesel::result::DatabaseErrorKind;
 use rgb::RGB8;
+use stream_log_shared::messages::subscriptions::SubscriptionData;
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::user_register::{
 	RegistrationFinalizeResponse, RegistrationResponse, UserRegistrationFinalize, UsernameCheckResponse,
@@ -113,10 +114,19 @@ pub async fn register_user(
 					color,
 				};
 				*user = Some(user_data.clone());
-				subscription_manager
-					.lock()
-					.await
-					.subscribe_user_to_self(&user_data, conn_update_tx.clone());
+
+				let mut subscription_manager = subscription_manager.lock().await;
+				subscription_manager.subscribe_user_to_self(&user_data, conn_update_tx.clone());
+
+				let admin_message = SubscriptionData::AdminUsersUpdate(user_data.clone());
+				let send_result = subscription_manager.broadcast_admin_user_message(admin_message).await;
+				if let Err(error) = send_result {
+					tide::log::error!(
+						"Failed to send user registration to the admin users subscription: {}",
+						error
+					);
+				}
+
 				FromServerMessage::RegistrationResponse(RegistrationResponse::Finalize(
 					RegistrationFinalizeResponse::Success(user_data),
 				))
