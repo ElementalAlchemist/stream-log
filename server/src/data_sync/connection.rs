@@ -9,7 +9,7 @@ use super::subscriptions::admin_permission_groups::{
 	handle_admin_permission_groups_message, subscribe_to_admin_permission_groups,
 	subscribe_to_admin_permission_groups_events, subscribe_to_admin_permission_groups_users,
 };
-use super::subscriptions::admin_tags::subscribe_to_admin_tags;
+use super::subscriptions::admin_tags::{handle_admin_tags_message, subscribe_to_admin_tags};
 use super::subscriptions::admin_users::subscribe_to_admin_users;
 use super::subscriptions::events::{handle_event_update, subscribe_to_event};
 use super::user_profile::handle_profile_update;
@@ -493,7 +493,15 @@ async fn process_incoming_message(
 					)
 					.await
 				}
-				SubscriptionTargetUpdate::AdminTagsUpdate(update_data) => todo!(),
+				SubscriptionTargetUpdate::AdminTagsUpdate(update_data) => {
+					handle_admin_tags_message(
+						Arc::clone(db_connection),
+						user,
+						Arc::clone(subscription_manager),
+						update_data,
+					)
+					.await
+				}
 				SubscriptionTargetUpdate::AdminUserUpdate(user) => todo!(),
 				SubscriptionTargetUpdate::AdminEventEditorsUpdate(update_data) => todo!(),
 				SubscriptionTargetUpdate::AdminUserPermissionGroupsUpdate(update_data) => todo!(),

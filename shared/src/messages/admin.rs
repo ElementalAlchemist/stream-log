@@ -60,7 +60,13 @@ pub enum AdminPermissionGroupData {
 #[derive(Debug, Deserialize, Serialize)]
 pub enum AdminTagUpdate {
 	UpdateTag(Tag),
-	AddTag(Tag),
+	RemoveTag(Tag),
+	ReplaceTag(Tag, Tag),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum AdminTagData {
+	UpdateTag(Tag),
 	RemoveTag(Tag),
 	ReplaceTag(Tag, Tag),
 }

@@ -78,7 +78,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			let mut ws = ws_context.lock().await;
 
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminTagsUpdate(
-				AdminTagUpdate::AddTag(new_tag),
+				AdminTagUpdate::UpdateTag(new_tag),
 			)));
 			let message_json = match serde_json::to_string(&message) {
 				Ok(msg) => msg,
