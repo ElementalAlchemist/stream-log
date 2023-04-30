@@ -78,6 +78,7 @@ pub enum SubscriptionData {
 	AdminEntryTypesEventsUpdate(AdminEntryTypeEventData),
 	AdminPermissionGroupsUpdate(AdminPermissionGroupData),
 	AdminTagsUpdate(AdminTagData),
+	AdminUsersUpdate(UserData),
 }
 
 #[derive(Debug, Deserialize, Serialize)]

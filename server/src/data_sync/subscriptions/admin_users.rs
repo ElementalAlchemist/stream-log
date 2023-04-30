@@ -1,4 +1,5 @@
 use crate::data_sync::connection::ConnectionUpdate;
+use crate::data_sync::UserDataUpdate;
 use crate::data_sync::{HandleConnectionError, SubscriptionManager};
 use crate::models::User;
 use crate::schema::users;
@@ -6,7 +7,7 @@ use async_std::channel::Sender;
 use async_std::sync::{Arc, Mutex};
 use diesel::prelude::*;
 use stream_log_shared::messages::subscriptions::{
-	InitialSubscriptionLoadData, SubscriptionFailureInfo, SubscriptionType,
+	InitialSubscriptionLoadData, SubscriptionData, SubscriptionFailureInfo, SubscriptionType,
 };
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::{DataError, FromServerMessage};
@@ -56,4 +57,55 @@ pub async fn subscribe_to_admin_users(
 		.await?;
 
 	Ok(())
+}
+
+pub async fn handle_admin_users_message(
+	db_connection: Arc<Mutex<PgConnection>>,
+	user: &UserData,
+	subscription_manager: Arc<Mutex<SubscriptionManager>>,
+	modified_user: &UserData,
+) {
+	if !user.is_admin {
+		return;
+	}
+	if !subscription_manager
+		.lock()
+		.await
+		.user_is_subscribed_to_admin_users(user)
+		.await
+	{
+		return;
+	}
+
+	let color_red: i32 = modified_user.color.r.into();
+	let color_green: i32 = modified_user.color.g.into();
+	let color_blue: i32 = modified_user.color.b.into();
+	{
+		let mut db_connection = db_connection.lock().await;
+		let db_result = diesel::update(users::table)
+			.filter(users::id.eq(&modified_user.id))
+			.set((
+				users::name.eq(&modified_user.username),
+				users::is_admin.eq(modified_user.is_admin),
+				users::color_red.eq(color_red),
+				users::color_green.eq(color_green),
+				users::color_blue.eq(color_blue),
+			))
+			.execute(&mut *db_connection);
+		if let Err(error) = db_result {
+			tide::log::error!("A database error occurred updating a user: {}", error);
+			return;
+		}
+	}
+
+	let mut subscription_manager = subscription_manager.lock().await;
+	let admin_message = SubscriptionData::AdminUsersUpdate(modified_user.clone());
+	let send_result = subscription_manager.broadcast_admin_user_message(admin_message).await;
+	if let Err(error) = send_result {
+		tide::log::error!("Failed to send admin message for user update: {}", error);
+	}
+	let user_message = ConnectionUpdate::UserUpdate(UserDataUpdate::User(modified_user.clone()));
+	subscription_manager
+		.send_message_to_user(&modified_user.id, user_message)
+		.await;
 }

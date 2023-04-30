@@ -10,7 +10,7 @@ use super::subscriptions::admin_permission_groups::{
 	subscribe_to_admin_permission_groups_events, subscribe_to_admin_permission_groups_users,
 };
 use super::subscriptions::admin_tags::{handle_admin_tags_message, subscribe_to_admin_tags};
-use super::subscriptions::admin_users::subscribe_to_admin_users;
+use super::subscriptions::admin_users::{handle_admin_users_message, subscribe_to_admin_users};
 use super::subscriptions::events::{handle_event_update, subscribe_to_event};
 use super::user_profile::handle_profile_update;
 use super::HandleConnectionError;
@@ -502,7 +502,15 @@ async fn process_incoming_message(
 					)
 					.await
 				}
-				SubscriptionTargetUpdate::AdminUserUpdate(user) => todo!(),
+				SubscriptionTargetUpdate::AdminUserUpdate(modified_user) => {
+					handle_admin_users_message(
+						Arc::clone(db_connection),
+						user,
+						Arc::clone(subscription_manager),
+						&modified_user,
+					)
+					.await
+				}
 				SubscriptionTargetUpdate::AdminEventEditorsUpdate(update_data) => todo!(),
 				SubscriptionTargetUpdate::AdminUserPermissionGroupsUpdate(update_data) => todo!(),
 			}
