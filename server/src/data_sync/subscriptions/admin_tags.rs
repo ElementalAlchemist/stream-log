@@ -63,6 +63,11 @@ pub async fn subscribe_to_admin_tags(
 	Ok(())
 }
 
+struct EventAndLogData {
+	all_events: Vec<Event>,
+	log_entries_with_event: Vec<(Event, EventLogEntry)>,
+}
+
 pub async fn handle_admin_tags_message(
 	db_connection: Arc<Mutex<PgConnection>>,
 	user: &UserData,
@@ -113,85 +118,86 @@ pub async fn handle_admin_tags_message(
 			}
 		}
 		AdminTagUpdate::ReplaceTag(remove_tag, replacement_tag) => {
-			let (all_events, updated_log_entries) = {
+			let event_update_data = {
 				let mut db_connection = db_connection.lock().await;
-				let tx_result: QueryResult<(Vec<Event>, Vec<(Event, EventLogEntry)>)> =
-					db_connection.transaction(|db_connection| {
-						let log_entry_tags: Vec<EventLogTag> = event_log_tags::table
-							.filter(event_log_tags::tag.eq(&remove_tag.id))
-							.load(db_connection)?;
-						let replaced_tags: Vec<EventLogTag> = log_entry_tags
+				let tx_result: QueryResult<EventAndLogData> = db_connection.transaction(|db_connection| {
+					let log_entry_tags: Vec<EventLogTag> = event_log_tags::table
+						.filter(event_log_tags::tag.eq(&remove_tag.id))
+						.load(db_connection)?;
+					let replaced_tags: Vec<EventLogTag> = log_entry_tags
+						.iter()
+						.map(|entry| EventLogTag {
+							tag: replacement_tag.id.clone(),
+							log_entry: entry.log_entry.clone(),
+						})
+						.collect();
+					let log_entry_ids: Vec<String> = log_entry_tags
+						.iter()
+						.map(|entry_tag| entry_tag.log_entry.clone())
+						.collect();
+					let log_entries: Vec<EventLogEntryDb> = event_log::table
+						.filter(event_log::id.eq_any(&log_entry_ids))
+						.load(db_connection)?;
+					diesel::insert_into(event_log_tags::table)
+						.values(replaced_tags)
+						.on_conflict_do_nothing()
+						.execute(db_connection)?;
+
+					diesel::delete(tags::table)
+						.filter(tags::id.eq(&remove_tag.id))
+						.execute(db_connection)?;
+
+					let mut all_events: Vec<EventDb> = events::table.load(db_connection)?;
+					let all_events: Vec<Event> = all_events.drain(..).map(|event| event.into()).collect();
+
+					let mut event_log_entries: Vec<(Event, EventLogEntry)> = Vec::with_capacity(log_entries.len());
+					for log_entry in log_entries {
+						let tags: Vec<String> = log_entry_tags
 							.iter()
-							.map(|entry| EventLogTag {
-								tag: replacement_tag.id.clone(),
-								log_entry: entry.log_entry.clone(),
-							})
+							.filter(|entry_tag| entry_tag.log_entry == log_entry.id)
+							.map(|entry_tag| entry_tag.tag.clone())
 							.collect();
-						let log_entry_ids: Vec<String> = log_entry_tags
+						let mut tags: Vec<TagDb> = tags::table.filter(tags::id.eq_any(&tags)).load(db_connection)?;
+						let tags: Vec<Tag> = tags.drain(..).map(|tag| tag.into()).collect();
+						let event = all_events
 							.iter()
-							.map(|entry_tag| entry_tag.log_entry.clone())
-							.collect();
-						let log_entries: Vec<EventLogEntryDb> = event_log::table
-							.filter(event_log::id.eq_any(&log_entry_ids))
-							.load(db_connection)?;
-						diesel::insert_into(event_log_tags::table)
-							.values(replaced_tags)
-							.on_conflict_do_nothing()
-							.execute(db_connection)?;
+							.find(|event| event.id == log_entry.event)
+							.unwrap()
+							.clone();
+						let editor: Option<User> = if let Some(editor_id) = log_entry.editor.as_ref() {
+							Some(users::table.find(editor_id).first(db_connection)?)
+						} else {
+							None
+						};
+						let editor: Option<UserData> = editor.map(|editor| editor.into());
 
-						diesel::delete(tags::table)
-							.filter(tags::id.eq(&remove_tag.id))
-							.execute(db_connection)?;
+						event_log_entries.push((
+							event,
+							EventLogEntry {
+								id: log_entry.id,
+								start_time: log_entry.start_time,
+								end_time: log_entry.end_time,
+								entry_type: log_entry.entry_type,
+								description: log_entry.description,
+								media_link: log_entry.media_link,
+								submitter_or_winner: log_entry.submitter_or_winner,
+								tags,
+								make_video: log_entry.make_video,
+								notes_to_editor: log_entry.notes_to_editor,
+								editor_link: log_entry.editor_link,
+								editor,
+								video_link: log_entry.video_link,
+								highlighted: log_entry.highlighted,
+								parent: log_entry.parent,
+							},
+						));
+					}
 
-						let mut all_events: Vec<EventDb> = events::table.load(db_connection)?;
-						let all_events: Vec<Event> = all_events.drain(..).map(|event| event.into()).collect();
-
-						let mut event_log_entries: Vec<(Event, EventLogEntry)> = Vec::with_capacity(log_entries.len());
-						for log_entry in log_entries {
-							let tags: Vec<String> = log_entry_tags
-								.iter()
-								.filter(|entry_tag| entry_tag.log_entry == log_entry.id)
-								.map(|entry_tag| entry_tag.tag.clone())
-								.collect();
-							let mut tags: Vec<TagDb> =
-								tags::table.filter(tags::id.eq_any(&tags)).load(db_connection)?;
-							let tags: Vec<Tag> = tags.drain(..).map(|tag| tag.into()).collect();
-							let event = all_events
-								.iter()
-								.find(|event| event.id == log_entry.event)
-								.unwrap()
-								.clone();
-							let editor: Option<User> = if let Some(editor_id) = log_entry.editor.as_ref() {
-								Some(users::table.find(editor_id).first(db_connection)?)
-							} else {
-								None
-							};
-							let editor: Option<UserData> = editor.map(|editor| editor.into());
-
-							event_log_entries.push((
-								event,
-								EventLogEntry {
-									id: log_entry.id,
-									start_time: log_entry.start_time,
-									end_time: log_entry.end_time,
-									entry_type: log_entry.entry_type,
-									description: log_entry.description,
-									media_link: log_entry.media_link,
-									submitter_or_winner: log_entry.submitter_or_winner,
-									tags,
-									make_video: log_entry.make_video,
-									notes_to_editor: log_entry.notes_to_editor,
-									editor_link: log_entry.editor_link,
-									editor,
-									video_link: log_entry.video_link,
-									highlighted: log_entry.highlighted,
-									parent: log_entry.parent,
-								},
-							));
-						}
-
-						Ok((all_events, event_log_entries))
-					});
+					Ok(EventAndLogData {
+						all_events,
+						log_entries_with_event: event_log_entries,
+					})
+				});
 				match tx_result {
 					Ok(data) => data,
 					Err(error) => {
@@ -209,7 +215,7 @@ pub async fn handle_admin_tags_message(
 				tide::log::error!("Failed to send tag update message for tag replacement: {}", error);
 			}
 
-			for (log_entry_event, log_entry) in updated_log_entries {
+			for (log_entry_event, log_entry) in event_update_data.log_entries_with_event {
 				let event_id = log_entry_event.id.clone();
 				let event_message = SubscriptionData::EventUpdate(
 					log_entry_event,
@@ -226,7 +232,7 @@ pub async fn handle_admin_tags_message(
 				}
 			}
 
-			for event in all_events {
+			for event in event_update_data.all_events {
 				let event_id = event.id.clone();
 				let event_message = SubscriptionData::EventUpdate(
 					event,
@@ -241,73 +247,73 @@ pub async fn handle_admin_tags_message(
 			}
 		}
 		AdminTagUpdate::RemoveTag(tag) => {
-			let (all_events, updated_log_entries) = {
+			let event_update_data = {
 				let mut db_connection = db_connection.lock().await;
-				let tx_result: QueryResult<(Vec<Event>, Vec<(Event, EventLogEntry)>)> =
-					db_connection.transaction(|db_connection| {
-						let removed_entry_tags: Vec<EventLogTag> = diesel::delete(event_log_tags::table)
-							.filter(event_log_tags::tag.eq(&tag.id))
-							.get_results(db_connection)?;
-						diesel::delete(tags::table)
-							.filter(tags::id.eq(&tag.id))
-							.execute(db_connection)?;
-						let affected_log_entries: Vec<String> = removed_entry_tags
-							.iter()
-							.map(|entry_tag| entry_tag.log_entry.clone())
-							.collect();
-						let affected_log_entries: Vec<EventLogEntryDb> = event_log::table
-							.filter(event_log::id.eq_any(&affected_log_entries))
+				let tx_result: QueryResult<EventAndLogData> = db_connection.transaction(|db_connection| {
+					let removed_entry_tags: Vec<EventLogTag> = diesel::delete(event_log_tags::table)
+						.filter(event_log_tags::tag.eq(&tag.id))
+						.get_results(db_connection)?;
+					diesel::delete(tags::table)
+						.filter(tags::id.eq(&tag.id))
+						.execute(db_connection)?;
+					let affected_log_entries: Vec<String> = removed_entry_tags
+						.iter()
+						.map(|entry_tag| entry_tag.log_entry.clone())
+						.collect();
+					let affected_log_entries: Vec<EventLogEntryDb> = event_log::table
+						.filter(event_log::id.eq_any(&affected_log_entries))
+						.load(db_connection)?;
+
+					let mut all_events: Vec<EventDb> = events::table.load(db_connection)?;
+					let all_events: Vec<Event> = all_events.drain(..).map(|event| event.into()).collect();
+
+					let mut log_entries: Vec<(Event, EventLogEntry)> = Vec::with_capacity(affected_log_entries.len());
+					for log_entry in affected_log_entries {
+						let tags: Vec<String> = event_log_tags::table
+							.filter(event_log_tags::log_entry.eq(&log_entry.id))
+							.select(event_log_tags::tag)
 							.load(db_connection)?;
+						let mut tags: Vec<TagDb> = tags::table.filter(tags::id.eq_any(&tags)).load(db_connection)?;
+						let tags: Vec<Tag> = tags.drain(..).map(|tag| tag.into()).collect();
+						let event = all_events
+							.iter()
+							.find(|event| event.id == log_entry.event)
+							.unwrap()
+							.clone();
+						let editor: Option<User> = if let Some(editor_id) = log_entry.editor.as_ref() {
+							Some(users::table.find(editor_id).first(db_connection)?)
+						} else {
+							None
+						};
+						let editor: Option<UserData> = editor.map(|editor| editor.into());
 
-						let mut all_events: Vec<EventDb> = events::table.load(db_connection)?;
-						let all_events: Vec<Event> = all_events.drain(..).map(|event| event.into()).collect();
+						log_entries.push((
+							event,
+							EventLogEntry {
+								id: log_entry.id,
+								start_time: log_entry.start_time,
+								end_time: log_entry.end_time,
+								entry_type: log_entry.entry_type,
+								description: log_entry.description,
+								media_link: log_entry.media_link,
+								submitter_or_winner: log_entry.submitter_or_winner,
+								tags,
+								make_video: log_entry.make_video,
+								notes_to_editor: log_entry.notes_to_editor,
+								editor_link: log_entry.editor_link,
+								editor,
+								video_link: log_entry.video_link,
+								highlighted: log_entry.highlighted,
+								parent: log_entry.parent,
+							},
+						));
+					}
 
-						let mut log_entries: Vec<(Event, EventLogEntry)> =
-							Vec::with_capacity(affected_log_entries.len());
-						for log_entry in affected_log_entries {
-							let tags: Vec<String> = event_log_tags::table
-								.filter(event_log_tags::log_entry.eq(&log_entry.id))
-								.select(event_log_tags::tag)
-								.load(db_connection)?;
-							let mut tags: Vec<TagDb> =
-								tags::table.filter(tags::id.eq_any(&tags)).load(db_connection)?;
-							let tags: Vec<Tag> = tags.drain(..).map(|tag| tag.into()).collect();
-							let event = all_events
-								.iter()
-								.find(|event| event.id == log_entry.event)
-								.unwrap()
-								.clone();
-							let editor: Option<User> = if let Some(editor_id) = log_entry.editor.as_ref() {
-								Some(users::table.find(editor_id).first(db_connection)?)
-							} else {
-								None
-							};
-							let editor: Option<UserData> = editor.map(|editor| editor.into());
-
-							log_entries.push((
-								event,
-								EventLogEntry {
-									id: log_entry.id,
-									start_time: log_entry.start_time,
-									end_time: log_entry.end_time,
-									entry_type: log_entry.entry_type,
-									description: log_entry.description,
-									media_link: log_entry.media_link,
-									submitter_or_winner: log_entry.submitter_or_winner,
-									tags,
-									make_video: log_entry.make_video,
-									notes_to_editor: log_entry.notes_to_editor,
-									editor_link: log_entry.editor_link,
-									editor,
-									video_link: log_entry.video_link,
-									highlighted: log_entry.highlighted,
-									parent: log_entry.parent,
-								},
-							));
-						}
-
-						Ok((all_events, log_entries))
-					});
+					Ok(EventAndLogData {
+						all_events,
+						log_entries_with_event: log_entries,
+					})
+				});
 				match tx_result {
 					Ok(entries) => entries,
 					Err(error) => {
@@ -324,7 +330,7 @@ pub async fn handle_admin_tags_message(
 				tide::log::error!("Failed to send tag message update message for tag removal: {}", error);
 			}
 
-			for (log_entry_event, log_entry) in updated_log_entries {
+			for (log_entry_event, log_entry) in event_update_data.log_entries_with_event {
 				let event_id = log_entry_event.id.clone();
 				let event_message = SubscriptionData::EventUpdate(
 					log_entry_event,
@@ -338,7 +344,7 @@ pub async fn handle_admin_tags_message(
 				}
 			}
 
-			for event in all_events {
+			for event in event_update_data.all_events {
 				let event_id = event.id.clone();
 				let event_message =
 					SubscriptionData::EventUpdate(event, Box::new(EventSubscriptionData::DeleteTag(tag.clone())));
