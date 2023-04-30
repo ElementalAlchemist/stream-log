@@ -77,10 +77,16 @@ pub enum AdminEventEditorUpdate {
 	RemoveEditor(EditorEventAssociation),
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct EditorEventAssociation {
 	pub editor: UserData,
 	pub event: Event,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum AdminEventEditorData {
+	AddEditor(EditorEventAssociation),
+	RemoveEditor(EditorEventAssociation),
 }
 
 #[derive(Debug, Deserialize, Serialize)]

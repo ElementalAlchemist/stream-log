@@ -1,5 +1,5 @@
 use super::register::{check_username, register_user};
-use super::subscriptions::admin_editors::subscribe_to_admin_editors;
+use super::subscriptions::admin_editors::{handle_admin_editors_message, subscribe_to_admin_editors};
 use super::subscriptions::admin_entry_types::{
 	handle_admin_entry_type_event_message, handle_admin_entry_type_message, subscribe_to_admin_entry_types,
 	subscribe_to_admin_entry_types_events,
@@ -511,7 +511,15 @@ async fn process_incoming_message(
 					)
 					.await
 				}
-				SubscriptionTargetUpdate::AdminEventEditorsUpdate(update_data) => todo!(),
+				SubscriptionTargetUpdate::AdminEventEditorsUpdate(update_data) => {
+					handle_admin_editors_message(
+						Arc::clone(db_connection),
+						user,
+						Arc::clone(subscription_manager),
+						update_data,
+					)
+					.await
+				}
 				SubscriptionTargetUpdate::AdminUserPermissionGroupsUpdate(update_data) => todo!(),
 			}
 		}
