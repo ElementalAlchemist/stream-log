@@ -95,10 +95,16 @@ pub enum AdminUserPermissionGroupUpdate {
 	RemoveUserFromGroup(UserPermissionGroupAssociation),
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct UserPermissionGroupAssociation {
 	pub user: UserData,
 	pub permission_group: PermissionGroup,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum AdminUserPermissionGroupData {
+	AddUserToGroup(UserPermissionGroupAssociation),
+	RemoveUserFromGroup(UserPermissionGroupAssociation),
 }
 
 #[derive(Debug, Deserialize, Serialize)]

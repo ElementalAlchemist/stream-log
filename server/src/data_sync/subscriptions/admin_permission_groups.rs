@@ -9,9 +9,10 @@ use async_std::sync::{Arc, Mutex};
 use diesel::prelude::*;
 use std::collections::HashMap;
 use stream_log_shared::messages::admin::{
-	AdminPermissionGroupData, AdminPermissionGroupUpdate, PermissionGroup, PermissionGroupEventAssociation,
-	UserPermissionGroupAssociation,
+	AdminPermissionGroupData, AdminPermissionGroupUpdate, AdminUserPermissionGroupData, AdminUserPermissionGroupUpdate,
+	PermissionGroup, PermissionGroupEventAssociation, UserPermissionGroupAssociation,
 };
+use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::subscriptions::{
 	InitialSubscriptionLoadData, SubscriptionData, SubscriptionFailureInfo, SubscriptionType,
 };
@@ -395,4 +396,224 @@ pub async fn subscribe_to_admin_permission_groups_users(
 		.await?;
 
 	Ok(())
+}
+
+pub async fn handle_admin_permission_group_users_message(
+	db_connection: Arc<Mutex<PgConnection>>,
+	user: &UserData,
+	subscription_manager: Arc<Mutex<SubscriptionManager>>,
+	update_message: AdminUserPermissionGroupUpdate,
+) {
+	if !user.is_admin {
+		return;
+	}
+	if !subscription_manager
+		.lock()
+		.await
+		.user_is_subscribed_to_admin_permission_group_users(user)
+		.await
+	{
+		return;
+	}
+
+	match update_message {
+		AdminUserPermissionGroupUpdate::AddUserToGroup(user_group_association) => {
+			let user_event_permissions = {
+				let mut db_connection = db_connection.lock().await;
+
+				let user_event_permissions: QueryResult<Vec<(Event, Option<Permission>)>> =
+					db_connection.transaction(|db_connection| {
+						let user_permission = UserPermission {
+							user_id: user_group_association.user.id.clone(),
+							permission_group: user_group_association.permission_group.id.clone(),
+						};
+						diesel::insert_into(user_permissions::table)
+							.values(user_permission)
+							.execute(&mut *db_connection)?;
+
+						let affected_event_permissions: Vec<PermissionEvent> = permission_events::table
+							.filter(permission_events::permission_group.eq(&user_group_association.permission_group.id))
+							.load(db_connection)?;
+						let affected_event_ids: Vec<String> = affected_event_permissions
+							.iter()
+							.map(|event_permission| event_permission.event.clone())
+							.collect();
+						let mut affected_events: Vec<EventDb> = events::table
+							.filter(events::id.eq_any(&affected_event_ids))
+							.load(db_connection)?;
+						let affected_events: Vec<Event> = affected_events.drain(..).map(|event| event.into()).collect();
+
+						let all_user_event_permissions: Vec<PermissionEvent> = permission_events::table
+							.filter(
+								user_permissions::table
+									.filter(user_permissions::user_id.eq(&user_group_association.user.id).and(
+										user_permissions::permission_group.eq(permission_events::permission_group),
+									))
+									.count()
+									.single_value()
+									.gt(0),
+							)
+							.load(db_connection)?;
+						let mut user_event_permissions_by_event: HashMap<String, Vec<PermissionEvent>> = HashMap::new();
+						for user_event_permission in all_user_event_permissions {
+							user_event_permissions_by_event
+								.entry(user_event_permission.event.clone())
+								.or_default()
+								.push(user_event_permission);
+						}
+
+						let mut user_event_permissions = Vec::new();
+						for event in affected_events {
+							match user_event_permissions_by_event.get(&event.id) {
+								Some(event_permissions) => {
+									let mut highest_permission_level: Option<Permission> = None;
+									for event_permission in event_permissions.iter() {
+										match event_permission.level {
+											Permission::Edit => {
+												highest_permission_level = Some(Permission::Edit);
+												break;
+											}
+											Permission::View => highest_permission_level = Some(Permission::View),
+										}
+									}
+									user_event_permissions.push((event, highest_permission_level));
+								}
+								None => user_event_permissions.push((event, None)),
+							}
+						}
+
+						Ok(user_event_permissions)
+					});
+
+				match user_event_permissions {
+					Ok(data) => data,
+					Err(error) => {
+						tide::log::error!(
+							"A database error occurred adding a user to a permission group: {}",
+							error
+						);
+						return;
+					}
+				}
+			};
+
+			let mut subscription_manager = subscription_manager.lock().await;
+			for (event, permission) in user_event_permissions {
+				let user_message = ConnectionUpdate::UserUpdate(UserDataUpdate::EventPermissions(event, permission));
+				subscription_manager
+					.send_message_to_user(&user_group_association.user.id, user_message)
+					.await;
+			}
+			let admin_message = SubscriptionData::AdminUserPermissionGroupsUpdate(
+				AdminUserPermissionGroupData::AddUserToGroup(user_group_association),
+			);
+			let send_result = subscription_manager
+				.broadcast_admin_permission_group_users_message(admin_message)
+				.await;
+			if let Err(error) = send_result {
+				tide::log::error!(
+					"Failed to broadcast permission group user addition to admin subscription: {}",
+					error
+				);
+			}
+		}
+		AdminUserPermissionGroupUpdate::RemoveUserFromGroup(user_group_association) => {
+			let user_event_permissions = {
+				let mut db_connection = db_connection.lock().await;
+
+				let user_event_permissions: QueryResult<Vec<(Event, Option<Permission>)>> =
+					db_connection.transaction(|db_connection| {
+						diesel::delete(user_permissions::table)
+							.filter(user_permissions::user_id.eq(&user_group_association.user.id).and(
+								user_permissions::permission_group.eq(&user_group_association.permission_group.id),
+							))
+							.execute(db_connection)?;
+
+						let affected_event_permissions: Vec<PermissionEvent> = permission_events::table
+							.filter(permission_events::permission_group.eq(&user_group_association.permission_group.id))
+							.load(db_connection)?;
+						let affected_event_ids: Vec<String> = affected_event_permissions
+							.iter()
+							.map(|event_permission| event_permission.event.clone())
+							.collect();
+						let mut affected_events: Vec<EventDb> = events::table
+							.filter(events::id.eq_any(&affected_event_ids))
+							.load(db_connection)?;
+						let affected_events: Vec<Event> = affected_events.drain(..).map(|event| event.into()).collect();
+
+						let all_user_event_permissions: Vec<PermissionEvent> = permission_events::table
+							.filter(
+								user_permissions::table
+									.filter(user_permissions::user_id.eq(&user_group_association.user.id).and(
+										user_permissions::permission_group.eq(permission_events::permission_group),
+									))
+									.count()
+									.single_value()
+									.gt(0),
+							)
+							.load(db_connection)?;
+						let mut user_event_permissions_by_event: HashMap<String, Vec<PermissionEvent>> = HashMap::new();
+						for user_event_permission in all_user_event_permissions {
+							user_event_permissions_by_event
+								.entry(user_event_permission.event.clone())
+								.or_default()
+								.push(user_event_permission);
+						}
+
+						let mut user_event_permissions = Vec::new();
+						for event in affected_events {
+							match user_event_permissions_by_event.get(&event.id) {
+								Some(event_permissions) => {
+									let mut highest_permission_level: Option<Permission> = None;
+									for event_permission in event_permissions.iter() {
+										match event_permission.level {
+											Permission::Edit => {
+												highest_permission_level = Some(Permission::Edit);
+												break;
+											}
+											Permission::View => highest_permission_level = Some(Permission::View),
+										}
+									}
+									user_event_permissions.push((event, highest_permission_level));
+								}
+								None => user_event_permissions.push((event, None)),
+							}
+						}
+
+						Ok(user_event_permissions)
+					});
+
+				match user_event_permissions {
+					Ok(data) => data,
+					Err(error) => {
+						tide::log::error!(
+							"A database error occurred removing a user from a permission group: {}",
+							error
+						);
+						return;
+					}
+				}
+			};
+
+			let mut subscription_manager = subscription_manager.lock().await;
+			for (event, permission) in user_event_permissions {
+				let user_message = ConnectionUpdate::UserUpdate(UserDataUpdate::EventPermissions(event, permission));
+				subscription_manager
+					.send_message_to_user(&user_group_association.user.id, user_message)
+					.await;
+			}
+			let admin_message = SubscriptionData::AdminUserPermissionGroupsUpdate(
+				AdminUserPermissionGroupData::RemoveUserFromGroup(user_group_association),
+			);
+			let send_result = subscription_manager
+				.broadcast_admin_permission_group_users_message(admin_message)
+				.await;
+			if let Err(error) = send_result {
+				tide::log::error!(
+					"Failed to broadcast permission group user removal to admin subscription: {}",
+					error
+				);
+			}
+		}
+	}
 }

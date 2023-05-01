@@ -6,8 +6,8 @@ use super::subscriptions::admin_entry_types::{
 };
 use super::subscriptions::admin_events::{handle_admin_event_message, subscribe_to_admin_events};
 use super::subscriptions::admin_permission_groups::{
-	handle_admin_permission_groups_message, subscribe_to_admin_permission_groups,
-	subscribe_to_admin_permission_groups_users,
+	handle_admin_permission_group_users_message, handle_admin_permission_groups_message,
+	subscribe_to_admin_permission_groups, subscribe_to_admin_permission_groups_users,
 };
 use super::subscriptions::admin_tags::{handle_admin_tags_message, subscribe_to_admin_tags};
 use super::subscriptions::admin_users::{handle_admin_users_message, subscribe_to_admin_users};
@@ -506,7 +506,15 @@ async fn process_incoming_message(
 					)
 					.await
 				}
-				SubscriptionTargetUpdate::AdminUserPermissionGroupsUpdate(update_data) => todo!(),
+				SubscriptionTargetUpdate::AdminUserPermissionGroupsUpdate(update_data) => {
+					handle_admin_permission_group_users_message(
+						Arc::clone(db_connection),
+						user,
+						Arc::clone(subscription_manager),
+						update_data,
+					)
+					.await
+				}
 			}
 		}
 		FromClientMessage::RegistrationRequest(registration_data) => {
