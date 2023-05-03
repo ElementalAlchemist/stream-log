@@ -1,7 +1,6 @@
 use super::one_subscription::SingleSubscriptionManager;
 use crate::data_sync::connection::ConnectionUpdate;
 use async_std::channel::{SendError, Sender};
-use async_std::task::block_on;
 use futures::future::join_all;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
@@ -46,14 +45,31 @@ impl SubscriptionManager {
 
 	/// Shuts down the subscription manager and all subscription tasks.
 	/// Assumes this is part of a full server shutdown, so this blocks on all the tasks ending.
-	pub fn shutdown(&mut self) {
-		let mut handles = Vec::with_capacity(self.event_subscriptions.len());
+	pub async fn shutdown(mut self) {
+		let mut handles = Vec::new();
 		for (_, subscription_manager) in self.event_subscriptions.drain() {
 			handles.push(subscription_manager.thread_handle);
 		}
-		for handle in handles {
-			block_on(handle);
+
+		let subscription_shutdown_handles = vec![
+			self.admin_user_subscriptions.shutdown(),
+			self.admin_event_subscriptions.shutdown(),
+			self.admin_permission_group_subscriptions.shutdown(),
+			self.admin_permission_group_user_subscriptions.shutdown(),
+			self.admin_entry_type_subscriptions.shutdown(),
+			self.admin_entry_type_event_subscriptions.shutdown(),
+			self.admin_tag_subscriptions.shutdown(),
+			self.admin_event_editor_subscriptions.shutdown(),
+		];
+		for handle in join_all(subscription_shutdown_handles).await {
+			handles.push(handle);
 		}
+
+		for (_, user_connection) in self.user_subscriptions.drain() {
+			user_connection.close();
+		}
+
+		join_all(handles).await;
 	}
 
 	/// Subscribes the provided user with the provided associated connection to the provided event

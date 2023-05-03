@@ -73,6 +73,18 @@ impl SingleSubscriptionManager {
 	pub async fn broadcast_message(&self, message: SubscriptionData) -> Result<(), SendError<SubscriptionData>> {
 		self.subscription_send_channel.send(message).await
 	}
+
+	pub async fn shutdown(self) -> JoinHandle<()> {
+		let mut subscriptions = self.subscriptions.lock().await;
+		let mut send_futures = Vec::new();
+		for (_, subscription_data) in subscriptions.drain() {
+			let message = ConnectionUpdate::SendData(Box::new(FromServerMessage::Unsubscribed(
+				self.subscription_type.clone(),
+			)));
+			send_futures.push(subscription_data.channel.send(message).await);
+		}
+		self.thread_handle
+	}
 }
 
 struct UserSubscriptionData {

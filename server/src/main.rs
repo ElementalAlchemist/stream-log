@@ -100,7 +100,12 @@ async fn main() -> miette::Result<()> {
 
 	app.listen(&config.listen.addr).await.into_diagnostic()?;
 
-	subscription_manager.lock().await.shutdown();
+	let mut shutdown_subscription_manager = SubscriptionManager::new();
+	{
+		let mut subscription_manager = subscription_manager.lock().await;
+		std::mem::swap(&mut *subscription_manager, &mut shutdown_subscription_manager);
+	}
+	shutdown_subscription_manager.shutdown().await;
 
 	Ok(())
 }
