@@ -116,7 +116,9 @@ pub async fn register_user(
 				*user = Some(user_data.clone());
 
 				let mut subscription_manager = subscription_manager.lock().await;
-				subscription_manager.subscribe_user_to_self(&user_data, conn_update_tx.clone());
+				subscription_manager
+					.subscribe_user_to_self(&user_data, conn_update_tx.clone())
+					.await;
 
 				let admin_message = SubscriptionData::AdminUsersUpdate(user_data.clone());
 				let send_result = subscription_manager.broadcast_admin_user_message(admin_message).await;

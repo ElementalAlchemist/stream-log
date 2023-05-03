@@ -179,7 +179,9 @@ async fn process_messages(
 
 	if let Some(user) = user.as_ref() {
 		let mut subscription_manager = subscription_manager.lock().await;
-		subscription_manager.subscribe_user_to_self(user, conn_update_tx.clone());
+		subscription_manager
+			.subscribe_user_to_self(user, conn_update_tx.clone())
+			.await;
 	}
 
 	let result = loop {

@@ -102,12 +102,12 @@ impl SubscriptionManager {
 	}
 
 	/// Adds a user self-subscription for the provided user
-	pub fn subscribe_user_to_self(&mut self, user: &UserData, conn_update_tx: Sender<ConnectionUpdate>) {
-		let old_connection = self.user_subscriptions.insert(user.id.clone(), conn_update_tx);
-		if let Some(connection) = old_connection {
+	pub async fn subscribe_user_to_self(&mut self, user: &UserData, conn_update_tx: Sender<ConnectionUpdate>) {
+		if self.user_subscriptions.contains_key(&user.id) {
 			// We need to prevent any *other* data going to this connection so they don't get partial updates and think the connection is still alive.
-			connection.close();
+			let _ = self.unsubscribe_user_from_all(user).await; // If there was an error, the unsubscription was still successful; it just couldn't be sent to the user.
 		}
+		self.user_subscriptions.insert(user.id.clone(), conn_update_tx);
 	}
 
 	/// Sends a message to a particular user
