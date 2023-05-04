@@ -9,7 +9,7 @@ use stream_log_shared::messages::admin::{
 };
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::events::Event;
-use stream_log_shared::messages::subscriptions::{InitialSubscriptionLoadData, SubscriptionType};
+use stream_log_shared::messages::subscriptions::{InitialSubscriptionLoadData, SubscriptionData, SubscriptionType};
 use stream_log_shared::messages::tags::Tag;
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::user_register::RegistrationResponse;
@@ -182,7 +182,18 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 					}
 				}
 			}
-			FromServerMessage::SubscriptionMessage(subscription_data) => todo!(),
+			FromServerMessage::SubscriptionMessage(subscription_data) => match *subscription_data {
+				SubscriptionData::EventUpdate(event, update_data) => todo!(),
+				SubscriptionData::UserUpdate(user_update) => todo!(),
+				SubscriptionData::AdminEventsUpdate(event_data) => todo!(),
+				SubscriptionData::AdminEntryTypesUpdate(entry_type_data) => todo!(),
+				SubscriptionData::AdminEntryTypesEventsUpdate(entry_type_event_data) => todo!(),
+				SubscriptionData::AdminPermissionGroupsUpdate(permission_group_update) => todo!(),
+				SubscriptionData::AdminTagsUpdate(tag_data) => todo!(),
+				SubscriptionData::AdminUsersUpdate(user_data) => todo!(),
+				SubscriptionData::AdminEventEditorsUpdate(event_editor_data) => todo!(),
+				SubscriptionData::AdminUserPermissionGroupsUpdate(user_permission_group_update) => todo!(),
+			},
 			FromServerMessage::Unsubscribed(subscription_type) => {
 				todo!("Handle message and update subscription manager")
 			}
