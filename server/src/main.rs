@@ -100,6 +100,8 @@ async fn main() -> miette::Result<()> {
 
 	app.listen(&config.listen.addr).await.into_diagnostic()?;
 
+	tide::log::info!("Initiating shutdown");
+
 	let mut shutdown_subscription_manager = SubscriptionManager::new();
 	{
 		let mut subscription_manager = subscription_manager.lock().await;
