@@ -4,8 +4,8 @@ use futures::stream::SplitStream;
 use gloo_net::websocket::futures::WebSocket;
 use std::collections::HashMap;
 use stream_log_shared::messages::admin::{
-	EditorEventAssociation, EntryTypeEventAssociation, PermissionGroup, PermissionGroupEventAssociation,
-	UserPermissionGroupAssociation,
+	AdminEventData, EditorEventAssociation, EntryTypeEventAssociation, PermissionGroup,
+	PermissionGroupEventAssociation, UserPermissionGroupAssociation,
 };
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_subscription::EventSubscriptionData;
@@ -265,7 +265,16 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 					user_signal.set(Some(user_update.user));
 					data_signals.available_events.set(user_update.available_events);
 				}
-				SubscriptionData::AdminEventsUpdate(event_data) => todo!(),
+				SubscriptionData::AdminEventsUpdate(event_data) => match event_data {
+					AdminEventData::UpdateEvent(event) => {
+						let mut all_events = data_signals.all_events.modify();
+						let event_data = all_events.iter_mut().find(|an_event| an_event.id == event.id);
+						match event_data {
+							Some(event_data) => *event_data = event,
+							None => all_events.push(event),
+						}
+					}
+				},
 				SubscriptionData::AdminEntryTypesUpdate(entry_type_data) => todo!(),
 				SubscriptionData::AdminEntryTypesEventsUpdate(entry_type_event_data) => todo!(),
 				SubscriptionData::AdminPermissionGroupsUpdate(permission_group_update) => todo!(),
