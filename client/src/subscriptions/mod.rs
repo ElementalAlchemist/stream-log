@@ -4,8 +4,8 @@ use futures::stream::SplitStream;
 use gloo_net::websocket::futures::WebSocket;
 use std::collections::HashMap;
 use stream_log_shared::messages::admin::{
-	AdminEntryTypeData, AdminEventData, EditorEventAssociation, EntryTypeEventAssociation, PermissionGroup,
-	PermissionGroupEventAssociation, UserPermissionGroupAssociation,
+	AdminEntryTypeData, AdminEntryTypeEventData, AdminEventData, EditorEventAssociation, EntryTypeEventAssociation,
+	PermissionGroup, PermissionGroupEventAssociation, UserPermissionGroupAssociation,
 };
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_subscription::EventSubscriptionData;
@@ -285,7 +285,32 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 						}
 					}
 				},
-				SubscriptionData::AdminEntryTypesEventsUpdate(entry_type_event_data) => todo!(),
+				SubscriptionData::AdminEntryTypesEventsUpdate(entry_type_event_data) => match entry_type_event_data {
+					AdminEntryTypeEventData::AddTypeToEvent(entry_type_event_association) => {
+						let mut entry_type_event_associations = data_signals.entry_type_event_associations.modify();
+						let exists = entry_type_event_associations.iter().any(|association| {
+							association.entry_type.id == entry_type_event_association.entry_type.id
+								&& association.event.id == entry_type_event_association.event.id
+						});
+						if !exists {
+							entry_type_event_associations.push(entry_type_event_association);
+						}
+					}
+					AdminEntryTypeEventData::RemoveTypeFromEvent(entry_type_event_association) => {
+						let mut entry_type_event_associations = data_signals.entry_type_event_associations.modify();
+						let association_index = entry_type_event_associations
+							.iter()
+							.enumerate()
+							.find(|(_, association)| {
+								association.entry_type.id == entry_type_event_association.entry_type.id
+									&& association.event.id == entry_type_event_association.event.id
+							})
+							.map(|(index, _)| index);
+						if let Some(index) = association_index {
+							entry_type_event_associations.remove(index);
+						}
+					}
+				},
 				SubscriptionData::AdminPermissionGroupsUpdate(permission_group_update) => todo!(),
 				SubscriptionData::AdminTagsUpdate(tag_data) => todo!(),
 				SubscriptionData::AdminUsersUpdate(user_data) => todo!(),
