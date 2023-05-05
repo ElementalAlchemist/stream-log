@@ -8,6 +8,7 @@ use stream_log_shared::messages::admin::{
 	UserPermissionGroupAssociation,
 };
 use stream_log_shared::messages::entry_types::EntryType;
+use stream_log_shared::messages::event_subscription::EventSubscriptionData;
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::subscriptions::{InitialSubscriptionLoadData, SubscriptionData, SubscriptionType};
 use stream_log_shared::messages::tags::Tag;
@@ -183,7 +184,82 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 				}
 			}
 			FromServerMessage::SubscriptionMessage(subscription_data) => match *subscription_data {
-				SubscriptionData::EventUpdate(event, update_data) => todo!(),
+				SubscriptionData::EventUpdate(event, update_data) => {
+					let mut events_data = data_signals.events.modify();
+					let Some(event_data) = events_data.get_mut(&event.id) else { continue; };
+					match *update_data {
+						EventSubscriptionData::UpdateEvent => event_data.event.set(event),
+						EventSubscriptionData::NewLogEntry(log_entry) => {
+							event_data.event_log_entries.modify().push(log_entry)
+						}
+						EventSubscriptionData::DeleteLogEntry(log_entry) => {
+							let mut log_entries = event_data.event_log_entries.modify();
+							let log_index = log_entries
+								.iter()
+								.enumerate()
+								.find(|(_, entry)| log_entry.id == entry.id)
+								.map(|(index, _)| index);
+							if let Some(log_index) = log_index {
+								log_entries.remove(log_index);
+							}
+						}
+						EventSubscriptionData::UpdateLogEntry(log_entry) => {
+							let mut log_entries = event_data.event_log_entries.modify();
+							let existing_entry = log_entries.iter_mut().find(|entry| entry.id == log_entry.id);
+							if let Some(entry) = existing_entry {
+								*entry = log_entry;
+							}
+						}
+						EventSubscriptionData::Typing(typing_data) => todo!(),
+						EventSubscriptionData::NewTag(new_tag) => event_data.tags.modify().push(new_tag),
+						EventSubscriptionData::DeleteTag(deleted_tag) => {
+							let mut tags = event_data.tags.modify();
+							let tag_index = tags
+								.iter()
+								.enumerate()
+								.find(|(_, tag)| tag.id == deleted_tag.id)
+								.map(|(index, _)| index);
+							if let Some(index) = tag_index {
+								tags.remove(index);
+							}
+						}
+						EventSubscriptionData::AddEntryType(new_entry_type) => {
+							event_data.entry_types.modify().push(new_entry_type)
+						}
+						EventSubscriptionData::UpdateEntryType(updated_entry_type) => {
+							let mut entry_types = event_data.entry_types.modify();
+							let entry_type = entry_types
+								.iter_mut()
+								.find(|entry_type| entry_type.id == updated_entry_type.id);
+							if let Some(entry_type) = entry_type {
+								*entry_type = updated_entry_type;
+							}
+						}
+						EventSubscriptionData::DeleteEntryType(deleted_entry_type) => {
+							let mut entry_types = event_data.entry_types.modify();
+							let entry_type_index = entry_types
+								.iter()
+								.enumerate()
+								.find(|(_, entry_type)| entry_type.id == deleted_entry_type.id)
+								.map(|(index, _)| index);
+							if let Some(index) = entry_type_index {
+								entry_types.remove(index);
+							}
+						}
+						EventSubscriptionData::AddEditor(new_editor) => event_data.editors.modify().push(new_editor),
+						EventSubscriptionData::RemoveEditor(removed_editor) => {
+							let mut editors = event_data.editors.modify();
+							let editor_index = editors
+								.iter()
+								.enumerate()
+								.find(|(_, editor)| editor.id == removed_editor.id)
+								.map(|(index, _)| index);
+							if let Some(index) = editor_index {
+								editors.remove(index);
+							}
+						}
+					}
+				}
 				SubscriptionData::UserUpdate(user_update) => todo!(),
 				SubscriptionData::AdminEventsUpdate(event_data) => todo!(),
 				SubscriptionData::AdminEntryTypesUpdate(entry_type_data) => todo!(),
