@@ -4,8 +4,8 @@ use futures::stream::SplitStream;
 use gloo_net::websocket::futures::WebSocket;
 use std::collections::HashMap;
 use stream_log_shared::messages::admin::{
-	AdminEntryTypeData, AdminEntryTypeEventData, AdminEventData, EditorEventAssociation, EntryTypeEventAssociation,
-	PermissionGroup, PermissionGroupEventAssociation, UserPermissionGroupAssociation,
+	AdminEntryTypeData, AdminEntryTypeEventData, AdminEventData, AdminPermissionGroupData, EditorEventAssociation,
+	EntryTypeEventAssociation, PermissionGroup, PermissionGroupEventAssociation, UserPermissionGroupAssociation,
 };
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_subscription::EventSubscriptionData;
@@ -311,7 +311,43 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 						}
 					}
 				},
-				SubscriptionData::AdminPermissionGroupsUpdate(permission_group_update) => todo!(),
+				SubscriptionData::AdminPermissionGroupsUpdate(permission_group_update) => match permission_group_update
+				{
+					AdminPermissionGroupData::UpdateGroup(permission_group) => {
+						let mut permission_groups = data_signals.all_permission_groups.modify();
+						let existing_group = permission_groups
+							.iter_mut()
+							.find(|group| group.id == permission_group.id);
+						match existing_group {
+							Some(group) => *group = permission_group,
+							None => permission_groups.push(permission_group),
+						}
+					}
+					AdminPermissionGroupData::SetEventPermissionForGroup(permission_group_event_association) => {
+						let mut permission_group_event_associations =
+							data_signals.permission_group_event_associations.modify();
+						let association = permission_group_event_associations.iter_mut().find(|association| {
+							association.group == permission_group_event_association.group
+								&& association.event == permission_group_event_association.event
+						});
+						match association {
+							Some(association) => *association = permission_group_event_association,
+							None => permission_group_event_associations.push(permission_group_event_association),
+						}
+					}
+					AdminPermissionGroupData::RemoveEventFromGroup(group, event) => {
+						let mut permission_group_event_associations =
+							data_signals.permission_group_event_associations.modify();
+						let association_index = permission_group_event_associations
+							.iter()
+							.enumerate()
+							.find(|(_, association)| association.group == group.id && association.event == event.id)
+							.map(|(index, _)| index);
+						if let Some(index) = association_index {
+							permission_group_event_associations.remove(index);
+						}
+					}
+				},
 				SubscriptionData::AdminTagsUpdate(tag_data) => todo!(),
 				SubscriptionData::AdminUsersUpdate(user_data) => todo!(),
 				SubscriptionData::AdminEventEditorsUpdate(event_editor_data) => todo!(),
