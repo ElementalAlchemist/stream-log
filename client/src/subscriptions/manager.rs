@@ -41,39 +41,6 @@ pub struct SubscriptionManager {
 }
 
 impl SubscriptionManager {
-	/// Adds a subscription for data. Records that the request was made and sends it to the server.
-	pub async fn add_subscription(
-		&mut self,
-		subscription_type: SubscriptionType,
-		stream: &mut SplitSink<WebSocket, Message>,
-	) -> Result<(), SubscriptionError> {
-		if let Some(use_count) = self.active_subscriptions.get_mut(&subscription_type) {
-			*use_count += 1;
-		} else if let Some(use_count) = self.requested_subscriptions.get_mut(&subscription_type) {
-			*use_count += 1;
-		} else {
-			let subscription_message = FromClientMessage::StartSubscription(subscription_type.clone());
-			let subscription_message_json = serde_json::to_string(&subscription_message)?;
-			stream.send(Message::Text(subscription_message_json)).await?;
-
-			self.requested_subscriptions.insert(subscription_type, 1);
-		}
-
-		Ok(())
-	}
-
-	/// Adds multiple subscriptions at once
-	pub async fn add_subscriptions(
-		&mut self,
-		subscription_types: Vec<SubscriptionType>,
-		stream: &mut SplitSink<WebSocket, Message>,
-	) -> Result<(), SubscriptionError> {
-		for subscription_type in subscription_types {
-			self.add_subscription(subscription_type, stream).await?;
-		}
-		Ok(())
-	}
-
 	/// Removes a subscription for data.
 	pub fn remove_subscription(&mut self, subscription_type: SubscriptionType) {
 		if let Entry::Occupied(mut active_entry) = self.active_subscriptions.entry(subscription_type.clone()) {
