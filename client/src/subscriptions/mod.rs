@@ -4,8 +4,8 @@ use futures::stream::SplitStream;
 use gloo_net::websocket::futures::WebSocket;
 use std::collections::HashMap;
 use stream_log_shared::messages::admin::{
-	AdminEntryTypeData, AdminEntryTypeEventData, AdminEventData, AdminPermissionGroupData, AdminTagData,
-	EditorEventAssociation, EntryTypeEventAssociation, PermissionGroup, PermissionGroupEventAssociation,
+	AdminEntryTypeData, AdminEntryTypeEventData, AdminEventData, AdminEventEditorData, AdminPermissionGroupData,
+	AdminTagData, EditorEventAssociation, EntryTypeEventAssociation, PermissionGroup, PermissionGroupEventAssociation,
 	UserPermissionGroupAssociation,
 };
 use stream_log_shared::messages::entry_types::EntryType;
@@ -389,7 +389,31 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 						None => all_users.push(user_data),
 					}
 				}
-				SubscriptionData::AdminEventEditorsUpdate(event_editor_data) => todo!(),
+				SubscriptionData::AdminEventEditorsUpdate(event_editor_data) => match event_editor_data {
+					AdminEventEditorData::AddEditor(editor_event_association) => {
+						let mut event_editors = data_signals.event_editors.modify();
+						if !event_editors.iter().any(|association| {
+							association.editor.id == editor_event_association.editor.id
+								&& association.event.id == editor_event_association.event.id
+						}) {
+							event_editors.push(editor_event_association);
+						}
+					}
+					AdminEventEditorData::RemoveEditor(editor_event_association) => {
+						let mut event_editors = data_signals.event_editors.modify();
+						let association_index = event_editors
+							.iter()
+							.enumerate()
+							.find(|(_, association)| {
+								association.editor.id == editor_event_association.editor.id
+									&& association.event.id == editor_event_association.event.id
+							})
+							.map(|(index, _)| index);
+						if let Some(index) = association_index {
+							event_editors.remove(index);
+						}
+					}
+				},
 				SubscriptionData::AdminUserPermissionGroupsUpdate(user_permission_group_update) => todo!(),
 			},
 			FromServerMessage::Unsubscribed(subscription_type) => {
