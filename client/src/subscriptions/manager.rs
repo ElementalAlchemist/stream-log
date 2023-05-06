@@ -74,56 +74,29 @@ impl SubscriptionManager {
 		Ok(())
 	}
 
-	/// Removes a subscription for data. Sends the unsubscription request to the server.
-	pub async fn remove_subscription(
-		&mut self,
-		subscription_type: SubscriptionType,
-		stream: &mut SplitSink<WebSocket, Message>,
-	) -> Result<(), SubscriptionError> {
-		let send_remove =
-			if let Entry::Occupied(mut active_entry) = self.active_subscriptions.entry(subscription_type.clone()) {
-				let current_count = *active_entry.get() - 1;
-				if current_count == 0 {
-					active_entry.remove();
-					true
-				} else {
-					*active_entry.get_mut() = current_count;
-					false
-				}
-			} else if let Entry::Occupied(mut requested_entry) =
-				self.requested_subscriptions.entry(subscription_type.clone())
-			{
-				let current_count = *requested_entry.get() - 1;
-				if current_count == 0 {
-					requested_entry.remove();
-					true
-				} else {
-					*requested_entry.get_mut() = current_count;
-					false
-				}
+	/// Removes a subscription for data.
+	pub fn remove_subscription(&mut self, subscription_type: SubscriptionType) {
+		if let Entry::Occupied(mut active_entry) = self.active_subscriptions.entry(subscription_type.clone()) {
+			let current_count = *active_entry.get() - 1;
+			if current_count == 0 {
+				active_entry.remove();
+				true
 			} else {
+				*active_entry.get_mut() = current_count;
 				false
-			};
-
-		if send_remove {
-			let unsubscription_message = FromClientMessage::EndSubscription(subscription_type);
-			let unsubscription_message_json = serde_json::to_string(&unsubscription_message)?;
-			stream.send(Message::Text(unsubscription_message_json)).await?;
-		}
-
-		Ok(())
-	}
-
-	/// Removes multiple subscriptions at once
-	pub async fn remove_subscriptions(
-		&mut self,
-		subscription_types: Vec<SubscriptionType>,
-		stream: &mut SplitSink<WebSocket, Message>,
-	) -> Result<(), SubscriptionError> {
-		for subscription_type in subscription_types {
-			self.remove_subscription(subscription_type, stream).await?;
-		}
-		Ok(())
+			}
+		} else if let Entry::Occupied(mut requested_entry) = self.requested_subscriptions.entry(subscription_type) {
+			let current_count = *requested_entry.get() - 1;
+			if current_count == 0 {
+				requested_entry.remove();
+				true
+			} else {
+				*requested_entry.get_mut() = current_count;
+				false
+			}
+		} else {
+			false
+		};
 	}
 
 	/// Changes the current set of subscriptions so that it contains only the one specified subscription type.

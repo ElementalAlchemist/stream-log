@@ -445,7 +445,8 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 				}
 			},
 			FromServerMessage::Unsubscribed(subscription_type) => {
-				todo!("Handle message and update subscription manager")
+				let mut subscription_manager = subscription_manager.lock().await;
+				subscription_manager.remove_subscription(subscription_type);
 			}
 			FromServerMessage::SubscriptionFailure(subscription_type, failure_info) => {
 				let mut subscription_manager = subscription_manager.lock().await;
