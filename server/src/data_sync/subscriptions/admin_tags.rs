@@ -11,7 +11,7 @@ use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::subscriptions::{
 	InitialSubscriptionLoadData, SubscriptionData, SubscriptionFailureInfo, SubscriptionType,
 };
-use stream_log_shared::messages::tags::Tag;
+use stream_log_shared::messages::tags::{AvailableTagData, Tag};
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::{DataError, FromServerMessage};
 
@@ -63,11 +63,6 @@ pub async fn subscribe_to_admin_tags(
 	Ok(())
 }
 
-struct EventAndLogData {
-	all_events: Vec<Event>,
-	log_entries_with_event: Vec<(Event, EventLogEntry)>,
-}
-
 pub async fn handle_admin_tags_message(
 	db_connection: Arc<Mutex<PgConnection>>,
 	user: &UserData,
@@ -111,16 +106,21 @@ pub async fn handle_admin_tags_message(
 			}
 
 			let subscription_manager = subscription_manager.lock().await;
-			let message = SubscriptionData::AdminTagsUpdate(AdminTagData::UpdateTag(tag));
+			let message = SubscriptionData::AdminTagsUpdate(AdminTagData::UpdateTag(tag.clone()));
 			let send_result = subscription_manager.broadcast_admin_tags_message(message).await;
 			if let Err(error) = send_result {
 				tide::log::error!("Failed to send admin tags update message: {}", error);
+			}
+			let message = SubscriptionData::AvailableTagsUpdate(AvailableTagData::UpdateTag(tag));
+			let send_result = subscription_manager.broadcast_available_tags_message(message).await;
+			if let Err(error) = send_result {
+				tide::log::error!("Failed to send available tags update message: {}", error);
 			}
 		}
 		AdminTagUpdate::ReplaceTag(remove_tag, replacement_tag) => {
 			let event_update_data = {
 				let mut db_connection = db_connection.lock().await;
-				let tx_result: QueryResult<EventAndLogData> = db_connection.transaction(|db_connection| {
+				let tx_result: QueryResult<Vec<(Event, EventLogEntry)>> = db_connection.transaction(|db_connection| {
 					let log_entry_tags: Vec<EventLogTag> = event_log_tags::table
 						.filter(event_log_tags::tag.eq(&remove_tag.id))
 						.load(db_connection)?;
@@ -193,10 +193,7 @@ pub async fn handle_admin_tags_message(
 						));
 					}
 
-					Ok(EventAndLogData {
-						all_events,
-						log_entries_with_event: event_log_entries,
-					})
+					Ok(event_log_entries)
 				});
 				match tx_result {
 					Ok(data) => data,
@@ -208,14 +205,21 @@ pub async fn handle_admin_tags_message(
 			};
 
 			let subscription_manager = subscription_manager.lock().await;
-			let admin_message =
-				SubscriptionData::AdminTagsUpdate(AdminTagData::ReplaceTag(remove_tag.clone(), replacement_tag));
+			let admin_message = SubscriptionData::AdminTagsUpdate(AdminTagData::RemoveTag(remove_tag.clone()));
 			let send_result = subscription_manager.broadcast_admin_tags_message(admin_message).await;
 			if let Err(error) = send_result {
 				tide::log::error!("Failed to send tag update message for tag replacement: {}", error);
 			}
+			let available_message =
+				SubscriptionData::AvailableTagsUpdate(AvailableTagData::RemoveTag(remove_tag.clone()));
+			let send_result = subscription_manager
+				.broadcast_available_tags_message(available_message)
+				.await;
+			if let Err(error) = send_result {
+				tide::log::error!("Failed to send tag update message for tag replacement: {}", error);
+			}
 
-			for (log_entry_event, log_entry) in event_update_data.log_entries_with_event {
+			for (log_entry_event, log_entry) in event_update_data {
 				let event_id = log_entry_event.id.clone();
 				let event_message = SubscriptionData::EventUpdate(
 					log_entry_event,
@@ -231,25 +235,11 @@ pub async fn handle_admin_tags_message(
 					);
 				}
 			}
-
-			for event in event_update_data.all_events {
-				let event_id = event.id.clone();
-				let event_message = SubscriptionData::EventUpdate(
-					event,
-					Box::new(EventSubscriptionData::DeleteTag(remove_tag.clone())),
-				);
-				let send_result = subscription_manager
-					.broadcast_event_message(&event_id, event_message)
-					.await;
-				if let Err(error) = send_result {
-					tide::log::error!("Failed to broadcast event message after tag replacement: {}", error);
-				}
-			}
 		}
 		AdminTagUpdate::RemoveTag(tag) => {
 			let event_update_data = {
 				let mut db_connection = db_connection.lock().await;
-				let tx_result: QueryResult<EventAndLogData> = db_connection.transaction(|db_connection| {
+				let tx_result: QueryResult<Vec<(Event, EventLogEntry)>> = db_connection.transaction(|db_connection| {
 					let removed_entry_tags: Vec<EventLogTag> = diesel::delete(event_log_tags::table)
 						.filter(event_log_tags::tag.eq(&tag.id))
 						.get_results(db_connection)?;
@@ -309,10 +299,7 @@ pub async fn handle_admin_tags_message(
 						));
 					}
 
-					Ok(EventAndLogData {
-						all_events,
-						log_entries_with_event: log_entries,
-					})
+					Ok(log_entries)
 				});
 				match tx_result {
 					Ok(entries) => entries,
@@ -327,10 +314,17 @@ pub async fn handle_admin_tags_message(
 			let admin_message = SubscriptionData::AdminTagsUpdate(AdminTagData::RemoveTag(tag.clone()));
 			let send_result = subscription_manager.broadcast_admin_tags_message(admin_message).await;
 			if let Err(error) = send_result {
-				tide::log::error!("Failed to send tag message update message for tag removal: {}", error);
+				tide::log::error!("Failed to send tag update message for tag removal: {}", error);
+			}
+			let available_message = SubscriptionData::AvailableTagsUpdate(AvailableTagData::RemoveTag(tag.clone()));
+			let send_result = subscription_manager
+				.broadcast_available_tags_message(available_message)
+				.await;
+			if let Err(error) = send_result {
+				tide::log::error!("Failed to send tag update message for tag removal: {}", error);
 			}
 
-			for (log_entry_event, log_entry) in event_update_data.log_entries_with_event {
+			for (log_entry_event, log_entry) in event_update_data {
 				let event_id = log_entry_event.id.clone();
 				let event_message = SubscriptionData::EventUpdate(
 					log_entry_event,
@@ -341,18 +335,6 @@ pub async fn handle_admin_tags_message(
 					.await;
 				if let Err(error) = send_result {
 					tide::log::error!("Failed to broadcast event log entry update for tag removal: {}", error);
-				}
-			}
-
-			for event in event_update_data.all_events {
-				let event_id = event.id.clone();
-				let event_message =
-					SubscriptionData::EventUpdate(event, Box::new(EventSubscriptionData::DeleteTag(tag.clone())));
-				let send_result = subscription_manager
-					.broadcast_event_message(&event_id, event_message)
-					.await;
-				if let Err(error) = send_result {
-					tide::log::error!("Failed to broadcast event message after tag removal: {}", error);
 				}
 			}
 		}

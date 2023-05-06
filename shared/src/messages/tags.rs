@@ -6,3 +6,9 @@ pub struct Tag {
 	pub name: String,
 	pub description: String,
 }
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum AvailableTagData {
+	UpdateTag(Tag),
+	RemoveTag(Tag),
+}

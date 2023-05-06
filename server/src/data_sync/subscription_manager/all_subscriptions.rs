@@ -11,6 +11,7 @@ use stream_log_shared::messages::user::UserData;
 pub struct SubscriptionManager {
 	event_subscriptions: HashMap<String, SingleSubscriptionManager>,
 	user_subscriptions: HashMap<String, Sender<ConnectionUpdate>>,
+	available_tag_subscriptions: SingleSubscriptionManager,
 	admin_user_subscriptions: SingleSubscriptionManager,
 	admin_event_subscriptions: SingleSubscriptionManager,
 	admin_permission_group_subscriptions: SingleSubscriptionManager,
@@ -26,6 +27,7 @@ impl SubscriptionManager {
 		Self {
 			event_subscriptions: HashMap::new(),
 			user_subscriptions: HashMap::new(),
+			available_tag_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AvailableTags),
 			admin_user_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AdminUsers),
 			admin_event_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AdminEvents),
 			admin_permission_group_subscriptions: SingleSubscriptionManager::new(
@@ -136,6 +138,26 @@ impl SubscriptionManager {
 				self.user_subscriptions.remove(user_id);
 			}
 		}
+	}
+
+	/// Adds a user to the available tags subscription
+	pub async fn add_available_tags_subscription(&self, user: &UserData, update_channel: Sender<ConnectionUpdate>) {
+		self.available_tag_subscriptions
+			.subscribe_user(user, update_channel)
+			.await;
+	}
+
+	/// Removes a user from the available tags subscription
+	pub async fn remove_available_tags_subscription(&self, user: &UserData) -> Result<(), SendError<ConnectionUpdate>> {
+		self.available_tag_subscriptions.unsubscribe_user(user).await
+	}
+
+	/// Sends the given message to all subscribed users for available tags
+	pub async fn broadcast_available_tags_message(
+		&self,
+		message: SubscriptionData,
+	) -> Result<(), SendError<SubscriptionData>> {
+		self.available_tag_subscriptions.broadcast_message(message).await
 	}
 
 	/// Adds a user to the admin user list subscription

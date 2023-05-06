@@ -68,7 +68,6 @@ pub enum AdminTagUpdate {
 pub enum AdminTagData {
 	UpdateTag(Tag),
 	RemoveTag(Tag),
-	ReplaceTag(Tag, Tag),
 }
 
 #[derive(Debug, Deserialize, Serialize)]

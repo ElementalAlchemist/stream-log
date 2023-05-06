@@ -11,6 +11,7 @@ use super::subscriptions::admin_permission_groups::{
 };
 use super::subscriptions::admin_tags::{handle_admin_tags_message, subscribe_to_admin_tags};
 use super::subscriptions::admin_users::{handle_admin_users_message, subscribe_to_admin_users};
+use super::subscriptions::available_tags::subscribe_to_available_tags;
 use super::subscriptions::events::{handle_event_update, subscribe_to_event};
 use super::user_profile::handle_profile_update;
 use super::HandleConnectionError;
@@ -322,6 +323,15 @@ async fn process_incoming_message(
 					)
 					.await?
 				}
+				SubscriptionType::AvailableTags => {
+					subscribe_to_available_tags(
+						Arc::clone(db_connection),
+						conn_update_tx,
+						user,
+						Arc::clone(subscription_manager),
+					)
+					.await?
+				}
 				SubscriptionType::AdminUsers => {
 					subscribe_to_admin_users(
 						Arc::clone(db_connection),
@@ -404,6 +414,9 @@ async fn process_incoming_message(
 					subscription_manager
 						.unsubscribe_user_from_event(&event_id, user)
 						.await?
+				}
+				SubscriptionType::AvailableTags => {
+					subscription_manager.remove_available_tags_subscription(user).await?
 				}
 				SubscriptionType::AdminUsers => subscription_manager.remove_admin_user_subscription(user).await?,
 				SubscriptionType::AdminEvents => subscription_manager.remove_admin_event_subscription(user).await?,

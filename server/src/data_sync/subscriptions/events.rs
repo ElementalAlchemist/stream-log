@@ -14,6 +14,7 @@ use chrono::Utc;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use std::collections::HashMap;
+use stream_log_shared::messages::admin::AdminTagData;
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_log::EventLogEntry;
 use stream_log_shared::messages::event_subscription::{
@@ -24,7 +25,7 @@ use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::subscriptions::{
 	InitialSubscriptionLoadData, SubscriptionData, SubscriptionFailureInfo, SubscriptionType,
 };
-use stream_log_shared::messages::tags::Tag;
+use stream_log_shared::messages::tags::{AvailableTagData, Tag};
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::{DataError, FromServerMessage};
 
@@ -344,14 +345,6 @@ pub async fn subscribe_to_event(
 			color: et.color(),
 		})
 		.collect();
-	let tags: Vec<Tag> = tags
-		.iter()
-		.map(|t| Tag {
-			id: t.id.clone(),
-			name: t.tag.clone(),
-			description: t.description.clone(),
-		})
-		.collect();
 	let mut event_log_entries: Vec<EventLogEntry> = Vec::with_capacity(log_entries.len());
 	for log_entry in log_entries.iter() {
 		let tags = match tags_by_log_entry.remove(&log_entry.id) {
@@ -413,7 +406,6 @@ pub async fn subscribe_to_event(
 		event,
 		permission_level,
 		entry_types,
-		tags,
 		available_editors_list,
 		event_log_entries,
 	)));
@@ -444,7 +436,7 @@ pub async fn handle_event_update(
 		return Ok(());
 	}
 
-	let subscription_data = match *message {
+	let event_subscription_data = match *message {
 		EventSubscriptionUpdate::NewLogEntry(mut log_entry_data) => {
 			let new_id = cuid2::create_id();
 			let db_entry = EventLogEntryDb {
@@ -492,7 +484,7 @@ pub async fn handle_event_update(
 			}
 
 			log_entry_data.id = new_id;
-			EventSubscriptionData::NewLogEntry(log_entry_data)
+			Some(EventSubscriptionData::NewLogEntry(log_entry_data))
 		}
 		EventSubscriptionUpdate::DeleteLogEntry(deleted_log_entry) => {
 			let mut db_connection = db_connection.lock().await;
@@ -510,7 +502,7 @@ pub async fn handle_event_update(
 				return Ok(());
 			}
 
-			EventSubscriptionData::DeleteLogEntry(deleted_log_entry)
+			Some(EventSubscriptionData::DeleteLogEntry(deleted_log_entry))
 		}
 		EventSubscriptionUpdate::ChangeStartTime(mut log_entry, new_start_time) => {
 			let mut db_connection = db_connection.lock().await;
@@ -528,7 +520,7 @@ pub async fn handle_event_update(
 			}
 
 			log_entry.start_time = new_start_time;
-			EventSubscriptionData::UpdateLogEntry(log_entry)
+			Some(EventSubscriptionData::UpdateLogEntry(log_entry))
 		}
 		EventSubscriptionUpdate::ChangeEndTime(mut log_entry, new_end_time) => {
 			let mut db_connection = db_connection.lock().await;
@@ -546,7 +538,7 @@ pub async fn handle_event_update(
 			}
 
 			log_entry.end_time = new_end_time;
-			EventSubscriptionData::UpdateLogEntry(log_entry)
+			Some(EventSubscriptionData::UpdateLogEntry(log_entry))
 		}
 		EventSubscriptionUpdate::ChangeEntryType(mut log_entry, new_entry_type) => {
 			let mut db_connection = db_connection.lock().await;
@@ -564,7 +556,7 @@ pub async fn handle_event_update(
 			}
 
 			log_entry.entry_type = new_entry_type;
-			EventSubscriptionData::UpdateLogEntry(log_entry)
+			Some(EventSubscriptionData::UpdateLogEntry(log_entry))
 		}
 		EventSubscriptionUpdate::ChangeDescription(mut log_entry, new_description) => {
 			let mut db_connection = db_connection.lock().await;
@@ -582,7 +574,7 @@ pub async fn handle_event_update(
 			}
 
 			log_entry.description = new_description;
-			EventSubscriptionData::UpdateLogEntry(log_entry)
+			Some(EventSubscriptionData::UpdateLogEntry(log_entry))
 		}
 		EventSubscriptionUpdate::ChangeMediaLink(mut log_entry, new_media_link) => {
 			let mut db_connection = db_connection.lock().await;
@@ -600,7 +592,7 @@ pub async fn handle_event_update(
 			}
 
 			log_entry.media_link = new_media_link;
-			EventSubscriptionData::UpdateLogEntry(log_entry)
+			Some(EventSubscriptionData::UpdateLogEntry(log_entry))
 		}
 		EventSubscriptionUpdate::ChangeSubmitterWinner(mut log_entry, new_submitter_or_winner) => {
 			let mut db_connection = db_connection.lock().await;
@@ -618,7 +610,7 @@ pub async fn handle_event_update(
 			}
 
 			log_entry.submitter_or_winner = new_submitter_or_winner;
-			EventSubscriptionData::UpdateLogEntry(log_entry)
+			Some(EventSubscriptionData::UpdateLogEntry(log_entry))
 		}
 		EventSubscriptionUpdate::ChangeTags(mut log_entry, new_tags) => {
 			let mut db_connection = db_connection.lock().await;
@@ -658,7 +650,7 @@ pub async fn handle_event_update(
 			}
 
 			log_entry.tags = new_tags;
-			EventSubscriptionData::UpdateLogEntry(log_entry)
+			Some(EventSubscriptionData::UpdateLogEntry(log_entry))
 		}
 		EventSubscriptionUpdate::ChangeMakeVideo(mut log_entry, new_make_video_value) => {
 			let mut db_connection = db_connection.lock().await;
@@ -676,7 +668,7 @@ pub async fn handle_event_update(
 			}
 
 			log_entry.make_video = new_make_video_value;
-			EventSubscriptionData::UpdateLogEntry(log_entry)
+			Some(EventSubscriptionData::UpdateLogEntry(log_entry))
 		}
 		EventSubscriptionUpdate::ChangeNotesToEditor(mut log_entry, new_notes_to_editor) => {
 			let mut db_connection = db_connection.lock().await;
@@ -694,7 +686,7 @@ pub async fn handle_event_update(
 			}
 
 			log_entry.notes_to_editor = new_notes_to_editor;
-			EventSubscriptionData::UpdateLogEntry(log_entry)
+			Some(EventSubscriptionData::UpdateLogEntry(log_entry))
 		}
 		EventSubscriptionUpdate::ChangeEditor(mut log_entry, new_editor) => {
 			let mut db_connection = db_connection.lock().await;
@@ -712,7 +704,7 @@ pub async fn handle_event_update(
 			}
 
 			log_entry.editor = new_editor;
-			EventSubscriptionData::UpdateLogEntry(log_entry)
+			Some(EventSubscriptionData::UpdateLogEntry(log_entry))
 		}
 		EventSubscriptionUpdate::ChangeHighlighted(mut log_entry, new_highlighted_value) => {
 			let mut db_connection = db_connection.lock().await;
@@ -730,7 +722,7 @@ pub async fn handle_event_update(
 			}
 
 			log_entry.highlighted = new_highlighted_value;
-			EventSubscriptionData::UpdateLogEntry(log_entry)
+			Some(EventSubscriptionData::UpdateLogEntry(log_entry))
 		}
 		EventSubscriptionUpdate::Typing(typing_data) => {
 			let user_data = UserData {
@@ -760,7 +752,7 @@ pub async fn handle_event_update(
 					TypingData::NotesToEditor(log_entry, notes_to_editor, user_data)
 				}
 			};
-			EventSubscriptionData::Typing(typing_data)
+			Some(EventSubscriptionData::Typing(typing_data))
 		}
 		EventSubscriptionUpdate::NewTag(mut new_tag) => {
 			if new_tag.name.is_empty() || new_tag.name.contains(',') || new_tag.description.is_empty() {
@@ -781,19 +773,33 @@ pub async fn handle_event_update(
 				tide::log::error!("Database error adding a new tag: {}", error);
 				return Ok(());
 			}
-			EventSubscriptionData::NewTag(new_tag)
+
+			let subscription_manager = subscription_manager.lock().await;
+			let message = SubscriptionData::AdminTagsUpdate(AdminTagData::UpdateTag(new_tag.clone()));
+			let send_result = subscription_manager.broadcast_admin_tags_message(message).await;
+			if let Err(error) = send_result {
+				tide::log::error!("Error occurred broadcasting an event tag update: {}", error);
+			}
+			let message = SubscriptionData::AvailableTagsUpdate(AvailableTagData::UpdateTag(new_tag));
+			let send_result = subscription_manager.broadcast_available_tags_message(message).await;
+			if let Err(error) = send_result {
+				tide::log::error!("Error occurred broadcasting an event tag update: {}", error);
+			}
+
+			None
 		}
 	};
-	let subscription_manager = subscription_manager.lock().await;
-	let subscription_data = SubscriptionData::EventUpdate(event.clone(), Box::new(subscription_data));
-	let broadcast_result = subscription_manager
-		.broadcast_event_message(&event.id, subscription_data)
-		.await;
-	match broadcast_result {
-		Ok(_) => Ok(()),
-		Err(error) => {
+
+	if let Some(subscription_data) = event_subscription_data {
+		let subscription_manager = subscription_manager.lock().await;
+		let subscription_data = SubscriptionData::EventUpdate(event.clone(), Box::new(subscription_data));
+		let broadcast_result = subscription_manager
+			.broadcast_event_message(&event.id, subscription_data)
+			.await;
+		if let Err(error) = broadcast_result {
 			tide::log::error!("Error occurred broadcasting an event: {}", error);
-			Err(HandleConnectionError::ConnectionClosed)
 		}
 	}
+
+	Ok(())
 }
