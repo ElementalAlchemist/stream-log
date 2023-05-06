@@ -381,7 +381,14 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 						}
 					}
 				},
-				SubscriptionData::AdminUsersUpdate(user_data) => todo!(),
+				SubscriptionData::AdminUsersUpdate(user_data) => {
+					let mut all_users = data_signals.all_users.modify();
+					let existing_user = all_users.iter_mut().find(|user| user.id == user_data.id);
+					match existing_user {
+						Some(user) => *user = user_data,
+						None => all_users.push(user_data),
+					}
+				}
 				SubscriptionData::AdminEventEditorsUpdate(event_editor_data) => todo!(),
 				SubscriptionData::AdminUserPermissionGroupsUpdate(user_permission_group_update) => todo!(),
 			},
