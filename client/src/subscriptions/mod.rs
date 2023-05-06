@@ -4,8 +4,9 @@ use futures::stream::SplitStream;
 use gloo_net::websocket::futures::WebSocket;
 use std::collections::HashMap;
 use stream_log_shared::messages::admin::{
-	AdminEntryTypeData, AdminEntryTypeEventData, AdminEventData, AdminPermissionGroupData, EditorEventAssociation,
-	EntryTypeEventAssociation, PermissionGroup, PermissionGroupEventAssociation, UserPermissionGroupAssociation,
+	AdminEntryTypeData, AdminEntryTypeEventData, AdminEventData, AdminPermissionGroupData, AdminTagData,
+	EditorEventAssociation, EntryTypeEventAssociation, PermissionGroup, PermissionGroupEventAssociation,
+	UserPermissionGroupAssociation,
 };
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_subscription::EventSubscriptionData;
@@ -348,7 +349,38 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 						}
 					}
 				},
-				SubscriptionData::AdminTagsUpdate(tag_data) => todo!(),
+				SubscriptionData::AdminTagsUpdate(tag_data) => match tag_data {
+					AdminTagData::UpdateTag(tag) => {
+						let mut all_tags = data_signals.all_tags.modify();
+						let existing_tag = all_tags.iter_mut().find(|check_tag| check_tag.id == tag.id);
+						match existing_tag {
+							Some(existing_tag) => *existing_tag = tag,
+							None => all_tags.push(tag),
+						}
+					}
+					AdminTagData::ReplaceTag(existing_tag, _replacement_tag) => {
+						let mut all_tags = data_signals.all_tags.modify();
+						let tag_index = all_tags
+							.iter()
+							.enumerate()
+							.find(|(_, check_tag)| check_tag.id == existing_tag.id)
+							.map(|(index, _)| index);
+						if let Some(index) = tag_index {
+							all_tags.remove(index);
+						}
+					}
+					AdminTagData::RemoveTag(tag) => {
+						let mut all_tags = data_signals.all_tags.modify();
+						let tag_index = all_tags
+							.iter()
+							.enumerate()
+							.find(|(_, check_tag)| check_tag.id == tag.id)
+							.map(|(index, _)| index);
+						if let Some(index) = tag_index {
+							all_tags.remove(index);
+						}
+					}
+				},
 				SubscriptionData::AdminUsersUpdate(user_data) => todo!(),
 				SubscriptionData::AdminEventEditorsUpdate(event_editor_data) => todo!(),
 				SubscriptionData::AdminUserPermissionGroupsUpdate(user_permission_group_update) => todo!(),
