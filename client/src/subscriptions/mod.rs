@@ -11,11 +11,13 @@ use stream_log_shared::messages::admin::{
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_subscription::EventSubscriptionData;
 use stream_log_shared::messages::events::Event;
-use stream_log_shared::messages::subscriptions::{InitialSubscriptionLoadData, SubscriptionData, SubscriptionType};
+use stream_log_shared::messages::subscriptions::{
+	InitialSubscriptionLoadData, SubscriptionData, SubscriptionFailureInfo, SubscriptionType,
+};
 use stream_log_shared::messages::tags::Tag;
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::user_register::RegistrationResponse;
-use stream_log_shared::messages::FromServerMessage;
+use stream_log_shared::messages::{DataError, FromServerMessage};
 use sycamore::prelude::*;
 
 pub mod errors;
@@ -446,7 +448,28 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 				todo!("Handle message and update subscription manager")
 			}
 			FromServerMessage::SubscriptionFailure(subscription_type, failure_info) => {
-				todo!("Handle message and update subscription manager")
+				let mut subscription_manager = subscription_manager.lock().await;
+
+				let error_message = match failure_info {
+					SubscriptionFailureInfo::Error(DataError::DatabaseError) => ErrorData::new_from_string(format!(
+						"Subscription to {:?} failed; a database error occurred",
+						subscription_type
+					)),
+					SubscriptionFailureInfo::Error(DataError::ServerError) => ErrorData::new_from_string(format!(
+						"Subscription to {:?} failed; a server error occurred",
+						subscription_type
+					)),
+					SubscriptionFailureInfo::NoTarget => ErrorData::new_from_string(format!(
+						"Subscription to {:?} failed; not a valid subscription target",
+						subscription_type
+					)),
+					SubscriptionFailureInfo::NotAllowed => ErrorData::new_from_string(format!(
+						"Subscription to {:?} failed; subscription not allowed",
+						subscription_type
+					)),
+				};
+				data_signals.errors.modify().push(error_message);
+				subscription_manager.subscription_failure_received(subscription_type);
 			}
 			FromServerMessage::RegistrationResponse(response) => match response {
 				RegistrationResponse::UsernameCheck(check_data) => {
