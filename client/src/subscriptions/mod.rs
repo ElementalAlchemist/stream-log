@@ -5,8 +5,8 @@ use gloo_net::websocket::futures::WebSocket;
 use std::collections::HashMap;
 use stream_log_shared::messages::admin::{
 	AdminEntryTypeData, AdminEntryTypeEventData, AdminEventData, AdminEventEditorData, AdminPermissionGroupData,
-	AdminTagData, EditorEventAssociation, EntryTypeEventAssociation, PermissionGroup, PermissionGroupEventAssociation,
-	UserPermissionGroupAssociation,
+	AdminTagData, AdminUserPermissionGroupData, EditorEventAssociation, EntryTypeEventAssociation, PermissionGroup,
+	PermissionGroupEventAssociation, UserPermissionGroupAssociation,
 };
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_subscription::EventSubscriptionData;
@@ -414,7 +414,33 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 						}
 					}
 				},
-				SubscriptionData::AdminUserPermissionGroupsUpdate(user_permission_group_update) => todo!(),
+				SubscriptionData::AdminUserPermissionGroupsUpdate(user_permission_group_update) => {
+					match user_permission_group_update {
+						AdminUserPermissionGroupData::AddUserToGroup(user_group_association) => {
+							let mut user_group_associations = data_signals.user_permission_groups.modify();
+							if !user_group_associations.iter().any(|association| {
+								association.user.id == user_group_association.user.id
+									&& association.permission_group.id == user_group_association.permission_group.id
+							}) {
+								user_group_associations.push(user_group_association);
+							}
+						}
+						AdminUserPermissionGroupData::RemoveUserFromGroup(user_group_association) => {
+							let mut user_group_associations = data_signals.user_permission_groups.modify();
+							let association_index = user_group_associations
+								.iter()
+								.enumerate()
+								.find(|(_, association)| {
+									association.user.id == user_group_association.user.id
+										&& association.permission_group.id == user_group_association.permission_group.id
+								})
+								.map(|(index, _)| index);
+							if let Some(index) = association_index {
+								user_group_associations.remove(index);
+							}
+						}
+					}
+				}
 			},
 			FromServerMessage::Unsubscribed(subscription_type) => {
 				todo!("Handle message and update subscription manager")
