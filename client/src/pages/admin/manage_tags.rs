@@ -38,7 +38,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		));
 	}
 
-	let tags_signal: &Signal<Vec<Tag>> = create_signal(ctx, Vec::new());
+	let tags_signal = create_memo(ctx, || (*data.all_tags.get()).clone());
 	let tag_names_index_signal = create_memo(ctx, || {
 		let names: HashSet<String> = tags_signal.get().iter().map(|event| event.name.clone()).collect();
 		names
@@ -163,10 +163,6 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 							let tag = tag.clone();
 
 							spawn_local_scoped(ctx, async move {
-								let mut modify_tags = tags_signal.modify();
-								let Some((tag_index, _)) = modify_tags.iter().enumerate().find(|(_, t)| tag.id == t.id) else { return; };
-								modify_tags.remove(tag_index);
-
 								let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 								let mut ws = ws_context.lock().await;
 
@@ -201,7 +197,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 							let tag = tag.clone();
 							spawn_local_scoped(ctx, async move {
-								let mut tags_list = tags_signal.modify();
+								let tags_list = tags_signal.get();
 								let replacement = tags_list.iter().find(|t| *entered_replacement_tag_signal.get() == t.name);
 								let replacement = if let Some(replacement) = replacement {
 									entered_replacement_tag_error_signal.set(String::new());
@@ -210,8 +206,6 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 									entered_replacement_tag_error_signal.set(String::from("Replacement tag must exist"));
 									return;
 								};
-								let Some((replacing_tag_index, _)) = tags_list.iter().enumerate().find(|(_, t)| tag.id == t.id) else { return; };
-								tags_list.remove(replacing_tag_index);
 								entered_replacement_tag_signal.set(String::new());
 
 								let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminTagsUpdate(AdminTagUpdate::ReplaceTag(tag, replacement))));
