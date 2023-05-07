@@ -297,5 +297,6 @@ pub fn AdminManageEditorsView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		Suspense(fallback=view! { ctx, "Loading editors manager..." }) {
 			AdminManageEditorsLoadedView
 		}
+		a(id="admin_event_editors_return_home", href="/") { "Return Home" }
 	}
 }
