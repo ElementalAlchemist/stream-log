@@ -1,0 +1,21 @@
+.admin_manage_groups_name {
+	margin-bottom: 10px;
+}
+
+.admin_manage_groups_events {
+	display: grid;
+	grid-template-columns: max-content max-content max-content max-content;
+	gap: 5px;
+
+	.admin_manage_groups_events_row {
+		display: contents;
+	}
+
+	.admin_manage_groups_events_view, .admin_manage_groups_events_edit {
+		text-align: center;
+	}
+}
+
+#admin_manage_groups_new_group {
+	margin-top: 10px;
+}

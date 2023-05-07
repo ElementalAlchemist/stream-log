@@ -1,0 +1,20 @@
+#admin_manage_entry_types {
+	display: grid;
+	grid-template-columns: max-content max-content max-content max-content;
+	align-items: center;
+	gap: 3px;
+
+	.admin_manage_entry_types_row {
+		display: contents;
+	}
+}
+
+#admin_entry_type_assignment_event_selection {
+	margin-bottom: 10px;
+}
+
+#admin_event_type_assignment_grid {
+	display: grid;
+	grid-template-columns: max-content 50px;
+	margin-bottom: 10px;
+}

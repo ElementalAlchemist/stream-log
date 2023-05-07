@@ -1,0 +1,74 @@
+@use "colors";
+
+:root {
+	--base-border-color: #000;
+}
+
+html {
+	background: colors.$light-background;
+}
+
+.input_error {
+	color: #b00;
+}
+
+input.error {
+	border-color: #b00;
+	outline-color: #c00;
+}
+
+@media (prefers-color-scheme: dark) {
+	html {
+		background: colors.$dark-background;
+		color: colors.$dark-foreground;
+	}
+
+	a {
+		color: #ccf;
+	}
+
+	a:visited {
+		color: #dcf;
+	}
+
+	button {
+		background: #222;
+		color: #fff;
+		border-color: #666;
+		border-style: solid;
+	}
+
+	input {
+		background: #111;
+		color: #fff;
+		border-color: #999;
+		border-style: solid;
+
+		&.error {
+			border-color: #f55;
+			outline-color: #f33;
+		}
+	}
+
+	:root {
+		--base-border-color: #eee;
+	}
+
+	.input_error {
+		color: #f55;
+	}
+}
+
+@import "user_menu";
+@import "register";
+@import "color_input";
+
+@import "admin/events";
+@import "admin/users";
+@import "admin/permission_groups";
+@import "admin/permission_group_users";
+@import "admin/entry_types";
+@import "admin/tags";
+@import "admin/editors";
+@import "user_profile";
+@import "event_log";

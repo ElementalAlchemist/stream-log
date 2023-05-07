@@ -1,0 +1,22 @@
+@use "colors";
+
+.color_input_preview {
+	display: grid;
+	grid-template-columns: min-content 1fr;
+	gap: 2px;
+	align-items: center;
+}
+
+.color_input_preview_light {
+	background: colors.$light-background;
+	color: colors.$light-foreground;
+	font-weight: 700;
+	padding: 3px;
+}
+
+.color_input_preview_dark {
+	background: colors.$dark-background;
+	color: colors.$dark-foreground;
+	font-weight: 700;
+	padding: 3px;
+}

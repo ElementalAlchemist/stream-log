@@ -1,0 +1,13 @@
+#admin_user_manage {
+	display: grid;
+	grid-template-columns: max-content max-content max-content max-content;
+	gap: 5px;
+
+	.admin_user_manage_row {
+		display: contents;
+	}
+
+	.admin_user_admin_toggle {
+		text-align: center;
+	}
+}

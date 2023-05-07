@@ -1,0 +1,14 @@
+#admin_event_editors_event_selection {
+	margin-bottom: 5px;
+}
+
+#admin_event_editors_list {
+	display: grid;
+	grid-template-columns: max-content max-content;
+	gap: 3px;
+	align-items: baseline;
+}
+
+#admin_event_editors_add_editor {
+	margin-top: 5px;
+}
