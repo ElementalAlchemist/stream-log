@@ -44,8 +44,11 @@ enum ModifiedEventLogEntryParts {
 
 #[component]
 async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> View<G> {
+	log::debug!("Starting event log load for event {}", props.id);
+
 	let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 	let mut ws = ws_context.lock().await;
+	log::debug!("Got websocket to load event {}", props.id);
 
 	let data: &DataSignals = use_context(ctx);
 
@@ -68,10 +71,17 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 			error,
 		));
 	}
+	log::debug!("Added subscription data for event {}", props.id);
 
-	let event_subscription_data = poll_fn(|_: &mut Context<'_>| match data.events.get().get(&props.id) {
-		Some(event_subscription_data) => Poll::Ready(event_subscription_data.clone()),
-		None => Poll::Pending,
+	let event_subscription_data = poll_fn(|_: &mut Context<'_>| {
+		log::debug!(
+			"Checking whether event {} is present yet in the subscription manager",
+			props.id
+		);
+		match data.events.get().get(&props.id) {
+			Some(event_subscription_data) => Poll::Ready(event_subscription_data.clone()),
+			None => Poll::Pending,
+		}
 	})
 	.await;
 
@@ -120,6 +130,8 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		name_index
 	});
 	let can_edit = create_memo(ctx, move || *permission_signal.get() == PermissionLevel::Edit);
+
+	log::debug!("Set up loaded data signals for event {}", props.id);
 
 	let new_event_log_entry: &Signal<Option<EventLogEntry>> = create_signal(ctx, None);
 	let new_entry_start_time = create_signal(ctx, Utc::now());
@@ -197,6 +209,8 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 	};
 
 	let visible_event_signal = event_signal.clone();
+
+	log::debug!("Created signals and handlers for event {}", props.id);
 
 	view! {
 		ctx,
