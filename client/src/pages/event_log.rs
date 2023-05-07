@@ -6,7 +6,7 @@ use chrono::{DateTime, Utc};
 use futures::future::poll_fn;
 use futures::lock::Mutex;
 use futures::stream::SplitSink;
-use futures::task::{Context, Poll};
+use futures::task::{Context, Poll, Waker};
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
@@ -73,14 +73,20 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 	}
 	log::debug!("Added subscription data for event {}", props.id);
 
-	let event_subscription_data = poll_fn(|_: &mut Context<'_>| {
+	let event_subscription_data = poll_fn(|poll_context: &mut Context<'_>| {
 		log::debug!(
 			"Checking whether event {} is present yet in the subscription manager",
 			props.id
 		);
 		match data.events.get().get(&props.id) {
 			Some(event_subscription_data) => Poll::Ready(event_subscription_data.clone()),
-			None => Poll::Pending,
+			None => {
+				let event_wakers: &Signal<HashMap<String, Waker>> = use_context(ctx);
+				event_wakers
+					.modify()
+					.insert(props.id.clone(), poll_context.waker().clone());
+				Poll::Pending
+			}
 		}
 	})
 	.await;

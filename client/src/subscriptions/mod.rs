@@ -1,6 +1,7 @@
 use crate::websocket::read_websocket;
 use futures::lock::Mutex;
 use futures::stream::SplitStream;
+use futures::task::Waker;
 use gloo_net::websocket::futures::WebSocket;
 use std::collections::HashMap;
 use stream_log_shared::messages::admin::{
@@ -146,6 +147,12 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 							.insert(event_id.clone(), event_subscription_data);
 						subscription_manager
 							.subscription_confirmation_received(SubscriptionType::EventLogData(event_id));
+
+						let event_wakers: &Signal<HashMap<String, Waker>> = use_context(ctx);
+						let event_wakers = event_wakers.take();
+						for waker in event_wakers.values() {
+							waker.wake_by_ref();
+						}
 					}
 					InitialSubscriptionLoadData::AvailableTags(tags) => {
 						data_signals.available_tags.set(tags);

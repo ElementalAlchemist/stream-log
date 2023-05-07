@@ -1,6 +1,8 @@
 use futures::lock::Mutex;
+use futures::task::Waker;
 use futures::StreamExt;
 use gloo_net::websocket::futures::WebSocket;
+use std::collections::HashMap;
 use stream_log_shared::messages::initial::{InitialMessage, UserDataLoad};
 use stream_log_shared::SYNC_VERSION;
 use sycamore::futures::spawn_local_scoped;
@@ -157,6 +159,8 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 	provide_context(ctx, client_data);
 	let subscription_manager = Mutex::new(SubscriptionManager::default());
 	provide_context(ctx, subscription_manager);
+	let event_wakers: HashMap<String, Waker> = HashMap::new();
+	provide_context_ref(ctx, create_signal(ctx, event_wakers));
 
 	spawn_local_scoped(ctx, process_messages(ctx, ws_read));
 
