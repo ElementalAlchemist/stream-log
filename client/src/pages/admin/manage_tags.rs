@@ -272,8 +272,12 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				input(bind:value=entered_new_tag_name_signal, placeholder="Tag name", class=if *entered_new_tag_name_has_error_signal.get() { "error" } else { "" })
 				span(class="input_error") { (entered_new_tag_name_error_signal.get()) }
 			}
-			input(bind:value=entered_new_tag_description_signal, placeholder="Tag description")
-			button(type="submit") { "Add tag" }
+			div(id="admin_manage_tags_add_new_description") {
+				input(bind:value=entered_new_tag_description_signal, placeholder="Tag description")
+			}
+			div {
+				button(type="submit") { "Add tag" }
+			}
 		}
 	}
 }
