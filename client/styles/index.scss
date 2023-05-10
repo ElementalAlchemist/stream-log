@@ -8,6 +8,10 @@ html {
 	background: colors.$light-background;
 }
 
+body {
+	margin: 0;
+}
+
 .input_error {
 	color: #b00;
 }
@@ -15,6 +19,10 @@ html {
 input.error {
 	border-color: #b00;
 	outline-color: #c00;
+}
+
+#page_errors {
+	position: fixed;
 }
 
 @media (prefers-color-scheme: dark) {

@@ -1,3 +1,22 @@
+#event_log_layout {
+	display: flex;
+	flex-direction: column;
+	height: 100vh;
+}
+
+#event_log_header {
+	flex-basis: max-content;
+}
+
+#event_log {
+	flex-grow: 1;
+	overflow-y: auto;
+}
+
+#event_log_new_entry {
+	flex-basis: max-content;
+}
+
 #event_log_data {
 	display: grid;
 	grid-template-columns: max-content max-content max-content 1fr 150px 150px 150px 50px 50px 50px max-content 200px;
