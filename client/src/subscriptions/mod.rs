@@ -1,4 +1,5 @@
 use crate::websocket::read_websocket;
+use chrono::Utc;
 use futures::lock::Mutex;
 use futures::stream::SplitStream;
 use futures::task::Waker;
@@ -10,7 +11,8 @@ use stream_log_shared::messages::admin::{
 	PermissionGroupEventAssociation, UserPermissionGroupAssociation,
 };
 use stream_log_shared::messages::entry_types::EntryType;
-use stream_log_shared::messages::event_subscription::EventSubscriptionData;
+use stream_log_shared::messages::event_log::EventLogEntry;
+use stream_log_shared::messages::event_subscription::{EventSubscriptionData, TypingData};
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::subscriptions::{
 	InitialSubscriptionLoadData, SubscriptionData, SubscriptionFailureInfo, SubscriptionType,
@@ -25,7 +27,7 @@ pub mod errors;
 use errors::ErrorData;
 
 pub mod event;
-use event::EventSubscriptionSignals;
+use event::{EventSubscriptionSignals, TypingEvent, TypingTarget};
 
 pub mod manager;
 use manager::SubscriptionManager;
@@ -128,19 +130,13 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 						event_log_entries,
 					) => {
 						let event_id = event.id.clone();
-						let event = create_rc_signal(event);
-						let permission = create_rc_signal(permission_level);
-						let entry_types = create_rc_signal(entry_types);
-						let editors = create_rc_signal(editors);
-						let event_log_entries = create_rc_signal(event_log_entries);
-
-						let event_subscription_data = EventSubscriptionSignals {
+						let event_subscription_data = EventSubscriptionSignals::new(
 							event,
-							permission,
+							permission_level,
 							entry_types,
 							editors,
 							event_log_entries,
-						};
+						);
 						data_signals
 							.events
 							.modify()
@@ -225,7 +221,94 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 								*entry = log_entry;
 							}
 						}
-						EventSubscriptionData::Typing(typing_data) => todo!(),
+						EventSubscriptionData::Typing(typing_data) => {
+							let user: &Signal<Option<UserData>> = use_context(ctx);
+							// If we're not logged in, we shouldn't be receiving typing data.
+							let user = user.get();
+							let Some(user) = user.as_ref() else { continue; };
+							// If we're not subscribed to the event in question, we don't need to track this data.
+							let data_events = data_signals.events.get();
+							let Some(event_data) = data_events.get(&event.id) else { continue; };
+							match typing_data {
+								TypingData::StartTime(event_log_entry, typed_time, typing_user) => {
+									if user.id != typing_user.id {
+										handle_typing_data(
+											event_data,
+											event_log_entry,
+											typed_time,
+											typing_user,
+											TypingTarget::StartTime,
+										);
+									}
+								}
+								TypingData::EndTime(event_log_entry, typed_time, typing_user) => {
+									if user.id != typing_user.id {
+										handle_typing_data(
+											event_data,
+											event_log_entry,
+											typed_time,
+											typing_user,
+											TypingTarget::EndTime,
+										);
+									}
+								}
+								TypingData::EntryType(event_log_entry, typed_type, typing_user) => {
+									if user.id != typing_user.id {
+										handle_typing_data(
+											event_data,
+											event_log_entry,
+											typed_type,
+											typing_user,
+											TypingTarget::EntryType,
+										);
+									}
+								}
+								TypingData::Description(event_log_entry, typed_description, typing_user) => {
+									if user.id != typing_user.id {
+										handle_typing_data(
+											event_data,
+											event_log_entry,
+											typed_description,
+											typing_user,
+											TypingTarget::Description,
+										);
+									}
+								}
+								TypingData::MediaLink(event_log_entry, typed_link, typing_user) => {
+									if user.id != typing_user.id {
+										handle_typing_data(
+											event_data,
+											event_log_entry,
+											typed_link,
+											typing_user,
+											TypingTarget::MediaLink,
+										);
+									}
+								}
+								TypingData::SubmitterWinner(event_log_entry, typed_name, typing_user) => {
+									if user.id != typing_user.id {
+										handle_typing_data(
+											event_data,
+											event_log_entry,
+											typed_name,
+											typing_user,
+											TypingTarget::SubmitterWinner,
+										);
+									}
+								}
+								TypingData::NotesToEditor(event_log_entry, typed_notes, typing_user) => {
+									if user.id != typing_user.id {
+										handle_typing_data(
+											event_data,
+											event_log_entry,
+											typed_notes,
+											typing_user,
+											TypingTarget::NotesToEditor,
+										);
+									}
+								}
+							}
+						}
 						EventSubscriptionData::AddEntryType(new_entry_type) => {
 							event_data.entry_types.modify().push(new_entry_type)
 						}
@@ -491,5 +574,33 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 				}
 			},
 		}
+	}
+}
+
+fn handle_typing_data(
+	event_data: &EventSubscriptionSignals,
+	event_log_entry: Option<EventLogEntry>,
+	typed_data: String,
+	typing_user: UserData,
+	target_field: TypingTarget,
+) {
+	let mut typing_events = event_data.typing_events.modify();
+	let existing_event = typing_events.iter_mut().find(|typing_event| {
+		typing_event.event_log_entry.as_ref().map(|entry| &entry.id) == event_log_entry.as_ref().map(|entry| &entry.id)
+			&& typing_event.user.id == typing_user.id
+			&& typing_event.target_field == target_field
+	});
+	match existing_event {
+		Some(typing_event) => {
+			typing_event.data = typed_data;
+			typing_event.time_received = Utc::now();
+		}
+		None => typing_events.push(TypingEvent {
+			event_log_entry,
+			user: typing_user,
+			target_field: TypingTarget::SubmitterWinner,
+			data: typed_data,
+			time_received: Utc::now(),
+		}),
 	}
 }

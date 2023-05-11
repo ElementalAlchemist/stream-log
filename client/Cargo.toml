@@ -11,6 +11,7 @@ console_error_panic_hook = "0.1.7"
 contrast = "0.1.0"
 futures = "0.3.28"
 gloo-net = { version = "0.2.6", features = ["websocket"] }
+gloo-timers = "0.2.6"
 log = "0.4.17"
 rgb = "0.8.36"
 serde = "1.0.162"
