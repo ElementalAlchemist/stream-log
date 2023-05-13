@@ -585,22 +585,39 @@ fn handle_typing_data(
 	target_field: TypingTarget,
 ) {
 	let mut typing_events = event_data.typing_events.modify();
-	let existing_event = typing_events.iter_mut().find(|typing_event| {
-		typing_event.event_log_entry.as_ref().map(|entry| &entry.id) == event_log_entry.as_ref().map(|entry| &entry.id)
-			&& typing_event.user.id == typing_user.id
-			&& typing_event.target_field == target_field
-	});
-	match existing_event {
-		Some(typing_event) => {
-			typing_event.data = typed_data;
-			typing_event.time_received = Utc::now();
+	if typed_data.is_empty() {
+		let event_index = typing_events
+			.iter()
+			.enumerate()
+			.find(|(_, typing_event)| {
+				typing_event.event_log_entry.as_ref().map(|entry| &entry.id)
+					== event_log_entry.as_ref().map(|entry| &entry.id)
+					&& typing_event.user.id == typing_user.id
+					&& typing_event.target_field == target_field
+			})
+			.map(|(index, _)| index);
+		if let Some(index) = event_index {
+			typing_events.remove(index);
 		}
-		None => typing_events.push(TypingEvent {
-			event_log_entry,
-			user: typing_user,
-			target_field: TypingTarget::SubmitterWinner,
-			data: typed_data,
-			time_received: Utc::now(),
-		}),
+	} else {
+		let existing_event = typing_events.iter_mut().find(|typing_event| {
+			typing_event.event_log_entry.as_ref().map(|entry| &entry.id)
+				== event_log_entry.as_ref().map(|entry| &entry.id)
+				&& typing_event.user.id == typing_user.id
+				&& typing_event.target_field == target_field
+		});
+		match existing_event {
+			Some(typing_event) => {
+				typing_event.data = typed_data;
+				typing_event.time_received = Utc::now();
+			}
+			None => typing_events.push(TypingEvent {
+				event_log_entry,
+				user: typing_user,
+				target_field: TypingTarget::SubmitterWinner,
+				data: typed_data,
+				time_received: Utc::now(),
+			}),
+		}
 	}
 }
