@@ -201,7 +201,32 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 					match *update_data {
 						EventSubscriptionData::UpdateEvent => event_data.event.set(event),
 						EventSubscriptionData::NewLogEntry(log_entry) => {
-							event_data.event_log_entries.modify().push(log_entry)
+							let mut event_log_entries = event_data.event_log_entries.modify();
+							match event_log_entries.last() {
+								Some(last_entry) => {
+									if log_entry.start_time >= last_entry.start_time {
+										event_log_entries.push(log_entry);
+										continue;
+									}
+								}
+								None => {
+									event_log_entries.push(log_entry);
+									continue;
+								}
+							};
+							match event_log_entries
+								.binary_search_by_key(&log_entry.start_time, |entry| entry.start_time)
+							{
+								Ok(mut found_entry_index) => {
+									while found_entry_index < event_log_entries.len()
+										&& event_log_entries[found_entry_index].start_time == log_entry.start_time
+									{
+										found_entry_index += 1;
+									}
+									event_log_entries.insert(found_entry_index, log_entry);
+								}
+								Err(new_insert_index) => event_log_entries.insert(new_insert_index, log_entry),
+							}
 						}
 						EventSubscriptionData::DeleteLogEntry(log_entry) => {
 							let mut log_entries = event_data.event_log_entries.modify();
