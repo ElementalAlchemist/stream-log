@@ -1108,7 +1108,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 					} else {
 						view! {
 							ctx,
-							button(on:click=delete_handler) { "Delete" }
+							button(type="button", on:click=delete_handler) { "Delete" }
 							button(disabled=*disable_save.get()) { "Close" }
 						}
 					})
