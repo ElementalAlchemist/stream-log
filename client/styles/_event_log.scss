@@ -35,6 +35,20 @@
 	}
 }
 
+.log_entry_highlight {
+	background: #ff0;
+
+	> div {
+		background: inherit;
+	}
+}
+
+@media (prefers-color-scheme: dark) {
+	.log_entry_highlight {
+		background: #330;
+	}
+}
+
 .log_entry_make_video > img {
 	width: 20px;
 }
