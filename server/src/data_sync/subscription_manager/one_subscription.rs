@@ -27,9 +27,10 @@ impl SingleSubscriptionManager {
 					let mut subscriptions = subscriptions.lock().await;
 					let mut dead_connection_users: Vec<String> = Vec::new();
 					for (user_id, user_subscription) in subscriptions.iter() {
+						let message = FromServerMessage::SubscriptionMessage(Box::new(broadcast_msg.clone()));
 						let send_result = user_subscription
 							.channel
-							.send(ConnectionUpdate::SendData(Box::new(broadcast_msg.clone())))
+							.send(ConnectionUpdate::SendData(Box::new(message)))
 							.await;
 						if send_result.is_err() {
 							dead_connection_users.push(user_id.clone());
