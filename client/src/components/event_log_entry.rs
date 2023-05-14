@@ -939,6 +939,38 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 		}
 	};
 
+	let delete_handler = move |_event: WebEvent| {
+		let Some(log_entry) = (*props.event_log_entry.get()).clone() else { return; };
+		spawn_local_scoped(ctx, async move {
+			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+			let mut ws = ws_context.lock().await;
+
+			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
+				(*props.event.get()).clone(),
+				Box::new(EventSubscriptionUpdate::DeleteLogEntry(log_entry)),
+			)));
+			let message_json = match serde_json::to_string(&message) {
+				Ok(msg) => msg,
+				Err(error) => {
+					let data_signals: &DataSignals = use_context(ctx);
+					data_signals.errors.modify().push(ErrorData::new_with_error(
+						"Failed to serialize event log entry deletion.",
+						error,
+					));
+					return;
+				}
+			};
+			let send_result = ws.send(Message::Text(message_json)).await;
+			if let Err(error) = send_result {
+				let data_signals: &DataSignals = use_context(ctx);
+				data_signals.errors.modify().push(ErrorData::new_with_error(
+					"Failed to send event log entry deletion.",
+					error,
+				));
+			}
+		});
+	};
+
 	let disable_save = create_memo(ctx, || {
 		start_time_error.get().is_some()
 			|| end_time_error.get().is_some()
@@ -1076,6 +1108,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 					} else {
 						view! {
 							ctx,
+							button(on:click=delete_handler) { "Delete" }
 							button(disabled=*disable_save.get()) { "Close" }
 						}
 					})
