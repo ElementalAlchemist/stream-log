@@ -456,7 +456,7 @@ pub async fn handle_event_update(
 				highlighted: log_entry_data.highlighted,
 				last_update_user: user.id.clone(),
 				last_updated: Utc::now(),
-				parent: None,
+				parent: log_entry_data.parent.clone(),
 			};
 
 			let db_tags: Vec<EventLogTag> = log_entry_data
