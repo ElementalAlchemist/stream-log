@@ -79,6 +79,7 @@ pub struct EventLogEntryProps<'a> {
 	editors_by_name_index: &'a ReadSignal<HashMap<String, UserData>>,
 	read_event_signal: &'a ReadSignal<Event>,
 	read_entry_types_signal: &'a ReadSignal<Vec<EntryType>>,
+	new_entry_parent: &'a Signal<Option<EventLogEntry>>,
 }
 
 #[component]
@@ -238,11 +239,13 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 		modified_data.modify().insert(ModifiedEventLogEntryParts::Highlighted);
 	});
 
+	let row_edit_parent: &Signal<Option<EventLogEntry>> = create_signal(ctx, None);
+
 	let close_handler_entry = entry.clone();
 
 	view! {
 		ctx,
-		EventLogEntryRow(entry=entry, event=(*event).clone(), entry_type=entry_type.clone(), click_handler=click_handler)
+		EventLogEntryRow(entry=entry, event=(*event).clone(), entry_type=entry_type.clone(), click_handler=click_handler, new_entry_parent=props.new_entry_parent)
 		(if *edit_open_signal.get() {
 			let close_handler = {
 				let entry = close_handler_entry.clone();
@@ -321,8 +324,8 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 					editor_name_index=editors_by_name_index,
 					editor_name_datalist_id="editor_names",
 					highlighted=edit_highlighted,
-					close_handler=close_handler,
-					editing_new=false
+					parent_log_entry=row_edit_parent,
+					close_handler=close_handler
 				)
 			}
 		} else {
@@ -332,15 +335,16 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 }
 
 #[derive(Prop)]
-pub struct EventLogEntryRowProps<THandler: Fn()> {
+pub struct EventLogEntryRowProps<'a, THandler: Fn()> {
 	entry: EventLogEntry,
 	event: Event,
 	entry_type: EntryType,
 	click_handler: Option<THandler>,
+	new_entry_parent: &'a Signal<Option<EventLogEntry>>,
 }
 
 #[component]
-pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventLogEntryRowProps<T>) -> View<G> {
+pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventLogEntryRowProps<'a, T>) -> View<G> {
 	let start_time = props.entry.start_time - props.event.start_time;
 	let start_time_display = format_duration(&start_time);
 	let end_time_display = if let Some(entry_end_time) = props.entry.end_time {
@@ -379,9 +383,19 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 		}
 	};
 
+	let parent_select_handler = {
+		let entry = props.entry.clone();
+		move |_event: WebEvent| {
+			props.new_entry_parent.set(Some(entry.clone()));
+		}
+	};
+
 	view! {
 		ctx,
 		div(class=row_class, on:click=click_handler) {
+			div(class="log_entry_select_parent") {
+				img(src="images/add.png", class="click", on:click=parent_select_handler)
+			}
 			div(class="log_entry_start_time") { (start_time_display) }
 			div(class="log_entry_end_time") { (end_time_display) }
 			div(class="log_entry_type", style=entry_type_style) { (props.entry_type.name) }
@@ -486,8 +500,8 @@ pub struct EventLogEntryEditProps<'a, TCloseHandler: Fn()> {
 	editor_name_index: &'a ReadSignal<HashMap<String, UserData>>,
 	editor_name_datalist_id: &'a str,
 	highlighted: &'a Signal<bool>,
+	parent_log_entry: &'a Signal<Option<EventLogEntry>>,
 	close_handler: TCloseHandler,
-	editing_new: bool,
 }
 
 #[component]
@@ -921,7 +935,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 		event.prevent_default();
 		(props.close_handler)();
 
-		if props.editing_new {
+		if props.event_log_entry.get().is_none() {
 			let new_start_time = Utc::now() - event_start;
 			let new_start_time_input = format_duration(&new_start_time);
 			start_time_input.set(new_start_time_input);
@@ -979,9 +993,41 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			|| !new_tag_names.get().is_empty()
 	});
 
+	let remove_parent_handler = |_event: WebEvent| {
+		props.parent_log_entry.set(None);
+	};
+
 	view! {
 		ctx,
 		form(class="event_log_entry_edit", on:submit=close_handler) {
+			div(class="event_log_entry_edit_parent_info") {
+				(if let Some(parent) = props.parent_log_entry.get().as_ref() {
+					let start_time_duration = parent.start_time - props.event.get().start_time;
+					let end_time_duration = parent.end_time.map(|end_time| end_time - props.event.get().start_time);
+					let event_entry_types = props.event_entry_types.get();
+					let Some(entry_type) = event_entry_types.iter().find(|entry_type| entry_type.id == parent.entry_type) else { return view! { ctx, }};
+					let entry_type_name = entry_type.name.clone();
+					let description = parent.description.clone();
+
+					let start_time = format_duration(&start_time_duration);
+					let end_time = end_time_duration.map(|d| format_duration(&d)).unwrap_or_default();
+
+					view! {
+						ctx,
+						img(class="event_log_entry_edit_parent_child_indicator", src="images/child-indicator.png")
+						(start_time)
+						" / "
+						(end_time)
+						" / "
+						(entry_type_name)
+						" / "
+						(description)
+						img(class="event_log_entry_edit_parent_remove click", src="images/remove.png", on:click=remove_parent_handler)
+					}
+				} else {
+					view! { ctx, }
+				})
+			}
 			div(class="event_log_entry_edit_basic_info") {
 				div(class="event_log_entry_edit_start_time") {
 					input(placeholder="Start", bind:value=start_time_input, class=if start_time_error.get().is_some() { "error" } else { "" }, title=(*start_time_error.get()).as_ref().unwrap_or(&String::new()))
@@ -1099,7 +1145,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 					}
 				}
 				div(class="event_log_entry_edit_close") {
-					(if props.editing_new {
+					(if props.event_log_entry.get().is_none() {
 						view! {
 							ctx,
 							button(disabled=*disable_save.get()) { "Add" }

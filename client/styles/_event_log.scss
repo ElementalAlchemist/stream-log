@@ -19,7 +19,7 @@
 
 #event_log_data {
 	display: grid;
-	grid-template-columns: max-content max-content max-content 1fr 150px 150px 150px 50px 50px 50px max-content 200px;
+	grid-template-columns: max-content max-content max-content max-content 1fr 150px 150px 150px 50px 50px 50px max-content 200px;
 }
 
 .event_log_header {
@@ -49,16 +49,28 @@
 	}
 }
 
+.log_entry_select_parent > img {
+	width: 16px;
+}
+
 .log_entry_make_video > img {
 	width: 20px;
 }
 
 .event_log_entry_edit {
-	grid-column: 1 / span 12;
+	grid-column: 1 / span 13;
 }
 
 .event_log_entry_edit div {
 	padding: 2px;
+}
+
+.event_log_entry_edit_parent_child_indicator {
+	width: 16px;
+}
+
+.event_log_entry_edit_parent_remove {
+	width: 16px;
 }
 
 .event_log_entry_edit_basic_info {

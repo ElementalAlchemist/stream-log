@@ -136,6 +136,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 	let new_entry_notes_to_editor = create_signal(ctx, String::new());
 	let new_entry_editor: &Signal<Option<UserData>> = create_signal(ctx, None);
 	let new_entry_highlighted = create_signal(ctx, false);
+	let new_entry_parent: &Signal<Option<EventLogEntry>> = create_signal(ctx, None);
 
 	let new_entry_close_handler = {
 		let event_signal = event_signal.clone();
@@ -153,6 +154,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 			let notes_to_editor = (*new_entry_notes_to_editor.get()).clone();
 			let editor = (*new_entry_editor.get()).clone();
 			let highlighted = *new_entry_highlighted.get();
+			let parent = (*new_entry_parent.get()).as_ref().map(|entry| entry.id.clone());
 			let new_event_log_entry = EventLogEntry {
 				id: String::new(),
 				start_time,
@@ -168,7 +170,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 				editor,
 				video_link: None,
 				highlighted,
-				parent: None,
+				parent,
 			};
 
 			spawn_local_scoped(ctx, async move {
@@ -211,6 +213,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 			}
 			div(id="event_log") {
 				div(id="event_log_data") {
+					div(class="event_log_header") { }
 					div(class="event_log_header") { "Start" }
 					div(class="event_log_header") { "End" }
 					div(class="event_log_header") { "Type" }
@@ -245,7 +248,8 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 										tags_by_name_index=tags_by_name_index,
 										editors_by_name_index=editors_by_name_index,
 										read_event_signal=read_event_signal,
-										read_entry_types_signal=read_entry_types_signal
+										read_entry_types_signal=read_entry_types_signal,
+										new_entry_parent=new_entry_parent
 									)
 								}
 							}
@@ -278,8 +282,8 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 							editor_name_index=editors_by_name_index,
 							editor_name_datalist_id="editor_names",
 							highlighted=new_entry_highlighted,
-							close_handler=new_entry_close_handler,
-							editing_new=true
+							parent_log_entry=new_entry_parent,
+							close_handler=new_entry_close_handler
 						)
 					}
 				}

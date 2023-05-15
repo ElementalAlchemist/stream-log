@@ -67,6 +67,10 @@ input.error {
 	}
 }
 
+.click {
+	cursor: pointer;
+}
+
 @import "user_menu";
 @import "register";
 @import "color_input";
