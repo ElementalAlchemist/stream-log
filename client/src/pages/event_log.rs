@@ -76,6 +76,21 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 	})
 	.await;
 
+	let entries_by_parent_signal = create_memo(ctx, {
+		let event_log_entries = event_subscription_data.event_log_entries.clone();
+		move || {
+			let mut entries_by_parent: HashMap<String, Vec<EventLogEntry>> = HashMap::new();
+			for event_log_entry in event_log_entries.get().iter() {
+				let parent = event_log_entry.parent.clone().unwrap_or_default();
+				entries_by_parent
+					.entry(parent)
+					.or_default()
+					.push(event_log_entry.clone());
+			}
+			entries_by_parent
+		}
+	});
+
 	let event_signal = event_subscription_data.event.clone();
 	let permission_signal = event_subscription_data.permission.clone();
 	let entry_types_signal = event_subscription_data.entry_types.clone();
@@ -95,9 +110,8 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		let tags_signal = tags_signal.clone();
 		move || (*tags_signal.get()).clone()
 	});
-	let read_log_entries = create_memo(ctx, {
-		let log_entries = log_entries.clone();
-		move || (*log_entries.get()).clone()
+	let read_log_entries = create_memo(ctx, || {
+		entries_by_parent_signal.get().get("").cloned().unwrap_or_default()
 	});
 	let read_available_editors = create_memo(ctx, {
 		let available_editors = available_editors.clone();
@@ -249,7 +263,8 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 										editors_by_name_index=editors_by_name_index,
 										read_event_signal=read_event_signal,
 										read_entry_types_signal=read_entry_types_signal,
-										new_entry_parent=new_entry_parent
+										new_entry_parent=new_entry_parent,
+										entries_by_parent=entries_by_parent_signal
 									)
 								}
 							}

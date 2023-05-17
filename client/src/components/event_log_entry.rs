@@ -80,6 +80,7 @@ pub struct EventLogEntryProps<'a> {
 	read_event_signal: &'a ReadSignal<Event>,
 	read_entry_types_signal: &'a ReadSignal<Vec<EntryType>>,
 	new_entry_parent: &'a Signal<Option<EventLogEntry>>,
+	entries_by_parent: &'a ReadSignal<HashMap<String, Vec<EventLogEntry>>>,
 }
 
 #[component]
@@ -107,6 +108,17 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 		None
 	};
 	let event_log_entry_signal = create_signal(ctx, Some(entry.clone()));
+
+	let child_log_entries = create_memo(ctx, || {
+		let event_log_entry = event_log_entry_signal.get();
+		let Some(log_entry_id) = (*event_log_entry).as_ref().map(|entry| &entry.id) else { return Vec::new(); };
+		props
+			.entries_by_parent
+			.get()
+			.get(log_entry_id)
+			.cloned()
+			.unwrap_or_default()
+	});
 
 	// Set up edit signals/data
 	let edit_start_time = create_signal(ctx, entry.start_time);
@@ -243,6 +255,10 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 
 	let close_handler_entry = entry.clone();
 
+	let child_event_signal = props.event_signal.clone();
+	let child_entry_types_signal = props.entry_types_signal.clone();
+	let child_all_log_entries_signal = props.all_log_entries.clone();
+
 	view! {
 		ctx,
 		EventLogEntryRow(entry=entry, event=(*event).clone(), entry_type=entry_type.clone(), click_handler=click_handler, new_entry_parent=props.new_entry_parent)
@@ -331,6 +347,38 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 		} else {
 			view! { ctx, }
 		})
+		div(class="event_log_entry_children") {
+			Keyed(
+				iterable=child_log_entries,
+				key=|entry| entry.id.clone(),
+				view={
+					let event_signal = child_event_signal.clone();
+					let entry_types_signal = child_entry_types_signal.clone();
+					let all_log_entries = child_all_log_entries_signal.clone();
+					move |ctx, entry| {
+						let event_signal = event_signal.clone();
+						let entry_types_signal = entry_types_signal.clone();
+						let all_log_entries = all_log_entries.clone();
+						view! {
+							ctx,
+							EventLogEntry(
+								entry=entry,
+								event_signal=event_signal,
+								entry_types_signal=entry_types_signal,
+								all_log_entries=all_log_entries,
+								can_edit=can_edit,
+								tags_by_name_index=props.tags_by_name_index,
+								editors_by_name_index=props.editors_by_name_index,
+								read_event_signal=props.read_event_signal,
+								read_entry_types_signal=props.read_entry_types_signal,
+								new_entry_parent=row_edit_parent,
+								entries_by_parent=props.entries_by_parent
+							)
+						}
+					}
+				}
+			)
+		}
 	}
 }
 

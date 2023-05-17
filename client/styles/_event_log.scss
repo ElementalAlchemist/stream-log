@@ -1,3 +1,5 @@
+$event_log_column_count: 13;
+
 #event_log_layout {
 	display: flex;
 	flex-direction: column;
@@ -17,8 +19,9 @@
 	flex-basis: max-content;
 }
 
-#event_log_data {
+#event_log_data, .event_log_entry_children > .event_log_entry {
 	display: grid;
+	// Update $event_log_column_count to match the number of columns here
 	grid-template-columns: max-content max-content max-content max-content 1fr 150px 150px 150px 50px 50px 50px max-content 200px;
 }
 
@@ -32,6 +35,16 @@
 	
 	> div {
 		padding: 2px;
+	}
+}
+
+.event_log_entry_children {
+	grid-column: 1 / span $event_log_column_count;
+	padding-left: 20px;
+	
+	&:not(:empty) {
+		margin-top: 5px;
+		margin-bottom: 20px;
 	}
 }
 
@@ -58,7 +71,7 @@
 }
 
 .event_log_entry_edit {
-	grid-column: 1 / span 13;
+	grid-column: 1 / span $event_log_column_count;
 }
 
 .event_log_entry_edit div {
