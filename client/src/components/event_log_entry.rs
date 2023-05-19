@@ -110,14 +110,10 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 	let event_log_entry_signal = create_signal(ctx, Some(entry.clone()));
 
 	let child_log_entries = create_memo(ctx, || {
+		let entries_by_parent = props.entries_by_parent.get();
 		let event_log_entry = event_log_entry_signal.get();
 		let Some(log_entry_id) = (*event_log_entry).as_ref().map(|entry| &entry.id) else { return Vec::new(); };
-		props
-			.entries_by_parent
-			.get()
-			.get(log_entry_id)
-			.cloned()
-			.unwrap_or_default()
+		entries_by_parent.get(log_entry_id).cloned().unwrap_or_default()
 	});
 
 	// Set up edit signals/data
