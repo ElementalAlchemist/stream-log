@@ -140,7 +140,6 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 	let edit_highlighted = create_signal(ctx, entry.highlighted);
 
 	let modified_data: &Signal<HashSet<ModifiedEventLogEntryParts>> = create_signal(ctx, HashSet::new());
-	let ran_once: &Signal<HashSet<ModifiedEventLogEntryParts>> = create_signal(ctx, HashSet::new());
 
 	create_effect(ctx, || {
 		if *edit_open_signal.get() {
@@ -163,116 +162,48 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 
 	create_effect(ctx, || {
 		edit_start_time.track();
-		if !ran_once
-			.get_untracked()
-			.contains(&ModifiedEventLogEntryParts::StartTime)
-		{
-			ran_once.modify().insert(ModifiedEventLogEntryParts::StartTime);
-			return;
-		}
 		modified_data.modify().insert(ModifiedEventLogEntryParts::StartTime);
 	});
 	create_effect(ctx, || {
 		edit_end_time.track();
-		if !ran_once.get_untracked().contains(&ModifiedEventLogEntryParts::EndTime) {
-			ran_once.modify().insert(ModifiedEventLogEntryParts::EndTime);
-			return;
-		}
 		modified_data.modify().insert(ModifiedEventLogEntryParts::EndTime);
 	});
 	create_effect(ctx, || {
 		edit_entry_type.track();
-		if !ran_once
-			.get_untracked()
-			.contains(&ModifiedEventLogEntryParts::EntryType)
-		{
-			ran_once.modify().insert(ModifiedEventLogEntryParts::EntryType);
-			return;
-		}
 		modified_data.modify().insert(ModifiedEventLogEntryParts::EntryType);
 	});
 	create_effect(ctx, || {
 		edit_description.track();
-		if !ran_once
-			.get_untracked()
-			.contains(&ModifiedEventLogEntryParts::Description)
-		{
-			ran_once.modify().insert(ModifiedEventLogEntryParts::Description);
-			return;
-		}
 		modified_data.modify().insert(ModifiedEventLogEntryParts::Description);
 	});
 	create_effect(ctx, || {
 		edit_media_link.track();
-		if !ran_once
-			.get_untracked()
-			.contains(&ModifiedEventLogEntryParts::MediaLink)
-		{
-			ran_once.modify().insert(ModifiedEventLogEntryParts::MediaLink);
-			return;
-		}
 		modified_data.modify().insert(ModifiedEventLogEntryParts::MediaLink);
 	});
 	create_effect(ctx, || {
 		edit_submitter_or_winner.track();
-		if !ran_once
-			.get_untracked()
-			.contains(&ModifiedEventLogEntryParts::SubmitterOrWinner)
-		{
-			ran_once.modify().insert(ModifiedEventLogEntryParts::SubmitterOrWinner);
-			return;
-		}
 		modified_data
 			.modify()
 			.insert(ModifiedEventLogEntryParts::SubmitterOrWinner);
 	});
 	create_effect(ctx, || {
 		edit_tags.track();
-		if !ran_once.get_untracked().contains(&ModifiedEventLogEntryParts::Tags) {
-			ran_once.modify().insert(ModifiedEventLogEntryParts::Tags);
-			return;
-		}
 		modified_data.modify().insert(ModifiedEventLogEntryParts::Tags);
 	});
 	create_effect(ctx, || {
 		edit_make_video.track();
-		if !ran_once
-			.get_untracked()
-			.contains(&ModifiedEventLogEntryParts::MakeVideo)
-		{
-			ran_once.modify().insert(ModifiedEventLogEntryParts::MakeVideo);
-			return;
-		}
 		modified_data.modify().insert(ModifiedEventLogEntryParts::MakeVideo);
 	});
 	create_effect(ctx, || {
 		edit_notes_to_editor.track();
-		if !ran_once
-			.get_untracked()
-			.contains(&ModifiedEventLogEntryParts::NotesToEditor)
-		{
-			ran_once.modify().insert(ModifiedEventLogEntryParts::NotesToEditor);
-			return;
-		}
 		modified_data.modify().insert(ModifiedEventLogEntryParts::NotesToEditor);
 	});
 	create_effect(ctx, || {
 		edit_editor.track();
-		if !ran_once.get_untracked().contains(&ModifiedEventLogEntryParts::Editor) {
-			ran_once.modify().insert(ModifiedEventLogEntryParts::Editor);
-			return;
-		}
 		modified_data.modify().insert(ModifiedEventLogEntryParts::Editor);
 	});
 	create_effect(ctx, || {
 		edit_highlighted.track();
-		if !ran_once
-			.get_untracked()
-			.contains(&ModifiedEventLogEntryParts::Highlighted)
-		{
-			ran_once.modify().insert(ModifiedEventLogEntryParts::Highlighted);
-			return;
-		}
 		modified_data.modify().insert(ModifiedEventLogEntryParts::Highlighted);
 	});
 
