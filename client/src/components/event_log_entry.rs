@@ -442,7 +442,7 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 		ctx,
 		div(class=row_class, on:click=click_handler) {
 			div(class="log_entry_select_parent") {
-				img(src="images/add.png", class="click", on:click=parent_select_handler)
+				img(src="images/add.png", class="click", alt="Add child entry", title="Add child entry", on:click=parent_select_handler)
 			}
 			div(class="log_entry_start_time") { (start_time_display) }
 			div(class="log_entry_end_time") { (end_time_display) }
@@ -479,7 +479,7 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 				(if props.entry.make_video {
 					view! {
 						ctx,
-						img(src="images/video.png")
+						img(src="images/video.png", alt="A video should be created for this row")
 					}
 				} else {
 					view! { ctx, }
