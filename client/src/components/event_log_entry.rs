@@ -107,7 +107,17 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 	} else {
 		None
 	};
-	let event_log_entry_signal = create_signal(ctx, Some(entry.clone()));
+	let event_log_entry_signal = create_memo(ctx, {
+		let log_entries = log_entries.clone();
+		let entry_id = entry.id.clone();
+		move || {
+			log_entries
+				.get()
+				.iter()
+				.find(|log_entry| log_entry.id == entry_id)
+				.cloned()
+		}
+	});
 
 	let child_log_entries = create_memo(ctx, || {
 		let entries_by_parent = props.entries_by_parent.get();
@@ -131,6 +141,25 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 
 	let modified_data: &Signal<HashSet<ModifiedEventLogEntryParts>> = create_signal(ctx, HashSet::new());
 	let ran_once: &Signal<HashSet<ModifiedEventLogEntryParts>> = create_signal(ctx, HashSet::new());
+
+	create_effect(ctx, || {
+		if *edit_open_signal.get() {
+			if let Some(entry) = event_log_entry_signal.get_untracked().as_ref() {
+				edit_start_time.set(entry.start_time);
+				edit_end_time.set(entry.end_time);
+				edit_entry_type.set(entry.entry_type.clone());
+				edit_description.set(entry.description.clone());
+				edit_media_link.set(entry.media_link.clone());
+				edit_submitter_or_winner.set(entry.submitter_or_winner.clone());
+				edit_tags.set(entry.tags.clone());
+				edit_make_video.set(entry.make_video);
+				edit_notes_to_editor.set(entry.notes_to_editor.clone());
+				edit_editor.set(entry.editor.clone());
+				edit_highlighted.set(entry.highlighted);
+			}
+			modified_data.modify().clear();
+		}
+	});
 
 	create_effect(ctx, || {
 		edit_start_time.track();
@@ -257,7 +286,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 
 	view! {
 		ctx,
-		EventLogEntryRow(entry=entry, event=(*event).clone(), entry_type=entry_type.clone(), click_handler=click_handler, new_entry_parent=props.new_entry_parent)
+		EventLogEntryRow(entry=event_log_entry_signal, event=(*event).clone(), entry_type=entry_type.clone(), click_handler=click_handler, new_entry_parent=props.new_entry_parent)
 		(if *edit_open_signal.get() {
 			let close_handler = {
 				let entry = close_handler_entry.clone();
@@ -380,7 +409,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 
 #[derive(Prop)]
 pub struct EventLogEntryRowProps<'a, THandler: Fn()> {
-	entry: EventLogEntry,
+	entry: &'a ReadSignal<Option<EventLogEntry>>,
 	event: Event,
 	entry_type: EntryType,
 	click_handler: Option<THandler>,
@@ -389,14 +418,16 @@ pub struct EventLogEntryRowProps<'a, THandler: Fn()> {
 
 #[component]
 pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventLogEntryRowProps<'a, T>) -> View<G> {
-	let start_time = props.entry.start_time - props.event.start_time;
-	let start_time_display = format_duration(&start_time);
-	let end_time_display = if let Some(entry_end_time) = props.entry.end_time {
-		let end_time = entry_end_time - props.event.start_time;
-		format_duration(&end_time)
-	} else {
-		String::new()
-	};
+	let start_time = (*props.entry.get())
+		.as_ref()
+		.map(|entry| entry.start_time - props.event.start_time);
+	let start_time_display = start_time.as_ref().map(format_duration).unwrap_or_default();
+
+	let end_time = (*props.entry.get())
+		.as_ref()
+		.and_then(|entry| entry.end_time.map(|end_time| end_time - props.event.start_time));
+	let end_time_display = end_time.as_ref().map(format_duration).unwrap_or_default();
+
 	let entry_type_background = props.entry_type.color;
 	let entry_type_light_contrast: f64 = contrast(entry_type_background, WHITE);
 	let entry_type_dark_contrast: f64 = contrast(entry_type_background, BLACK);
@@ -410,10 +441,20 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 		"background: {}; color: {}",
 		entry_type_background, entry_type_foreground
 	);
-	let tags_signal = create_signal(ctx, props.entry.tags.clone());
+	let tags_signal = create_signal(
+		ctx,
+		(*props.entry.get())
+			.as_ref()
+			.map(|entry| entry.tags.clone())
+			.unwrap_or_default(),
+	);
 
 	let mut row_class = String::from("event_log_entry");
-	if props.entry.highlighted {
+	if (*props.entry.get())
+		.as_ref()
+		.map(|entry| entry.highlighted)
+		.unwrap_or(false)
+	{
 		row_class = format!("{} log_entry_highlight", row_class);
 	}
 
@@ -427,11 +468,8 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 		}
 	};
 
-	let parent_select_handler = {
-		let entry = props.entry.clone();
-		move |_event: WebEvent| {
-			props.new_entry_parent.set(Some(entry.clone()));
-		}
+	let parent_select_handler = move |_event: WebEvent| {
+		props.new_entry_parent.set((*props.entry.get()).clone());
 	};
 
 	view! {
@@ -443,20 +481,22 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 			div(class="log_entry_start_time") { (start_time_display) }
 			div(class="log_entry_end_time") { (end_time_display) }
 			div(class="log_entry_type", style=entry_type_style) { (props.entry_type.name) }
-			div(class="log_entry_description") { (props.entry.description) }
-			div(class="log_entry_submitter_winner") { (props.entry.submitter_or_winner) }
+			div(class="log_entry_description") { ((*props.entry.get()).as_ref().map(|entry| entry.description.clone()).unwrap_or_default()) }
+			div(class="log_entry_submitter_winner") { ((*props.entry.get()).as_ref().map(|entry| entry.submitter_or_winner.clone()).unwrap_or_default()) }
 			div(class="log_entry_media_link") {
-				(if !props.entry.media_link.is_empty() {
-					let media_link = props.entry.media_link.clone();
-					let media_link_link = media_link.clone();
-					view! {
-						ctx,
-						a(href=media_link_link) {
-							(media_link)
+				({
+					let media_link = (*props.entry.get()).as_ref().map(|entry| entry.media_link.clone()).unwrap_or_default();
+					if !media_link.is_empty() {
+						let media_link_link = media_link.clone();
+						view! {
+							ctx,
+							a(href=media_link_link) {
+								(media_link)
+							}
 						}
+					} else {
+						view! { ctx, }
 					}
-				} else {
-					view! { ctx, }
 				})
 			}
 			div(class="log_entry_tags") {
@@ -472,52 +512,64 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 				)
 			}
 			div(class="log_entry_make_video") {
-				(if props.entry.make_video {
-					view! {
-						ctx,
-						img(src="images/video.png", alt="A video should be created for this row")
+				({
+					let make_video = (*props.entry.get()).as_ref().map(|entry| entry.make_video).unwrap_or(false);
+					if make_video {
+						view! {
+							ctx,
+							img(src="images/video.png", alt="A video should be created for this row")
+						}
+					} else {
+						view! { ctx, }
 					}
-				} else {
-					view! { ctx, }
 				})
 			}
 			div(class="log_entry_editor_link") {
-				(if let Some(link) = props.entry.editor_link.as_ref() {
-					let link = link.clone();
-					view! {
-						ctx,
-						a(href=link) { "Edit" }
+				({
+					let editor_link = (*props.entry.get()).as_ref().and_then(|entry| entry.editor_link.clone());
+					if let Some(link) = editor_link.as_ref() {
+						let link = link.clone();
+						view! {
+							ctx,
+							a(href=link) { "Edit" }
+						}
+					} else {
+						view! { ctx, }
 					}
-				} else {
-					view! { ctx, }
 				})
 			}
 			div(class="log_entry_video_link") {
-				(if let Some(link) = props.entry.video_link.as_ref() {
-					let link = link.clone();
-					view! {
-						ctx,
-						a(href=link) { "Video" }
+				({
+					let video_link = (*props.entry.get()).as_ref().and_then(|entry| entry.video_link.clone());
+					if let Some(link) = video_link.as_ref() {
+						let link = link.clone();
+						view! {
+							ctx,
+							a(href=link) { "Video" }
+						}
+					} else {
+						view! { ctx, }
 					}
-				} else {
-					view! { ctx, }
 				})
 			}
 			div(class="log_entry_editor_user") {
-				(if let Some(editor) = props.entry.editor.as_ref() {
-					let name_color = rgb_str_from_color(editor.color);
-					let name_style = format!("color: {}", name_color);
-					let username = editor.username.clone();
-					view! {
-						ctx,
-						span(style=name_style) { (username) }
+				({
+					let editor = (*props.entry.get()).as_ref().and_then(|entry| entry.editor.clone());
+					if let Some(editor) = editor.as_ref() {
+						let name_color = rgb_str_from_color(editor.color);
+						let name_style = format!("color: {}", name_color);
+						let username = editor.username.clone();
+						view! {
+							ctx,
+							span(style=name_style) { (username) }
+						}
+					} else {
+						view! { ctx, }
 					}
-				} else {
-					view! { ctx, }
 				})
 			}
 			div(class="log_entry_notes_to_editor") {
-				(props.entry.notes_to_editor)
+				((*props.entry.get()).as_ref().map(|entry| entry.notes_to_editor.clone()).unwrap_or_default())
 			}
 		}
 	}
