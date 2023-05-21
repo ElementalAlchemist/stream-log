@@ -413,7 +413,8 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 		}
 	};
 
-	let parent_select_handler = move |_event: WebEvent| {
+	let parent_select_handler = move |event: WebEvent| {
+		event.stop_propagation();
 		props.new_entry_parent.set((*props.entry.get()).clone());
 	};
 
