@@ -247,10 +247,12 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 							let event_signal = event_signal.clone();
 							let entry_types_signal = entry_types_signal.clone();
 							let log_entries = log_entries.clone();
+							let typing_events = event_subscription_data.typing_events.clone();
 							move |ctx, entry| {
 								let event_signal = event_signal.clone();
 								let entry_types_signal = entry_types_signal.clone();
 								let log_entries = log_entries.clone();
+								let typing_events = typing_events.clone();
 								view! {
 									ctx,
 									EventLogEntryView(
@@ -258,6 +260,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 										event_signal=event_signal,
 										entry_types_signal=entry_types_signal,
 										all_log_entries=log_entries,
+										event_typing_events_signal=typing_events,
 										can_edit=can_edit,
 										tags_by_name_index=tags_by_name_index,
 										editors_by_name_index=editors_by_name_index,

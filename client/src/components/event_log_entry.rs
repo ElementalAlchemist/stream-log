@@ -1,5 +1,6 @@
 use crate::color_utils::rgb_str_from_color;
 use crate::subscriptions::errors::ErrorData;
+use crate::subscriptions::event::{TypingEvent, TypingTarget};
 use crate::subscriptions::DataSignals;
 use chrono::{DateTime, Duration, Utc};
 use contrast::contrast;
@@ -24,6 +25,8 @@ use web_sys::Event as WebEvent;
 
 const WHITE: RGB8 = RGB8::new(255, 255, 255);
 const BLACK: RGB8 = RGB8::new(0, 0, 0);
+
+type UserTypingData = (UserData, HashMap<TypingTarget, String>);
 
 /// Formats a [`Duration`] object as hours:minutes
 fn format_duration(duration: &Duration) -> String {
@@ -74,6 +77,7 @@ pub struct EventLogEntryProps<'a> {
 	event_signal: RcSignal<Event>,
 	entry_types_signal: RcSignal<Vec<EntryType>>,
 	all_log_entries: RcSignal<Vec<EventLogEntry>>,
+	event_typing_events_signal: RcSignal<Vec<TypingEvent>>,
 	can_edit: &'a ReadSignal<bool>,
 	tags_by_name_index: &'a ReadSignal<HashMap<String, Tag>>,
 	editors_by_name_index: &'a ReadSignal<HashMap<String, UserData>>,
@@ -208,6 +212,20 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 		modified_data.modify().insert(ModifiedEventLogEntryParts::Highlighted);
 	});
 
+	let typing_events_signal = props.event_typing_events_signal.clone();
+	let typing_data = create_memo(ctx, move || {
+		let mut typing_data: HashMap<String, UserTypingData> = HashMap::new();
+		for typing_value in typing_events_signal.get().iter().filter(|typing_event| {
+			typing_event.event_log_entry.as_ref().map(|entry| &entry.id)
+				== (*event_log_entry_signal.get()).as_ref().map(|entry| &entry.id)
+		}) {
+			let user = typing_value.user.clone();
+			let (_, user_typing_data) = typing_data.entry(user.id.clone()).or_insert((user, HashMap::new()));
+			user_typing_data.insert(typing_value.target_field, typing_value.data.clone());
+		}
+		typing_data
+	});
+
 	let row_edit_parent: &Signal<Option<EventLogEntry>> = create_signal(ctx, None);
 
 	let close_handler_entry = entry.clone();
@@ -226,6 +244,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 			new_entry_parent=props.new_entry_parent,
 			child_depth=props.child_depth
 		)
+		EventLogEntryTyping(typing_data=typing_data)
 		(if *edit_open_signal.get() {
 			let close_handler = {
 				let entry = close_handler_entry.clone();
@@ -319,10 +338,12 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 					let event_signal = child_event_signal.clone();
 					let entry_types_signal = child_entry_types_signal.clone();
 					let all_log_entries = child_all_log_entries_signal.clone();
+					let typing_events = props.event_typing_events_signal.clone();
 					move |ctx, entry| {
 						let event_signal = event_signal.clone();
 						let entry_types_signal = entry_types_signal.clone();
 						let all_log_entries = all_log_entries.clone();
+						let typing_events = typing_events.clone();
 						view! {
 							ctx,
 							EventLogEntry(
@@ -330,6 +351,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 								event_signal=event_signal,
 								entry_types_signal=entry_types_signal,
 								all_log_entries=all_log_entries,
+								event_typing_events_signal=typing_events,
 								can_edit=can_edit,
 								tags_by_name_index=props.tags_by_name_index,
 								editors_by_name_index=props.editors_by_name_index,
@@ -1211,5 +1233,64 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 				}
 			}
 		}
+	}
+}
+
+#[derive(Prop)]
+pub struct EventLogEntryTypingProps<'a> {
+	typing_data: &'a ReadSignal<HashMap<String, UserTypingData>>,
+}
+
+#[component]
+pub fn EventLogEntryTyping<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryTypingProps<'a>) -> View<G> {
+	let user_typing_data = create_memo(ctx, || {
+		let users: Vec<UserData> = props.typing_data.get().values().map(|(user, _)| user.clone()).collect();
+		users
+	});
+
+	view! {
+		ctx,
+		Keyed(
+			iterable=user_typing_data,
+			key=|user| user.id.clone(),
+			view=|ctx, user| {
+				let typing_data = props.typing_data.get();
+				let (_, typing_events) = typing_data.get(&user.id).unwrap();
+				let typed_start_time = typing_events.get(&TypingTarget::StartTime).cloned().unwrap_or_default();
+				let typed_end_time = typing_events.get(&TypingTarget::EndTime).cloned().unwrap_or_default();
+				let typed_entry_type = typing_events.get(&TypingTarget::EntryType).cloned().unwrap_or_default();
+				let typed_description = typing_events.get(&TypingTarget::Description).cloned().unwrap_or_default();
+				let typed_media_link = typing_events.get(&TypingTarget::MediaLink).cloned().unwrap_or_default();
+				let typed_submitter_or_winner = typing_events.get(&TypingTarget::SubmitterWinner).cloned().unwrap_or_default();
+				let typed_notes_to_editor = typing_events.get(&TypingTarget::NotesToEditor).cloned().unwrap_or_default();
+
+				let user_color = rgb_str_from_color(user.color);
+				let username_style = format!("color: {}", user_color);
+
+				let username = user.username.clone();
+
+				view! {
+					ctx,
+					div(class="event_log_entry_typing_username", style=username_style) {
+						(username)
+					}
+					div(class="event_log_entry_typing_data") {
+						div {}
+						div { (typed_start_time) }
+						div { (typed_end_time) }
+						div { (typed_entry_type) }
+						div { (typed_description) }
+						div { (typed_submitter_or_winner) }
+						div { (typed_media_link) }
+						div {}
+						div {}
+						div {}
+						div {}
+						div {}
+						div { (typed_notes_to_editor) }
+					}
+				}
+			}
+		)
 	}
 }

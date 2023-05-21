@@ -56,7 +56,7 @@ impl EventSubscriptionSignals {
 	}
 }
 
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub enum TypingTarget {
 	StartTime,
 	EndTime,

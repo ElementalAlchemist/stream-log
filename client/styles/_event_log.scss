@@ -1,4 +1,5 @@
 $event_log_column_count: 13;
+$event_log_typing_column_count: 8;
 
 #event_log_layout {
 	display: flex;
@@ -27,6 +28,14 @@ $event_log_column_count: 13;
 	.event_log_entry_edit {
 		margin-bottom: 10px;
 		border-bottom: 1px solid var(--base-border-color);
+	}
+
+	.event_log_entry_typing_username {
+		grid-column: 1 / span $event_log_column_count;
+	}
+	
+	.event_log_entry_typing_data {
+		display: contents;
 	}
 }
 
