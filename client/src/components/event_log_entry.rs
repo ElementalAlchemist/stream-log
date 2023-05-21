@@ -977,6 +977,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			props.notes_to_editor.set(String::new());
 			editor_entry.set(String::new());
 			props.highlighted.set(false);
+			props.parent_log_entry.set(None);
 		}
 	};
 
