@@ -23,6 +23,11 @@ $event_log_column_count: 13;
 	display: grid;
 	// Update $event_log_column_count to match the number of columns here
 	grid-template-columns: max-content max-content max-content max-content 1fr 150px 150px 150px 50px 50px 50px max-content 200px;
+	
+	.event_log_entry_edit {
+		margin-bottom: 10px;
+		border-bottom: 1px solid var(--base-border-color);
+	}
 }
 
 .event_log_header {
