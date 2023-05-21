@@ -264,7 +264,8 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 										read_event_signal=read_event_signal,
 										read_entry_types_signal=read_entry_types_signal,
 										new_entry_parent=new_entry_parent,
-										entries_by_parent=entries_by_parent_signal
+										entries_by_parent=entries_by_parent_signal,
+										child_depth=0
 									)
 								}
 							}

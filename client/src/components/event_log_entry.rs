@@ -81,6 +81,7 @@ pub struct EventLogEntryProps<'a> {
 	read_entry_types_signal: &'a ReadSignal<Vec<EntryType>>,
 	new_entry_parent: &'a Signal<Option<EventLogEntry>>,
 	entries_by_parent: &'a ReadSignal<HashMap<String, Vec<EventLogEntry>>>,
+	child_depth: u32,
 }
 
 #[component]
@@ -217,7 +218,14 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 
 	view! {
 		ctx,
-		EventLogEntryRow(entry=event_log_entry_signal, event=(*event).clone(), entry_type=entry_type.clone(), click_handler=click_handler, new_entry_parent=props.new_entry_parent)
+		EventLogEntryRow(
+			entry=event_log_entry_signal,
+			event=(*event).clone(),
+			entry_type=entry_type.clone(),
+			click_handler=click_handler,
+			new_entry_parent=props.new_entry_parent,
+			child_depth=props.child_depth
+		)
 		(if *edit_open_signal.get() {
 			let close_handler = {
 				let entry = close_handler_entry.clone();
@@ -328,7 +336,8 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 								read_event_signal=props.read_event_signal,
 								read_entry_types_signal=props.read_entry_types_signal,
 								new_entry_parent=props.new_entry_parent,
-								entries_by_parent=props.entries_by_parent
+								entries_by_parent=props.entries_by_parent,
+								child_depth=props.child_depth + 1
 							)
 						}
 					}
@@ -345,10 +354,14 @@ pub struct EventLogEntryRowProps<'a, THandler: Fn()> {
 	entry_type: EntryType,
 	click_handler: Option<THandler>,
 	new_entry_parent: &'a Signal<Option<EventLogEntry>>,
+	child_depth: u32,
 }
 
 #[component]
 pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventLogEntryRowProps<'a, T>) -> View<G> {
+	let indent_pixels = 20 * props.child_depth;
+	let select_parent_style = format!("margin-left: {}px", indent_pixels);
+
 	let start_time = (*props.entry.get())
 		.as_ref()
 		.map(|entry| entry.start_time - props.event.start_time);
@@ -372,6 +385,7 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 		"background: {}; color: {}",
 		entry_type_background, entry_type_foreground
 	);
+
 	let tags_signal = create_signal(
 		ctx,
 		(*props.entry.get())
@@ -406,7 +420,7 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 	view! {
 		ctx,
 		div(class=row_class, on:click=click_handler) {
-			div(class="log_entry_select_parent") {
+			div(class="log_entry_select_parent", style=select_parent_style) {
 				img(src="images/add.png", class="click", alt="Add child entry", title="Add child entry", on:click=parent_select_handler)
 			}
 			div(class="log_entry_start_time") { (start_time_display) }

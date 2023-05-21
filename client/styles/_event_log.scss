@@ -19,7 +19,7 @@ $event_log_column_count: 13;
 	flex-basis: max-content;
 }
 
-#event_log_data, .event_log_entry_children > .event_log_entry {
+#event_log_data {
 	display: grid;
 	// Update $event_log_column_count to match the number of columns here
 	grid-template-columns: max-content max-content max-content max-content 1fr 150px 150px 150px 50px 50px 50px max-content 200px;
@@ -39,8 +39,8 @@ $event_log_column_count: 13;
 }
 
 .event_log_entry_children {
-	grid-column: 1 / span $event_log_column_count;
 	padding-left: 20px;
+	display: contents;
 	
 	&:not(:empty) {
 		margin-top: 5px;
