@@ -1,4 +1,6 @@
-use crate::components::event_log_entry::{EventLogEntry as EventLogEntryView, EventLogEntryEdit};
+use crate::components::event_log_entry::{
+	EventLogEntry as EventLogEntryView, EventLogEntryEdit, EventLogEntryTyping, UserTypingData,
+};
 use crate::subscriptions::errors::ErrorData;
 use crate::subscriptions::manager::SubscriptionManager;
 use crate::subscriptions::DataSignals;
@@ -151,6 +153,23 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 	let new_entry_editor: &Signal<Option<UserData>> = create_signal(ctx, None);
 	let new_entry_highlighted = create_signal(ctx, false);
 	let new_entry_parent: &Signal<Option<EventLogEntry>> = create_signal(ctx, None);
+	let new_entry_typing_data = create_memo(ctx, {
+		let typing_events = event_subscription_data.typing_events.clone();
+		move || {
+			let mut typing_data: HashMap<String, UserTypingData> = HashMap::new();
+			for typing_event in typing_events
+				.get()
+				.iter()
+				.filter(|typing_event| typing_event.event_log_entry.is_none())
+			{
+				let (_, user_typing_data) = typing_data
+					.entry(typing_event.user.id.clone())
+					.or_insert((typing_event.user.clone(), HashMap::new()));
+				user_typing_data.insert(typing_event.target_field, typing_event.data.clone());
+			}
+			typing_data
+		}
+	});
 
 	let new_entry_close_handler = {
 		let event_signal = event_signal.clone();
@@ -281,6 +300,29 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 				view! {
 					ctx,
 					div(id="event_log_new_entry") {
+						({
+							if new_entry_typing_data.get().is_empty() {
+								view! { ctx, }
+							} else {
+								view! {
+									ctx,
+									div(class="event_log_header") {}
+									div(class="event_log_header") { "Start" }
+									div(class="event_log_header") { "End" }
+									div(class="event_log_header") { "Type" }
+									div(class="event_log_header") { "Description" }
+									div(class="event_log_header") { "Submitter/Winner" }
+									div(class="event_log_header") { "Media link" }
+									div(class="event_log_header") {}
+									div(class="event_log_header") {}
+									div(class="event_log_header") {}
+									div(class="event_log_header") {}
+									div(class="event_log_header") {}
+									div(class="event_log_header") { "Notes to editor" }
+									EventLogEntryTyping(typing_data=new_entry_typing_data)
+								}
+							}
+						})
 						EventLogEntryEdit(
 							event=read_event_signal,
 							event_entry_types=read_entry_types_signal,

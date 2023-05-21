@@ -1,5 +1,4 @@
 $event_log_column_count: 13;
-$event_log_typing_column_count: 8;
 
 #event_log_layout {
 	display: flex;
@@ -32,10 +31,6 @@ $event_log_typing_column_count: 8;
 
 	.event_log_entry_typing_username {
 		grid-column: 1 / span $event_log_column_count;
-	}
-	
-	.event_log_entry_typing_data {
-		display: contents;
 	}
 }
 
@@ -82,6 +77,10 @@ $event_log_typing_column_count: 8;
 
 .log_entry_make_video > img {
 	width: 20px;
+}
+	
+.event_log_entry_typing_data {
+	display: contents;
 }
 
 .event_log_entry_edit {
@@ -196,6 +195,15 @@ $event_log_typing_column_count: 8;
 
 #event_log_new_entry {
 	border-top: 1px #666 solid;
+}
+
+#event_log_new_entry_typing {
+	display: grid;
+	grid-template-columns: max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content;
+
+	.event_log_entry_typing_username {
+		grid-column: 1 / span $event_log_column_count;
+	}
 }
 
 @media (prefers-color-scheme: dark) {

@@ -26,7 +26,7 @@ use web_sys::Event as WebEvent;
 const WHITE: RGB8 = RGB8::new(255, 255, 255);
 const BLACK: RGB8 = RGB8::new(0, 0, 0);
 
-type UserTypingData = (UserData, HashMap<TypingTarget, String>);
+pub type UserTypingData = (UserData, HashMap<TypingTarget, String>);
 
 /// Formats a [`Duration`] object as hours:minutes
 fn format_duration(duration: &Duration) -> String {
