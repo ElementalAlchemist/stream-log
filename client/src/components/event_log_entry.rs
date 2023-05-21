@@ -327,7 +327,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 								editors_by_name_index=props.editors_by_name_index,
 								read_event_signal=props.read_event_signal,
 								read_entry_types_signal=props.read_entry_types_signal,
-								new_entry_parent=row_edit_parent,
+								new_entry_parent=props.new_entry_parent,
 								entries_by_parent=props.entries_by_parent
 							)
 						}
