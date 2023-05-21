@@ -394,18 +394,7 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 			.unwrap_or_default(),
 	);
 
-	let mut row_class = String::from("event_log_entry");
-	if (*props.entry.get())
-		.as_ref()
-		.map(|entry| entry.highlighted)
-		.unwrap_or(false)
-	{
-		row_class = format!("{} log_entry_highlight", row_class);
-	}
-
-	if props.click_handler.is_some() {
-		row_class = format!("{} click", row_class);
-	}
+	let has_click_handler = props.click_handler.is_some();
 
 	let row_click_handler = move |_event: WebEvent| {
 		if let Some(click_handler) = &props.click_handler {
@@ -420,7 +409,25 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 
 	view! {
 		ctx,
-		div(class=row_class, on:click=row_click_handler) {
+		div(
+			class={
+				let mut row_class = String::from("event_log_entry");
+				if (*props.entry.get())
+					.as_ref()
+					.map(|entry| entry.highlighted)
+					.unwrap_or(false)
+				{
+					row_class = format!("{} log_entry_highlight", row_class);
+				}
+
+				if has_click_handler {
+					row_class = format!("{} click", row_class);
+				}
+
+				row_class
+			},
+			on:click=row_click_handler
+		) {
 			div(class="log_entry_select_parent", style=select_parent_style) {
 				img(src="images/add.png", class="click", alt="Add child entry", title="Add child entry", on:click=parent_select_handler)
 			}
