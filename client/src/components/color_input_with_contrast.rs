@@ -15,12 +15,12 @@ pub fn ColorInputWithContrast<'a, G: Html>(ctx: Scope<'a>, props: ColorInputProp
 	let light_color_contrast_signal = create_memo(ctx, || {
 		let color = color_from_rgb_str(&props.color.get()).unwrap_or_else(|_| RGB8::new(127, 127, 127));
 		let color_contrast: f64 = contrast(color, LIGHT_BACKGROUND);
-		color_contrast
+		format!("{:.4}", color_contrast)
 	});
 	let dark_color_contrast_signal = create_memo(ctx, || {
 		let color = color_from_rgb_str(&props.color.get()).unwrap_or_else(|_| RGB8::new(127, 127, 127));
 		let color_contrast: f64 = contrast(color, DARK_BACKGROUND);
-		color_contrast
+		format!("{:.4}", color_contrast)
 	});
 
 	let input_id = format!("{}_color_input", props.view_id);
