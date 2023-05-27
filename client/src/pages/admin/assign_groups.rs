@@ -271,7 +271,7 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				}
 			)
 		}
-		(if !*has_addable_groups_signal.get() {
+		(if *has_addable_groups_signal.get() {
 			view! {
 				ctx,
 				form(id="admin_assign_groups_add_to_user", on:submit=add_group_submission_handler) {
