@@ -58,7 +58,7 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	let username_in_use_signal = create_memo(ctx, || {
 		username_signal.track();
 		if let Some(check_data) = data.registration.username_check.get().as_ref() {
-			check_data.username == *username_signal.get() && check_data.available
+			check_data.username == *username_signal.get() && !check_data.available
 		} else {
 			false
 		}
