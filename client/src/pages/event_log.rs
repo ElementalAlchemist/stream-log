@@ -306,20 +306,22 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 							} else {
 								view! {
 									ctx,
-									div(class="event_log_header") {}
-									div(class="event_log_header") { "Start" }
-									div(class="event_log_header") { "End" }
-									div(class="event_log_header") { "Type" }
-									div(class="event_log_header") { "Description" }
-									div(class="event_log_header") { "Submitter/Winner" }
-									div(class="event_log_header") { "Media link" }
-									div(class="event_log_header") {}
-									div(class="event_log_header") {}
-									div(class="event_log_header") {}
-									div(class="event_log_header") {}
-									div(class="event_log_header") {}
-									div(class="event_log_header") { "Notes to editor" }
-									EventLogEntryTyping(typing_data=new_entry_typing_data)
+									div(id="event_log_new_entry_typing") {
+										div(class="event_log_header") {}
+										div(class="event_log_header") { "Start" }
+										div(class="event_log_header") { "End" }
+										div(class="event_log_header") { "Type" }
+										div(class="event_log_header") { "Description" }
+										div(class="event_log_header") { "Submitter/Winner" }
+										div(class="event_log_header") { "Media link" }
+										div(class="event_log_header") {}
+										div(class="event_log_header") {}
+										div(class="event_log_header") {}
+										div(class="event_log_header") {}
+										div(class="event_log_header") {}
+										div(class="event_log_header") { "Notes to editor" }
+										EventLogEntryTyping(typing_data=new_entry_typing_data)
+									}
 								}
 							}
 						})
