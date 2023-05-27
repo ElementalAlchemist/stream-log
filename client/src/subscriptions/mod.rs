@@ -639,7 +639,7 @@ fn handle_typing_data(
 			None => typing_events.push(TypingEvent {
 				event_log_entry,
 				user: typing_user,
-				target_field: TypingTarget::SubmitterWinner,
+				target_field,
 				data: typed_data,
 				time_received: Utc::now(),
 			}),
