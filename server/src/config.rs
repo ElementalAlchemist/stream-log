@@ -32,6 +32,8 @@ pub struct OpenIdConfig {
 	pub secret: String,
 	#[knuffel(child, unwrap(argument))]
 	pub response_url: String,
+	#[knuffel(child, unwrap(argument))]
+	pub logout_url: String,
 }
 
 #[derive(Debug, Decode)]

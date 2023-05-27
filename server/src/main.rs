@@ -66,7 +66,7 @@ async fn main() -> miette::Result<()> {
 		client_id: ClientId::new(config.openid.client_id.clone()),
 		client_secret: ClientSecret::new(config.openid.secret.clone()),
 		redirect_url: RedirectUrl::new(config.openid.response_url.clone()).into_diagnostic()?,
-		idp_logout_url: None,
+		idp_logout_url: Some(config.openid.logout_url.clone()),
 	};
 	app.with(OpenIdConnectMiddleware::new(&openid_config).await);
 

@@ -19,6 +19,11 @@ pub fn UserInfoBar<G: Html>(ctx: Scope) -> View<G> {
 									"Profile"
 								}
 							}
+							li {
+								a(href="/logout", rel="external") {
+									"Log out"
+								}
+							}
 						}
 					}
 					(if user.is_admin {
