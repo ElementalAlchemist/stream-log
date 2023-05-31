@@ -1054,6 +1054,20 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 		});
 	};
 
+	let reset_handler = move |_event: WebEvent| {
+		start_time_input.set(String::new());
+		end_time_input.set(String::new());
+		entry_type_name.set(String::new());
+		props.description.set(String::new());
+		props.media_link.set(String::new());
+		props.submitter_or_winner.set(String::new());
+		props.tags.set(Vec::new());
+		props.make_video.set(false);
+		props.notes_to_editor.set(String::new());
+		editor_entry.set(String::new());
+		props.highlighted.set(false);
+	};
+
 	let disable_save = create_memo(ctx, || {
 		start_time_error.get().is_some()
 			|| end_time_error.get().is_some()
@@ -1218,7 +1232,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 						view! {
 							ctx,
 							button(disabled=*disable_save.get()) { "Add" }
-							button(type="reset") { "Reset" }
+							button(type="reset", on:click=reset_handler) { "Reset" }
 						}
 					} else {
 						view! {
