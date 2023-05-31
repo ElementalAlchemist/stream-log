@@ -625,24 +625,28 @@ fn handle_typing_data(
 			typing_events.remove(index);
 		}
 	} else {
-		let existing_event = typing_events.iter_mut().find(|typing_event| {
-			typing_event.event_log_entry.as_ref().map(|entry| &entry.id)
+		let mut found_exact_event = false;
+		for typing_event in typing_events.iter_mut() {
+			if typing_event.event_log_entry.as_ref().map(|entry| &entry.id)
 				== event_log_entry.as_ref().map(|entry| &entry.id)
 				&& typing_event.user.id == typing_user.id
-				&& typing_event.target_field == target_field
-		});
-		match existing_event {
-			Some(typing_event) => {
-				typing_event.data = typed_data;
+			{
 				typing_event.time_received = Utc::now();
+
+				if typing_event.target_field == target_field {
+					typing_event.data = typed_data.clone();
+					found_exact_event = true;
+				}
 			}
-			None => typing_events.push(TypingEvent {
+		}
+		if !found_exact_event {
+			typing_events.push(TypingEvent {
 				event_log_entry,
 				user: typing_user,
 				target_field,
 				data: typed_data,
 				time_received: Utc::now(),
-			}),
+			});
 		}
 	}
 }
