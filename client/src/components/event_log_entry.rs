@@ -602,8 +602,12 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 	});
 
 	let event_start = props.event.get().start_time;
-	let initial_start_time_duration = *props.start_time.get() - event_start;
-	let start_time_input = create_signal(ctx, format_duration(&initial_start_time_duration));
+	let start_time_input = if props.event_log_entry.get().is_some() {
+		let initial_start_time_duration = *props.start_time.get() - event_start;
+		create_signal(ctx, format_duration(&initial_start_time_duration))
+	} else {
+		create_signal(ctx, String::new())
+	};
 	let start_time_error: &Signal<Option<String>> = create_signal(ctx, None);
 	create_effect(ctx, move || {
 		let start_time_result = get_duration_from_formatted(&start_time_input.get());
