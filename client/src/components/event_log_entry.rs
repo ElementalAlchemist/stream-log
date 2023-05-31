@@ -1007,10 +1007,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 		(props.close_handler)();
 
 		if props.event_log_entry.get().is_none() {
-			let new_start_time = Utc::now() - event_start;
-			let new_start_time_input = format_duration(&new_start_time);
-			start_time_input.set(new_start_time_input);
-
+			start_time_input.set(String::new());
 			end_time_input.set(String::new());
 			entry_type_name.set(String::new());
 			props.description.set(String::new());
