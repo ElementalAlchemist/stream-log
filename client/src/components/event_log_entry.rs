@@ -820,9 +820,13 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 		});
 	});
 
+	let media_link = create_signal(ctx, (*props.media_link.get()).clone());
+	create_effect(ctx, || {
+		props.media_link.set_rc(media_link.get());
+	});
 	let media_link_typing_ran_once = create_signal(ctx, false);
 	create_effect(ctx, move || {
-		props.media_link.track();
+		media_link.track();
 		if !*media_link_typing_ran_once.get_untracked() {
 			media_link_typing_ran_once.set(true);
 			return;
@@ -835,7 +839,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 				(*props.event.get()).clone(),
 				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::MediaLink(
 					(*props.event_log_entry.get()).clone(),
-					(*props.media_link.get()).clone(),
+					(*media_link.get()).clone(),
 				))),
 			)));
 			let message_json = match serde_json::to_string(&message) {
@@ -858,9 +862,13 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 		});
 	});
 
+	let submitter_or_winner = create_signal(ctx, (*props.submitter_or_winner.get()).clone());
+	create_effect(ctx, || {
+		props.submitter_or_winner.set_rc(submitter_or_winner.get());
+	});
 	let submitter_or_winner_typing_ran_once = create_signal(ctx, false);
 	create_effect(ctx, move || {
-		props.submitter_or_winner.track();
+		submitter_or_winner.track();
 		if !*submitter_or_winner_typing_ran_once.get_untracked() {
 			submitter_or_winner_typing_ran_once.set(true);
 			return;
@@ -873,7 +881,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 				(*props.event.get()).clone(),
 				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::SubmitterWinner(
 					(*props.event_log_entry.get()).clone(),
-					(*props.submitter_or_winner.get()).clone(),
+					(*submitter_or_winner.get()).clone(),
 				))),
 			)));
 			let message_json = match serde_json::to_string(&message) {
@@ -951,9 +959,13 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 		names
 	});
 
+	let notes_to_editor = create_signal(ctx, (*props.notes_to_editor.get()).clone());
+	create_effect(ctx, || {
+		props.notes_to_editor.set_rc(notes_to_editor.get());
+	});
 	let notes_to_editor_typing_ran_once = create_signal(ctx, false);
 	create_effect(ctx, move || {
-		props.notes_to_editor.track();
+		notes_to_editor.track();
 		if !*notes_to_editor_typing_ran_once.get_untracked() {
 			notes_to_editor_typing_ran_once.set(true);
 			return;
@@ -966,7 +978,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 				(*props.event.get()).clone(),
 				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::NotesToEditor(
 					(*props.event_log_entry.get()).clone(),
-					(*props.notes_to_editor.get()).clone(),
+					(*notes_to_editor.get()).clone(),
 				))),
 			)));
 			let message_json = match serde_json::to_string(&message) {
@@ -1019,11 +1031,11 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			end_time_input.set(String::new());
 			entry_type_name.set(String::new());
 			description.set(String::new());
-			props.media_link.set(String::new());
-			props.submitter_or_winner.set(String::new());
+			media_link.set(String::new());
+			submitter_or_winner.set(String::new());
 			props.tags.set(Vec::new());
 			props.make_video.set(false);
-			props.notes_to_editor.set(String::new());
+			notes_to_editor.set(String::new());
 			editor_entry.set(String::new());
 			props.highlighted.set(false);
 			props.parent_log_entry.set(None);
@@ -1067,11 +1079,11 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 		end_time_input.set(String::new());
 		entry_type_name.set(String::new());
 		description.set(String::new());
-		props.media_link.set(String::new());
-		props.submitter_or_winner.set(String::new());
+		media_link.set(String::new());
+		submitter_or_winner.set(String::new());
 		props.tags.set(Vec::new());
 		props.make_video.set(false);
-		props.notes_to_editor.set(String::new());
+		notes_to_editor.set(String::new());
 		editor_entry.set(String::new());
 		props.highlighted.set(false);
 	};
@@ -1139,10 +1151,10 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 					input(placeholder="Description", bind:value=description)
 				}
 				div(class="event_log_entry_edit_media_link") {
-					input(bind:value=props.media_link, placeholder="Media link")
+					input(bind:value=media_link, placeholder="Media link")
 				}
 				div(class="event_log_entry_edit_submitter_or_winner") {
-					input(bind:value=props.submitter_or_winner, placeholder="Submitter/winner")
+					input(bind:value=submitter_or_winner, placeholder="Submitter/winner")
 				}
 			}
 			div(class="event_log_entry_edit_tags") {
@@ -1224,7 +1236,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 					}
 				}
 				div(class="event_log_entry_edit_notes_to_editor") {
-					input(bind:value=props.notes_to_editor, placeholder="Notes to editor")
+					input(bind:value=notes_to_editor, placeholder="Notes to editor")
 				}
 				div(class="event_log_entry_edit_editor") {
 					input(bind:value=editor_entry, placeholder="Editor", list=props.editor_name_datalist_id, class=if editor_error.get().is_some() { "error" } else { "" }, title=(*editor_error.get()).as_ref().unwrap_or(&String::new()))
