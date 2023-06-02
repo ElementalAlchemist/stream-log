@@ -1024,9 +1024,167 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 
 	let close_handler = move |event: WebEvent| {
 		event.prevent_default();
-		(props.close_handler)();
 
-		if props.event_log_entry.get().is_none() {
+		if let Some(log_entry) = props.event_log_entry.get().as_ref() {
+			let log_entry = log_entry.clone();
+			spawn_local_scoped(ctx, async move {
+				let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+				let mut ws = ws_context.lock().await;
+
+				let start_time_message =
+					FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
+						(*props.event.get()).clone(),
+						Box::new(EventSubscriptionUpdate::Typing(NewTypingData::StartTime(
+							Some(log_entry.clone()),
+							String::new(),
+						))),
+					)));
+				let end_time_message =
+					FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
+						(*props.event.get()).clone(),
+						Box::new(EventSubscriptionUpdate::Typing(NewTypingData::EndTime(
+							Some(log_entry.clone()),
+							String::new(),
+						))),
+					)));
+				let entry_type_message =
+					FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
+						(*props.event.get()).clone(),
+						Box::new(EventSubscriptionUpdate::Typing(NewTypingData::EntryType(
+							Some(log_entry.clone()),
+							String::new(),
+						))),
+					)));
+				let description_message =
+					FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
+						(*props.event.get()).clone(),
+						Box::new(EventSubscriptionUpdate::Typing(NewTypingData::Description(
+							Some(log_entry.clone()),
+							String::new(),
+						))),
+					)));
+				let submitter_or_winner_message =
+					FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
+						(*props.event.get()).clone(),
+						Box::new(EventSubscriptionUpdate::Typing(NewTypingData::SubmitterWinner(
+							Some(log_entry.clone()),
+							String::new(),
+						))),
+					)));
+				let media_link_message =
+					FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
+						(*props.event.get()).clone(),
+						Box::new(EventSubscriptionUpdate::Typing(NewTypingData::MediaLink(
+							Some(log_entry.clone()),
+							String::new(),
+						))),
+					)));
+				let notes_to_editor_message =
+					FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
+						(*props.event.get()).clone(),
+						Box::new(EventSubscriptionUpdate::Typing(NewTypingData::NotesToEditor(
+							Some(log_entry.clone()),
+							String::new(),
+						))),
+					)));
+
+				let start_time_message = match serde_json::to_string(&start_time_message) {
+					Ok(msg) => msg,
+					Err(error) => {
+						let data: &DataSignals = use_context(ctx);
+						data.errors.modify().push(ErrorData::new_with_error(
+							"Failed to serialize typing clear message.",
+							error,
+						));
+						return;
+					}
+				};
+				let end_time_message = match serde_json::to_string(&end_time_message) {
+					Ok(msg) => msg,
+					Err(error) => {
+						let data: &DataSignals = use_context(ctx);
+						data.errors.modify().push(ErrorData::new_with_error(
+							"Failed to serialize typing clear message.",
+							error,
+						));
+						return;
+					}
+				};
+				let entry_type_message = match serde_json::to_string(&entry_type_message) {
+					Ok(msg) => msg,
+					Err(error) => {
+						let data: &DataSignals = use_context(ctx);
+						data.errors.modify().push(ErrorData::new_with_error(
+							"Failed to serialize typing clear message.",
+							error,
+						));
+						return;
+					}
+				};
+				let description_message = match serde_json::to_string(&description_message) {
+					Ok(msg) => msg,
+					Err(error) => {
+						let data: &DataSignals = use_context(ctx);
+						data.errors.modify().push(ErrorData::new_with_error(
+							"Failed to serialize typing clear message.",
+							error,
+						));
+						return;
+					}
+				};
+				let submitter_or_winner_message = match serde_json::to_string(&submitter_or_winner_message) {
+					Ok(msg) => msg,
+					Err(error) => {
+						let data: &DataSignals = use_context(ctx);
+						data.errors.modify().push(ErrorData::new_with_error(
+							"Failed to serialize typing clear message.",
+							error,
+						));
+						return;
+					}
+				};
+				let media_link_message = match serde_json::to_string(&media_link_message) {
+					Ok(msg) => msg,
+					Err(error) => {
+						let data: &DataSignals = use_context(ctx);
+						data.errors.modify().push(ErrorData::new_with_error(
+							"Failed to serialize typing clear message.",
+							error,
+						));
+						return;
+					}
+				};
+				let notes_to_editor_message = match serde_json::to_string(&notes_to_editor_message) {
+					Ok(msg) => msg,
+					Err(error) => {
+						let data: &DataSignals = use_context(ctx);
+						data.errors.modify().push(ErrorData::new_with_error(
+							"Failed to serialize typing clear message.",
+							error,
+						));
+						return;
+					}
+				};
+
+				let mut send_result = ws.send(Message::Text(start_time_message)).await;
+				send_result = send_result.and(ws.send(Message::Text(end_time_message)).await);
+				send_result = send_result.and(ws.send(Message::Text(entry_type_message)).await);
+				send_result = send_result.and(ws.send(Message::Text(description_message)).await);
+				send_result = send_result.and(ws.send(Message::Text(submitter_or_winner_message)).await);
+				send_result = send_result.and(ws.send(Message::Text(media_link_message)).await);
+				send_result = send_result.and(ws.send(Message::Text(notes_to_editor_message)).await);
+
+				if let Err(error) = send_result {
+					let data: &DataSignals = use_context(ctx);
+					data.errors
+						.modify()
+						.push(ErrorData::new_with_error("Failed to send typing clear message.", error));
+				}
+			});
+			(props.close_handler)();
+		} else {
+			(props.close_handler)();
+
 			start_time_input.set(String::new());
 			end_time_input.set(String::new());
 			entry_type_name.set(String::new());
