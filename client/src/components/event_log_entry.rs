@@ -1263,30 +1263,50 @@ pub struct EventLogEntryTypingProps<'a> {
 #[component]
 pub fn EventLogEntryTyping<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryTypingProps<'a>) -> View<G> {
 	let user_typing_data = create_memo(ctx, || {
-		let users: Vec<UserData> = props.typing_data.get().values().map(|(user, _)| user.clone()).collect();
-		users
+		let typing_data: Vec<(UserData, [String; 7])> = props
+			.typing_data
+			.get()
+			.values()
+			.map(|(user, typing_data)| {
+				let mut typing_values = [
+					String::new(),
+					String::new(),
+					String::new(),
+					String::new(),
+					String::new(),
+					String::new(),
+					String::new(),
+				];
+				for (target, value) in typing_data.iter() {
+					let value_index = match *target {
+						TypingTarget::StartTime => 0,
+						TypingTarget::EndTime => 1,
+						TypingTarget::EntryType => 2,
+						TypingTarget::Description => 3,
+						TypingTarget::SubmitterWinner => 4,
+						TypingTarget::MediaLink => 5,
+						TypingTarget::NotesToEditor => 6,
+					};
+					typing_values[value_index] = value.clone();
+				}
+				(user.clone(), typing_values)
+			})
+			.collect();
+		typing_data
 	});
 
 	view! {
 		ctx,
 		Keyed(
 			iterable=user_typing_data,
-			key=|user| user.id.clone(),
-			view=|ctx, user| {
-				let typing_data = props.typing_data.get();
-				let (_, typing_events) = typing_data.get(&user.id).unwrap();
-				let typed_start_time = typing_events.get(&TypingTarget::StartTime).cloned().unwrap_or_default();
-				let typed_end_time = typing_events.get(&TypingTarget::EndTime).cloned().unwrap_or_default();
-				let typed_entry_type = typing_events.get(&TypingTarget::EntryType).cloned().unwrap_or_default();
-				let typed_description = typing_events.get(&TypingTarget::Description).cloned().unwrap_or_default();
-				let typed_media_link = typing_events.get(&TypingTarget::MediaLink).cloned().unwrap_or_default();
-				let typed_submitter_or_winner = typing_events.get(&TypingTarget::SubmitterWinner).cloned().unwrap_or_default();
-				let typed_notes_to_editor = typing_events.get(&TypingTarget::NotesToEditor).cloned().unwrap_or_default();
+			key=|data| data.clone(),
+			view=|ctx, (user, typing_events)| {
+				let [typed_start_time, typed_end_time, typed_entry_type, typed_description, typed_submitter_or_winner, typed_media_link, typed_notes_to_editor] = typing_events;
 
 				let user_color = rgb_str_from_color(user.color);
 				let username_style = format!("color: {}", user_color);
 
-				let username = user.username.clone();
+				let username = user.username;
 
 				view! {
 					ctx,
