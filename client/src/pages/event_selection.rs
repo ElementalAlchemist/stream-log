@@ -27,13 +27,12 @@ pub fn EventSelectionView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				iterable=available_events,
 				key=|event| event.id.clone(),
 				view=|ctx, event| {
-					let event_name = event.name.clone();
 					let event_url = format!("/log/{}", event.id);
 					view! {
 						ctx,
 						li {
 							a(href=event_url) {
-								(event_name)
+								(event.name)
 							}
 						}
 					}
