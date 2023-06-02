@@ -778,9 +778,13 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 		});
 	});
 
+	let description = create_signal(ctx, (*props.description.get()).clone());
+	create_effect(ctx, || {
+		props.description.set_rc(description.get());
+	});
 	let description_typing_ran_once = create_signal(ctx, false);
 	create_effect(ctx, move || {
-		props.description.track();
+		description.track();
 		if !*description_typing_ran_once.get_untracked() {
 			description_typing_ran_once.set(true);
 			return;
@@ -790,10 +794,10 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			let mut ws = ws_context.lock().await;
 
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
-				(*props.event.get()).clone(),
+				(*props.event.get_untracked()).clone(),
 				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::Description(
-					(*props.event_log_entry.get()).clone(),
-					(*props.description.get()).clone(),
+					(*props.event_log_entry.get_untracked()).clone(),
+					(*description.get()).clone(),
 				))),
 			)));
 			let message_json = match serde_json::to_string(&message) {
@@ -1014,7 +1018,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			start_time_input.set(String::new());
 			end_time_input.set(String::new());
 			entry_type_name.set(String::new());
-			props.description.set(String::new());
+			description.set(String::new());
 			props.media_link.set(String::new());
 			props.submitter_or_winner.set(String::new());
 			props.tags.set(Vec::new());
@@ -1062,7 +1066,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 		start_time_input.set(String::new());
 		end_time_input.set(String::new());
 		entry_type_name.set(String::new());
-		props.description.set(String::new());
+		description.set(String::new());
 		props.media_link.set(String::new());
 		props.submitter_or_winner.set(String::new());
 		props.tags.set(Vec::new());
@@ -1132,7 +1136,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 					)
 				}
 				div(class="event_log_entry_edit_description") {
-					input(placeholder="Description", bind:value=props.description)
+					input(placeholder="Description", bind:value=description)
 				}
 				div(class="event_log_entry_edit_media_link") {
 					input(bind:value=props.media_link, placeholder="Media link")
