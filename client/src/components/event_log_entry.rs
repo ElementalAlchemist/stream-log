@@ -56,7 +56,7 @@ fn get_duration_from_formatted(formatted_duration: &str) -> Result<Duration, Str
 	Ok(Duration::minutes(duration_minutes))
 }
 
-#[derive(Clone, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 enum ModifiedEventLogEntryParts {
 	StartTime,
 	EndTime,
