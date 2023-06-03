@@ -415,6 +415,12 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 			.map(|entry| entry.tags.clone())
 			.unwrap_or_default(),
 	);
+	create_effect(ctx, || {
+		let entry = props.entry.get();
+		if let Some(entry) = entry.as_ref() {
+			tags_signal.set(entry.tags.clone());
+		}
+	});
 
 	let has_click_handler = props.click_handler.is_some();
 
