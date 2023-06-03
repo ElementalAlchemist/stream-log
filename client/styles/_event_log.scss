@@ -39,6 +39,11 @@ $event_log_column_count: 13;
 	font-weight: 700;
 }
 
+.event_log_entry_top_border {
+	border-top: 1px solid var(--base-border-color);
+	grid-column: 1 / span $event_log_column_count;
+}
+
 .event_log_entry {
 	display: contents;
 	
