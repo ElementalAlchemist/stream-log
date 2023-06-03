@@ -1314,11 +1314,11 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 				div(class="event_log_entry_edit_description") {
 					input(placeholder="Description", bind:value=description)
 				}
-				div(class="event_log_entry_edit_media_link") {
-					input(bind:value=media_link, placeholder="Media link")
-				}
 				div(class="event_log_entry_edit_submitter_or_winner") {
 					input(bind:value=submitter_or_winner, placeholder="Submitter/winner")
+				}
+				div(class="event_log_entry_edit_media_link") {
+					input(bind:value=media_link, placeholder="Media link")
 				}
 			}
 			div(class="event_log_entry_edit_tags") {
