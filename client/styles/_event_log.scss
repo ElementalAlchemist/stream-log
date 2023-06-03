@@ -22,7 +22,8 @@ $event_log_column_count: 13;
 #event_log_data {
 	display: grid;
 	// Update $event_log_column_count to match the number of columns here
-	grid-template-columns: max-content max-content max-content max-content 1fr 150px 150px 150px 25px 25px 25px max-content 200px;
+	grid-template-columns: max-content max-content max-content max-content 1fr 150px 150px 150px 16px 25px 25px max-content 200px;
+	font-size: 14px;
 	
 	.event_log_entry_edit {
 		margin-bottom: 10px;
@@ -81,7 +82,7 @@ $event_log_column_count: 13;
 }
 
 .log_entry_make_video > img {
-	width: 20px;
+	width: 16px;
 }
 	
 .event_log_entry_typing_data {
@@ -200,6 +201,7 @@ $event_log_column_count: 13;
 
 #event_log_new_entry {
 	border-top: 1px #666 solid;
+	font-size: 14px;
 }
 
 #event_log_new_entry_typing {
