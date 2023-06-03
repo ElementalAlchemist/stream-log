@@ -50,6 +50,17 @@ $event_log_column_count: 13;
 	
 	> div {
 		padding: 2px;
+		background: inherit;
+	}
+
+	&:hover {
+		background: #eee;
+	}
+}
+
+@media (prefers-color-scheme: dark) {
+	.event_log_entry:hover {
+		background: #222;
 	}
 }
 
@@ -66,14 +77,18 @@ $event_log_column_count: 13;
 .log_entry_highlight {
 	background: #ff0;
 
-	> div {
-		background: inherit;
+	&:hover {
+		background: #ee0;
 	}
 }
 
 @media (prefers-color-scheme: dark) {
 	.log_entry_highlight {
 		background: #330;
+
+		&:hover {
+			background: #440;
+		}
 	}
 }
 
