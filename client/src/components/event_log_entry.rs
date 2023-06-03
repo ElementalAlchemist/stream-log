@@ -499,7 +499,7 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 					if make_video {
 						view! {
 							ctx,
-							img(src="images/video.png", alt="A video should be created for this row")
+							img(src="images/video.png", alt="A video should be created for this row", title="A video should be created for this row")
 						}
 					} else {
 						view! { ctx, }
