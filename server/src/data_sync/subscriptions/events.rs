@@ -186,7 +186,7 @@ pub async fn subscribe_to_event(
 	};
 
 	let log_entries: Vec<EventLogEntryDb> = match event_log::table
-		.filter(event_log::event.eq(event_id))
+		.filter(event_log::event.eq(event_id).and(event_log::deleted_by.is_null()))
 		.order(event_log::start_time.asc())
 		.load(&mut *db_connection)
 	{
@@ -457,6 +457,7 @@ pub async fn handle_event_update(
 				last_update_user: user.id.clone(),
 				last_updated: Utc::now(),
 				parent: log_entry_data.parent.clone(),
+				deleted_by: None,
 			};
 
 			let db_tags: Vec<EventLogTag> = log_entry_data
@@ -488,15 +489,10 @@ pub async fn handle_event_update(
 		}
 		EventSubscriptionUpdate::DeleteLogEntry(deleted_log_entry) => {
 			let mut db_connection = db_connection.lock().await;
-			let delete_result: QueryResult<()> = db_connection.transaction(|db_connection| {
-				diesel::delete(event_log_tags::table)
-					.filter(event_log_tags::log_entry.eq(&deleted_log_entry.id))
-					.execute(db_connection)?;
-				diesel::delete(event_log::table)
-					.filter(event_log::id.eq(&deleted_log_entry.id))
-					.execute(db_connection)?;
-				Ok(())
-			});
+			let delete_result: QueryResult<usize> = diesel::update(event_log::table)
+				.filter(event_log::id.eq(&deleted_log_entry.id))
+				.set(event_log::deleted_by.eq(&user.id))
+				.execute(&mut *db_connection);
 			if let Err(error) = delete_result {
 				tide::log::error!("Database error deleting an event log entry: {}", error);
 				return Ok(());

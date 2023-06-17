@@ -1,0 +1,1 @@
+ALTER TABLE event_log ADD COLUMN deleted_by TEXT REFERENCES users;

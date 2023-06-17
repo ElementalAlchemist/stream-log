@@ -49,6 +49,7 @@ diesel::table! {
 		last_updated -> Timestamptz,
 		last_update_user -> Text,
 		parent -> Nullable<Text>,
+		deleted_by -> Nullable<Text>,
 	}
 }
 
