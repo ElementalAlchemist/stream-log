@@ -488,7 +488,7 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 					view=|ctx, tag| {
 						view! {
 							ctx,
-							span(class="log_entry_tag") { (tag.name) }
+							span(class="log_entry_tag", title=tag.description) { (tag.name) }
 						}
 					}
 				)
