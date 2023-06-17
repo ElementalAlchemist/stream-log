@@ -103,6 +103,7 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	view! {
 		ctx,
 		div(id="admin_manage_groups") {
+			h1 { "Permission Groups" }
 			Keyed(
 				iterable=all_permission_groups,
 				key=|group| group.id.clone(),
