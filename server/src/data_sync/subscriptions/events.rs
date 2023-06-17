@@ -465,7 +465,7 @@ pub async fn handle_event_update(
 				.iter()
 				.map(|tag| EventLogTag {
 					tag: tag.id.clone(),
-					log_entry: log_entry_data.id.clone(),
+					log_entry: new_id.clone(),
 				})
 				.collect();
 
