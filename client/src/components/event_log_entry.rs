@@ -1204,6 +1204,8 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			editor_entry.set(String::new());
 			props.highlighted.set(false);
 			props.parent_log_entry.set(None);
+			entered_tag_entry.set(vec![create_signal(ctx, String::new())]);
+			entered_tags.set(Vec::new());
 		}
 	};
 
