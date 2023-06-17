@@ -51,6 +51,10 @@ $event_log_column_count: 13;
 	> div {
 		padding: 2px;
 		background: inherit;
+
+		&:not(:last-child) {
+			border-right: 1px solid var(--base-border-color);
+		}
 	}
 
 	&:hover {
