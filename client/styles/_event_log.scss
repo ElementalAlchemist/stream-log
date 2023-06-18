@@ -200,6 +200,10 @@ $event_log_column_count: 13;
 	flex-basis: max-content;
 }
 
+.event_log_entry_edit_add_count {
+	width: 50px;
+}
+
 .event_log_entry_edit_close {
 	flex-grow: 1;
 	text-align: right;

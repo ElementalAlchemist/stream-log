@@ -1029,6 +1029,12 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 		}
 	});
 
+	let add_count_entry_signal = create_signal(ctx, String::from("1"));
+	let add_count_signal = create_memo(ctx, || {
+		let count: u32 = add_count_entry_signal.get().parse().unwrap_or(1);
+		count
+	});
+
 	let close_handler = move |event: WebEvent| {
 		event.prevent_default();
 
@@ -1188,9 +1194,13 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 						.push(ErrorData::new_with_error("Failed to send typing clear message.", error));
 				}
 			});
-			(props.close_handler)();
+			for _ in 0..(*add_count_signal.get()) {
+				(props.close_handler)();
+			}
 		} else {
-			(props.close_handler)();
+			for _ in 0..(*add_count_signal.get()) {
+				(props.close_handler)();
+			}
 
 			start_time_input.set(String::new());
 			end_time_input.set(String::new());
@@ -1206,6 +1216,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 			props.parent_log_entry.set(None);
 			entered_tag_entry.set(vec![create_signal(ctx, String::new())]);
 			entered_tags.set(Vec::new());
+			add_count_entry_signal.set(String::from("1"));
 		}
 	};
 
@@ -1253,6 +1264,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 		notes_to_editor.set(String::new());
 		editor_entry.set(String::new());
 		props.highlighted.set(false);
+		add_count_entry_signal.set(String::from("1"));
 	};
 
 	let disable_save = create_memo(ctx, || {
@@ -1418,6 +1430,11 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 					(if props.event_log_entry.get().is_none() {
 						view! {
 							ctx,
+							span {
+								"Add "
+								input(type="number", min=1, step=1, bind:value=add_count_entry_signal, class="event_log_entry_edit_add_count")
+								" rows"
+							}
 							button(disabled=*disable_save.get()) { "Add" }
 							button(type="reset", on:click=reset_handler) { "Reset" }
 						}
