@@ -384,15 +384,24 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 	let indent_pixels = 20 * props.child_depth;
 	let select_parent_style = format!("margin-left: {}px", indent_pixels);
 
-	let start_time = (*props.entry.get())
-		.as_ref()
-		.map(|entry| entry.start_time - props.event.start_time);
-	let start_time_display = start_time.as_ref().map(format_duration).unwrap_or_default();
+	let start_time = create_memo(ctx, {
+		let event_start = props.event.start_time;
+		move || {
+			let Some(entry) = (*props.entry.get()).clone() else { return String::new(); };
+			let start_time_duration = entry.start_time - event_start;
+			format_duration(&start_time_duration)
+		}
+	});
 
-	let end_time = (*props.entry.get())
-		.as_ref()
-		.and_then(|entry| entry.end_time.map(|end_time| end_time - props.event.start_time));
-	let end_time_display = end_time.as_ref().map(format_duration).unwrap_or_default();
+	let end_time = create_memo(ctx, {
+		let event_start = props.event.start_time;
+		move || {
+			let Some(entry) = (*props.entry.get()).clone() else { return String::new(); };
+			let Some(entry_end_time) = entry.end_time else { return String::new(); };
+			let end_time_duration = entry_end_time - event_start;
+			format_duration(&end_time_duration)
+		}
+	});
 
 	let entry_type_background = props.entry_type.color;
 	let entry_type_light_contrast: f64 = contrast(entry_type_background, WHITE);
@@ -460,8 +469,8 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 			div(class="log_entry_select_parent", style=select_parent_style) {
 				img(src="images/add.png", class="click", alt="Add child entry", title="Add child entry", on:click=parent_select_handler)
 			}
-			div(class="log_entry_start_time") { (start_time_display) }
-			div(class="log_entry_end_time") { (end_time_display) }
+			div(class="log_entry_start_time") { (start_time.get()) }
+			div(class="log_entry_end_time") { (end_time.get()) }
 			div(class="log_entry_type", style=entry_type_style) { (props.entry_type.name) }
 			div(class="log_entry_description") { ((*props.entry.get()).as_ref().map(|entry| entry.description.clone()).unwrap_or_default()) }
 			div(class="log_entry_submitter_winner") { ((*props.entry.get()).as_ref().map(|entry| entry.submitter_or_winner.clone()).unwrap_or_default()) }
