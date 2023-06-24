@@ -101,8 +101,6 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 	let entry_types_signal = props.entry_types_signal.clone();
 	let log_entries = props.all_log_entries.clone();
 
-	let entry_types = entry_types_signal.get();
-	let entry_type = (*entry_types).iter().find(|et| et.id == entry.entry_type).unwrap();
 	let event = event_signal.get();
 	let edit_open_signal = create_signal(ctx, false);
 	let click_handler = if *can_edit.get() {
@@ -121,6 +119,16 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 				.iter()
 				.find(|log_entry| log_entry.id == entry_id)
 				.cloned()
+		}
+	});
+
+	let entry_type = create_memo(ctx, move || {
+		let entry = event_log_entry_signal.get();
+		let entry_types = entry_types_signal.get();
+		if let Some(entry) = entry.as_ref() {
+			entry_types.iter().find(|et| et.id == entry.entry_type).cloned()
+		} else {
+			None
 		}
 	});
 
@@ -228,8 +236,6 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 
 	let row_edit_parent: &Signal<Option<EventLogEntry>> = create_signal(ctx, None);
 
-	let close_handler_entry = entry.clone();
-
 	let child_event_signal = props.event_signal.clone();
 	let child_entry_types_signal = props.entry_types_signal.clone();
 	let child_all_log_entries_signal = props.all_log_entries.clone();
@@ -239,7 +245,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 		EventLogEntryRow(
 			entry=event_log_entry_signal,
 			event=(*event).clone(),
-			entry_type=entry_type.clone(),
+			entry_type=entry_type,
 			click_handler=click_handler,
 			new_entry_parent=props.new_entry_parent,
 			child_depth=props.child_depth
@@ -247,7 +253,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 		EventLogEntryTyping(typing_data=typing_data)
 		(if *edit_open_signal.get() {
 			let close_handler = {
-				let entry = close_handler_entry.clone();
+				let entry = entry.clone();
 				let event_signal = event_signal.clone();
 				let log_entries = log_entries.clone();
 				move || {
@@ -373,7 +379,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 pub struct EventLogEntryRowProps<'a, THandler: Fn()> {
 	entry: &'a ReadSignal<Option<EventLogEntry>>,
 	event: Event,
-	entry_type: EntryType,
+	entry_type: &'a ReadSignal<Option<EntryType>>,
 	click_handler: Option<THandler>,
 	new_entry_parent: &'a Signal<Option<EventLogEntry>>,
 	child_depth: u32,
@@ -403,19 +409,31 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 		}
 	});
 
-	let entry_type_background = props.entry_type.color;
-	let entry_type_light_contrast: f64 = contrast(entry_type_background, WHITE);
-	let entry_type_dark_contrast: f64 = contrast(entry_type_background, BLACK);
-	let entry_type_background = rgb_str_from_color(entry_type_background);
-	let entry_type_foreground = if entry_type_light_contrast > entry_type_dark_contrast {
-		"#ffffff"
-	} else {
-		"#000000"
-	};
-	let entry_type_style = format!(
-		"background: {}; color: {}",
-		entry_type_background, entry_type_foreground
-	);
+	let entry_type_style = create_memo(ctx, || {
+		let Some(entry_type) = (*props.entry_type.get()).clone() else { return String::new(); };
+		let entry_type_background = entry_type.color;
+
+		let entry_type_light_contrast: f64 = contrast(entry_type_background, WHITE);
+		let entry_type_dark_contrast: f64 = contrast(entry_type_background, BLACK);
+
+		let entry_type_background = rgb_str_from_color(entry_type_background);
+		let entry_type_foreground = if entry_type_light_contrast > entry_type_dark_contrast {
+			"#ffffff"
+		} else {
+			"#000000"
+		};
+
+		format!(
+			"background: {}; color: {}",
+			entry_type_background, entry_type_foreground
+		)
+	});
+	let entry_type_name = create_memo(ctx, || {
+		(*props.entry_type.get())
+			.as_ref()
+			.map(|entry_type| entry_type.name.clone())
+			.unwrap_or_default()
+	});
 
 	let tags_signal = create_signal(
 		ctx,
@@ -471,7 +489,7 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 			}
 			div(class="log_entry_start_time") { (start_time.get()) }
 			div(class="log_entry_end_time") { (end_time.get()) }
-			div(class="log_entry_type", style=entry_type_style) { (props.entry_type.name) }
+			div(class="log_entry_type", style=entry_type_style.get()) { (entry_type_name.get()) }
 			div(class="log_entry_description") { ((*props.entry.get()).as_ref().map(|entry| entry.description.clone()).unwrap_or_default()) }
 			div(class="log_entry_submitter_winner") { ((*props.entry.get()).as_ref().map(|entry| entry.submitter_or_winner.clone()).unwrap_or_default()) }
 			div(class="log_entry_media_link") {
