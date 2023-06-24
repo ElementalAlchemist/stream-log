@@ -256,7 +256,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 				let entry = entry.clone();
 				let event_signal = event_signal.clone();
 				let log_entries = log_entries.clone();
-				move || {
+				move |_: u8| {
 					let entry = entry.clone();
 					let event_signal = event_signal.clone();
 					let log_entries = log_entries.clone();
@@ -585,7 +585,7 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 }
 
 #[derive(Prop)]
-pub struct EventLogEntryEditProps<'a, TCloseHandler: Fn()> {
+pub struct EventLogEntryEditProps<'a, TCloseHandler: Fn(u8)> {
 	event: &'a ReadSignal<Event>,
 	event_entry_types: &'a ReadSignal<Vec<EntryType>>,
 	event_tags_name_index: &'a ReadSignal<HashMap<String, Tag>>,
@@ -610,7 +610,7 @@ pub struct EventLogEntryEditProps<'a, TCloseHandler: Fn()> {
 }
 
 #[component]
-pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
+pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 	ctx: Scope<'a>,
 	props: EventLogEntryEditProps<'a, TCloseHandler>,
 ) -> View<G> {
@@ -1058,7 +1058,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 
 	let add_count_entry_signal = create_signal(ctx, String::from("1"));
 	let add_count_signal = create_memo(ctx, || {
-		let count: u32 = add_count_entry_signal.get().parse().unwrap_or(1);
+		let count: u8 = add_count_entry_signal.get().parse().unwrap_or(1);
 		count
 	});
 
@@ -1221,13 +1221,9 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 						.push(ErrorData::new_with_error("Failed to send typing clear message.", error));
 				}
 			});
-			for _ in 0..(*add_count_signal.get()) {
-				(props.close_handler)();
-			}
+			(props.close_handler)(*add_count_signal.get());
 		} else {
-			for _ in 0..(*add_count_signal.get()) {
-				(props.close_handler)();
-			}
+			(props.close_handler)(*add_count_signal.get());
 
 			start_time_input.set(String::new());
 			end_time_input.set(String::new());

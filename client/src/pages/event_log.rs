@@ -173,7 +173,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 
 	let new_entry_close_handler = {
 		let event_signal = event_signal.clone();
-		move || {
+		move |count: u8| {
 			let event_signal = event_signal.clone();
 
 			let start_time = *new_entry_start_time.get();
@@ -212,7 +212,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 
 				let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
 					(*event_signal.get()).clone(),
-					Box::new(EventSubscriptionUpdate::NewLogEntry(new_event_log_entry)),
+					Box::new(EventSubscriptionUpdate::NewLogEntry(new_event_log_entry, count)),
 				)));
 				let message_json = match serde_json::to_string(&message) {
 					Ok(msg) => msg,

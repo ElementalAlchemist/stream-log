@@ -36,7 +36,7 @@ pub enum TypingData {
 /// Event subscription update sent by the client to the server.
 #[derive(Debug, Deserialize, Serialize)]
 pub enum EventSubscriptionUpdate {
-	NewLogEntry(EventLogEntry),
+	NewLogEntry(EventLogEntry, u8),
 	DeleteLogEntry(EventLogEntry),
 	ChangeStartTime(EventLogEntry, DateTime<Utc>),
 	ChangeEndTime(EventLogEntry, Option<DateTime<Utc>>),
