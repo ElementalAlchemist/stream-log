@@ -499,6 +499,7 @@ pub async fn handle_event_update(
 				.set((
 					event_log::deleted_by.eq(&user.id),
 					event_log::last_updated.eq(Utc::now()),
+					event_log::last_update_user.eq(&user.id),
 				))
 				.execute(&mut *db_connection);
 			if let Err(error) = delete_result {
@@ -512,7 +513,7 @@ pub async fn handle_event_update(
 			let mut db_connection = db_connection.lock().await;
 			let update_func = |db_connection: &mut PgConnection| {
 				diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id))
+					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
 					.set((
 						event_log::start_time.eq(new_start_time),
 						event_log::last_update_user.eq(&user.id),
@@ -535,7 +536,7 @@ pub async fn handle_event_update(
 			let mut db_connection = db_connection.lock().await;
 			let update_func = |db_connection: &mut PgConnection| {
 				diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id))
+					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
 					.set((
 						event_log::end_time.eq(new_end_time),
 						event_log::last_update_user.eq(&user.id),
@@ -558,7 +559,7 @@ pub async fn handle_event_update(
 			let mut db_connection = db_connection.lock().await;
 			let update_func = |db_connection: &mut PgConnection| {
 				diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id))
+					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
 					.set((
 						event_log::entry_type.eq(&new_entry_type),
 						event_log::last_update_user.eq(&user.id),
@@ -581,7 +582,7 @@ pub async fn handle_event_update(
 			let mut db_connection = db_connection.lock().await;
 			let update_func = |db_connection: &mut PgConnection| {
 				diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id))
+					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
 					.set((
 						event_log::description.eq(&new_description),
 						event_log::last_update_user.eq(&user.id),
@@ -604,7 +605,7 @@ pub async fn handle_event_update(
 			let mut db_connection = db_connection.lock().await;
 			let update_func = |db_connection: &mut PgConnection| {
 				diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id))
+					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
 					.set((
 						event_log::media_link.eq(&new_media_link),
 						event_log::last_update_user.eq(&user.id),
@@ -627,7 +628,7 @@ pub async fn handle_event_update(
 			let mut db_connection = db_connection.lock().await;
 			let update_func = |db_connection: &mut PgConnection| {
 				diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id))
+					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
 					.set((
 						event_log::submitter_or_winner.eq(&new_submitter_or_winner),
 						event_log::last_update_user.eq(&user.id),
@@ -649,6 +650,13 @@ pub async fn handle_event_update(
 		EventSubscriptionUpdate::ChangeTags(log_entry, new_tags) => {
 			let mut db_connection = db_connection.lock().await;
 			let update_result: QueryResult<EventLogEntry> = db_connection.transaction(|db_connection| {
+				diesel::update(event_log::table)
+					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
+					.set((
+						event_log::last_updated.eq(Utc::now()),
+						event_log::last_update_user.eq(&user.id),
+					))
+					.execute(db_connection)?;
 				let new_tag_ids: Vec<String> = new_tags.iter().map(|tag| tag.id.clone()).collect();
 				diesel::delete(event_log_tags::table)
 					.filter(
@@ -731,7 +739,7 @@ pub async fn handle_event_update(
 			let mut db_connection = db_connection.lock().await;
 			let update_func = |db_connection: &mut PgConnection| {
 				diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id))
+					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
 					.set((
 						event_log::make_video.eq(new_make_video_value),
 						event_log::last_update_user.eq(&user.id),
@@ -754,7 +762,7 @@ pub async fn handle_event_update(
 			let mut db_connection = db_connection.lock().await;
 			let update_func = |db_connection: &mut PgConnection| {
 				diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id))
+					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
 					.set((
 						event_log::notes_to_editor.eq(&new_notes_to_editor),
 						event_log::last_update_user.eq(&user.id),
@@ -777,7 +785,7 @@ pub async fn handle_event_update(
 			let mut db_connection = db_connection.lock().await;
 			let update_func = |db_connection: &mut PgConnection| {
 				diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id))
+					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
 					.set((
 						event_log::editor.eq(new_editor.as_ref().map(|user| &user.id)),
 						event_log::last_update_user.eq(&user.id),
@@ -800,7 +808,7 @@ pub async fn handle_event_update(
 			let mut db_connection = db_connection.lock().await;
 			let update_func = |db_connection: &mut PgConnection| {
 				diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id))
+					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
 					.set((
 						event_log::highlighted.eq(new_highlighted_value),
 						event_log::last_update_user.eq(&user.id),
