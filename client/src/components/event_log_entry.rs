@@ -1369,10 +1369,14 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn() + 'a>(
 					Indexed(
 						iterable=entered_tag_entry,
 						view=move |ctx, entry_signal| {
+							let tag_description = create_memo(ctx, || {
+								let tag_index = props.event_tags_name_index.get();
+								tag_index.get(&*entry_signal.get()).map(|tag| tag.description.clone()).unwrap_or_default()
+							});
 							view! {
 								ctx,
 								div {
-									input(bind:value=entry_signal, list=props.tags_datalist_id)
+									input(bind:value=entry_signal, list=props.tags_datalist_id, title=tag_description.get())
 								}
 							}
 						}
