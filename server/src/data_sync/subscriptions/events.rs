@@ -496,7 +496,10 @@ pub async fn handle_event_update(
 			let mut db_connection = db_connection.lock().await;
 			let delete_result: QueryResult<usize> = diesel::update(event_log::table)
 				.filter(event_log::id.eq(&deleted_log_entry.id))
-				.set(event_log::deleted_by.eq(&user.id))
+				.set((
+					event_log::deleted_by.eq(&user.id),
+					event_log::last_updated.eq(Utc::now()),
+				))
 				.execute(&mut *db_connection);
 			if let Err(error) = delete_result {
 				tide::log::error!("Database error deleting an event log entry: {}", error);
@@ -885,7 +888,9 @@ pub async fn handle_event_update(
 	let subscription_manager = subscription_manager.lock().await;
 	for subscription_data in event_subscription_data {
 		let subscription_data = SubscriptionData::EventUpdate(event.clone(), Box::new(subscription_data));
-		let broadcast_result = subscription_manager.broadcast_event_message(&event.id, subscription_data).await;
+		let broadcast_result = subscription_manager
+			.broadcast_event_message(&event.id, subscription_data)
+			.await;
 		if let Err(error) = broadcast_result {
 			tide::log::error!("Error occurred broadcasting an event: {}", error);
 		}
