@@ -4,6 +4,7 @@ use futures::lock::Mutex;
 use futures::stream::SplitStream;
 use futures::task::Waker;
 use gloo_net::websocket::futures::WebSocket;
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use stream_log_shared::messages::admin::{
 	AdminEntryTypeData, AdminEntryTypeEventData, AdminEventData, AdminEventEditorData, AdminPermissionGroupData,
@@ -214,12 +215,26 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 									continue;
 								}
 							};
-							match event_log_entries
-								.binary_search_by_key(&log_entry.start_time, |entry| entry.start_time)
-							{
+							match event_log_entries.binary_search_by(|check_entry| {
+								check_entry
+									.start_time
+									.cmp(&log_entry.start_time)
+									.then_with(|| match (check_entry.manual_sort_key, log_entry.manual_sort_key) {
+										(Some(check_sort_key), Some(log_entry_sort_key)) => {
+											check_sort_key.cmp(&log_entry_sort_key)
+										}
+										(Some(_), None) => Ordering::Greater,
+										(None, Some(_)) => Ordering::Less,
+										(None, None) => Ordering::Equal,
+									})
+									.then_with(|| check_entry.created_at.cmp(&log_entry.created_at))
+							}) {
 								Ok(mut found_entry_index) => {
 									while found_entry_index < event_log_entries.len()
 										&& event_log_entries[found_entry_index].start_time == log_entry.start_time
+										&& event_log_entries[found_entry_index].manual_sort_key
+											== log_entry.manual_sort_key && event_log_entries[found_entry_index]
+										.created_at == log_entry.created_at
 									{
 										found_entry_index += 1;
 									}
