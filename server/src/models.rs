@@ -208,6 +208,7 @@ pub struct EventLogEntry {
 	pub last_update_user: String,
 	pub parent: Option<String>,
 	pub deleted_by: Option<String>,
+	pub created_at: DateTime<Utc>,
 }
 
 #[derive(Insertable, Queryable)]

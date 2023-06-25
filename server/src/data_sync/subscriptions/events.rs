@@ -187,7 +187,7 @@ pub async fn subscribe_to_event(
 
 	let log_entries: Vec<EventLogEntryDb> = match event_log::table
 		.filter(event_log::event.eq(event_id).and(event_log::deleted_by.is_null()))
-		.order(event_log::start_time.asc())
+		.order((event_log::start_time.asc(), event_log::created_at.asc()))
 		.load(&mut *db_connection)
 	{
 		Ok(entries) => entries,
@@ -461,6 +461,7 @@ pub async fn handle_event_update(
 					last_updated: Utc::now(),
 					parent: log_entry_data.parent.clone(),
 					deleted_by: None,
+					created_at: Utc::now(),
 				};
 
 				let db_tags: Vec<EventLogTag> = log_entry_data
