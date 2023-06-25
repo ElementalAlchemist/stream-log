@@ -1459,7 +1459,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 							ctx,
 							span {
 								"Add "
-								input(type="number", min=1, step=1, bind:value=add_count_entry_signal, class="event_log_entry_edit_add_count")
+								input(type="number", min=1, max=u32::MAX, step=1, bind:value=add_count_entry_signal, class="event_log_entry_edit_add_count")
 								" rows"
 							}
 							button(disabled=*disable_save.get()) { "Add" }
