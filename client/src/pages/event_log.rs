@@ -153,6 +153,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 	let new_entry_editor: &Signal<Option<UserData>> = create_signal(ctx, None);
 	let new_entry_highlighted = create_signal(ctx, false);
 	let new_entry_parent: &Signal<Option<EventLogEntry>> = create_signal(ctx, None);
+	let new_entry_sort_key: &Signal<Option<i32>> = create_signal(ctx, None);
 	let new_entry_typing_data = create_memo(ctx, {
 		let typing_events = event_subscription_data.typing_events.clone();
 		move || {
@@ -188,6 +189,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 			let editor = (*new_entry_editor.get()).clone();
 			let highlighted = *new_entry_highlighted.get();
 			let parent = (*new_entry_parent.get()).as_ref().map(|entry| entry.id.clone());
+			let manual_sort_key = *new_entry_sort_key.get();
 			let new_event_log_entry = EventLogEntry {
 				id: String::new(),
 				start_time,
@@ -205,7 +207,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 				highlighted,
 				parent,
 				created_at: Utc::now(),
-				manual_sort_key: None,
+				manual_sort_key,
 			};
 
 			spawn_local_scoped(ctx, async move {
@@ -348,6 +350,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 							editor_name_datalist_id="editor_names",
 							highlighted=new_entry_highlighted,
 							parent_log_entry=new_entry_parent,
+							sort_key=new_entry_sort_key,
 							close_handler=new_entry_close_handler
 						)
 					}

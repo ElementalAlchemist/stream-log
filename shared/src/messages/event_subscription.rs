@@ -50,6 +50,7 @@ pub enum EventSubscriptionUpdate {
 	ChangeNotesToEditor(EventLogEntry, String),
 	ChangeEditor(EventLogEntry, Option<UserData>),
 	ChangeHighlighted(EventLogEntry, bool),
+	ChangeManualSortKey(EventLogEntry, Option<i32>),
 	Typing(NewTypingData),
 	NewTag(Tag),
 }

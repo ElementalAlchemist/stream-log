@@ -69,6 +69,7 @@ enum ModifiedEventLogEntryParts {
 	NotesToEditor,
 	Editor,
 	Highlighted,
+	SortKey,
 }
 
 #[derive(Prop)]
@@ -151,6 +152,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 	let edit_notes_to_editor = create_signal(ctx, entry.notes_to_editor.clone());
 	let edit_editor = create_signal(ctx, entry.editor.clone());
 	let edit_highlighted = create_signal(ctx, entry.highlighted);
+	let edit_sort_key = create_signal(ctx, entry.manual_sort_key);
 
 	let modified_data: &Signal<HashSet<ModifiedEventLogEntryParts>> = create_signal(ctx, HashSet::new());
 
@@ -168,6 +170,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 				edit_notes_to_editor.set(entry.notes_to_editor.clone());
 				edit_editor.set(entry.editor.clone());
 				edit_highlighted.set(entry.highlighted);
+				edit_sort_key.set(None);
 			}
 			modified_data.modify().clear();
 		}
@@ -218,6 +221,10 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 	create_effect(ctx, || {
 		edit_highlighted.track();
 		modified_data.modify().insert(ModifiedEventLogEntryParts::Highlighted);
+	});
+	create_effect(ctx, || {
+		edit_sort_key.track();
+		modified_data.modify().insert(ModifiedEventLogEntryParts::SortKey);
 	});
 
 	let typing_events_signal = props.event_typing_events_signal.clone();
@@ -288,7 +295,8 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 								ModifiedEventLogEntryParts::MakeVideo => EventSubscriptionUpdate::ChangeMakeVideo(log_entry.clone(), *edit_make_video.get()),
 								ModifiedEventLogEntryParts::NotesToEditor => EventSubscriptionUpdate::ChangeNotesToEditor(log_entry.clone(), (*edit_notes_to_editor.get()).clone()),
 								ModifiedEventLogEntryParts::Editor => EventSubscriptionUpdate::ChangeEditor(log_entry.clone(), (*edit_editor.get()).clone()),
-								ModifiedEventLogEntryParts::Highlighted => EventSubscriptionUpdate::ChangeHighlighted(log_entry.clone(), *edit_highlighted.get())
+								ModifiedEventLogEntryParts::Highlighted => EventSubscriptionUpdate::ChangeHighlighted(log_entry.clone(), *edit_highlighted.get()),
+								ModifiedEventLogEntryParts::SortKey => EventSubscriptionUpdate::ChangeManualSortKey(log_entry.clone(), *edit_sort_key.get())
 							};
 							let event_message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(event.clone(), Box::new(event_message))));
 							let event_message = match serde_json::to_string(&event_message) {
@@ -330,6 +338,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 					editor_name_datalist_id="editor_names",
 					highlighted=edit_highlighted,
 					parent_log_entry=row_edit_parent,
+					sort_key=edit_sort_key,
 					close_handler=close_handler
 				)
 			}
@@ -606,6 +615,7 @@ pub struct EventLogEntryEditProps<'a, TCloseHandler: Fn(u8)> {
 	editor_name_datalist_id: &'a str,
 	highlighted: &'a Signal<bool>,
 	parent_log_entry: &'a Signal<Option<EventLogEntry>>,
+	sort_key: &'a Signal<Option<i32>>,
 	close_handler: TCloseHandler,
 }
 
@@ -1046,6 +1056,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 		let editor_name = editor_entry.get();
 		if editor_name.is_empty() {
 			props.editor.set(None);
+			editor_error.set(None);
 			return;
 		}
 		if let Some(editor_user) = props.editor_name_index.get().get(&*editor_name) {
@@ -1053,6 +1064,24 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 			props.editor.set(Some(editor_user.clone()));
 		} else {
 			editor_error.set(Some(String::from("The entered name couldn't be matched to an editor")));
+		}
+	});
+
+	let sort_key_entry = create_signal(ctx, props.sort_key.get().map(|key| key.to_string()).unwrap_or_default());
+	let sort_key_error: &Signal<Option<String>> = create_signal(ctx, None);
+	create_effect(ctx, || {
+		let sort_key = sort_key_entry.get();
+		if sort_key.is_empty() {
+			props.sort_key.set(None);
+			sort_key_error.set(None);
+			return;
+		}
+		match sort_key.parse() {
+			Ok(key) => {
+				sort_key_error.set(None);
+				props.sort_key.set(Some(key));
+			}
+			Err(_) => sort_key_error.set(Some(String::from("Sort key must be a number"))),
 		}
 	});
 
@@ -1239,6 +1268,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 			props.parent_log_entry.set(None);
 			entered_tag_entry.set(vec![create_signal(ctx, String::new())]);
 			entered_tags.set(Vec::new());
+			props.sort_key.set(None);
 			add_count_entry_signal.set(String::from("1"));
 		}
 	};
@@ -1445,13 +1475,31 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 					input(bind:value=notes_to_editor, placeholder="Notes to editor")
 				}
 				div(class="event_log_entry_edit_editor") {
-					input(bind:value=editor_entry, placeholder="Editor", list=props.editor_name_datalist_id, class=if editor_error.get().is_some() { "error" } else { "" }, title=(*editor_error.get()).as_ref().unwrap_or(&String::new()))
+					input(
+						bind:value=editor_entry,
+						placeholder="Editor",
+						list=props.editor_name_datalist_id,
+						class=if editor_error.get().is_some() { "error" } else { "" },
+						title=(*editor_error.get()).as_ref().unwrap_or(&String::new())
+					)
 				}
 				div(class="event_log_entry_edit_highlighted") {
 					label {
 						input(type="checkbox", bind:checked=props.highlighted)
 						"Highlight row"
 					}
+				}
+				div(class="event_log_entry_edit_sort_key") {
+					input(
+						bind:value=sort_key_entry,
+						placeholder="Sort",
+						class=if sort_key_error.get().is_some() { "error" } else { "" },
+						title=(*sort_key_error.get()).as_ref().unwrap_or(&String::new()),
+						type="number",
+						min=i32::MIN,
+						max=i32::MAX,
+						step=1
+					)
 				}
 				div(class="event_log_entry_edit_close") {
 					(if props.event_log_entry.get().is_none() {

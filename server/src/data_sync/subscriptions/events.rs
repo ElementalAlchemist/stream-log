@@ -837,6 +837,29 @@ pub async fn handle_event_update(
 			};
 			vec![EventSubscriptionData::UpdateLogEntry(log_entry)]
 		}
+		EventSubscriptionUpdate::ChangeManualSortKey(log_entry, manual_sort_key) => {
+			let mut db_connection = db_connection.lock().await;
+			let update_func = |db_connection: &mut PgConnection| {
+				diesel::update(event_log::table)
+					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
+					.set((
+						event_log::manual_sort_key.eq(manual_sort_key),
+						event_log::last_update_user.eq(&user.id),
+						event_log::last_updated.eq(Utc::now()),
+					))
+					.get_result(db_connection)
+			};
+			let update_result = log_entry_change(&mut db_connection, update_func);
+
+			let log_entry = match update_result {
+				Ok(entry) => entry,
+				Err(error) => {
+					tide::log::error!("Database error updating log entry manual sort key: {}", error);
+					return Ok(());
+				}
+			};
+			vec![EventSubscriptionData::UpdateLogEntry(log_entry)]
+		}
 		EventSubscriptionUpdate::Typing(typing_data) => {
 			let user_data = UserData {
 				id: user.id.clone(),
