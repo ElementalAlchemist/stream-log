@@ -1326,6 +1326,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 			|| entry_type_error.get().is_some()
 			|| editor_error.get().is_some()
 			|| !new_tag_names.get().is_empty()
+			|| sort_key_error.get().is_some()
 	});
 
 	let remove_parent_handler = |_event: WebEvent| {
