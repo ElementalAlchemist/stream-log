@@ -189,6 +189,8 @@ pub async fn handle_admin_tags_message(
 								video_link: log_entry.video_link,
 								highlighted: log_entry.highlighted,
 								parent: log_entry.parent,
+								created_at: log_entry.created_at,
+								manual_sort_key: log_entry.manual_sort_key,
 							},
 						));
 					}
@@ -295,6 +297,8 @@ pub async fn handle_admin_tags_message(
 								video_link: log_entry.video_link,
 								highlighted: log_entry.highlighted,
 								parent: log_entry.parent,
+								created_at: log_entry.created_at,
+								manual_sort_key: log_entry.manual_sort_key,
 							},
 						));
 					}

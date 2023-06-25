@@ -1,0 +1,1 @@
+ALTER TABLE event_log ADD COLUMN manual_sort_key INTEGER;

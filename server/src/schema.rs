@@ -51,6 +51,7 @@ diesel::table! {
 		parent -> Nullable<Text>,
 		deleted_by -> Nullable<Text>,
 		created_at -> Timestamptz,
+		manual_sort_key -> Nullable<Int4>,
 	}
 }
 

@@ -187,7 +187,11 @@ pub async fn subscribe_to_event(
 
 	let log_entries: Vec<EventLogEntryDb> = match event_log::table
 		.filter(event_log::event.eq(event_id).and(event_log::deleted_by.is_null()))
-		.order((event_log::start_time.asc(), event_log::created_at.asc()))
+		.order((
+			event_log::start_time.asc(),
+			event_log::manual_sort_key.asc().nulls_last(),
+			event_log::created_at.asc(),
+		))
 		.load(&mut *db_connection)
 	{
 		Ok(entries) => entries,
@@ -398,6 +402,8 @@ pub async fn subscribe_to_event(
 			video_link: log_entry.video_link.clone(),
 			highlighted: log_entry.highlighted,
 			parent: log_entry.parent.clone(),
+			created_at: log_entry.created_at,
+			manual_sort_key: log_entry.manual_sort_key,
 		};
 		event_log_entries.push(send_entry);
 	}
@@ -462,6 +468,7 @@ pub async fn handle_event_update(
 					parent: log_entry_data.parent.clone(),
 					deleted_by: None,
 					created_at: Utc::now(),
+					manual_sort_key: log_entry_data.manual_sort_key,
 				};
 
 				let db_tags: Vec<EventLogTag> = log_entry_data
@@ -723,6 +730,8 @@ pub async fn handle_event_update(
 					video_link: log_entry.video_link,
 					highlighted: log_entry.highlighted,
 					parent: log_entry.parent,
+					created_at: log_entry.created_at,
+					manual_sort_key: log_entry.manual_sort_key,
 				};
 				Ok(log_entry)
 			});
@@ -950,6 +959,8 @@ fn log_entry_change(
 			video_link: log_entry.video_link,
 			highlighted: log_entry.highlighted,
 			parent: log_entry.parent,
+			created_at: log_entry.created_at,
+			manual_sort_key: log_entry.manual_sort_key,
 		};
 		Ok(log_entry)
 	})

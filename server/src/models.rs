@@ -209,6 +209,7 @@ pub struct EventLogEntry {
 	pub parent: Option<String>,
 	pub deleted_by: Option<String>,
 	pub created_at: DateTime<Utc>,
+	pub manual_sort_key: Option<i32>,
 }
 
 #[derive(Insertable, Queryable)]

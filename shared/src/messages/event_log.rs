@@ -20,4 +20,6 @@ pub struct EventLogEntry {
 	pub video_link: Option<String>,
 	pub highlighted: bool,
 	pub parent: Option<String>,
+	pub created_at: DateTime<Utc>,
+	pub manual_sort_key: Option<i32>
 }
