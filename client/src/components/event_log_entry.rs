@@ -170,7 +170,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 				edit_notes_to_editor.set(entry.notes_to_editor.clone());
 				edit_editor.set(entry.editor.clone());
 				edit_highlighted.set(entry.highlighted);
-				edit_sort_key.set(None);
+				edit_sort_key.set(entry.manual_sort_key);
 			}
 			modified_data.modify().clear();
 		}
