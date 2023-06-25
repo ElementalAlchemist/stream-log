@@ -53,7 +53,8 @@ configuration file to configure the server.
 You can compile and run the server using `cargo run --release`. If you want to run just database migrations (for initial
 setup or for upgrades of Stream Log), you can run `cargo run --release -- --migrations-only`. If you want to restrict
 database permissions during normal runtime of the system, you can grant permissions to modify the database schema, run
-Stream Log with the `--migrations-only` flag, and then revoke those permissions again.
+Stream Log with the `--migrations-only` flag, and then revoke those permissions again, or you could configure Stream Log
+with a different database user with the appropriate permissions for only the `--migrations-only` run.
 
 10. Do initial user creation.
 If you haven't run Stream Log before and the database is empty, the first user to be registered in the system is
