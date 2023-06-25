@@ -503,7 +503,11 @@ pub async fn handle_event_update(
 		EventSubscriptionUpdate::DeleteLogEntry(deleted_log_entry) => {
 			let mut db_connection = db_connection.lock().await;
 			let delete_result: QueryResult<usize> = diesel::update(event_log::table)
-				.filter(event_log::id.eq(&deleted_log_entry.id))
+				.filter(
+					event_log::id
+						.eq(&deleted_log_entry.id)
+						.and(event_log::video_link.is_null()),
+				)
 				.set((
 					event_log::deleted_by.eq(&user.id),
 					event_log::last_updated.eq(Utc::now()),

@@ -1489,7 +1489,17 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 					)
 				}
 				div(class="event_log_entry_edit_close") {
-					(if props.event_log_entry.get().is_none() {
+					(if let Some(entry) = (*props.event_log_entry.get()).clone() {
+						view! {
+							ctx,
+							(if entry.video_link.is_none() {
+								view! { ctx, button(type="button", on:click=delete_handler) { "Delete" } }
+							} else {
+								view! { ctx, }
+							})
+							button(disabled=*disable_save.get()) { "Close" }
+						}
+					} else {
 						view! {
 							ctx,
 							span {
@@ -1499,12 +1509,6 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 							}
 							button(disabled=*disable_save.get()) { "Add" }
 							button(type="reset", on:click=reset_handler) { "Reset" }
-						}
-					} else {
-						view! {
-							ctx,
-							button(type="button", on:click=delete_handler) { "Delete" }
-							button(disabled=*disable_save.get()) { "Close" }
 						}
 					})
 				}
