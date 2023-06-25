@@ -225,7 +225,7 @@ pub async fn handle_admin_tags_message(
 				let event_id = log_entry_event.id.clone();
 				let event_message = SubscriptionData::EventUpdate(
 					log_entry_event,
-					Box::new(EventSubscriptionData::UpdateLogEntry(log_entry)),
+					Box::new(EventSubscriptionData::UpdateLogEntry(log_entry, user.clone())),
 				);
 				let send_result = subscription_manager
 					.broadcast_event_message(&event_id, event_message)
@@ -332,7 +332,7 @@ pub async fn handle_admin_tags_message(
 				let event_id = log_entry_event.id.clone();
 				let event_message = SubscriptionData::EventUpdate(
 					log_entry_event,
-					Box::new(EventSubscriptionData::UpdateLogEntry(log_entry)),
+					Box::new(EventSubscriptionData::UpdateLogEntry(log_entry, user.clone())),
 				);
 				let send_result = subscription_manager
 					.broadcast_event_message(&event_id, event_message)

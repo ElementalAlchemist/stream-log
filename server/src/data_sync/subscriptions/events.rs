@@ -542,7 +542,7 @@ pub async fn handle_event_update(
 					return Ok(());
 				}
 			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry)]
+			vec![EventSubscriptionData::UpdateLogEntry(log_entry, user.clone())]
 		}
 		EventSubscriptionUpdate::ChangeEndTime(log_entry, new_end_time) => {
 			let mut db_connection = db_connection.lock().await;
@@ -565,7 +565,7 @@ pub async fn handle_event_update(
 					return Ok(());
 				}
 			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry)]
+			vec![EventSubscriptionData::UpdateLogEntry(log_entry, user.clone())]
 		}
 		EventSubscriptionUpdate::ChangeEntryType(log_entry, new_entry_type) => {
 			let mut db_connection = db_connection.lock().await;
@@ -588,7 +588,7 @@ pub async fn handle_event_update(
 					return Ok(());
 				}
 			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry)]
+			vec![EventSubscriptionData::UpdateLogEntry(log_entry, user.clone())]
 		}
 		EventSubscriptionUpdate::ChangeDescription(log_entry, new_description) => {
 			let mut db_connection = db_connection.lock().await;
@@ -611,7 +611,7 @@ pub async fn handle_event_update(
 					return Ok(());
 				}
 			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry)]
+			vec![EventSubscriptionData::UpdateLogEntry(log_entry, user.clone())]
 		}
 		EventSubscriptionUpdate::ChangeMediaLink(log_entry, new_media_link) => {
 			let mut db_connection = db_connection.lock().await;
@@ -634,7 +634,7 @@ pub async fn handle_event_update(
 					return Ok(());
 				}
 			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry)]
+			vec![EventSubscriptionData::UpdateLogEntry(log_entry, user.clone())]
 		}
 		EventSubscriptionUpdate::ChangeSubmitterWinner(log_entry, new_submitter_or_winner) => {
 			let mut db_connection = db_connection.lock().await;
@@ -657,7 +657,7 @@ pub async fn handle_event_update(
 					return Ok(());
 				}
 			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry)]
+			vec![EventSubscriptionData::UpdateLogEntry(log_entry, user.clone())]
 		}
 		EventSubscriptionUpdate::ChangeTags(log_entry, new_tags) => {
 			let mut db_connection = db_connection.lock().await;
@@ -747,7 +747,7 @@ pub async fn handle_event_update(
 					return Ok(());
 				}
 			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry)]
+			vec![EventSubscriptionData::UpdateLogEntry(log_entry, user.clone())]
 		}
 		EventSubscriptionUpdate::ChangeMakeVideo(log_entry, new_make_video_value) => {
 			let mut db_connection = db_connection.lock().await;
@@ -770,7 +770,7 @@ pub async fn handle_event_update(
 					return Ok(());
 				}
 			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry)]
+			vec![EventSubscriptionData::UpdateLogEntry(log_entry, user.clone())]
 		}
 		EventSubscriptionUpdate::ChangeNotesToEditor(log_entry, new_notes_to_editor) => {
 			let mut db_connection = db_connection.lock().await;
@@ -793,7 +793,7 @@ pub async fn handle_event_update(
 					return Ok(());
 				}
 			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry)]
+			vec![EventSubscriptionData::UpdateLogEntry(log_entry, user.clone())]
 		}
 		EventSubscriptionUpdate::ChangeEditor(log_entry, new_editor) => {
 			let mut db_connection = db_connection.lock().await;
@@ -816,7 +816,7 @@ pub async fn handle_event_update(
 					return Ok(());
 				}
 			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry)]
+			vec![EventSubscriptionData::UpdateLogEntry(log_entry, user.clone())]
 		}
 		EventSubscriptionUpdate::ChangeHighlighted(log_entry, new_highlighted_value) => {
 			let mut db_connection = db_connection.lock().await;
@@ -839,7 +839,7 @@ pub async fn handle_event_update(
 					return Ok(());
 				}
 			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry)]
+			vec![EventSubscriptionData::UpdateLogEntry(log_entry, user.clone())]
 		}
 		EventSubscriptionUpdate::ChangeManualSortKey(log_entry, manual_sort_key) => {
 			let mut db_connection = db_connection.lock().await;
@@ -862,7 +862,7 @@ pub async fn handle_event_update(
 					return Ok(());
 				}
 			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry)]
+			vec![EventSubscriptionData::UpdateLogEntry(log_entry, user.clone())]
 		}
 		EventSubscriptionUpdate::Typing(typing_data) => {
 			let user_data = UserData {

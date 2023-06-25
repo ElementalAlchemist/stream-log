@@ -11,7 +11,7 @@ pub enum EventSubscriptionData {
 	UpdateEvent,
 	NewLogEntry(EventLogEntry, UserData),
 	DeleteLogEntry(EventLogEntry),
-	UpdateLogEntry(EventLogEntry),
+	UpdateLogEntry(EventLogEntry, UserData),
 	Typing(TypingData),
 	AddEntryType(EntryType),
 	UpdateEntryType(EntryType),
