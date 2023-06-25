@@ -215,33 +215,8 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 									continue;
 								}
 							};
-							match event_log_entries.binary_search_by(|check_entry| {
-								check_entry
-									.start_time
-									.cmp(&log_entry.start_time)
-									.then_with(|| match (check_entry.manual_sort_key, log_entry.manual_sort_key) {
-										(Some(check_sort_key), Some(log_entry_sort_key)) => {
-											check_sort_key.cmp(&log_entry_sort_key)
-										}
-										(Some(_), None) => Ordering::Greater,
-										(None, Some(_)) => Ordering::Less,
-										(None, None) => Ordering::Equal,
-									})
-									.then_with(|| check_entry.created_at.cmp(&log_entry.created_at))
-							}) {
-								Ok(mut found_entry_index) => {
-									while found_entry_index < event_log_entries.len()
-										&& event_log_entries[found_entry_index].start_time == log_entry.start_time
-										&& event_log_entries[found_entry_index].manual_sort_key
-											== log_entry.manual_sort_key && event_log_entries[found_entry_index]
-										.created_at == log_entry.created_at
-									{
-										found_entry_index += 1;
-									}
-									event_log_entries.insert(found_entry_index, log_entry);
-								}
-								Err(new_insert_index) => event_log_entries.insert(new_insert_index, log_entry),
-							}
+							let insert_index = entry_insertion_index(&event_log_entries, &log_entry);
+							event_log_entries.insert(insert_index, log_entry);
 						}
 						EventSubscriptionData::DeleteLogEntry(log_entry) => {
 							let mut log_entries = event_data.event_log_entries.modify();
@@ -256,9 +231,22 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 						}
 						EventSubscriptionData::UpdateLogEntry(log_entry) => {
 							let mut log_entries = event_data.event_log_entries.modify();
-							let existing_entry = log_entries.iter_mut().find(|entry| entry.id == log_entry.id);
-							if let Some(entry) = existing_entry {
-								*entry = log_entry;
+							let existing_entry_index = log_entries
+								.iter_mut()
+								.enumerate()
+								.find(|(_, entry)| entry.id == log_entry.id)
+								.map(|(index, _)| index);
+							if let Some(index) = existing_entry_index {
+								if log_entries[index].start_time != log_entry.start_time
+									|| log_entries[index].manual_sort_key != log_entry.manual_sort_key
+									|| log_entries[index].created_at != log_entry.created_at
+								{
+									log_entries.remove(index);
+									let new_index = entry_insertion_index(&log_entries, &log_entry);
+									log_entries.insert(new_index, log_entry);
+								} else {
+									log_entries[index] = log_entry;
+								}
 							}
 						}
 						EventSubscriptionData::Typing(typing_data) => {
@@ -663,5 +651,34 @@ fn handle_typing_data(
 				time_received: Utc::now(),
 			});
 		}
+	}
+}
+
+fn entry_insertion_index(entries: &[EventLogEntry], log_entry_to_insert: &EventLogEntry) -> usize {
+	match entries.binary_search_by(|check_entry| {
+		check_entry
+			.start_time
+			.cmp(&log_entry_to_insert.start_time)
+			.then_with(
+				|| match (check_entry.manual_sort_key, log_entry_to_insert.manual_sort_key) {
+					(Some(check_sort_key), Some(log_entry_sort_key)) => check_sort_key.cmp(&log_entry_sort_key),
+					(Some(_), None) => Ordering::Less,
+					(None, Some(_)) => Ordering::Greater,
+					(None, None) => Ordering::Equal,
+				},
+			)
+			.then_with(|| check_entry.created_at.cmp(&log_entry_to_insert.created_at))
+	}) {
+		Ok(mut found_entry_index) => {
+			while found_entry_index < entries.len()
+				&& entries[found_entry_index].start_time == log_entry_to_insert.start_time
+				&& entries[found_entry_index].manual_sort_key == log_entry_to_insert.manual_sort_key
+				&& entries[found_entry_index].created_at == log_entry_to_insert.created_at
+			{
+				found_entry_index += 1;
+			}
+			found_entry_index
+		}
+		Err(new_insert_index) => new_insert_index,
 	}
 }
