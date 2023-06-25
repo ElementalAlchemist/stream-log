@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum EventSubscriptionData {
 	UpdateEvent,
-	NewLogEntry(EventLogEntry),
+	NewLogEntry(EventLogEntry, UserData),
 	DeleteLogEntry(EventLogEntry),
 	UpdateLogEntry(EventLogEntry),
 	Typing(TypingData),

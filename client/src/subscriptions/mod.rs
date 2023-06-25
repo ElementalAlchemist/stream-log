@@ -201,7 +201,7 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 					let Some(event_data) = events_data.get_mut(&event.id) else { continue; };
 					match *update_data {
 						EventSubscriptionData::UpdateEvent => event_data.event.set(event),
-						EventSubscriptionData::NewLogEntry(log_entry) => {
+						EventSubscriptionData::NewLogEntry(log_entry, creating_user) => {
 							let mut event_log_entries = event_data.event_log_entries.modify();
 							match event_log_entries.last() {
 								Some(last_entry) => {
@@ -217,6 +217,14 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 							};
 							let insert_index = entry_insertion_index(&event_log_entries, &log_entry);
 							event_log_entries.insert(insert_index, log_entry);
+							let mut typing_events = event_data.typing_events.modify();
+							*typing_events = typing_events
+								.iter()
+								.filter(|typing_event| {
+									typing_event.user.id != creating_user.id || typing_event.event_log_entry.is_some()
+								})
+								.cloned()
+								.collect();
 						}
 						EventSubscriptionData::DeleteLogEntry(log_entry) => {
 							let mut log_entries = event_data.event_log_entries.modify();

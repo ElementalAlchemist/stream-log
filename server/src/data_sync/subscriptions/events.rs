@@ -496,7 +496,7 @@ pub async fn handle_event_update(
 				}
 
 				log_entry_data.id = new_id;
-				new_entry_messages.push(EventSubscriptionData::NewLogEntry(log_entry_data));
+				new_entry_messages.push(EventSubscriptionData::NewLogEntry(log_entry_data, user.clone()));
 			}
 			new_entry_messages
 		}
