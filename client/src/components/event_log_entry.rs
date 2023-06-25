@@ -1068,21 +1068,9 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 	});
 
 	let sort_key_entry = create_signal(ctx, props.sort_key.get().map(|key| key.to_string()).unwrap_or_default());
-	let sort_key_error: &Signal<Option<String>> = create_signal(ctx, None);
 	create_effect(ctx, || {
-		let sort_key = sort_key_entry.get();
-		if sort_key.is_empty() {
-			props.sort_key.set(None);
-			sort_key_error.set(None);
-			return;
-		}
-		match sort_key.parse() {
-			Ok(key) => {
-				sort_key_error.set(None);
-				props.sort_key.set(Some(key));
-			}
-			Err(_) => sort_key_error.set(Some(String::from("Sort key must be a number"))),
-		}
+		let sort_key: Option<i32> = sort_key_entry.get().parse().ok();
+		props.sort_key.set(sort_key);
 	});
 
 	let add_count_entry_signal = create_signal(ctx, String::from("1"));
@@ -1268,7 +1256,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 			props.parent_log_entry.set(None);
 			entered_tag_entry.set(vec![create_signal(ctx, String::new())]);
 			entered_tags.set(Vec::new());
-			props.sort_key.set(None);
+			sort_key_entry.set(String::new());
 			add_count_entry_signal.set(String::from("1"));
 		}
 	};
@@ -1317,6 +1305,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 		notes_to_editor.set(String::new());
 		editor_entry.set(String::new());
 		props.highlighted.set(false);
+		sort_key_entry.set(String::new());
 		add_count_entry_signal.set(String::from("1"));
 	};
 
@@ -1326,7 +1315,6 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 			|| entry_type_error.get().is_some()
 			|| editor_error.get().is_some()
 			|| !new_tag_names.get().is_empty()
-			|| sort_key_error.get().is_some()
 	});
 
 	let remove_parent_handler = |_event: WebEvent| {
@@ -1494,8 +1482,6 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 					input(
 						bind:value=sort_key_entry,
 						placeholder="Sort",
-						class=if sort_key_error.get().is_some() { "error" } else { "" },
-						title=(*sort_key_error.get()).as_ref().unwrap_or(&String::new()),
 						type="number",
 						min=i32::MIN,
 						max=i32::MAX,
