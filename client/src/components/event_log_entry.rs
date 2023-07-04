@@ -1079,6 +1079,18 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 		count
 	});
 
+	let start_now_handler = move |_event: WebEvent| {
+		let start_time_duration = Utc::now() - event_start;
+		let start_time_duration = format_duration(&start_time_duration);
+		start_time_input.set(start_time_duration);
+	};
+
+	let end_now_handler = move |_event: WebEvent| {
+		let end_time_duration = Utc::now() - event_start;
+		let end_time_duration = format_duration(&end_time_duration);
+		end_time_input.set(end_time_duration);
+	};
+
 	let close_handler = move |event: WebEvent| {
 		event.prevent_default();
 
@@ -1196,10 +1208,40 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 			}
 			div(class="event_log_entry_edit_basic_info") {
 				div(class="event_log_entry_edit_start_time") {
-					input(placeholder="Start", bind:value=start_time_input, class=if start_time_error.get().is_some() { "error" } else { "" }, title=(*start_time_error.get()).as_ref().unwrap_or(&String::new()))
+					input(
+						placeholder="Start",
+						bind:value=start_time_input,
+						class=if start_time_error.get().is_some() { "error" } else { "" },
+						title=(*start_time_error.get()).as_ref().unwrap_or(&String::new())
+					)
+					(
+						if props.event_log_entry.get().is_none() {
+							view! {
+								ctx,
+								button(type="button", on:click=start_now_handler) { "Now" }
+							}
+						} else {
+							view! { ctx, }
+						}
+					)
 				}
 				div(class="event_log_entry_edit_end_time") {
-					input(placeholder="End", bind:value=end_time_input, class=if end_time_error.get().is_some() { "error" } else { "" }, title=(*end_time_error.get()).as_ref().unwrap_or(&String::new()))
+					input(
+						placeholder="End",
+						bind:value=end_time_input,
+						class=if end_time_error.get().is_some() { "error" } else { "" },
+						title=(*end_time_error.get()).as_ref().unwrap_or(&String::new())
+					)
+					(
+						if props.event_log_entry.get().is_none() {
+							view! {
+								ctx,
+								button(type="button", on:click=end_now_handler) { "Now" }
+							}
+						} else {
+							view! { ctx, }
+						}
+					)
 				}
 				div(class="event_log_entry_edit_type") {
 					input(

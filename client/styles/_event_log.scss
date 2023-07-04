@@ -129,7 +129,7 @@ $event_log_column_count: 13;
 }
 
 .event_log_entry_edit_start_time, .event_log_entry_edit_end_time {
-	flex-basis: min-content;
+	flex-basis: max-content;
 	
 	> input {
 		width: 75px;
