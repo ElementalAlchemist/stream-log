@@ -56,6 +56,15 @@ diesel::table! {
 }
 
 diesel::table! {
+	event_log_sections (id) {
+		id -> Text,
+		event -> Text,
+		name -> Text,
+		start_time -> Timestamptz,
+	}
+}
+
+diesel::table! {
 	event_log_tags (tag, log_entry) {
 		tag -> Text,
 		log_entry -> Text,
@@ -121,6 +130,7 @@ diesel::joinable!(event_editors -> events (event));
 diesel::joinable!(event_editors -> users (editor));
 diesel::joinable!(event_log -> entry_types (entry_type));
 diesel::joinable!(event_log -> events (event));
+diesel::joinable!(event_log_sections -> events (event));
 diesel::joinable!(event_log_tags -> event_log (log_entry));
 diesel::joinable!(event_log_tags -> tags (tag));
 diesel::joinable!(permission_events -> events (event));
@@ -133,6 +143,7 @@ diesel::allow_tables_to_appear_in_same_query!(
 	entry_types,
 	event_editors,
 	event_log,
+	event_log_sections,
 	event_log_tags,
 	events,
 	permission_events,
