@@ -6,7 +6,7 @@ use crate::messages::admin::{
 	PermissionGroupEventAssociation, UserPermissionGroupAssociation,
 };
 use crate::messages::entry_types::EntryType;
-use crate::messages::event_log::EventLogEntry;
+use crate::messages::event_log::{EventLogEntry, EventLogSection};
 use crate::messages::event_subscription::{EventSubscriptionData, EventSubscriptionUpdate};
 use crate::messages::events::Event;
 use crate::messages::permissions::PermissionLevel;
@@ -54,6 +54,7 @@ pub enum InitialSubscriptionLoadData {
 		PermissionLevel,
 		Vec<EntryType>,
 		Vec<UserData>,
+		Vec<EventLogSection>,
 		Vec<EventLogEntry>,
 	),
 	AvailableTags(Vec<Tag>),

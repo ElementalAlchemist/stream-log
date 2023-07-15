@@ -128,6 +128,7 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 						permission_level,
 						entry_types,
 						editors,
+						event_log_sections,
 						event_log_entries,
 					) => {
 						let event_id = event.id.clone();
@@ -136,6 +137,7 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 							permission_level,
 							entry_types,
 							editors,
+							event_log_sections,
 							event_log_entries,
 						);
 						data_signals

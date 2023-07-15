@@ -1,12 +1,12 @@
 use crate::data_sync::connection::ConnectionUpdate;
 use crate::data_sync::{HandleConnectionError, SubscriptionManager};
 use crate::models::{
-	EntryType as EntryTypeDb, Event as EventDb, EventLogEntry as EventLogEntryDb, EventLogTag, Permission,
-	PermissionEvent, Tag as TagDb, User,
+	EntryType as EntryTypeDb, Event as EventDb, EventLogEntry as EventLogEntryDb, EventLogSection as EventLogSectionDb,
+	EventLogTag, Permission, PermissionEvent, Tag as TagDb, User,
 };
 use crate::schema::{
-	available_entry_types_for_event, entry_types, event_editors, event_log, event_log_tags, events, permission_events,
-	tags, user_permissions, users,
+	available_entry_types_for_event, entry_types, event_editors, event_log, event_log_sections, event_log_tags, events,
+	permission_events, tags, user_permissions, users,
 };
 use async_std::channel::Sender;
 use async_std::sync::{Arc, Mutex};
@@ -16,7 +16,7 @@ use diesel::prelude::*;
 use std::collections::HashMap;
 use stream_log_shared::messages::admin::AdminTagData;
 use stream_log_shared::messages::entry_types::EntryType;
-use stream_log_shared::messages::event_log::EventLogEntry;
+use stream_log_shared::messages::event_log::{EventLogEntry, EventLogSection};
 use stream_log_shared::messages::event_subscription::{
 	EventSubscriptionData, EventSubscriptionUpdate, NewTypingData, TypingData,
 };
@@ -169,6 +169,30 @@ pub async fn subscribe_to_event(
 		Ok(tags) => tags,
 		Err(error) => {
 			tide::log::error!("Database error getting tags for an event: {}", error);
+			let message = FromServerMessage::SubscriptionFailure(
+				SubscriptionType::EventLogData(event_id.to_string()),
+				SubscriptionFailureInfo::Error(DataError::DatabaseError),
+			);
+			conn_update_tx
+				.send(ConnectionUpdate::SendData(Box::new(message)))
+				.await?;
+			subscription_manager
+				.lock()
+				.await
+				.unsubscribe_user_from_event(event_id, user)
+				.await?;
+			return Ok(());
+		}
+	};
+
+	let mut log_sections: Vec<EventLogSectionDb> = match event_log_sections::table
+		.filter(event_log_sections::event.eq(event_id))
+		.order(event_log_sections::start_time.asc())
+		.load(&mut *db_connection)
+	{
+		Ok(sections) => sections,
+		Err(error) => {
+			tide::log::error!("Database error getting event log sections: {}", error);
 			let message = FromServerMessage::SubscriptionFailure(
 				SubscriptionType::EventLogData(event_id.to_string()),
 				SubscriptionFailureInfo::Error(DataError::DatabaseError),
@@ -349,6 +373,7 @@ pub async fn subscribe_to_event(
 			color: et.color(),
 		})
 		.collect();
+	let event_log_sections: Vec<EventLogSection> = log_sections.drain(..).map(|section| EventLogSection { id: section.id, name: section.name, start_time: section.start_time }).collect();
 	let mut event_log_entries: Vec<EventLogEntry> = Vec::with_capacity(log_entries.len());
 	for log_entry in log_entries.iter() {
 		let tags = match tags_by_log_entry.remove(&log_entry.id) {
@@ -413,6 +438,7 @@ pub async fn subscribe_to_event(
 		permission_level,
 		entry_types,
 		available_editors_list,
+		event_log_sections,
 		event_log_entries,
 	)));
 	conn_update_tx
