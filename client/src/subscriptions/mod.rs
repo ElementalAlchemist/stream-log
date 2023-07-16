@@ -7,12 +7,12 @@ use gloo_net::websocket::futures::WebSocket;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use stream_log_shared::messages::admin::{
-	AdminEntryTypeData, AdminEntryTypeEventData, AdminEventData, AdminEventEditorData, AdminPermissionGroupData,
-	AdminTagData, AdminUserPermissionGroupData, EditorEventAssociation, EntryTypeEventAssociation, PermissionGroup,
-	PermissionGroupEventAssociation, UserPermissionGroupAssociation,
+	AdminEntryTypeData, AdminEntryTypeEventData, AdminEventData, AdminEventEditorData, AdminEventLogSectionsData,
+	AdminPermissionGroupData, AdminTagData, AdminUserPermissionGroupData, EditorEventAssociation,
+	EntryTypeEventAssociation, PermissionGroup, PermissionGroupEventAssociation, UserPermissionGroupAssociation,
 };
 use stream_log_shared::messages::entry_types::EntryType;
-use stream_log_shared::messages::event_log::EventLogEntry;
+use stream_log_shared::messages::event_log::{EventLogEntry, EventLogSection};
 use stream_log_shared::messages::event_subscription::{EventSubscriptionData, TypingData};
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::subscriptions::{
@@ -80,6 +80,9 @@ pub struct DataSignals {
 
 	/// List of all pairings of entry types and events
 	pub entry_type_event_associations: RcSignal<Vec<EntryTypeEventAssociation>>,
+
+	/// List of all event log sections with their associated events
+	pub all_event_log_sections: RcSignal<Vec<(Event, EventLogSection)>>,
 }
 
 impl DataSignals {
@@ -99,6 +102,7 @@ impl DataSignals {
 			event_editors: create_rc_signal(Vec::new()),
 			user_permission_groups: create_rc_signal(Vec::new()),
 			entry_type_event_associations: create_rc_signal(Vec::new()),
+			all_event_log_sections: create_rc_signal(Vec::new()),
 		}
 	}
 }
@@ -194,6 +198,11 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 					InitialSubscriptionLoadData::AdminEventEditors(event_editors) => {
 						data_signals.event_editors.set(event_editors);
 						subscription_manager.subscription_confirmation_received(SubscriptionType::AdminEventEditors);
+					}
+					InitialSubscriptionLoadData::AdminEventLogSections(sections) => {
+						data_signals.all_event_log_sections.set(sections);
+						subscription_manager
+							.subscription_confirmation_received(SubscriptionType::AdminEventLogSections);
 					}
 				}
 			}
@@ -393,6 +402,18 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 								editors.remove(index);
 							}
 						}
+						EventSubscriptionData::UpdateSection(section) => {
+							let mut sections = event_data.event_log_sections.modify();
+							let section_entry = sections.iter_mut().find(|sec| section.id == sec.id);
+							match section_entry {
+								Some(entry) => *entry = section,
+								None => sections.push(section),
+							}
+						}
+						EventSubscriptionData::DeleteSection(section) => event_data
+							.event_log_sections
+							.modify()
+							.retain(|section_entry| section_entry.id != section.id),
 					}
 				}
 				SubscriptionData::UserUpdate(user_update) => {
@@ -583,6 +604,26 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 								user_group_associations.remove(index);
 							}
 						}
+					}
+				}
+				SubscriptionData::AdminEventLogSectionsUpdate(event_log_sections_update) => {
+					match event_log_sections_update {
+						AdminEventLogSectionsData::AddSection(event, new_section) => {
+							data_signals.all_event_log_sections.modify().push((event, new_section))
+						}
+						AdminEventLogSectionsData::UpdateSection(new_section_data) => {
+							let mut event_log_sections = data_signals.all_event_log_sections.modify();
+							let section_entry = event_log_sections
+								.iter_mut()
+								.find(|entry| entry.1.id == new_section_data.id);
+							if let Some(entry) = section_entry {
+								entry.1 = new_section_data;
+							}
+						}
+						AdminEventLogSectionsData::DeleteSection(section) => data_signals
+							.all_event_log_sections
+							.modify()
+							.retain(|entry| entry.1.id != section.id),
 					}
 				}
 			},

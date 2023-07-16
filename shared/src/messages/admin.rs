@@ -1,4 +1,5 @@
 use super::entry_types::EntryType;
+use super::event_log::EventLogSection;
 use super::events::Event;
 use super::permissions::PermissionLevel;
 use super::tags::Tag;
@@ -122,4 +123,18 @@ pub enum AdminEntryTypeEventData {
 pub struct EntryTypeEventAssociation {
 	pub entry_type: EntryType,
 	pub event: Event,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum AdminEventLogSectionsData {
+	AddSection(Event, EventLogSection),
+	UpdateSection(EventLogSection),
+	DeleteSection(EventLogSection),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum AdminEventLogSectionsUpdate {
+	AddSection(Event, EventLogSection),
+	UpdateSection(EventLogSection),
+	DeleteSection(EventLogSection),
 }

@@ -9,6 +9,9 @@ use super::subscriptions::admin_permission_groups::{
 	handle_admin_permission_group_users_message, handle_admin_permission_groups_message,
 	subscribe_to_admin_permission_groups, subscribe_to_admin_permission_groups_users,
 };
+use super::subscriptions::admin_sections::{
+	handle_admin_event_log_sections_message, subscribe_to_admin_event_log_sections,
+};
 use super::subscriptions::admin_tags::{handle_admin_tags_message, subscribe_to_admin_tags};
 use super::subscriptions::admin_users::{handle_admin_users_message, subscribe_to_admin_users};
 use super::subscriptions::available_tags::subscribe_to_available_tags;
@@ -404,6 +407,15 @@ async fn process_incoming_message(
 					)
 					.await?
 				}
+				SubscriptionType::AdminEventLogSections => {
+					subscribe_to_admin_event_log_sections(
+						Arc::clone(db_connection),
+						conn_update_tx,
+						user,
+						Arc::clone(subscription_manager),
+					)
+					.await?
+				}
 			}
 		}
 		FromClientMessage::EndSubscription(subscription_type) => {
@@ -441,6 +453,11 @@ async fn process_incoming_message(
 				SubscriptionType::AdminTags => subscription_manager.remove_admin_tags_subscription(user).await?,
 				SubscriptionType::AdminEventEditors => {
 					subscription_manager.remove_admin_editors_subscription(user).await?
+				}
+				SubscriptionType::AdminEventLogSections => {
+					subscription_manager
+						.remove_admin_event_log_sections_subscription(user)
+						.await?
 				}
 			}
 		}
@@ -523,6 +540,15 @@ async fn process_incoming_message(
 				}
 				SubscriptionTargetUpdate::AdminUserPermissionGroupsUpdate(update_data) => {
 					handle_admin_permission_group_users_message(
+						Arc::clone(db_connection),
+						user,
+						Arc::clone(subscription_manager),
+						update_data,
+					)
+					.await
+				}
+				SubscriptionTargetUpdate::AdminEventLogSectionsUpdate(update_data) => {
+					handle_admin_event_log_sections_message(
 						Arc::clone(db_connection),
 						user,
 						Arc::clone(subscription_manager),

@@ -1,5 +1,5 @@
 use super::entry_types::EntryType;
-use super::event_log::EventLogEntry;
+use super::event_log::{EventLogEntry, EventLogSection};
 use super::tags::Tag;
 use super::user::UserData;
 use chrono::{DateTime, Utc};
@@ -18,6 +18,8 @@ pub enum EventSubscriptionData {
 	DeleteEntryType(EntryType),
 	AddEditor(UserData),
 	RemoveEditor(UserData),
+	UpdateSection(EventLogSection),
+	DeleteSection(EventLogSection),
 }
 
 /// Typing data sent by the server as part of event subscription data with information on what updates to make to typing

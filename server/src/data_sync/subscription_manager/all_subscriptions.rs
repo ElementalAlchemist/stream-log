@@ -20,6 +20,7 @@ pub struct SubscriptionManager {
 	admin_entry_type_event_subscriptions: SingleSubscriptionManager,
 	admin_tag_subscriptions: SingleSubscriptionManager,
 	admin_event_editor_subscriptions: SingleSubscriptionManager,
+	admin_event_log_sections_subscriptions: SingleSubscriptionManager,
 }
 
 impl SubscriptionManager {
@@ -42,6 +43,9 @@ impl SubscriptionManager {
 			),
 			admin_tag_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AdminTags),
 			admin_event_editor_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AdminEventEditors),
+			admin_event_log_sections_subscriptions: SingleSubscriptionManager::new(
+				SubscriptionType::AdminEventLogSections,
+			),
 		}
 	}
 
@@ -388,6 +392,42 @@ impl SubscriptionManager {
 	/// Checks whether a user is subscribed to admin editors
 	pub async fn user_is_subscribed_to_admin_editors(&self, user: &UserData) -> bool {
 		self.admin_event_editor_subscriptions.user_is_subscribed(user).await
+	}
+
+	/// Adds a user to the admin event log sections subscription
+	pub async fn add_admin_event_log_sections_subscription(
+		&self,
+		user: &UserData,
+		update_channel: Sender<ConnectionUpdate>,
+	) {
+		self.admin_event_log_sections_subscriptions
+			.subscribe_user(user, update_channel)
+			.await;
+	}
+
+	/// Removes a user from the admin event log sections subscription
+	pub async fn remove_admin_event_log_sections_subscription(
+		&self,
+		user: &UserData,
+	) -> Result<(), SendError<ConnectionUpdate>> {
+		self.admin_event_log_sections_subscriptions.unsubscribe_user(user).await
+	}
+
+	/// Sends the given message to all subscribed users for admin event log sections
+	pub async fn broadcast_admin_event_log_sections_message(
+		&self,
+		message: SubscriptionData,
+	) -> Result<(), SendError<SubscriptionData>> {
+		self.admin_event_log_sections_subscriptions
+			.broadcast_message(message)
+			.await
+	}
+
+	/// Checks whether a user is subscribed to admin event log sections
+	pub async fn user_is_subscribed_to_admin_event_log_sections(&self, user: &UserData) -> bool {
+		self.admin_event_log_sections_subscriptions
+			.user_is_subscribed(user)
+			.await
 	}
 
 	/// Unsubscribes a user from all subscriptions

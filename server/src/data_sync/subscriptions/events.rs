@@ -373,7 +373,14 @@ pub async fn subscribe_to_event(
 			color: et.color(),
 		})
 		.collect();
-	let event_log_sections: Vec<EventLogSection> = log_sections.drain(..).map(|section| EventLogSection { id: section.id, name: section.name, start_time: section.start_time }).collect();
+	let event_log_sections: Vec<EventLogSection> = log_sections
+		.drain(..)
+		.map(|section| EventLogSection {
+			id: section.id,
+			name: section.name,
+			start_time: section.start_time,
+		})
+		.collect();
 	let mut event_log_entries: Vec<EventLogEntry> = Vec::with_capacity(log_entries.len());
 	for log_entry in log_entries.iter() {
 		let tags = match tags_by_log_entry.remove(&log_entry.id) {

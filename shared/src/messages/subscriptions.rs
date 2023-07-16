@@ -1,9 +1,9 @@
 use crate::messages::admin::{
 	AdminEntryTypeData, AdminEntryTypeEventData, AdminEntryTypeEventUpdate, AdminEntryTypeUpdate, AdminEventData,
-	AdminEventEditorData, AdminEventEditorUpdate, AdminEventUpdate, AdminPermissionGroupData,
-	AdminPermissionGroupUpdate, AdminTagData, AdminTagUpdate, AdminUserPermissionGroupData,
-	AdminUserPermissionGroupUpdate, EditorEventAssociation, EntryTypeEventAssociation, PermissionGroup,
-	PermissionGroupEventAssociation, UserPermissionGroupAssociation,
+	AdminEventEditorData, AdminEventEditorUpdate, AdminEventLogSectionsData, AdminEventLogSectionsUpdate,
+	AdminEventUpdate, AdminPermissionGroupData, AdminPermissionGroupUpdate, AdminTagData, AdminTagUpdate,
+	AdminUserPermissionGroupData, AdminUserPermissionGroupUpdate, EditorEventAssociation, EntryTypeEventAssociation,
+	PermissionGroup, PermissionGroupEventAssociation, UserPermissionGroupAssociation,
 };
 use crate::messages::entry_types::EntryType;
 use crate::messages::event_log::{EventLogEntry, EventLogSection};
@@ -38,6 +38,8 @@ pub enum SubscriptionType {
 	AdminTags,
 	/// A subscription to relationships between users (as video editors) and events.
 	AdminEventEditors,
+	/// A subscription to event log sections.
+	AdminEventLogSections,
 }
 
 /// Sent to the client when a new subscription is created.
@@ -67,6 +69,7 @@ pub enum InitialSubscriptionLoadData {
 	AdminEntryTypesEvents(Vec<EntryTypeEventAssociation>),
 	AdminTags(Vec<Tag>),
 	AdminEventEditors(Vec<EditorEventAssociation>),
+	AdminEventLogSections(Vec<(Event, EventLogSection)>),
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -83,6 +86,7 @@ pub enum SubscriptionData {
 	AdminUsersUpdate(UserData),
 	AdminEventEditorsUpdate(AdminEventEditorData),
 	AdminUserPermissionGroupsUpdate(AdminUserPermissionGroupData),
+	AdminEventLogSectionsUpdate(AdminEventLogSectionsData),
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -104,4 +108,5 @@ pub enum SubscriptionTargetUpdate {
 	AdminUserUpdate(UserData),
 	AdminEventEditorsUpdate(AdminEventEditorUpdate),
 	AdminUserPermissionGroupsUpdate(AdminUserPermissionGroupUpdate),
+	AdminEventLogSectionsUpdate(AdminEventLogSectionsUpdate),
 }
