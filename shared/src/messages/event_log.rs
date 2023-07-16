@@ -21,12 +21,12 @@ pub struct EventLogEntry {
 	pub highlighted: bool,
 	pub parent: Option<String>,
 	pub created_at: DateTime<Utc>,
-	pub manual_sort_key: Option<i32>
+	pub manual_sort_key: Option<i32>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct EventLogSection {
 	pub id: String,
 	pub name: String,
-	pub start_time: DateTime<Utc>
+	pub start_time: DateTime<Utc>,
 }

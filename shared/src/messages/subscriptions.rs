@@ -48,6 +48,7 @@ pub enum InitialSubscriptionLoadData {
 	/// - The user's permission level for that event
 	/// - The event entry types that can be used for that event
 	/// - The list of users that can be entered as editors
+	/// - The event log section headers
 	/// - The event log entries that have already been created
 	Event(
 		Event,
