@@ -1,0 +1,17 @@
+#admin_sections_list {
+	margin: 10px 0;
+	display: grid;
+	grid-template-columns: max-content max-content max-content max-content;
+	align-items: baseline;
+	gap: 2px;
+}
+
+.admin_sections_section {
+	display: contents;
+}
+
+#admin_sections_add_section {
+	display: grid;
+	grid-template-columns: max-content max-content max-content;
+	gap: 2px;
+}
