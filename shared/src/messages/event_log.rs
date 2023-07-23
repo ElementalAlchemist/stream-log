@@ -24,7 +24,7 @@ pub struct EventLogEntry {
 	pub manual_sort_key: Option<i32>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct EventLogSection {
 	pub id: String,
 	pub name: String,

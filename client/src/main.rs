@@ -13,6 +13,7 @@ use websocket::websocket_endpoint;
 
 mod color_utils;
 mod components;
+mod entry_utils;
 mod event_type_colors;
 mod pages;
 mod subscriptions;
@@ -25,6 +26,7 @@ use pages::admin::manage_editors::AdminManageEditorsView;
 use pages::admin::manage_entry_types::AdminManageEntryTypesView;
 use pages::admin::manage_events::AdminManageEventsView;
 use pages::admin::manage_groups::AdminManageGroupsView;
+use pages::admin::manage_sections::AdminManageEventLogSectionsView;
 use pages::admin::manage_tags::AdminManageTagsView;
 use pages::admin::manage_users::AdminManageUsersView;
 use pages::event_log::EventLogView;
@@ -63,6 +65,8 @@ enum AppRoutes {
 	AdminTagsManager,
 	#[to("/admin/editors")]
 	AdminEditorsManager,
+	#[to("/admin/sections")]
+	AdminEventLogSectionsManager,
 	#[to("/user_profile")]
 	UserProfile,
 	#[not_found]
@@ -187,6 +191,7 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 						AppRoutes::AdminEntryTypesForEventManager => view! { ctx, AdminManageEntryTypesForEventsView },
 						AppRoutes::AdminTagsManager => view! { ctx, AdminManageTagsView },
 						AppRoutes::AdminEditorsManager => view! { ctx, AdminManageEditorsView },
+						AppRoutes::AdminEventLogSectionsManager => view! { ctx, AdminManageEventLogSectionsView },
 						AppRoutes::UserProfile => view! { ctx, UserProfileView },
 						AppRoutes::NotFound => view! { ctx, NotFoundView }
 					})
