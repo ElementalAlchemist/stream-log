@@ -129,6 +129,9 @@ async fn AdminManageEventLogSectionsLoadedView<G: Html>(ctx: Scope<'_>) -> View<
 			start_time,
 		};
 
+		new_section_name_entry.set(String::new());
+		new_section_time_entry.set(String::new());
+
 		spawn_local_scoped(ctx, async move {
 			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
