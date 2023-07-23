@@ -164,8 +164,20 @@ async fn AdminManageEventLogSectionsLoadedView<G: Html>(ctx: Scope<'_>) -> View<
 
 	view! {
 		ctx,
+		datalist(id="list_all_events") {
+			Keyed(
+				iterable=all_events,
+				key=|event| event.id.clone(),
+				view=|ctx, event| {
+					view! {
+						ctx,
+						option(value=&event.name)
+					}
+				}
+			)
+		}
 		form(id="admin_sections_event_selection", on:submit=event_form_handler) {
-			input(bind:value=entered_event_name, title=entered_event_error.get(), class=if entered_event_error.get().is_empty() { "" } else { "error" })
+			input(list="list_all_events", bind:value=entered_event_name, title=entered_event_error.get(), class=if entered_event_error.get().is_empty() { "" } else { "error" })
 			button(type="submit") { "Load Event" }
 		}
 		div(id="admin_sections_list") {
