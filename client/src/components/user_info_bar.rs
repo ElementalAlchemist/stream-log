@@ -72,6 +72,11 @@ pub fn UserInfoBar<G: Html>(ctx: Scope) -> View<G> {
 											"Manage Event Editors"
 										}
 									}
+									li {
+										a(href="/admin/sections") {
+											"Manage Event Log Sections"
+										}
+									}
 								}
 							}
 						}
