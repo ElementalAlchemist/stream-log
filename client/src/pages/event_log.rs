@@ -347,7 +347,9 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 											ctx,
 											div(class="event_log_section_header") {
 												div(class="event_log_section_header_name") {
-													(section_name)
+													h2 {
+														(section_name)
+													}
 												}
 												div(class="event_log_section_collapse") {
 													a(class="click", on:click=expand_click_handler) {

@@ -40,6 +40,20 @@ $event_log_column_count: 13;
 	font-weight: 700;
 }
 
+.event_log_section_header {
+	grid-column: 1 / span $event_log_column_count;
+	display: flex;
+	align-items: center;
+}
+
+.event_log_section_header_name {
+	flex-grow: 1;
+}
+
+.event_log_section_collapse {
+	font-size: 150%;
+}
+
 .event_log_entry_top_border {
 	border-top: 1px solid var(--base-border-color);
 	grid-column: 1 / span $event_log_column_count;
