@@ -13,7 +13,7 @@ use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
 use std::collections::HashMap;
-use stream_log_shared::messages::event_log::EventLogEntry;
+use stream_log_shared::messages::event_log::{EventLogEntry, EventLogSection};
 use stream_log_shared::messages::event_subscription::EventSubscriptionUpdate;
 use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::subscriptions::{SubscriptionTargetUpdate, SubscriptionType};
@@ -23,6 +23,26 @@ use stream_log_shared::messages::FromClientMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use sycamore::suspense::Suspense;
+use web_sys::Event as WebEvent;
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct SectionEventData<'a> {
+	section: Option<EventLogSection>,
+	entries: &'a Signal<Vec<EventLogEntry>>,
+}
+
+impl<'a> SectionEventData<'a> {
+	fn new(ctx: Scope<'a>) -> Self {
+		Self {
+			section: None,
+			entries: create_signal(ctx, Vec::new()),
+		}
+	}
+
+	fn is_empty(&self) -> bool {
+		self.entries.get().is_empty()
+	}
+}
 
 #[derive(Prop)]
 pub struct EventLogProps {
@@ -112,12 +132,55 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		let tags_signal = tags_signal.clone();
 		move || (*tags_signal.get()).clone()
 	});
-	let read_log_entries = create_memo(ctx, || {
-		entries_by_parent_signal.get().get("").cloned().unwrap_or_default()
-	});
 	let read_available_editors = create_memo(ctx, {
 		let available_editors = available_editors.clone();
 		move || (*available_editors.get()).clone()
+	});
+
+	let log_data = create_memo(ctx, move || {
+		let mut current_section = SectionEventData {
+			section: None,
+			entries: create_signal(ctx, Vec::new()),
+		};
+
+		let entries = entries_by_parent_signal.get().get("").cloned().unwrap_or_default();
+		let sections = event_subscription_data.event_log_sections.get();
+
+		let mut entries_iter = entries.iter();
+		let mut sections_iter = sections.iter();
+
+		let mut next_entry = entries_iter.next();
+		let mut next_section = sections_iter.next();
+
+		let mut all_sections: Vec<SectionEventData> = Vec::new();
+
+		loop {
+			match (next_entry, next_section) {
+				(Some(entry), Some(section)) => {
+					if entry.start_time < section.start_time {
+						current_section.entries.modify().push(entry.clone());
+						next_entry = entries_iter.next();
+					} else {
+						if !current_section.is_empty() {
+							all_sections.push(std::mem::replace(&mut current_section, SectionEventData::new(ctx)));
+						}
+						current_section.section = Some(section.clone());
+						next_section = sections_iter.next();
+					}
+				}
+				(Some(entry), None) => {
+					current_section.entries.modify().push(entry.clone());
+					next_entry = entries_iter.next();
+				}
+				(None, _) => break,
+			}
+		}
+
+		if !current_section.is_empty() {
+			all_sections.push(current_section);
+		}
+
+		all_sections
 	});
 
 	let tags_by_name_index = create_memo(ctx, move || {
@@ -264,35 +327,87 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 					div(class="event_log_header") { "Editor" }
 					div(class="event_log_header") { "Notes to editor" }
 					Keyed(
-						iterable=read_log_entries,
-						key=|entry| entry.id.clone(),
+						iterable=log_data,
+						key=|section| section.section.as_ref().map(|section| section.id.clone()),
 						view={
-							let event_signal = event_signal.clone();
-							let entry_types_signal = entry_types_signal.clone();
-							let log_entries = log_entries.clone();
-							let typing_events = event_subscription_data.typing_events.clone();
-							move |ctx, entry| {
+							move |ctx, section| {
 								let event_signal = event_signal.clone();
 								let entry_types_signal = entry_types_signal.clone();
 								let log_entries = log_entries.clone();
-								let typing_events = typing_events.clone();
+								let typing_events = event_subscription_data.typing_events.clone();
+								let expanded = create_signal(ctx, true);
+								let expand_click_handler = |_event: WebEvent| {
+									expanded.set(!*expanded.get());
+								};
 								view! {
 									ctx,
-									EventLogEntryView(
-										entry=entry,
-										event_signal=event_signal,
-										entry_types_signal=entry_types_signal,
-										all_log_entries=log_entries,
-										event_typing_events_signal=typing_events,
-										can_edit=can_edit,
-										tags_by_name_index=tags_by_name_index,
-										editors_by_name_index=editors_by_name_index,
-										read_event_signal=read_event_signal,
-										read_entry_types_signal=read_entry_types_signal,
-										new_entry_parent=new_entry_parent,
-										entries_by_parent=entries_by_parent_signal,
-										child_depth=0
-									)
+									(if let Some(section_data) = section.section.as_ref() {
+										let section_name = section_data.name.clone();
+										view! {
+											ctx,
+											div(class="event_log_section_header") {
+												div(class="event_log_section_header_name") {
+													(section_name)
+												}
+												div(class="event_log_section_collapse") {
+													a(class="click", on:click=expand_click_handler) {
+														(if *expanded.get() {
+															"[-]"
+														} else {
+															"[+]"
+														})
+													}
+												}
+											}
+										}
+									} else {
+										view! { ctx, }
+									})
+									(if *expanded.get() {
+										let event_signal = event_signal.clone();
+										let entry_types_signal = entry_types_signal.clone();
+										let log_entries = log_entries.clone();
+										let typing_events = typing_events.clone();
+										view! {
+											ctx,
+											Keyed(
+												iterable=section.entries,
+												key=|entry| entry.id.clone(),
+												view={
+													let event_signal = event_signal.clone();
+													let entry_types_signal = entry_types_signal.clone();
+													let log_entries = log_entries.clone();
+													let typing_events = typing_events.clone();
+													move |ctx, entry| {
+														let event_signal = event_signal.clone();
+														let entry_types_signal = entry_types_signal.clone();
+														let log_entries = log_entries.clone();
+														let typing_events = typing_events.clone();
+														view! {
+															ctx,
+															EventLogEntryView(
+																entry=entry,
+																event_signal=event_signal,
+																entry_types_signal=entry_types_signal,
+																all_log_entries=log_entries,
+																event_typing_events_signal=typing_events,
+																can_edit=can_edit,
+																tags_by_name_index=tags_by_name_index,
+																editors_by_name_index=editors_by_name_index,
+																read_event_signal=read_event_signal,
+																read_entry_types_signal=read_entry_types_signal,
+																new_entry_parent=new_entry_parent,
+																entries_by_parent=entries_by_parent_signal,
+																child_depth=0
+															)
+														}
+													}
+												}
+											)
+										}
+									} else {
+										view! { ctx, }
+									})
 								}
 							}
 						}
