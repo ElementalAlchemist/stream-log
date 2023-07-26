@@ -103,7 +103,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		move || {
 			let mut entries_by_parent: HashMap<String, Vec<EventLogEntry>> = HashMap::new();
 			for event_log_entry in event_log_entries.get().iter() {
-				let parent = event_log_entry.parent.clone().unwrap_or_default();
+				let Some(parent) = event_log_entry.parent.clone() else { continue; };
 				entries_by_parent
 					.entry(parent)
 					.or_default()
@@ -138,12 +138,20 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 	});
 
 	let log_data = create_memo(ctx, move || {
+		log::debug!("Updating log data signal");
+
 		let mut current_section = SectionEventData {
 			section: None,
 			entries: create_signal(ctx, Vec::new()),
 		};
 
-		let entries = entries_by_parent_signal.get().get("").cloned().unwrap_or_default();
+		let entries: Vec<EventLogEntry> = event_subscription_data
+			.event_log_entries
+			.get()
+			.iter()
+			.filter(|entry| entry.parent.is_none())
+			.cloned()
+			.collect();
 		let sections = event_subscription_data.event_log_sections.get();
 
 		let mut entries_iter = entries.iter();
