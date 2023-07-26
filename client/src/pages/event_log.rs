@@ -26,21 +26,17 @@ use sycamore::suspense::Suspense;
 use web_sys::Event as WebEvent;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-struct SectionEventData<'a> {
-	section: Option<EventLogSection>,
-	entries: &'a Signal<Vec<EventLogEntry>>,
+enum LogLineData {
+	Section(EventLogSection),
+	Entry(String, Box<EventLogEntry>),
 }
 
-impl<'a> SectionEventData<'a> {
-	fn new(ctx: Scope<'a>) -> Self {
-		Self {
-			section: None,
-			entries: create_signal(ctx, Vec::new()),
+impl LogLineData {
+	fn id(&self) -> String {
+		match self {
+			Self::Section(section) => section.id.clone(),
+			Self::Entry(_, entry) => entry.id.clone(),
 		}
-	}
-
-	fn is_empty(&self) -> bool {
-		self.entries.get().is_empty()
 	}
 }
 
@@ -137,13 +133,8 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		move || (*available_editors.get()).clone()
 	});
 
-	let log_data = create_memo(ctx, move || {
-		log::debug!("Updating log data signal");
-
-		let mut current_section = SectionEventData {
-			section: None,
-			entries: create_signal(ctx, Vec::new()),
-		};
+	let log_lines = create_memo(ctx, move || {
+		let mut current_section_id = String::new();
 
 		let entries: Vec<EventLogEntry> = event_subscription_data
 			.event_log_entries
@@ -160,35 +151,33 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		let mut next_entry = entries_iter.next();
 		let mut next_section = sections_iter.next();
 
-		let mut all_sections: Vec<SectionEventData> = Vec::new();
+		let mut log_lines: Vec<LogLineData> = Vec::new();
 
 		loop {
 			match (next_entry, next_section) {
 				(Some(entry), Some(section)) => {
 					if entry.start_time < section.start_time {
-						current_section.entries.modify().push(entry.clone());
+						log_lines.push(LogLineData::Entry(current_section_id.clone(), Box::new(entry.clone())));
 						next_entry = entries_iter.next();
 					} else {
-						if !current_section.is_empty() {
-							all_sections.push(std::mem::replace(&mut current_section, SectionEventData::new(ctx)));
+						if let Some(LogLineData::Section(existing_section)) = log_lines.last_mut() {
+							*existing_section = section.clone();
+						} else {
+							log_lines.push(LogLineData::Section(section.clone()));
 						}
-						current_section.section = Some(section.clone());
+						current_section_id = section.id.clone();
 						next_section = sections_iter.next();
 					}
 				}
 				(Some(entry), None) => {
-					current_section.entries.modify().push(entry.clone());
+					log_lines.push(LogLineData::Entry(current_section_id.clone(), Box::new(entry.clone())));
 					next_entry = entries_iter.next();
 				}
 				(None, _) => break,
 			}
 		}
 
-		if !current_section.is_empty() {
-			all_sections.push(current_section);
-		}
-
-		all_sections
+		log_lines
 	});
 
 	let tags_by_name_index = create_memo(ctx, move || {
@@ -309,6 +298,8 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		}
 	};
 
+	let expanded_sections: &Signal<HashMap<String, RcSignal<bool>>> = create_signal(ctx, HashMap::new());
+
 	let visible_event_signal = event_signal.clone();
 
 	log::debug!("Created signals and handlers for event {}", props.id);
@@ -335,22 +326,36 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 					div(class="event_log_header") { "Editor" }
 					div(class="event_log_header") { "Notes to editor" }
 					Keyed(
-						iterable=log_data,
-						key=|section| section.section.as_ref().map(|section| section.id.clone()),
+						iterable=log_lines,
+						key=|line| line.id(),
 						view={
-							move |ctx, section| {
+							let event_signal = event_signal.clone();
+							let entry_types_signal = entry_types_signal.clone();
+							let log_entries = log_entries.clone();
+							let typing_events = event_subscription_data.typing_events.clone();
+							move |ctx, line| {
 								let event_signal = event_signal.clone();
 								let entry_types_signal = entry_types_signal.clone();
 								let log_entries = log_entries.clone();
-								let typing_events = event_subscription_data.typing_events.clone();
-								let expanded = create_signal(ctx, true);
-								let expand_click_handler = |_event: WebEvent| {
-									expanded.set(!*expanded.get());
-								};
-								view! {
-									ctx,
-									(if let Some(section_data) = section.section.as_ref() {
-										let section_name = section_data.name.clone();
+								let typing_events = typing_events.clone();
+
+								match line {
+									LogLineData::Section(section) => {
+										let expanded_signal = match expanded_sections.get().get(&section.id) {
+											Some(expanded_signal) => expanded_signal.clone(),
+											None => {
+												let signal = create_rc_signal(true);
+												expanded_sections.modify().insert(section.id.clone(), signal.clone());
+												signal
+											}
+										};
+										let expand_click_handler = {
+											let expanded_signal = expanded_signal.clone();
+											move |_event: WebEvent| {
+												expanded_signal.set(!*expanded_signal.get());
+											}
+										};
+										let section_name = section.name.clone();
 										view! {
 											ctx,
 											div(class="event_log_section_header") {
@@ -361,7 +366,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 												}
 												div(class="event_log_section_collapse") {
 													a(class="click", on:click=expand_click_handler) {
-														(if *expanded.get() {
+														(if *expanded_signal.get() {
 															"[-]"
 														} else {
 															"[+]"
@@ -370,54 +375,51 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 												}
 											}
 										}
-									} else {
-										view! { ctx, }
-									})
-									(if *expanded.get() {
-										let event_signal = event_signal.clone();
-										let entry_types_signal = entry_types_signal.clone();
-										let log_entries = log_entries.clone();
-										let typing_events = typing_events.clone();
+									}
+									LogLineData::Entry(section_id, entry) => {
+										let expanded_signal = if section_id.is_empty() {
+											create_rc_signal(true)
+										} else {
+											match expanded_sections.get().get(&section_id) {
+												Some(expanded_signal) => expanded_signal.clone(),
+												None => {
+													let signal = create_rc_signal(true);
+													expanded_sections.modify().insert(section_id.clone(), signal.clone());
+													signal
+												}
+											}
+										};
 										view! {
 											ctx,
-											Keyed(
-												iterable=section.entries,
-												key=|entry| entry.id.clone(),
-												view={
-													let event_signal = event_signal.clone();
-													let entry_types_signal = entry_types_signal.clone();
-													let log_entries = log_entries.clone();
-													let typing_events = typing_events.clone();
-													move |ctx, entry| {
-														let event_signal = event_signal.clone();
-														let entry_types_signal = entry_types_signal.clone();
-														let log_entries = log_entries.clone();
-														let typing_events = typing_events.clone();
-														view! {
-															ctx,
-															EventLogEntryView(
-																entry=entry,
-																event_signal=event_signal,
-																entry_types_signal=entry_types_signal,
-																all_log_entries=log_entries,
-																event_typing_events_signal=typing_events,
-																can_edit=can_edit,
-																tags_by_name_index=tags_by_name_index,
-																editors_by_name_index=editors_by_name_index,
-																read_event_signal=read_event_signal,
-																read_entry_types_signal=read_entry_types_signal,
-																new_entry_parent=new_entry_parent,
-																entries_by_parent=entries_by_parent_signal,
-																child_depth=0
-															)
-														}
-													}
+											(if *expanded_signal.get() {
+												let entry = (*entry).clone();
+												let event_signal = event_signal.clone();
+												let entry_types_signal = entry_types_signal.clone();
+												let log_entries = log_entries.clone();
+												let typing_events = typing_events.clone();
+												view! {
+													ctx,
+													EventLogEntryView(
+														entry=entry,
+														event_signal=event_signal,
+														entry_types_signal=entry_types_signal,
+														all_log_entries=log_entries,
+														event_typing_events_signal=typing_events,
+														can_edit=can_edit,
+														tags_by_name_index=tags_by_name_index,
+														editors_by_name_index=editors_by_name_index,
+														read_event_signal=read_event_signal,
+														read_entry_types_signal=read_entry_types_signal,
+														new_entry_parent=new_entry_parent,
+														entries_by_parent=entries_by_parent_signal,
+														child_depth=0
+													)
 												}
-											)
+											} else {
+												view! { ctx, }
+											})
 										}
-									} else {
-										view! { ctx, }
-									})
+									}
 								}
 							}
 						}
