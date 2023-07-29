@@ -12,10 +12,12 @@ use std::collections::HashMap;
 use stream_log_shared::messages::admin::{AdminEntryTypeEventUpdate, EntryTypeEventAssociation};
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::subscriptions::{SubscriptionTargetUpdate, SubscriptionType};
+use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::FromClientMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use sycamore::suspense::Suspense;
+use sycamore_router::navigate;
 use web_sys::Event as WebEvent;
 
 #[component]
@@ -178,6 +180,20 @@ async fn AdminManageEntryTypesForEventsLoadedView<G: Html>(ctx: Scope<'_>) -> Vi
 
 #[component]
 pub fn AdminManageEntryTypesForEventsView<G: Html>(ctx: Scope<'_>) -> View<G> {
+	let user: &Signal<Option<UserData>> = use_context(ctx);
+	if let Some(user) = user.get().as_ref() {
+		if !user.is_admin {
+			spawn_local_scoped(ctx, async {
+				navigate("/");
+			});
+			return view! { ctx, };
+		}
+	} else {
+		spawn_local_scoped(ctx, async {
+			navigate("/");
+		});
+		return view! { ctx, };
+	}
 	view! {
 		ctx,
 		Suspense(fallback=view! { ctx, "Loading event type data..." }) {
