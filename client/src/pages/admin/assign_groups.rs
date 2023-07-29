@@ -289,7 +289,6 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		} else {
 			view! { ctx, }
 		})
-		button(id="admin_assign_user_groups_done", on:click=|_| navigate("/")) { "Done" }
 	}
 }
 

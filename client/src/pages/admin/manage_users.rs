@@ -39,10 +39,6 @@ async fn AdminManageUsersLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 	let all_users = create_memo(ctx, || (*data.all_users.get()).clone());
 
-	let done_button_handler = move |_event: WebEvent| {
-		navigate("/");
-	};
-
 	view! {
 		ctx,
 		h1 { "Manage Users" }
@@ -118,7 +114,6 @@ async fn AdminManageUsersLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				}
 			)
 		}
-		button(type="button", on:click=done_button_handler) { "Done" }
 	}
 }
 

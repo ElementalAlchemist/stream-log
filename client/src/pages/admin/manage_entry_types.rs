@@ -134,10 +134,6 @@ async fn AdminManageEntryTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		});
 	};
 
-	let done_click_handler = move |_event: WebEvent| {
-		navigate("/");
-	};
-
 	view! {
 		ctx,
 		div(id="admin_manage_entry_types") {
@@ -246,7 +242,6 @@ async fn AdminManageEntryTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				}
 			}
 		}
-		button(on:click=done_click_handler) { "Done" }
 	}
 }
 

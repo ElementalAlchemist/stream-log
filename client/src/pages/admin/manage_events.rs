@@ -112,10 +112,6 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		});
 	};
 
-	let done_handler = move |_: WebEvent| {
-		navigate("/");
-	};
-
 	view! {
 		ctx,
 		h1 { "Manage Events" }
@@ -210,7 +206,6 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				}
 			}
 		}
-		button(type="button", on:click=done_handler) { "Done" }
 	}
 }
 

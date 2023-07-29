@@ -16,7 +16,6 @@ use stream_log_shared::messages::FromClientMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use sycamore::suspense::Suspense;
-use sycamore_router::navigate;
 use web_sys::Event as WebEvent;
 
 #[component]
@@ -71,10 +70,6 @@ async fn AdminManageEntryTypesForEventsLoadedView<G: Html>(ctx: Scope<'_>) -> Vi
 		entered_event_error_signal.modify().clear();
 
 		selected_event_signal.set(Some(event.clone()));
-	};
-
-	let done_handler = move |_event: WebEvent| {
-		navigate("/");
 	};
 
 	view! {
@@ -178,8 +173,6 @@ async fn AdminManageEntryTypesForEventsLoadedView<G: Html>(ctx: Scope<'_>) -> Vi
 		} else {
 			view! { ctx, }
 		})
-
-		button(type="button", on:click=done_handler) { "Done" }
 	}
 }
 

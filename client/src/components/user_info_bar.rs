@@ -10,6 +10,11 @@ pub fn UserInfoBar<G: Html>(ctx: Scope) -> View<G> {
 			view! {
 				ctx,
 				div(id="user") {
+					div(id="home_link") {
+						a(href="/") {
+							"Home"
+						}
+					}
 					div(id="user_greeting") {
 						"Hi, "
 						(user.username)
