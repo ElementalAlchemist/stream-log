@@ -5,6 +5,7 @@ use futures::stream::SplitStream;
 use futures::task::Waker;
 use gloo_net::websocket::futures::WebSocket;
 use std::cmp::Ordering;
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use stream_log_shared::messages::admin::{
 	AdminEntryTypeData, AdminEntryTypeEventData, AdminEventData, AdminEventEditorData, AdminEventLogSectionsData,
@@ -135,19 +136,29 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 						event_log_sections,
 						event_log_entries,
 					) => {
+						let mut event_signals = data_signals.events.modify();
 						let event_id = event.id.clone();
-						let event_subscription_data = EventSubscriptionSignals::new(
-							event,
-							permission_level,
-							entry_types,
-							editors,
-							event_log_sections,
-							event_log_entries,
-						);
-						data_signals
-							.events
-							.modify()
-							.insert(event_id.clone(), event_subscription_data);
+						match event_signals.entry(event_id.clone()) {
+							Entry::Occupied(mut event_entry) => {
+								let event_data = event_entry.get_mut();
+								event_data.event.set(event);
+								event_data.permission.set(permission_level);
+								event_data.entry_types.set(entry_types);
+								event_data.editors.set(editors);
+								event_data.event_log_sections.set(event_log_sections);
+								event_data.event_log_entries.set(event_log_entries);
+							}
+							Entry::Vacant(event_entry) => {
+								event_entry.insert(EventSubscriptionSignals::new(
+									event,
+									permission_level,
+									entry_types,
+									editors,
+									event_log_sections,
+									event_log_entries,
+								));
+							}
+						}
 						subscription_manager
 							.subscription_confirmation_received(SubscriptionType::EventLogData(event_id));
 
