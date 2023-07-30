@@ -475,6 +475,13 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 		ctx,
 		div(class="event_log_entry_top_border")
 		div(
+			id={
+				if let Some(entry) = props.entry.get().as_ref() {
+					format!("event_log_entry_{}", entry.id)
+				} else {
+					String::new()
+				}
+			},
 			class={
 				let mut row_class = String::from("event_log_entry");
 				if (*props.entry.get())
@@ -1376,6 +1383,10 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 					(if let Some(entry) = (*props.event_log_entry.get()).clone() {
 						view! {
 							ctx,
+							span(class="event_log_entry_id") {
+								"ID: "
+								(entry.id)
+							}
 							(if entry.video_link.is_none() {
 								view! { ctx, button(type="button", on:click=delete_handler) { "Delete" } }
 							} else {

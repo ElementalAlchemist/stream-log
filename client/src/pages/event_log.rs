@@ -23,19 +23,20 @@ use stream_log_shared::messages::FromClientMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use sycamore::suspense::Suspense;
-use web_sys::Event as WebEvent;
+use wasm_bindgen::JsCast;
+use web_sys::{window, Event as WebEvent, HtmlDivElement};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum LogLineData {
 	Section(EventLogSection),
-	Entry(String, Box<EventLogEntry>),
+	Entry(Box<EventLogEntry>),
 }
 
 impl LogLineData {
 	fn id(&self) -> String {
 		match self {
 			Self::Section(section) => section.id.clone(),
-			Self::Entry(_, entry) => entry.id.clone(),
+			Self::Entry(entry) => entry.id.clone(),
 		}
 	}
 }
@@ -134,8 +135,6 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 	});
 
 	let log_lines = create_memo(ctx, move || {
-		let mut current_section_id = String::new();
-
 		let entries: Vec<EventLogEntry> = event_subscription_data
 			.event_log_entries
 			.get()
@@ -157,7 +156,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 			match (next_entry, next_section) {
 				(Some(entry), Some(section)) => {
 					if entry.start_time < section.start_time {
-						log_lines.push(LogLineData::Entry(current_section_id.clone(), Box::new(entry.clone())));
+						log_lines.push(LogLineData::Entry(Box::new(entry.clone())));
 						next_entry = entries_iter.next();
 					} else {
 						if let Some(LogLineData::Section(existing_section)) = log_lines.last_mut() {
@@ -165,12 +164,11 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 						} else {
 							log_lines.push(LogLineData::Section(section.clone()));
 						}
-						current_section_id = section.id.clone();
 						next_section = sections_iter.next();
 					}
 				}
 				(Some(entry), None) => {
-					log_lines.push(LogLineData::Entry(current_section_id.clone(), Box::new(entry.clone())));
+					log_lines.push(LogLineData::Entry(Box::new(entry.clone())));
 					next_entry = entries_iter.next();
 				}
 				(None, _) => break,
@@ -300,6 +298,44 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 
 	let expanded_sections: &Signal<HashMap<String, RcSignal<bool>>> = create_signal(ctx, HashMap::new());
 
+	let sections_by_row_id = create_memo(ctx, || {
+		let mut row_sections: HashMap<String, String> = HashMap::new();
+		let mut current_section_id = String::new();
+		for line_data in log_lines.get().iter() {
+			match line_data {
+				LogLineData::Section(section) => current_section_id = section.id.clone(),
+				LogLineData::Entry(entry) => {
+					row_sections.insert(entry.id.clone(), current_section_id.clone());
+				}
+			}
+		}
+		row_sections
+	});
+
+	let jump_id_entry = create_signal(ctx, String::new());
+	let jump_handler = |event: WebEvent| {
+		event.prevent_default();
+
+		let jump_id = (*jump_id_entry.get()).clone();
+		jump_id_entry.set(String::new());
+
+		let section_index = sections_by_row_id.get();
+		let Some(section_id) = section_index.get(&jump_id) else { return; };
+		if !section_id.is_empty() {
+			if let Some(section_expand_signal) = expanded_sections.get().get(section_id) {
+				section_expand_signal.set(true);
+			}
+		}
+		let jump_to_id = format!("event_log_entry_{}", jump_id);
+		let Some(window) = window() else { return; };
+		let Some(document) = window.document() else { return; };
+		let Some(row_element) = document.get_element_by_id(&jump_to_id) else { return; };
+		let row_element: HtmlDivElement = row_element.unchecked_into();
+		let distance_from_top = row_element.offset_height();
+		let Some(event_log_parent) = document.get_element_by_id("event_log_data") else { return; };
+		event_log_parent.set_scroll_top(distance_from_top);
+	};
+
 	let visible_event_signal = event_signal.clone();
 
 	log::debug!("Created signals and handlers for event {}", props.id);
@@ -309,6 +345,10 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		div(id="event_log_layout") {
 			div(id="event_log_header") {
 				h1(id="stream_log_event_title") { (visible_event_signal.get().name) }
+			}
+			form(id="event_log_jump", on:submit=jump_handler) {
+				input(type="text", bind:value=jump_id_entry, placeholder="ID")
+				button(type="submit") { "Jump" }
 			}
 			div(id="event_log") {
 				div(id="event_log_data") {
@@ -376,7 +416,8 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 											}
 										}
 									}
-									LogLineData::Entry(section_id, entry) => {
+									LogLineData::Entry(entry) => {
+										let section_id = sections_by_row_id.get().get(&entry.id).cloned().unwrap_or_default();
 										let expanded_signal = if section_id.is_empty() {
 											create_rc_signal(true)
 										} else {

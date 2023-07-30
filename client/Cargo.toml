@@ -25,12 +25,16 @@ wasm-logger = "0.2.0"
 [dependencies.web-sys]
 version = "0.3.64"
 features = [
+	"Document",
+	"Element",
 	"Event",
 	"EventTarget",
 	"HtmlButtonElement",
+	"HtmlDivElement",
 	"HtmlElement",
 	"HtmlInputElement",
 	"HtmlSpanElement",
 	"Node",
-	"Url"
+	"Url",
+	"Window"
 ]
