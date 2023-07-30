@@ -10,12 +10,12 @@ chrono = { version = "0.4.26", features = ["wasmbind"] }
 console_error_panic_hook = "0.1.7"
 contrast = "0.1.0"
 futures = "0.3.28"
-gloo-net = { version = "0.3.0", features = ["websocket"] }
+gloo-net = { version = "0.3.1", features = ["websocket"] }
 gloo-timers = "0.2.6"
 log = "0.4.19"
 rgb = "0.8.36"
-serde = "1.0.164"
-serde_json = "1.0.97"
+serde = "1.0.178"
+serde_json = "1.0.104"
 stream-log-shared = { path = "../shared" }
 sycamore = { version = "0.8.2", features = ["suspense"] }
 sycamore-router = "0.8.0"
