@@ -23,8 +23,7 @@ use stream_log_shared::messages::FromClientMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use sycamore::suspense::Suspense;
-use wasm_bindgen::JsCast;
-use web_sys::{window, Event as WebEvent, HtmlDivElement};
+use web_sys::{window, Event as WebEvent};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum LogLineData {
@@ -330,10 +329,8 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		let Some(window) = window() else { return; };
 		let Some(document) = window.document() else { return; };
 		let Some(row_element) = document.get_element_by_id(&jump_to_id) else { return; };
-		let row_element: HtmlDivElement = row_element.unchecked_into();
-		let distance_from_top = row_element.offset_height();
-		let Some(event_log_parent) = document.get_element_by_id("event_log_data") else { return; };
-		event_log_parent.set_scroll_top(distance_from_top);
+		let Some(cell_element) = row_element.first_element_child() else { return; };
+		cell_element.scroll_into_view();
 	};
 
 	let visible_event_signal = event_signal.clone();

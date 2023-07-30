@@ -30,8 +30,6 @@ features = [
 	"Event",
 	"EventTarget",
 	"HtmlButtonElement",
-	"HtmlDivElement",
-	"HtmlElement",
 	"HtmlInputElement",
 	"HtmlSpanElement",
 	"Node",
