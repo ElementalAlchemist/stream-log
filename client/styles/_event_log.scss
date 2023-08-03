@@ -74,11 +74,19 @@ $event_log_column_count: 13;
 	&:hover {
 		background: #eee;
 	}
+
+	&.event_log_entry_jump_highlight {
+		background: #cfc;
+	}
 }
 
 @media (prefers-color-scheme: dark) {
 	.event_log_entry:hover {
 		background: #222;
+	}
+
+	.event_log_entry.event_log_entry_jump_highlight {
+		background: #141;
 	}
 }
 

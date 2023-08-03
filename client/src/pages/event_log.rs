@@ -311,6 +311,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		row_sections
 	});
 
+	let jump_highlight_row_id = create_signal(ctx, String::new());
 	let jump_id_entry = create_signal(ctx, String::new());
 	let jump_handler = |event: WebEvent| {
 		event.prevent_default();
@@ -333,6 +334,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		// can scroll.
 		let Some(cell_element) = row_element.first_element_child() else { return; };
 		cell_element.scroll_into_view();
+		jump_highlight_row_id.set(jump_id);
 	};
 
 	let visible_event_signal = event_signal.clone();
@@ -441,6 +443,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 													ctx,
 													EventLogEntryView(
 														entry=entry,
+														jump_highlight_row_id=jump_highlight_row_id,
 														event_signal=event_signal,
 														entry_types_signal=entry_types_signal,
 														all_log_entries=log_entries,

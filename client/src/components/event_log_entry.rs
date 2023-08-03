@@ -75,6 +75,7 @@ enum ModifiedEventLogEntryParts {
 #[derive(Prop)]
 pub struct EventLogEntryProps<'a> {
 	entry: EventLogEntry,
+	jump_highlight_row_id: &'a Signal<String>,
 	event_signal: RcSignal<Event>,
 	entry_types_signal: RcSignal<Vec<EntryType>>,
 	all_log_entries: RcSignal<Vec<EventLogEntry>>,
@@ -107,6 +108,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 	let click_handler = if *can_edit.get() {
 		Some(|| {
 			edit_open_signal.set(true);
+			props.jump_highlight_row_id.set(String::new());
 		})
 	} else {
 		None
@@ -254,6 +256,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 			event=(*event).clone(),
 			entry_type=entry_type,
 			click_handler=click_handler,
+			jump_highlight_row_id=props.jump_highlight_row_id,
 			new_entry_parent=props.new_entry_parent,
 			child_depth=props.child_depth
 		)
@@ -264,6 +267,8 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 				let event_signal = event_signal.clone();
 				let log_entries = log_entries.clone();
 				move |_: u8| {
+					props.jump_highlight_row_id.set(String::new());
+
 					let entry = entry.clone();
 					let event_signal = event_signal.clone();
 					let log_entries = log_entries.clone();
@@ -363,6 +368,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 							ctx,
 							EventLogEntry(
 								entry=entry,
+								jump_highlight_row_id=props.jump_highlight_row_id,
 								event_signal=event_signal,
 								entry_types_signal=entry_types_signal,
 								all_log_entries=all_log_entries,
@@ -390,6 +396,7 @@ pub struct EventLogEntryRowProps<'a, THandler: Fn()> {
 	event: Event,
 	entry_type: &'a ReadSignal<Option<EntryType>>,
 	click_handler: Option<THandler>,
+	jump_highlight_row_id: &'a Signal<String>,
 	new_entry_parent: &'a Signal<Option<EventLogEntry>>,
 	child_depth: u32,
 }
@@ -494,6 +501,14 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 
 				if has_click_handler {
 					row_class = format!("{} click", row_class);
+				}
+
+				if (*props.entry.get())
+					.as_ref()
+					.map(|entry| entry.id == *props.jump_highlight_row_id.get())
+					.unwrap_or(false)
+				{
+					row_class = format!("{} event_log_entry_jump_highlight", row_class);
 				}
 
 				row_class
