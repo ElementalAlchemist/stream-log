@@ -329,6 +329,8 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		let Some(window) = window() else { return; };
 		let Some(document) = window.document() else { return; };
 		let Some(row_element) = document.get_element_by_id(&jump_to_id) else { return; };
+		// The row doesn't have a size, so the browser won't scroll to it. As such, we pick a child element to which we
+		// can scroll.
 		let Some(cell_element) = row_element.first_element_child() else { return; };
 		cell_element.scroll_into_view();
 	};
