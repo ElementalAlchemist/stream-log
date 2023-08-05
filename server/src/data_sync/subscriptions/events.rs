@@ -10,7 +10,7 @@ use crate::schema::{
 };
 use async_std::channel::Sender;
 use async_std::sync::{Arc, Mutex};
-use chrono::Utc;
+use chrono::prelude::*;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use std::collections::HashMap;
@@ -481,11 +481,25 @@ pub async fn handle_event_update(
 			for _ in 0..count {
 				let mut log_entry_data = log_entry_data.clone();
 				let new_id = cuid2::create_id();
+
+				// Store times with minute granularity
+				let mut start_time = log_entry_data.start_time;
+				let mut end_time = log_entry_data.end_time;
+
+				start_time = start_time.with_second(0).unwrap();
+				start_time = start_time.with_nanosecond(0).unwrap();
+				if let Some(end) = end_time {
+					end_time = end.with_second(0);
+					if let Some(end) = end_time {
+						end_time = end.with_nanosecond(0);
+					}
+				}
+
 				let db_entry = EventLogEntryDb {
 					id: new_id.clone(),
 					event: event.id.clone(),
-					start_time: log_entry_data.start_time,
-					end_time: log_entry_data.end_time,
+					start_time,
+					end_time,
 					entry_type: log_entry_data.entry_type.clone(),
 					description: log_entry_data.description.clone(),
 					media_link: log_entry_data.media_link.clone(),
