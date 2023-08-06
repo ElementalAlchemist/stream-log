@@ -252,6 +252,10 @@ $event_log_column_count: 13;
 	display: contents;
 }
 
+.event_log_entry_start_warning {
+	color: var(--error-color);
+}
+
 #event_log_new_entry {
 	border-top: 1px #666 solid;
 	font-size: 14px;

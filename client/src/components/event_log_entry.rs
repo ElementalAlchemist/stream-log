@@ -668,6 +668,8 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 	});
 
 	let event_start = props.event.get().start_time;
+	let start_time_warning_base = (*props.event_log_entry.get()).as_ref().map(|entry| entry.start_time);
+	let start_time_warning_active = create_signal(ctx, false);
 	let start_time_input = if props.event_log_entry.get().is_some() {
 		let initial_start_time_duration = *props.start_time.get() - event_start;
 		create_signal(ctx, format_duration(&initial_start_time_duration))
@@ -682,6 +684,9 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 				start_time_error.set(None);
 				let new_start_time = event_start + duration;
 				props.start_time.set(new_start_time);
+
+				let warning_start_time = start_time_warning_base.unwrap_or_else(Utc::now);
+				start_time_warning_active.set((new_start_time - warning_start_time).num_minutes().abs() >= 60);
 			}
 			Err(error) => start_time_error.set(Some(error)),
 		}
@@ -1113,6 +1118,10 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 		end_time_input.set(end_time_duration);
 	};
 
+	let start_time_warning_confirmation = move |_event: WebEvent| {
+		start_time_warning_active.set(false);
+	};
+
 	let close_handler = move |event: WebEvent| {
 		event.prevent_default();
 
@@ -1191,6 +1200,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 			|| entry_type_error.get().is_some()
 			|| editor_error.get().is_some()
 			|| !new_tag_names.get().is_empty()
+			|| *start_time_warning_active.get()
 	});
 
 	let remove_parent_handler = |_event: WebEvent| {
@@ -1395,6 +1405,19 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 					)
 				}
 				div(class="event_log_entry_edit_close") {
+					(if *start_time_warning_active.get() {
+						view! {
+							ctx,
+							span(class="event_log_entry_start_warning") {
+								"The entered start time was more than one hour out."
+								button(type="button", on:click=start_time_warning_confirmation) {
+									"It's correct"
+								}
+							}
+						}
+					} else {
+						view! { ctx, }
+					})
 					(if let Some(entry) = (*props.event_log_entry.get()).clone() {
 						view! {
 							ctx,

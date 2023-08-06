@@ -2,6 +2,8 @@
 
 :root {
 	--base-border-color: #000;
+	--error-color: #b00;
+	--error-outline-color: #c00;
 }
 
 html {
@@ -12,20 +14,13 @@ body {
 	margin: 0;
 }
 
-.input_error {
-	color: #b00;
-}
-
-input.error {
-	border-color: #b00;
-	outline-color: #c00;
-}
-
-#page_errors {
-	position: fixed;
-}
-
 @media (prefers-color-scheme: dark) {
+	:root {
+		--base-border-color: #eee;
+		--error-color: #f55;
+		--error-outline-color: #f33;
+	}
+
 	html {
 		background: colors.$dark-background;
 		color: colors.$dark-foreground;
@@ -51,20 +46,20 @@ input.error {
 		color: #fff;
 		border-color: #999;
 		border-style: solid;
-
-		&.error {
-			border-color: #f55;
-			outline-color: #f33;
-		}
 	}
+}
 
-	:root {
-		--base-border-color: #eee;
-	}
+.input_error {
+	color: var(--error-color);
+}
 
-	.input_error {
-		color: #f55;
-	}
+input.error {
+	border-color: var(--error-color);
+	outline-color: var(--error-outline-color);
+}
+
+#page_errors {
+	position: fixed;
 }
 
 .click {
