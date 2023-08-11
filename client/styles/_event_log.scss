@@ -8,6 +8,17 @@ $event_log_column_count: 13;
 
 #event_log_header {
 	flex-basis: max-content;
+	display: flex;
+	align-items: baseline;
+}
+
+#event_log_title {
+	flex-basis: max-content;
+	flex-grow: 1;
+}
+
+#event_log_jump {
+	flex-basis: max-content;
 }
 
 #event_log {
