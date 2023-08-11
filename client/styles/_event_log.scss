@@ -59,6 +59,10 @@ $event_log_column_count: 13;
 
 .event_log_section_header_name {
 	flex-grow: 1;
+
+	h2 {
+		margin: 0;
+	}
 }
 
 .event_log_section_collapse {
