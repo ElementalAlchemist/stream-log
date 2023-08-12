@@ -51,6 +51,10 @@ $event_log_column_count: 13;
 	font-weight: 700;
 }
 
+#event_log_expand_all, #event_log_collapse_all {
+	margin-right: 3px;
+}
+
 .event_log_section_header {
 	grid-column: 1 / span $event_log_column_count;
 	display: flex;

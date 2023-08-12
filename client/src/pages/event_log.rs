@@ -12,6 +12,7 @@ use futures::task::{Context, Poll, Waker};
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use stream_log_shared::messages::event_log::{EventLogEntry, EventLogSection};
 use stream_log_shared::messages::event_subscription::EventSubscriptionUpdate;
@@ -311,6 +312,31 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		row_sections
 	});
 
+	let expand_all_handler = |_event: WebEvent| {
+		for line_data in log_lines.get().iter() {
+			if let LogLineData::Section(section) = line_data {
+				match expanded_sections.modify().entry(section.id.clone()) {
+					Entry::Occupied(entry) => entry.get().set(true),
+					Entry::Vacant(entry) => {
+						entry.insert(create_rc_signal(true));
+					}
+				}
+			}
+		}
+	};
+	let collapse_all_handler = |_event: WebEvent| {
+		for line_data in log_lines.get().iter() {
+			if let LogLineData::Section(section) = line_data {
+				match expanded_sections.modify().entry(section.id.clone()) {
+					Entry::Occupied(entry) => entry.get().set(false),
+					Entry::Vacant(entry) => {
+						entry.insert(create_rc_signal(false));
+					}
+				}
+			}
+		}
+	};
+
 	let jump_highlight_row_id = create_signal(ctx, String::new());
 	let jump_id_entry = create_signal(ctx, String::new());
 	let jump_handler = |event: WebEvent| {
@@ -347,6 +373,12 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 			div(id="event_log_header") {
 				h1(id="event_log_title") { (visible_event_signal.get().name) }
 				div(id="event_log_view_settings") {
+					a(id="event_log_expand_all", class="click", on:click=expand_all_handler) {
+						"Expand All"
+					}
+					a(id="event_log_collapse_all", class="click", on:click=collapse_all_handler) {
+						"Collapse All"
+					}
 					form(id="event_log_jump", on:submit=jump_handler) {
 						input(type="text", bind:value=jump_id_entry, placeholder="ID")
 						button(type="submit") { "Jump" }
