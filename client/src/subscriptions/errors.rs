@@ -2,7 +2,7 @@ use std::fmt::Display;
 use sycamore::prelude::*;
 use web_sys::Event as WebEvent;
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 enum MessageString {
 	Owned(String),
 	Reference(&'static str),
@@ -29,7 +29,7 @@ impl From<&'static str> for MessageString {
 	}
 }
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct ErrorData {
 	message: MessageString,
 	error: Option<String>,

@@ -1,0 +1,19 @@
+#page_errors {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+
+	position: fixed;
+	top: 0;
+	width: 100%;
+	background: var(--error-background-color);
+	z-index: 1;
+}
+
+.page_error_entry {
+	padding: 2px;
+}
+
+.page_error_entry_dismiss {
+	margin-left: 5px;
+}

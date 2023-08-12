@@ -4,6 +4,7 @@
 	--base-border-color: #000;
 	--error-color: #b00;
 	--error-outline-color: #c00;
+	--error-background-color: #fbb;
 }
 
 html {
@@ -20,6 +21,7 @@ body {
 		--base-border-color: #eee;
 		--error-color: #f55;
 		--error-outline-color: #f33;
+		--error-background-color: #600;
 	}
 
 	html {
@@ -59,10 +61,6 @@ input.error {
 	outline-color: var(--error-outline-color);
 }
 
-#page_errors {
-	position: fixed;
-}
-
 .click {
 	cursor: pointer;
 }
@@ -70,6 +68,7 @@ input.error {
 @import "user_menu";
 @import "register";
 @import "color_input";
+@import "errors";
 
 @import "admin/events";
 @import "admin/users";
