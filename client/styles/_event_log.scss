@@ -137,6 +137,10 @@ $event_log_column_count: 13;
 	width: 12px;
 }
 
+.log_entry_tag:not(:last-child)::after {
+	content: ", ";
+}
+
 .log_entry_make_video > img {
 	width: 12px;
 }
