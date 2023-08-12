@@ -153,7 +153,7 @@ $event_log_column_count: 13;
 	grid-column: 1 / span $event_log_column_count;
 }
 
-.event_log_entry_edit div {
+.event_log_entry_edit > div > div {
 	padding: 2px;
 }
 
@@ -167,6 +167,7 @@ $event_log_column_count: 13;
 
 .event_log_entry_edit_basic_info {
 	display: flex;
+	align-items: center;
 }
 
 .event_log_entry_edit_start_time, .event_log_entry_edit_end_time {
