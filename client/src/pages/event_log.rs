@@ -346,9 +346,11 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		div(id="event_log_layout") {
 			div(id="event_log_header") {
 				h1(id="event_log_title") { (visible_event_signal.get().name) }
-				form(id="event_log_jump", on:submit=jump_handler) {
-					input(type="text", bind:value=jump_id_entry, placeholder="ID")
-					button(type="submit") { "Jump" }
+				div(id="event_log_view_settings") {
+					form(id="event_log_jump", on:submit=jump_handler) {
+						input(type="text", bind:value=jump_id_entry, placeholder="ID")
+						button(type="submit") { "Jump" }
+					}
 				}
 			}
 			div(id="event_log") {
