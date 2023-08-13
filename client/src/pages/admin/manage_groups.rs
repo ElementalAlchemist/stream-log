@@ -42,6 +42,18 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 	let all_permission_groups = create_memo(ctx, || (*data.all_permission_groups.get()).clone());
 	let all_events = create_memo(ctx, || (*data.all_events.get()).clone());
+	let permission_group_events = create_memo(ctx, || {
+		let mut group_events: HashMap<String, HashMap<String, PermissionLevel>> = HashMap::new();
+		for group_event_association in data.permission_group_event_associations.get().iter() {
+			let group_id = group_event_association.group.clone();
+			let event_id = group_event_association.event.clone();
+			group_events
+				.entry(group_id)
+				.or_default()
+				.insert(event_id, group_event_association.permission);
+		}
+		group_events
+	});
 
 	let event_names_index_signal = create_memo(ctx, || {
 		let event_names: HashMap<String, Event> = data
@@ -108,13 +120,9 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				iterable=all_permission_groups,
 				key=|group| group.id.clone(),
 				view=move |ctx, group| {
-					let data: &DataSignals = use_context(ctx);
-					let event_permissions_signal = create_memo(ctx, {
-						let group = group.clone();
-						move || {
-							let event_id_permissions: HashMap<String, PermissionLevel> = data.permission_group_event_associations.get().iter().filter(|assoc| assoc.group == group.id).map(|assoc| (assoc.event.clone(), assoc.permission)).collect();
-							event_id_permissions
-						}
+					let group_id = group.id.clone();
+					let event_permissions = create_memo(ctx, move || {
+						permission_group_events.get().get(&group_id).cloned().unwrap_or_default()
 					});
 
 					let group_name_signal = create_signal(ctx, group.name.clone());
@@ -167,15 +175,23 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 								key=|event| event.id.clone(),
 								view=move |ctx, event| {
 									let group = group.clone();
-									let event_permissions = event_permissions_signal.get();
-									let permission = event_permissions.get(&event.id);
-									let (can_view, can_edit) = match permission {
-										Some(PermissionLevel::Edit) => (true, true),
-										Some(PermissionLevel::View) => (true, false),
-										None => (false, false)
-									};
-									let can_view_signal = create_signal(ctx, can_view);
-									let can_edit_signal = create_signal(ctx, can_edit);
+									let can_view_signal = create_signal(ctx, false);
+									let can_edit_signal = create_signal(ctx, false);
+
+									create_effect(ctx, {
+										let event_id = event.id.clone();
+										move || {
+											let event_permissions_data = event_permissions.get();
+											let permission = event_permissions_data.get(&event_id);
+											let (can_view, can_edit) = match permission {
+												Some(PermissionLevel::Edit) => (true, true),
+												Some(PermissionLevel::View) => (true, false),
+												None => (false, false)
+											};
+											can_view_signal.set(can_view);
+											can_edit_signal.set(can_edit);
+										}
+									});
 
 									create_effect(ctx, || {
 										if *can_edit_signal.get() {
