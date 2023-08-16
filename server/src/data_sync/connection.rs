@@ -12,10 +12,9 @@ use super::subscriptions::admin_permission_groups::{
 use super::subscriptions::admin_sections::{
 	handle_admin_event_log_sections_message, subscribe_to_admin_event_log_sections,
 };
-use super::subscriptions::admin_tags::{handle_admin_tags_message, subscribe_to_admin_tags};
 use super::subscriptions::admin_users::{handle_admin_users_message, subscribe_to_admin_users};
-use super::subscriptions::available_tags::subscribe_to_available_tags;
 use super::subscriptions::events::{handle_event_update, subscribe_to_event};
+use super::subscriptions::tags::{handle_tag_list_message, subscribe_to_tag_list};
 use super::user_profile::handle_profile_update;
 use super::HandleConnectionError;
 use crate::data_sync::{SubscriptionManager, UserDataUpdate};
@@ -326,8 +325,8 @@ async fn process_incoming_message(
 					)
 					.await?
 				}
-				SubscriptionType::AvailableTags => {
-					subscribe_to_available_tags(
+				SubscriptionType::TagList => {
+					subscribe_to_tag_list(
 						Arc::clone(db_connection),
 						conn_update_tx,
 						user,
@@ -389,15 +388,6 @@ async fn process_incoming_message(
 					)
 					.await?
 				}
-				SubscriptionType::AdminTags => {
-					subscribe_to_admin_tags(
-						Arc::clone(db_connection),
-						conn_update_tx,
-						user,
-						Arc::clone(subscription_manager),
-					)
-					.await?
-				}
 				SubscriptionType::AdminEventEditors => {
 					subscribe_to_admin_editors(
 						Arc::clone(db_connection),
@@ -427,9 +417,7 @@ async fn process_incoming_message(
 						.unsubscribe_user_from_event(&event_id, user)
 						.await?
 				}
-				SubscriptionType::AvailableTags => {
-					subscription_manager.remove_available_tags_subscription(user).await?
-				}
+				SubscriptionType::TagList => subscription_manager.remove_tag_list_subscription(user).await?,
 				SubscriptionType::AdminUsers => subscription_manager.remove_admin_user_subscription(user).await?,
 				SubscriptionType::AdminEvents => subscription_manager.remove_admin_event_subscription(user).await?,
 				SubscriptionType::AdminPermissionGroups => {
@@ -450,7 +438,6 @@ async fn process_incoming_message(
 						.remove_admin_entry_types_events_subscription(user)
 						.await?
 				}
-				SubscriptionType::AdminTags => subscription_manager.remove_admin_tags_subscription(user).await?,
 				SubscriptionType::AdminEventEditors => {
 					subscription_manager.remove_admin_editors_subscription(user).await?
 				}
@@ -474,6 +461,15 @@ async fn process_incoming_message(
 						update_data,
 					)
 					.await?
+				}
+				SubscriptionTargetUpdate::TagListUpdate(update_data) => {
+					handle_tag_list_message(
+						Arc::clone(db_connection),
+						user,
+						Arc::clone(subscription_manager),
+						update_data,
+					)
+					.await
 				}
 				SubscriptionTargetUpdate::AdminEventsUpdate(update_data) => {
 					handle_admin_event_message(
@@ -504,15 +500,6 @@ async fn process_incoming_message(
 				}
 				SubscriptionTargetUpdate::AdminPermissionGroupsUpdate(update_data) => {
 					handle_admin_permission_groups_message(
-						Arc::clone(db_connection),
-						user,
-						Arc::clone(subscription_manager),
-						update_data,
-					)
-					.await
-				}
-				SubscriptionTargetUpdate::AdminTagsUpdate(update_data) => {
-					handle_admin_tags_message(
 						Arc::clone(db_connection),
 						user,
 						Arc::clone(subscription_manager),

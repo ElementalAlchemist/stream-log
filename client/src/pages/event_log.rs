@@ -63,7 +63,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 			.set_subscriptions(
 				vec![
 					SubscriptionType::EventLogData(props.id.clone()),
-					SubscriptionType::AvailableTags,
+					SubscriptionType::TagList,
 				],
 				&mut ws,
 			)
@@ -113,7 +113,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 	let event_signal = event_subscription_data.event.clone();
 	let permission_signal = event_subscription_data.permission.clone();
 	let entry_types_signal = event_subscription_data.entry_types.clone();
-	let tags_signal = data.available_tags.clone();
+	let tags_signal = data.all_tags.clone();
 	let log_entries = event_subscription_data.event_log_entries.clone();
 	let available_editors = event_subscription_data.editors;
 

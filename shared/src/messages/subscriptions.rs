@@ -1,16 +1,16 @@
 use crate::messages::admin::{
 	AdminEntryTypeData, AdminEntryTypeEventData, AdminEntryTypeEventUpdate, AdminEntryTypeUpdate, AdminEventData,
 	AdminEventEditorData, AdminEventEditorUpdate, AdminEventLogSectionsData, AdminEventLogSectionsUpdate,
-	AdminEventUpdate, AdminPermissionGroupData, AdminPermissionGroupUpdate, AdminTagData, AdminTagUpdate,
-	AdminUserPermissionGroupData, AdminUserPermissionGroupUpdate, EditorEventAssociation, EntryTypeEventAssociation,
-	PermissionGroup, PermissionGroupEventAssociation, UserPermissionGroupAssociation,
+	AdminEventUpdate, AdminPermissionGroupData, AdminPermissionGroupUpdate, AdminUserPermissionGroupData,
+	AdminUserPermissionGroupUpdate, EditorEventAssociation, EntryTypeEventAssociation, PermissionGroup,
+	PermissionGroupEventAssociation, UserPermissionGroupAssociation,
 };
 use crate::messages::entry_types::EntryType;
 use crate::messages::event_log::{EventLogEntry, EventLogSection};
 use crate::messages::event_subscription::{EventSubscriptionData, EventSubscriptionUpdate};
 use crate::messages::events::Event;
 use crate::messages::permissions::PermissionLevel;
-use crate::messages::tags::{AvailableTagData, Tag};
+use crate::messages::tags::{Tag, TagListData, TagListUpdate};
 use crate::messages::user::{UserData, UserSubscriptionUpdate};
 use crate::messages::DataError;
 use serde::{Deserialize, Serialize};
@@ -20,8 +20,8 @@ use serde::{Deserialize, Serialize};
 pub enum SubscriptionType {
 	/// A subscription to the event log for a particular event. An event ID is provided with this variant.
 	EventLogData(String),
-	/// A subscription to tags available to be entered in the event log for any event.
-	AvailableTags,
+	/// A subscription to all tags.
+	TagList,
 	/// A subscription to all user data.
 	AdminUsers,
 	/// A subscription to all events.
@@ -34,8 +34,6 @@ pub enum SubscriptionType {
 	AdminEntryTypes,
 	/// A subscription to relationships between entry types and events.
 	AdminEntryTypesEvents,
-	/// A subscription to all tags.
-	AdminTags,
 	/// A subscription to relationships between users (as video editors) and events.
 	AdminEventEditors,
 	/// A subscription to event log sections.
@@ -60,14 +58,13 @@ pub enum InitialSubscriptionLoadData {
 		Vec<EventLogSection>,
 		Vec<EventLogEntry>,
 	),
-	AvailableTags(Vec<Tag>),
+	TagList(Vec<Tag>),
 	AdminUsers(Vec<UserData>),
 	AdminEvents(Vec<Event>),
 	AdminPermissionGroups(Vec<PermissionGroup>, Vec<PermissionGroupEventAssociation>),
 	AdminPermissionGroupUsers(Vec<UserPermissionGroupAssociation>),
 	AdminEntryTypes(Vec<EntryType>),
 	AdminEntryTypesEvents(Vec<EntryTypeEventAssociation>),
-	AdminTags(Vec<Tag>),
 	AdminEventEditors(Vec<EditorEventAssociation>),
 	AdminEventLogSections(Vec<(Event, EventLogSection)>),
 }
@@ -77,12 +74,11 @@ pub enum SubscriptionData {
 	EventUpdate(Event, Box<EventSubscriptionData>),
 	/// Indicates an update to data related to the logged-in user.
 	UserUpdate(UserSubscriptionUpdate),
-	AvailableTagsUpdate(AvailableTagData),
+	TagListUpdate(TagListData),
 	AdminEventsUpdate(AdminEventData),
 	AdminEntryTypesUpdate(AdminEntryTypeData),
 	AdminEntryTypesEventsUpdate(AdminEntryTypeEventData),
 	AdminPermissionGroupsUpdate(AdminPermissionGroupData),
-	AdminTagsUpdate(AdminTagData),
 	AdminUsersUpdate(UserData),
 	AdminEventEditorsUpdate(AdminEventEditorData),
 	AdminUserPermissionGroupsUpdate(AdminUserPermissionGroupData),
@@ -100,11 +96,11 @@ pub enum SubscriptionFailureInfo {
 #[derive(Debug, Deserialize, Serialize)]
 pub enum SubscriptionTargetUpdate {
 	EventUpdate(Event, Box<EventSubscriptionUpdate>),
+	TagListUpdate(TagListUpdate),
 	AdminEventsUpdate(AdminEventUpdate),
 	AdminEntryTypesUpdate(AdminEntryTypeUpdate),
 	AdminEntryTypesEventsUpdate(AdminEntryTypeEventUpdate),
 	AdminPermissionGroupsUpdate(AdminPermissionGroupUpdate),
-	AdminTagsUpdate(AdminTagUpdate),
 	AdminUserUpdate(UserData),
 	AdminEventEditorsUpdate(AdminEventEditorUpdate),
 	AdminUserPermissionGroupsUpdate(AdminUserPermissionGroupUpdate),

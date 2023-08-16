@@ -4,32 +4,22 @@ use crate::schema::{event_log, event_log_tags, events, tags, users};
 use async_std::channel::Sender;
 use async_std::sync::{Arc, Mutex};
 use diesel::prelude::*;
-use stream_log_shared::messages::admin::{AdminTagData, AdminTagUpdate};
 use stream_log_shared::messages::event_log::EventLogEntry;
 use stream_log_shared::messages::event_subscription::EventSubscriptionData;
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::subscriptions::{
 	InitialSubscriptionLoadData, SubscriptionData, SubscriptionFailureInfo, SubscriptionType,
 };
-use stream_log_shared::messages::tags::{AvailableTagData, Tag};
+use stream_log_shared::messages::tags::{Tag, TagListData, TagListUpdate};
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::{DataError, FromServerMessage};
 
-pub async fn subscribe_to_admin_tags(
+pub async fn subscribe_to_tag_list(
 	db_connection: Arc<Mutex<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
 	user: &UserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 ) -> Result<(), HandleConnectionError> {
-	if !user.is_admin {
-		let message =
-			FromServerMessage::SubscriptionFailure(SubscriptionType::AdminTags, SubscriptionFailureInfo::NotAllowed);
-		conn_update_tx
-			.send(ConnectionUpdate::SendData(Box::new(message)))
-			.await?;
-		return Ok(());
-	}
-
 	let mut db_connection = db_connection.lock().await;
 	let tags: QueryResult<Vec<TagDb>> = tags::table.load(&mut *db_connection);
 	let tags: Vec<Tag> = match tags {
@@ -40,7 +30,7 @@ pub async fn subscribe_to_admin_tags(
 				error
 			);
 			let message = FromServerMessage::SubscriptionFailure(
-				SubscriptionType::AdminTags,
+				SubscriptionType::TagList,
 				SubscriptionFailureInfo::Error(DataError::DatabaseError),
 			);
 			conn_update_tx
@@ -52,10 +42,10 @@ pub async fn subscribe_to_admin_tags(
 
 	let subscription_manager = subscription_manager.lock().await;
 	subscription_manager
-		.add_admin_tags_subscription(user, conn_update_tx.clone())
+		.add_tag_list_subscription(user, conn_update_tx.clone())
 		.await;
 
-	let message = FromServerMessage::InitialSubscriptionLoad(Box::new(InitialSubscriptionLoadData::AdminTags(tags)));
+	let message = FromServerMessage::InitialSubscriptionLoad(Box::new(InitialSubscriptionLoadData::TagList(tags)));
 	conn_update_tx
 		.send(ConnectionUpdate::SendData(Box::new(message)))
 		.await?;
@@ -63,11 +53,11 @@ pub async fn subscribe_to_admin_tags(
 	Ok(())
 }
 
-pub async fn handle_admin_tags_message(
+pub async fn handle_tag_list_message(
 	db_connection: Arc<Mutex<PgConnection>>,
 	user: &UserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
-	update_message: AdminTagUpdate,
+	update_message: TagListUpdate,
 ) {
 	if !user.is_admin {
 		return;
@@ -75,14 +65,14 @@ pub async fn handle_admin_tags_message(
 	if !subscription_manager
 		.lock()
 		.await
-		.user_is_subscribed_to_admin_tags(user)
+		.user_is_subscribed_to_tag_list(user)
 		.await
 	{
 		return;
 	}
 
 	match update_message {
-		AdminTagUpdate::UpdateTag(mut tag) => {
+		TagListUpdate::UpdateTag(mut tag) => {
 			{
 				if tag.id.is_empty() {
 					tag.id = cuid2::create_id();
@@ -106,18 +96,13 @@ pub async fn handle_admin_tags_message(
 			}
 
 			let subscription_manager = subscription_manager.lock().await;
-			let message = SubscriptionData::AdminTagsUpdate(AdminTagData::UpdateTag(tag.clone()));
-			let send_result = subscription_manager.broadcast_admin_tags_message(message).await;
+			let message = SubscriptionData::TagListUpdate(TagListData::UpdateTag(tag.clone()));
+			let send_result = subscription_manager.broadcast_tag_list_message(message).await;
 			if let Err(error) = send_result {
 				tide::log::error!("Failed to send admin tags update message: {}", error);
 			}
-			let message = SubscriptionData::AvailableTagsUpdate(AvailableTagData::UpdateTag(tag));
-			let send_result = subscription_manager.broadcast_available_tags_message(message).await;
-			if let Err(error) = send_result {
-				tide::log::error!("Failed to send available tags update message: {}", error);
-			}
 		}
-		AdminTagUpdate::ReplaceTag(remove_tag, replacement_tag) => {
+		TagListUpdate::ReplaceTag(remove_tag, replacement_tag) => {
 			let event_update_data = {
 				let mut db_connection = db_connection.lock().await;
 				let tx_result: QueryResult<Vec<(Event, EventLogEntry)>> = db_connection.transaction(|db_connection| {
@@ -207,16 +192,8 @@ pub async fn handle_admin_tags_message(
 			};
 
 			let subscription_manager = subscription_manager.lock().await;
-			let admin_message = SubscriptionData::AdminTagsUpdate(AdminTagData::RemoveTag(remove_tag.clone()));
-			let send_result = subscription_manager.broadcast_admin_tags_message(admin_message).await;
-			if let Err(error) = send_result {
-				tide::log::error!("Failed to send tag update message for tag replacement: {}", error);
-			}
-			let available_message =
-				SubscriptionData::AvailableTagsUpdate(AvailableTagData::RemoveTag(remove_tag.clone()));
-			let send_result = subscription_manager
-				.broadcast_available_tags_message(available_message)
-				.await;
+			let admin_message = SubscriptionData::TagListUpdate(TagListData::RemoveTag(remove_tag.clone()));
+			let send_result = subscription_manager.broadcast_tag_list_message(admin_message).await;
 			if let Err(error) = send_result {
 				tide::log::error!("Failed to send tag update message for tag replacement: {}", error);
 			}
@@ -238,7 +215,7 @@ pub async fn handle_admin_tags_message(
 				}
 			}
 		}
-		AdminTagUpdate::RemoveTag(tag) => {
+		TagListUpdate::RemoveTag(tag) => {
 			let event_update_data = {
 				let mut db_connection = db_connection.lock().await;
 				let tx_result: QueryResult<Vec<(Event, EventLogEntry)>> = db_connection.transaction(|db_connection| {
@@ -315,15 +292,8 @@ pub async fn handle_admin_tags_message(
 			};
 
 			let subscription_manager = subscription_manager.lock().await;
-			let admin_message = SubscriptionData::AdminTagsUpdate(AdminTagData::RemoveTag(tag.clone()));
-			let send_result = subscription_manager.broadcast_admin_tags_message(admin_message).await;
-			if let Err(error) = send_result {
-				tide::log::error!("Failed to send tag update message for tag removal: {}", error);
-			}
-			let available_message = SubscriptionData::AvailableTagsUpdate(AvailableTagData::RemoveTag(tag.clone()));
-			let send_result = subscription_manager
-				.broadcast_available_tags_message(available_message)
-				.await;
+			let admin_message = SubscriptionData::TagListUpdate(TagListData::RemoveTag(tag.clone()));
+			let send_result = subscription_manager.broadcast_tag_list_message(admin_message).await;
 			if let Err(error) = send_result {
 				tide::log::error!("Failed to send tag update message for tag removal: {}", error);
 			}

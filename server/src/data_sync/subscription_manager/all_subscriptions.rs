@@ -11,14 +11,13 @@ use stream_log_shared::messages::user::UserData;
 pub struct SubscriptionManager {
 	event_subscriptions: HashMap<String, SingleSubscriptionManager>,
 	user_subscriptions: HashMap<String, Sender<ConnectionUpdate>>,
-	available_tag_subscriptions: SingleSubscriptionManager,
+	tag_list_subscriptions: SingleSubscriptionManager,
 	admin_user_subscriptions: SingleSubscriptionManager,
 	admin_event_subscriptions: SingleSubscriptionManager,
 	admin_permission_group_subscriptions: SingleSubscriptionManager,
 	admin_permission_group_user_subscriptions: SingleSubscriptionManager,
 	admin_entry_type_subscriptions: SingleSubscriptionManager,
 	admin_entry_type_event_subscriptions: SingleSubscriptionManager,
-	admin_tag_subscriptions: SingleSubscriptionManager,
 	admin_event_editor_subscriptions: SingleSubscriptionManager,
 	admin_event_log_sections_subscriptions: SingleSubscriptionManager,
 }
@@ -28,7 +27,7 @@ impl SubscriptionManager {
 		Self {
 			event_subscriptions: HashMap::new(),
 			user_subscriptions: HashMap::new(),
-			available_tag_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AvailableTags),
+			tag_list_subscriptions: SingleSubscriptionManager::new(SubscriptionType::TagList),
 			admin_user_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AdminUsers),
 			admin_event_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AdminEvents),
 			admin_permission_group_subscriptions: SingleSubscriptionManager::new(
@@ -41,7 +40,6 @@ impl SubscriptionManager {
 			admin_entry_type_event_subscriptions: SingleSubscriptionManager::new(
 				SubscriptionType::AdminEntryTypesEvents,
 			),
-			admin_tag_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AdminTags),
 			admin_event_editor_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AdminEventEditors),
 			admin_event_log_sections_subscriptions: SingleSubscriptionManager::new(
 				SubscriptionType::AdminEventLogSections,
@@ -58,13 +56,13 @@ impl SubscriptionManager {
 		}
 
 		let subscription_shutdown_handles = vec![
+			self.tag_list_subscriptions.shutdown(),
 			self.admin_user_subscriptions.shutdown(),
 			self.admin_event_subscriptions.shutdown(),
 			self.admin_permission_group_subscriptions.shutdown(),
 			self.admin_permission_group_user_subscriptions.shutdown(),
 			self.admin_entry_type_subscriptions.shutdown(),
 			self.admin_entry_type_event_subscriptions.shutdown(),
-			self.admin_tag_subscriptions.shutdown(),
 			self.admin_event_editor_subscriptions.shutdown(),
 		];
 		for handle in join_all(subscription_shutdown_handles).await {
@@ -144,24 +142,27 @@ impl SubscriptionManager {
 		}
 	}
 
-	/// Adds a user to the available tags subscription
-	pub async fn add_available_tags_subscription(&self, user: &UserData, update_channel: Sender<ConnectionUpdate>) {
-		self.available_tag_subscriptions
-			.subscribe_user(user, update_channel)
-			.await;
+	/// Adds a user to the tag list subscription
+	pub async fn add_tag_list_subscription(&self, user: &UserData, update_channel: Sender<ConnectionUpdate>) {
+		self.tag_list_subscriptions.subscribe_user(user, update_channel).await;
 	}
 
-	/// Removes a user from the available tags subscription
-	pub async fn remove_available_tags_subscription(&self, user: &UserData) -> Result<(), SendError<ConnectionUpdate>> {
-		self.available_tag_subscriptions.unsubscribe_user(user).await
+	/// Removes a user from the tag list subscription
+	pub async fn remove_tag_list_subscription(&self, user: &UserData) -> Result<(), SendError<ConnectionUpdate>> {
+		self.tag_list_subscriptions.unsubscribe_user(user).await
 	}
 
-	/// Sends the given message to all subscribed users for available tags
-	pub async fn broadcast_available_tags_message(
+	/// Sends the given message to all subscribed users for tag list
+	pub async fn broadcast_tag_list_message(
 		&self,
 		message: SubscriptionData,
 	) -> Result<(), SendError<SubscriptionData>> {
-		self.available_tag_subscriptions.broadcast_message(message).await
+		self.tag_list_subscriptions.broadcast_message(message).await
+	}
+
+	/// Checks whether a user is subscribed to tag list
+	pub async fn user_is_subscribed_to_tag_list(&self, user: &UserData) -> bool {
+		self.tag_list_subscriptions.user_is_subscribed(user).await
 	}
 
 	/// Adds a user to the admin user list subscription
@@ -346,29 +347,6 @@ impl SubscriptionManager {
 		self.admin_entry_type_event_subscriptions.user_is_subscribed(user).await
 	}
 
-	/// Adds a user to the admin tags subscription
-	pub async fn add_admin_tags_subscription(&self, user: &UserData, update_channel: Sender<ConnectionUpdate>) {
-		self.admin_tag_subscriptions.subscribe_user(user, update_channel).await;
-	}
-
-	/// Removes a user from the admin tags subscription
-	pub async fn remove_admin_tags_subscription(&self, user: &UserData) -> Result<(), SendError<ConnectionUpdate>> {
-		self.admin_tag_subscriptions.unsubscribe_user(user).await
-	}
-
-	/// Sends the given message to all subscribed users for admin tags
-	pub async fn broadcast_admin_tags_message(
-		&self,
-		message: SubscriptionData,
-	) -> Result<(), SendError<SubscriptionData>> {
-		self.admin_tag_subscriptions.broadcast_message(message).await
-	}
-
-	/// Checks whether a user is subscribed to admin tags
-	pub async fn user_is_subscribed_to_admin_tags(&self, user: &UserData) -> bool {
-		self.admin_tag_subscriptions.user_is_subscribed(user).await
-	}
-
 	/// Adds a user to the admin event editors subscription
 	pub async fn add_admin_editors_subscription(&self, user: &UserData, update_channel: Sender<ConnectionUpdate>) {
 		self.admin_event_editor_subscriptions
@@ -437,13 +415,13 @@ impl SubscriptionManager {
 		for event_subscription in self.event_subscriptions.values() {
 			futures.push(event_subscription.unsubscribe_user(user));
 		}
+		futures.push(self.tag_list_subscriptions.unsubscribe_user(user));
 		futures.push(self.admin_user_subscriptions.unsubscribe_user(user));
 		futures.push(self.admin_event_subscriptions.unsubscribe_user(user));
 		futures.push(self.admin_permission_group_subscriptions.unsubscribe_user(user));
 		futures.push(self.admin_permission_group_user_subscriptions.unsubscribe_user(user));
 		futures.push(self.admin_entry_type_subscriptions.unsubscribe_user(user));
 		futures.push(self.admin_entry_type_event_subscriptions.unsubscribe_user(user));
-		futures.push(self.admin_tag_subscriptions.unsubscribe_user(user));
 		futures.push(self.admin_event_editor_subscriptions.unsubscribe_user(user));
 
 		let results = join_all(futures).await;

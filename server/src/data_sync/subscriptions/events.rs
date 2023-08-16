@@ -14,7 +14,6 @@ use chrono::prelude::*;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use std::collections::HashMap;
-use stream_log_shared::messages::admin::AdminTagData;
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_log::{EventLogEntry, EventLogSection};
 use stream_log_shared::messages::event_subscription::{
@@ -25,7 +24,7 @@ use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::subscriptions::{
 	InitialSubscriptionLoadData, SubscriptionData, SubscriptionFailureInfo, SubscriptionType,
 };
-use stream_log_shared::messages::tags::{AvailableTagData, Tag};
+use stream_log_shared::messages::tags::{Tag, TagListData};
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::{DataError, FromServerMessage};
 
@@ -962,13 +961,8 @@ pub async fn handle_event_update(
 			}
 
 			let subscription_manager = subscription_manager.lock().await;
-			let message = SubscriptionData::AdminTagsUpdate(AdminTagData::UpdateTag(new_tag.clone()));
-			let send_result = subscription_manager.broadcast_admin_tags_message(message).await;
-			if let Err(error) = send_result {
-				tide::log::error!("Error occurred broadcasting an event tag update: {}", error);
-			}
-			let message = SubscriptionData::AvailableTagsUpdate(AvailableTagData::UpdateTag(new_tag));
-			let send_result = subscription_manager.broadcast_available_tags_message(message).await;
+			let message = SubscriptionData::TagListUpdate(TagListData::UpdateTag(new_tag.clone()));
+			let send_result = subscription_manager.broadcast_tag_list_message(message).await;
 			if let Err(error) = send_result {
 				tide::log::error!("Error occurred broadcasting an event tag update: {}", error);
 			}

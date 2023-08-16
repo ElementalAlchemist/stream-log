@@ -7,9 +7,8 @@ use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
 use std::collections::HashSet;
-use stream_log_shared::messages::admin::AdminTagUpdate;
 use stream_log_shared::messages::subscriptions::{SubscriptionTargetUpdate, SubscriptionType};
-use stream_log_shared::messages::tags::Tag;
+use stream_log_shared::messages::tags::{Tag, TagListUpdate};
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::FromClientMessage;
 use sycamore::futures::spawn_local_scoped;
@@ -28,7 +27,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		let subscription_manager: &Mutex<SubscriptionManager> = use_context(ctx);
 		let mut subscription_manager = subscription_manager.lock().await;
 		subscription_manager
-			.set_subscription(SubscriptionType::AdminTags, &mut ws)
+			.set_subscription(SubscriptionType::TagList, &mut ws)
 			.await
 	};
 	if let Err(error) = add_subscriptions_result {
@@ -77,8 +76,8 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
-			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminTagsUpdate(
-				AdminTagUpdate::UpdateTag(new_tag),
+			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::TagListUpdate(
+				TagListUpdate::UpdateTag(new_tag),
 			)));
 			let message_json = match serde_json::to_string(&message) {
 				Ok(msg) => msg,
@@ -130,7 +129,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 							let mut updated_tag = tag.clone();
 							updated_tag.description = new_description;
 
-							let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminTagsUpdate(AdminTagUpdate::UpdateTag(updated_tag))));
+							let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::TagListUpdate(TagListUpdate::UpdateTag(updated_tag))));
 							let message_json = match serde_json::to_string(&message) {
 								Ok(msg) => msg,
 								Err(error) => {
@@ -166,7 +165,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 								let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 								let mut ws = ws_context.lock().await;
 
-								let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminTagsUpdate(AdminTagUpdate::RemoveTag(tag))));
+								let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::TagListUpdate(TagListUpdate::RemoveTag(tag))));
 								let message_json = match serde_json::to_string(&message) {
 									Ok(msg) => msg,
 									Err(error) => {
@@ -208,7 +207,7 @@ async fn AdminManageTagsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 								};
 								entered_replacement_tag_signal.set(String::new());
 
-								let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminTagsUpdate(AdminTagUpdate::ReplaceTag(tag, replacement))));
+								let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::TagListUpdate(TagListUpdate::ReplaceTag(tag, replacement))));
 								let message_json = match serde_json::to_string(&message) {
 									Ok(msg) => msg,
 									Err(error) => {

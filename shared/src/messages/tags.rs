@@ -7,8 +7,15 @@ pub struct Tag {
 	pub description: String,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub enum TagListUpdate {
+	UpdateTag(Tag),
+	RemoveTag(Tag),
+	ReplaceTag(Tag, Tag),
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub enum AvailableTagData {
+pub enum TagListData {
 	UpdateTag(Tag),
 	RemoveTag(Tag),
 }

@@ -2,7 +2,6 @@ use super::entry_types::EntryType;
 use super::event_log::EventLogSection;
 use super::events::Event;
 use super::permissions::PermissionLevel;
-use super::tags::Tag;
 use super::user::UserData;
 use serde::{Deserialize, Serialize};
 
@@ -56,19 +55,6 @@ pub enum AdminPermissionGroupData {
 	UpdateGroup(PermissionGroup),
 	SetEventPermissionForGroup(PermissionGroupEventAssociation),
 	RemoveEventFromGroup(PermissionGroup, Event),
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub enum AdminTagUpdate {
-	UpdateTag(Tag),
-	RemoveTag(Tag),
-	ReplaceTag(Tag, Tag),
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub enum AdminTagData {
-	UpdateTag(Tag),
-	RemoveTag(Tag),
 }
 
 #[derive(Debug, Deserialize, Serialize)]
