@@ -31,6 +31,11 @@ pub fn UserInfoBar<G: Html>(ctx: Scope) -> View<G> {
 							}
 						}
 					}
+					div(id="user_tags_link") {
+						a(href="/tags") {
+							"Tags"
+						}
+					}
 					(if user.is_admin {
 						view! {
 							ctx,
@@ -65,11 +70,6 @@ pub fn UserInfoBar<G: Html>(ctx: Scope) -> View<G> {
 									li {
 										a(href="/admin/assign_event_types") {
 											"Assign Event Types to Events"
-										}
-									}
-									li {
-										a(href="/admin/tags") {
-											"Manage Tags"
 										}
 									}
 									li {

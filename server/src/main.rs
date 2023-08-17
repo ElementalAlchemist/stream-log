@@ -88,13 +88,13 @@ async fn main() -> miette::Result<()> {
 	establish_alternate_route(&mut app, "/register")?;
 	establish_alternate_route(&mut app, "/register_complete")?;
 	establish_alternate_route(&mut app, "/log/:id")?;
+	establish_alternate_route(&mut app, "/tags")?;
 	establish_alternate_route(&mut app, "/admin/events")?;
 	establish_alternate_route(&mut app, "/admin/users")?;
 	establish_alternate_route(&mut app, "/admin/groups")?;
 	establish_alternate_route(&mut app, "/admin/assign_groups")?;
 	establish_alternate_route(&mut app, "/admin/event_types")?;
 	establish_alternate_route(&mut app, "/admin/assign_event_types")?;
-	establish_alternate_route(&mut app, "/admin/tags")?;
 	establish_alternate_route(&mut app, "/admin/editors")?;
 	establish_alternate_route(&mut app, "/admin/sections")?;
 	establish_alternate_route(&mut app, "/user_profile")?;

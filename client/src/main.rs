@@ -27,13 +27,13 @@ use pages::admin::manage_entry_types::AdminManageEntryTypesView;
 use pages::admin::manage_events::AdminManageEventsView;
 use pages::admin::manage_groups::AdminManageGroupsView;
 use pages::admin::manage_sections::AdminManageEventLogSectionsView;
-use pages::admin::manage_tags::AdminManageTagsView;
 use pages::admin::manage_users::AdminManageUsersView;
 use pages::event_log::EventLogView;
 use pages::event_selection::EventSelectionView;
 use pages::not_found::NotFoundView;
 use pages::register::RegistrationView;
 use pages::register_complete::RegistrationCompleteView;
+use pages::tags::TagListView;
 use pages::user_profile::UserProfileView;
 use subscriptions::manager::SubscriptionManager;
 use subscriptions::{process_messages, DataSignals};
@@ -49,6 +49,8 @@ enum AppRoutes {
 	RegistrationComplete,
 	#[to("/log/<id>")]
 	EventLog(String),
+	#[to("/tags")]
+	TagList,
 	#[to("/admin/events")]
 	AdminEventManager,
 	#[to("/admin/users")]
@@ -61,8 +63,6 @@ enum AppRoutes {
 	AdminEntryTypeManager,
 	#[to("/admin/assign_event_types")]
 	AdminEntryTypesForEventManager,
-	#[to("/admin/tags")]
-	AdminTagsManager,
 	#[to("/admin/editors")]
 	AdminEditorsManager,
 	#[to("/admin/sections")]
@@ -183,13 +183,13 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 						AppRoutes::Register => view! { ctx, RegistrationView },
 						AppRoutes::RegistrationComplete => view! { ctx, RegistrationCompleteView },
 						AppRoutes::EventLog(id) => view! { ctx, EventLogView(id=id.clone()) },
+						AppRoutes::TagList => view! { ctx, TagListView },
 						AppRoutes::AdminEventManager => view! { ctx, AdminManageEventsView },
 						AppRoutes::AdminUserManager => view! { ctx, AdminManageUsersView },
 						AppRoutes::AdminPermissionGroupManager => view! { ctx, AdminManageGroupsView },
 						AppRoutes::AdminUserGroupAssignmentManager => view! { ctx, AssignUsersToGroupsView },
 						AppRoutes::AdminEntryTypeManager => view! { ctx, AdminManageEntryTypesView },
 						AppRoutes::AdminEntryTypesForEventManager => view! { ctx, AdminManageEntryTypesForEventsView },
-						AppRoutes::AdminTagsManager => view! { ctx, AdminManageTagsView },
 						AppRoutes::AdminEditorsManager => view! { ctx, AdminManageEditorsView },
 						AppRoutes::AdminEventLogSectionsManager => view! { ctx, AdminManageEventLogSectionsView },
 						AppRoutes::UserProfile => view! { ctx, UserProfileView },
