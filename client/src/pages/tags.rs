@@ -134,57 +134,47 @@ async fn TagListLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 					let entered_replacement_tag_error_signal = create_signal(ctx, String::new());
 					let entered_replacement_tag_has_error_signal = create_memo(ctx, || !entered_replacement_tag_error_signal.get().is_empty());
 
+					let description_submission_handler = {
+						let tag = tag.clone();
+						move |event: WebEvent| {
+							event.prevent_default();
+
+							let new_description = (*entered_description_signal.get()).clone();
+							let mut updated_tag = tag.clone();
+							updated_tag.description = new_description;
+
+							let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::TagListUpdate(TagListUpdate::UpdateTag(updated_tag))));
+							let message_json = match serde_json::to_string(&message) {
+								Ok(msg) => msg,
+								Err(error) => {
+									let data: &DataSignals = use_context(ctx);
+									data.errors.modify().push(ErrorData::new_with_error("Failed to serialize tag description update.", error));
+									return;
+								}
+							};
+
+							spawn_local_scoped(ctx, async move {
+								let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+								let mut ws = ws_context.lock().await;
+
+								if let Err(error) = ws.send(Message::Text(message_json)).await {
+									let data: &DataSignals = use_context(ctx);
+									data.errors.modify().push(ErrorData::new_with_error("Failed to send tag description update.", error));
+								}
+							});
+						}
+					};
+
 					let tag_name = tag.name.clone();
-					let description_tag = tag.clone();
 					view! {
 						ctx,
 						tr {
 							td { (tag_name) }
 							td {
-								(if *user_is_admin.get() {
-									let description_submission_handler = {
-										let tag = description_tag.clone();
-										move |event: WebEvent| {
-											event.prevent_default();
-
-											let new_description = (*entered_description_signal.get()).clone();
-											let mut updated_tag = tag.clone();
-											updated_tag.description = new_description;
-
-											let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::TagListUpdate(TagListUpdate::UpdateTag(updated_tag))));
-											let message_json = match serde_json::to_string(&message) {
-												Ok(msg) => msg,
-												Err(error) => {
-													let data: &DataSignals = use_context(ctx);
-													data.errors.modify().push(ErrorData::new_with_error("Failed to serialize tag description update.", error));
-													return;
-												}
-											};
-
-											spawn_local_scoped(ctx, async move {
-												let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
-												let mut ws = ws_context.lock().await;
-
-												if let Err(error) = ws.send(Message::Text(message_json)).await {
-													let data: &DataSignals = use_context(ctx);
-													data.errors.modify().push(ErrorData::new_with_error("Failed to send tag description update.", error));
-												}
-											});
-										}
-									};
-									view! {
-										ctx,
-										form(on:submit=description_submission_handler) {
-											input(type="text", class="admin_manage_tags_tag_description", bind:value=entered_description_signal, placeholder="Tag description")
-											button(type="submit") { "Update" }
-										}
-									}
-								} else {
-									view! {
-										ctx,
-										(entered_description_signal.get())
-									}
-								})
+								form(on:submit=description_submission_handler) {
+									input(type="text", class="admin_manage_tags_tag_description", bind:value=entered_description_signal, placeholder="Tag description")
+									button(type="submit") { "Update" }
+								}
 							}
 							(if *user_is_admin.get() {
 								let really_remove_button_clicked = {

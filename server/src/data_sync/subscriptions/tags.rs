@@ -59,9 +59,6 @@ pub async fn handle_tag_list_message(
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	update_message: TagListUpdate,
 ) {
-	if !user.is_admin {
-		return;
-	}
 	if !subscription_manager
 		.lock()
 		.await
@@ -103,6 +100,10 @@ pub async fn handle_tag_list_message(
 			}
 		}
 		TagListUpdate::ReplaceTag(remove_tag, replacement_tag) => {
+			if !user.is_admin {
+				return;
+			}
+
 			let event_update_data = {
 				let mut db_connection = db_connection.lock().await;
 				let tx_result: QueryResult<Vec<(Event, EventLogEntry)>> = db_connection.transaction(|db_connection| {
@@ -216,6 +217,10 @@ pub async fn handle_tag_list_message(
 			}
 		}
 		TagListUpdate::RemoveTag(tag) => {
+			if !user.is_admin {
+				return;
+			}
+
 			let event_update_data = {
 				let mut db_connection = db_connection.lock().await;
 				let tx_result: QueryResult<Vec<(Event, EventLogEntry)>> = db_connection.transaction(|db_connection| {
