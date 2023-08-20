@@ -266,6 +266,8 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 				parent,
 				created_at: Utc::now(),
 				manual_sort_key,
+				video_state: None,
+				video_errors: String::new(),
 			};
 
 			spawn_local_scoped(ctx, async move {

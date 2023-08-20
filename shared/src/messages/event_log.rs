@@ -22,6 +22,8 @@ pub struct EventLogEntry {
 	pub parent: Option<String>,
 	pub created_at: DateTime<Utc>,
 	pub manual_sort_key: Option<i32>,
+	pub video_state: Option<VideoState>,
+	pub video_errors: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -29,4 +31,32 @@ pub struct EventLogSection {
 	pub id: String,
 	pub name: String,
 	pub start_time: DateTime<Utc>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub enum VideoState {
+	Unedited,
+	Edited,
+	Claimed,
+	Finalizing,
+	Transcoding,
+	Done,
+	Modified,
+	Unlisted,
+}
+
+impl std::fmt::Display for VideoState {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		let str_value = match self {
+			Self::Unedited => "UNEDITED",
+			Self::Edited => "EDITED",
+			Self::Claimed => "CLAIMED",
+			Self::Finalizing => "FINALIZING",
+			Self::Transcoding => "TRANSCODING",
+			Self::Done => "DONE",
+			Self::Modified => "MODIFIED",
+			Self::Unlisted => "UNLISTED",
+		};
+		write!(f, "{}", str_value)
+	}
 }

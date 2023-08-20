@@ -156,6 +156,7 @@ pub async fn handle_tag_list_message(
 							None
 						};
 						let editor: Option<UserData> = editor.map(|editor| editor.into());
+						let video_state = log_entry.video_state.map(|state| state.into());
 
 						event_log_entries.push((
 							event,
@@ -177,6 +178,8 @@ pub async fn handle_tag_list_message(
 								parent: log_entry.parent,
 								created_at: log_entry.created_at,
 								manual_sort_key: log_entry.manual_sort_key,
+								video_state,
+								video_errors: log_entry.video_errors,
 							},
 						));
 					}
@@ -260,6 +263,7 @@ pub async fn handle_tag_list_message(
 							None
 						};
 						let editor: Option<UserData> = editor.map(|editor| editor.into());
+						let video_state = log_entry.video_state.map(|state| state.into());
 
 						log_entries.push((
 							event,
@@ -281,6 +285,8 @@ pub async fn handle_tag_list_message(
 								parent: log_entry.parent,
 								created_at: log_entry.created_at,
 								manual_sort_key: log_entry.manual_sort_key,
+								video_state,
+								video_errors: log_entry.video_errors,
 							},
 						));
 					}

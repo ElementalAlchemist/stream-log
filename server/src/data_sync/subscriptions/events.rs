@@ -435,6 +435,8 @@ pub async fn subscribe_to_event(
 			parent: log_entry.parent.clone(),
 			created_at: log_entry.created_at,
 			manual_sort_key: log_entry.manual_sort_key,
+			video_state: log_entry.video_state.map(|state| state.into()),
+			video_errors: log_entry.video_errors.clone(),
 		};
 		event_log_entries.push(send_entry);
 	}
@@ -515,6 +517,8 @@ pub async fn handle_event_update(
 					deleted_by: None,
 					created_at: Utc::now(),
 					manual_sort_key: log_entry_data.manual_sort_key,
+					video_state: None,
+					video_errors: String::new(),
 				};
 
 				let db_tags: Vec<EventLogTag> = log_entry_data
@@ -782,6 +786,8 @@ pub async fn handle_event_update(
 					parent: log_entry.parent,
 					created_at: log_entry.created_at,
 					manual_sort_key: log_entry.manual_sort_key,
+					video_state: log_entry.video_state.map(|state| state.into()),
+					video_errors: log_entry.video_errors,
 				};
 				Ok(log_entry)
 			});
@@ -1029,6 +1035,8 @@ fn log_entry_change(
 			parent: log_entry.parent,
 			created_at: log_entry.created_at,
 			manual_sort_key: log_entry.manual_sort_key,
+			video_state: log_entry.video_state.map(|state| state.into()),
+			video_errors: log_entry.video_errors,
 		};
 		Ok(log_entry)
 	})

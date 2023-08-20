@@ -8,6 +8,7 @@ use diesel_derive_enum::DbEnum;
 use rgb::RGB8;
 use stream_log_shared::messages::admin::{PermissionGroup as PermissionGroupWs, PermissionGroupEventAssociation};
 use stream_log_shared::messages::entry_types::EntryType as EntryTypeWs;
+use stream_log_shared::messages::event_log::VideoState as VideoStateWs;
 use stream_log_shared::messages::events::Event as EventWs;
 use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::tags::Tag as TagWs;
@@ -34,6 +35,49 @@ impl From<Permission> for PermissionLevel {
 		match permission {
 			Permission::View => Self::View,
 			Permission::Edit => Self::Edit,
+		}
+	}
+}
+
+#[derive(Clone, Copy, DbEnum, Debug, Eq, PartialEq)]
+#[ExistingTypePath = "crate::schema::sql_types::VideoState"]
+pub enum VideoState {
+	Unedited,
+	Edited,
+	Claimed,
+	Finalizing,
+	Transcoding,
+	Done,
+	Modified,
+	Unlisted,
+}
+
+impl From<VideoStateWs> for VideoState {
+	fn from(value: VideoStateWs) -> Self {
+		match value {
+			VideoStateWs::Unedited => Self::Unedited,
+			VideoStateWs::Edited => Self::Edited,
+			VideoStateWs::Claimed => Self::Claimed,
+			VideoStateWs::Finalizing => Self::Finalizing,
+			VideoStateWs::Transcoding => Self::Transcoding,
+			VideoStateWs::Done => Self::Done,
+			VideoStateWs::Modified => Self::Modified,
+			VideoStateWs::Unlisted => Self::Unlisted,
+		}
+	}
+}
+
+impl From<VideoState> for VideoStateWs {
+	fn from(value: VideoState) -> Self {
+		match value {
+			VideoState::Unedited => Self::Unedited,
+			VideoState::Edited => Self::Edited,
+			VideoState::Claimed => Self::Claimed,
+			VideoState::Finalizing => Self::Finalizing,
+			VideoState::Transcoding => Self::Transcoding,
+			VideoState::Done => Self::Done,
+			VideoState::Modified => Self::Modified,
+			VideoState::Unlisted => Self::Unlisted,
 		}
 	}
 }
@@ -210,6 +254,8 @@ pub struct EventLogEntry {
 	pub deleted_by: Option<String>,
 	pub created_at: DateTime<Utc>,
 	pub manual_sort_key: Option<i32>,
+	pub video_state: Option<VideoState>,
+	pub video_errors: String,
 }
 
 #[derive(Insertable, Queryable)]

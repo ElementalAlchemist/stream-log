@@ -4,6 +4,10 @@ pub mod sql_types {
 	#[derive(diesel::sql_types::SqlType)]
 	#[diesel(postgres_type(name = "permission"))]
 	pub struct Permission;
+
+	#[derive(diesel::sql_types::SqlType)]
+	#[diesel(postgres_type(name = "video_state"))]
+	pub struct VideoState;
 }
 
 diesel::table! {
@@ -31,6 +35,9 @@ diesel::table! {
 }
 
 diesel::table! {
+	use diesel::sql_types::*;
+	use super::sql_types::VideoState;
+
 	event_log (id) {
 		id -> Text,
 		event -> Text,
@@ -52,6 +59,8 @@ diesel::table! {
 		deleted_by -> Nullable<Text>,
 		created_at -> Timestamptz,
 		manual_sort_key -> Nullable<Int4>,
+		video_state -> Nullable<VideoState>,
+		video_errors -> Text,
 	}
 }
 
