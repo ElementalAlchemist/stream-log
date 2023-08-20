@@ -402,6 +402,8 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 					div(class="event_log_header") { }
 					div(class="event_log_header") { "Editor" }
 					div(class="event_log_header") { "Notes to editor" }
+					div(class="event_log_header") { "State" }
+					div(class="event_log_header") { "Video Errors" }
 					Keyed(
 						iterable=log_lines,
 						key=|line| line.id(),
@@ -530,6 +532,8 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 										div(class="event_log_header") {}
 										div(class="event_log_header") {}
 										div(class="event_log_header") { "Notes to editor" }
+										div(class="event_log_header") {}
+										div(class="event_log_header") {}
 										EventLogEntryTyping(typing_data=new_entry_typing_data)
 									}
 								}

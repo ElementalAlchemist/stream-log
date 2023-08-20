@@ -611,6 +611,24 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 			div(class="log_entry_notes_to_editor") {
 				((*props.entry.get()).as_ref().map(|entry| entry.notes_to_editor.clone()).unwrap_or_default())
 			}
+			div(class="log_entry_video_state") {
+				({
+					let video_state = (*props.entry.get()).as_ref().and_then(|entry| entry.video_state);
+					match video_state {
+						Some(state) => format!("{}", state),
+						None => String::new()
+					}
+				})
+			}
+			div(class="log_entry_video_errors") {
+				({
+					let video_errors = (*props.entry.get()).as_ref().map(|entry| entry.video_errors.clone());
+					match video_errors {
+						Some(errors) => errors,
+						None => String::new()
+					}
+				})
+			}
 		}
 	}
 }
@@ -1522,6 +1540,8 @@ pub fn EventLogEntryTyping<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryTypi
 						div {}
 						div {}
 						div { (typed_notes_to_editor) }
+						div {}
+						div {}
 					}
 				}
 			}
