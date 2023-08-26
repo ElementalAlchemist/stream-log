@@ -194,6 +194,7 @@ pub async fn handle_tag_list_message(
 								manual_sort_key: log_entry.manual_sort_key,
 								video_state,
 								video_errors: log_entry.video_errors,
+								poster_moment: log_entry.poster_moment,
 							},
 						));
 					}
@@ -301,6 +302,7 @@ pub async fn handle_tag_list_message(
 								manual_sort_key: log_entry.manual_sort_key,
 								video_state,
 								video_errors: log_entry.video_errors,
+								poster_moment: log_entry.poster_moment,
 							},
 						));
 					}

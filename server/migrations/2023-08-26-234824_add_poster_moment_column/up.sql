@@ -1,0 +1,2 @@
+ALTER TABLE event_log ADD COLUMN poster_moment BOOLEAN NOT NULL DEFAULT 'false';
+ALTER TABLE event_log ALTER COLUMN poster_moment DROP DEFAULT;

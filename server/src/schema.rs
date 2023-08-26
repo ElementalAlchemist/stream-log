@@ -61,6 +61,7 @@ diesel::table! {
 		manual_sort_key -> Nullable<Int4>,
 		video_state -> Nullable<VideoState>,
 		video_errors -> Text,
+		poster_moment -> Bool,
 	}
 }
 

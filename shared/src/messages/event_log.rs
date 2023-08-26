@@ -24,6 +24,7 @@ pub struct EventLogEntry {
 	pub manual_sort_key: Option<i32>,
 	pub video_state: Option<VideoState>,
 	pub video_errors: String,
+	pub poster_moment: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
