@@ -1280,7 +1280,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 						if props.event_log_entry.get().is_none() {
 							view! {
 								ctx,
-								button(type="button", on:click=start_now_handler) { "Now" }
+								button(type="button", tabindex=-1, on:click=start_now_handler) { "Now" }
 							}
 						} else {
 							view! { ctx, }
@@ -1298,7 +1298,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 						if props.event_log_entry.get().is_none() {
 							view! {
 								ctx,
-								button(type="button", on:click=end_now_handler) { "Now" }
+								button(type="button", tabindex=-1, on:click=end_now_handler) { "Now" }
 							}
 						} else {
 							view! { ctx, }
