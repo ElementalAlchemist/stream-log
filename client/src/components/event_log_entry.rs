@@ -1460,7 +1460,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 							} else {
 								view! { ctx, }
 							})
-							button(disabled=*disable_save.get()) { "Close" }
+							button(disabled=*disable_save.get()) { "Save" }
 						}
 					} else {
 						view! {
