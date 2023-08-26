@@ -1364,7 +1364,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 											spawn_local_scoped(ctx, async move {
 												let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 												let mut ws = ws_context.lock().await;
-												let new_tag = Tag { id: String::new(), name: tag_name.clone(), description: (*description_signal.get()).clone() };
+												let new_tag = Tag { id: String::new(), name: tag_name.clone(), description: (*description_signal.get()).clone(), playlist: String::new() };
 												let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate((*props.event.get()).clone(), Box::new(EventSubscriptionUpdate::NewTag(new_tag)))));
 												let message_json = match serde_json::to_string(&message) {
 													Ok(msg) => msg,

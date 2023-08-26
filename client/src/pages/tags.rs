@@ -71,6 +71,7 @@ async fn TagListLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			id: String::new(),
 			name,
 			description,
+			playlist: String::new(),
 		};
 
 		entered_new_tag_name_signal.modify().clear();
@@ -247,6 +248,38 @@ async fn TagListLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 									}
 								};
 
+								let entered_playlist_signal = create_signal(ctx, tag.playlist.clone());
+								let update_playlist_handler = {
+									let tag = tag.clone();
+									move |event: WebEvent| {
+										event.prevent_default();
+
+										let new_playlist_id = (*entered_playlist_signal.get()).clone();
+										let mut updated_tag = tag.clone();
+										updated_tag.playlist = new_playlist_id;
+
+										let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::TagListUpdate(TagListUpdate::UpdateTag(updated_tag))));
+										let message_json = match serde_json::to_string(&message) {
+											Ok(msg) => msg,
+											Err(error) => {
+												let data: &DataSignals = use_context(ctx);
+												data.errors.modify().push(ErrorData::new_with_error("Failed to serialize tag playlist update.", error));
+												return;
+											}
+										};
+
+										spawn_local_scoped(ctx, async move {
+											let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+											let mut ws = ws_context.lock().await;
+
+											if let Err(error) = ws.send(Message::Text(message_json)).await {
+												let data: &DataSignals = use_context(ctx);
+												data.errors.modify().push(ErrorData::new_with_error("Failed to send tag playlist update.", error));
+											}
+										});
+									}
+								};
+
 								view! {
 									ctx,
 									td {
@@ -269,6 +302,12 @@ async fn TagListLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 											input(type="text", list="tag_names", bind:value=entered_replacement_tag_signal, class=if *entered_replacement_tag_has_error_signal.get() { "error" } else { "" })
 											button(type="submit") { "Replace Tag" }
 											span(class="input_error") { (entered_replacement_tag_error_signal.get()) }
+										}
+									}
+									td {
+										form(on:submit=update_playlist_handler) {
+											input(type="text", bind:value=entered_playlist_signal)
+											button(type="submit") { "Set playlist ID" }
 										}
 									}
 								}

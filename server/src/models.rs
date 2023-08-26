@@ -220,6 +220,7 @@ pub struct Tag {
 	pub id: String,
 	pub tag: String,
 	pub description: String,
+	pub playlist: String,
 }
 
 impl From<Tag> for TagWs {
@@ -227,7 +228,13 @@ impl From<Tag> for TagWs {
 		let id = value.id;
 		let name = value.tag;
 		let description = value.description;
-		Self { id, name, description }
+		let playlist = value.playlist;
+		Self {
+			id,
+			name,
+			description,
+			playlist,
+		}
 	}
 }
 

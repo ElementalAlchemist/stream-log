@@ -53,6 +53,14 @@ pub async fn subscribe_to_tag_list(
 	Ok(())
 }
 
+#[derive(AsChangeset)]
+#[diesel(table_name = tags)]
+struct TagChange<'a> {
+	tag: &'a str,
+	description: &'a str,
+	playlist: Option<&'a str>,
+}
+
 pub async fn handle_tag_list_message(
 	db_connection: Arc<Mutex<PgConnection>>,
 	user: &UserData,
@@ -78,13 +86,19 @@ pub async fn handle_tag_list_message(
 					id: tag.id.clone(),
 					tag: tag.name.clone(),
 					description: tag.description.clone(),
+					playlist: tag.playlist.clone(),
+				};
+				let tag_change = TagChange {
+					tag: &tag.name,
+					description: &tag.description,
+					playlist: if user.is_admin { Some(&tag.playlist) } else { None },
 				};
 				let mut db_connection = db_connection.lock().await;
 				let db_result = diesel::insert_into(tags::table)
 					.values(tag_db)
 					.on_conflict(tags::id)
 					.do_update()
-					.set((tags::tag.eq(&tag.name), tags::description.eq(&tag.description)))
+					.set(tag_change)
 					.execute(&mut *db_connection);
 				if let Err(error) = db_result {
 					tide::log::error!("A database error occurred updating a tag: {}", error);

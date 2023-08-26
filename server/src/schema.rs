@@ -111,6 +111,7 @@ diesel::table! {
 		id -> Text,
 		tag -> Text,
 		description -> Text,
+		playlist -> Text,
 	}
 }
 

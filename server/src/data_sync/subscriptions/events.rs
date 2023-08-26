@@ -270,6 +270,7 @@ pub async fn subscribe_to_event(
 				id: tag.id.clone(),
 				name: tag.tag.clone(),
 				description: tag.description.clone(),
+				playlist: tag.playlist.clone(),
 			},
 			None => {
 				let message = FromServerMessage::SubscriptionFailure(
@@ -957,6 +958,7 @@ pub async fn handle_event_update(
 				id: new_id,
 				tag: new_tag.name.clone(),
 				description: new_tag.description.clone(),
+				playlist: String::new(),
 			};
 			let insert_result = diesel::insert_into(tags::table)
 				.values(new_tag_db)
