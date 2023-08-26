@@ -138,9 +138,11 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 							name_error_signal.set(String::from("Event must have a name"));
 							return;
 						}
-						if used_names_signal.get().contains(&name) {
-							name_error_signal.set(String::from("This name is already in use."));
-							return;
+						for list_event in data.all_events.get().iter() {
+							if event.id != list_event.id && event.name == list_event.name {
+								name_error_signal.set(String::from("This name is already in use."));
+								return;
+							}
 						}
 						name_error_signal.modify().clear();
 
