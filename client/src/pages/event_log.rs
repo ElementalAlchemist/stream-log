@@ -100,7 +100,9 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		move || {
 			let mut entries_by_parent: HashMap<String, Vec<EventLogEntry>> = HashMap::new();
 			for event_log_entry in event_log_entries.get().iter() {
-				let Some(parent) = event_log_entry.parent.clone() else { continue; };
+				let Some(parent) = event_log_entry.parent.clone() else {
+					continue;
+				};
 				entries_by_parent
 					.entry(parent)
 					.or_default()
@@ -348,19 +350,29 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		jump_id_entry.set(String::new());
 
 		let section_index = sections_by_row_id.get();
-		let Some(section_id) = section_index.get(&jump_id) else { return; };
+		let Some(section_id) = section_index.get(&jump_id) else {
+			return;
+		};
 		if !section_id.is_empty() {
 			if let Some(section_expand_signal) = expanded_sections.get().get(section_id) {
 				section_expand_signal.set(true);
 			}
 		}
 		let jump_to_id = format!("event_log_entry_{}", jump_id);
-		let Some(window) = window() else { return; };
-		let Some(document) = window.document() else { return; };
-		let Some(row_element) = document.get_element_by_id(&jump_to_id) else { return; };
+		let Some(window) = window() else {
+			return;
+		};
+		let Some(document) = window.document() else {
+			return;
+		};
+		let Some(row_element) = document.get_element_by_id(&jump_to_id) else {
+			return;
+		};
 		// The row doesn't have a size, so the browser won't scroll to it. As such, we pick a child element to which we
 		// can scroll.
-		let Some(cell_element) = row_element.first_element_child() else { return; };
+		let Some(cell_element) = row_element.first_element_child() else {
+			return;
+		};
 		cell_element.scroll_into_view();
 		jump_highlight_row_id.set(jump_id);
 	};

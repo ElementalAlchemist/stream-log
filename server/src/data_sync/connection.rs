@@ -312,7 +312,9 @@ async fn process_incoming_message(
 
 	match incoming_msg {
 		FromClientMessage::StartSubscription(subscription_type) => {
-			let Some(user) = user.as_ref() else { return Ok(()); }; // Only logged-in users can subscribe
+			let Some(user) = user.as_ref() else {
+				return Ok(());
+			}; // Only logged-in users can subscribe
 			match subscription_type {
 				SubscriptionType::EventLogData(event_id) => {
 					subscribe_to_event(
@@ -409,7 +411,9 @@ async fn process_incoming_message(
 			}
 		}
 		FromClientMessage::EndSubscription(subscription_type) => {
-			let Some(user) = user.as_ref() else { return Ok(()); }; // Users who aren't logged in can't be subscribed
+			let Some(user) = user.as_ref() else {
+				return Ok(());
+			}; // Users who aren't logged in can't be subscribed
 			let subscription_manager = subscription_manager.lock().await;
 			match subscription_type {
 				SubscriptionType::EventLogData(event_id) => {
@@ -449,7 +453,9 @@ async fn process_incoming_message(
 			}
 		}
 		FromClientMessage::SubscriptionMessage(subscription_update) => {
-			let Some(user) = user.as_ref() else { return Ok(()); }; // One must be subscribed (and therefore logged in) to send a subscription update message
+			let Some(user) = user.as_ref() else {
+				return Ok(());
+			}; // One must be subscribed (and therefore logged in) to send a subscription update message
 			match *subscription_update {
 				SubscriptionTargetUpdate::EventUpdate(event, update_data) => {
 					handle_event_update(

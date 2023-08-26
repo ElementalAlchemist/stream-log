@@ -138,7 +138,9 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 	let child_log_entries = create_memo(ctx, || {
 		let entries_by_parent = props.entries_by_parent.get();
 		let event_log_entry = event_log_entry_signal.get();
-		let Some(log_entry_id) = (*event_log_entry).as_ref().map(|entry| &entry.id) else { return Vec::new(); };
+		let Some(log_entry_id) = (*event_log_entry).as_ref().map(|entry| &entry.id) else {
+			return Vec::new();
+		};
 		entries_by_parent.get(log_entry_id).cloned().unwrap_or_default()
 	});
 
@@ -409,7 +411,9 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 	let start_time = create_memo(ctx, {
 		let event_start = props.event.start_time;
 		move || {
-			let Some(entry) = (*props.entry.get()).clone() else { return String::new(); };
+			let Some(entry) = (*props.entry.get()).clone() else {
+				return String::new();
+			};
 			let start_time_duration = entry.start_time - event_start;
 			format_duration(&start_time_duration)
 		}
@@ -418,15 +422,21 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 	let end_time = create_memo(ctx, {
 		let event_start = props.event.start_time;
 		move || {
-			let Some(entry) = (*props.entry.get()).clone() else { return String::new(); };
-			let Some(entry_end_time) = entry.end_time else { return String::new(); };
+			let Some(entry) = (*props.entry.get()).clone() else {
+				return String::new();
+			};
+			let Some(entry_end_time) = entry.end_time else {
+				return String::new();
+			};
 			let end_time_duration = entry_end_time - event_start;
 			format_duration(&end_time_duration)
 		}
 	});
 
 	let entry_type_style = create_memo(ctx, || {
-		let Some(entry_type) = (*props.entry_type.get()).clone() else { return String::new(); };
+		let Some(entry_type) = (*props.entry_type.get()).clone() else {
+			return String::new();
+		};
 		let entry_type_background = entry_type.color;
 
 		let entry_type_light_contrast: f64 = contrast(entry_type_background, WHITE);
@@ -1165,7 +1175,9 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 	};
 
 	let delete_handler = move |_event: WebEvent| {
-		let Some(log_entry) = (*props.event_log_entry.get()).clone() else { return; };
+		let Some(log_entry) = (*props.event_log_entry.get()).clone() else {
+			return;
+		};
 		spawn_local_scoped(ctx, async move {
 			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;

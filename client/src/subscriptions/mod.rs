@@ -212,7 +212,9 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 			FromServerMessage::SubscriptionMessage(subscription_data) => match *subscription_data {
 				SubscriptionData::EventUpdate(event, update_data) => {
 					let mut events_data = data_signals.events.modify();
-					let Some(event_data) = events_data.get_mut(&event.id) else { continue; };
+					let Some(event_data) = events_data.get_mut(&event.id) else {
+						continue;
+					};
 					match *update_data {
 						EventSubscriptionData::UpdateEvent => event_data.event.set(event),
 						EventSubscriptionData::NewLogEntry(log_entry, creating_user) => {
@@ -286,10 +288,14 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 							let user: &Signal<Option<UserData>> = use_context(ctx);
 							// If we're not logged in, we shouldn't be receiving typing data.
 							let user = user.get();
-							let Some(user) = user.as_ref() else { continue; };
+							let Some(user) = user.as_ref() else {
+								continue;
+							};
 							// If we're not subscribed to the event in question, we don't need to track this data.
 							let data_events = data_signals.events.get();
-							let Some(event_data) = data_events.get(&event.id) else { continue; };
+							let Some(event_data) = data_events.get(&event.id) else {
+								continue;
+							};
 							match typing_data {
 								TypingData::StartTime(event_log_entry, typed_time, typing_user) => {
 									if user.id != typing_user.id {

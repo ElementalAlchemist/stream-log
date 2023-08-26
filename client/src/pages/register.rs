@@ -87,7 +87,9 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 		// If the color is in the wrong format, the user either is in an unsupported browser or has manipulated the
 		// input field.
-		let Ok(color) = color_from_rgb_str(&color_signal.get()) else { return; };
+		let Ok(color) = color_from_rgb_str(&color_signal.get()) else {
+			return;
+		};
 
 		let registration_data = UserRegistrationFinalize {
 			name: (*username).clone(),

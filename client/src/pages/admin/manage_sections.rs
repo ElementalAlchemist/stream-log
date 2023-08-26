@@ -98,7 +98,9 @@ async fn AdminManageEventLogSectionsLoadedView<G: Html>(ctx: Scope<'_>) -> View<
 	let new_section_error = create_memo(ctx, || {
 		let new_section_name = new_section_name_entry.get();
 		let selected_event = selected_event.get();
-		let Some(selected_event) = selected_event.as_ref() else { return String::new(); };
+		let Some(selected_event) = selected_event.as_ref() else {
+			return String::new();
+		};
 		if new_section_name.is_empty() {
 			String::new()
 		} else if all_sections
@@ -116,12 +118,16 @@ async fn AdminManageEventLogSectionsLoadedView<G: Html>(ctx: Scope<'_>) -> View<
 		event.prevent_default();
 
 		let selected_event = selected_event.get();
-		let Some(selected_event) = selected_event.as_ref() else { return; };
+		let Some(selected_event) = selected_event.as_ref() else {
+			return;
+		};
 		let selected_event = selected_event.clone();
 
 		let name = (*new_section_name_entry.get()).clone();
 		let start_time = new_section_time_entry.get();
-		let Ok(start_time) = parse_time_field_value(&start_time) else { return; };
+		let Ok(start_time) = parse_time_field_value(&start_time) else {
+			return;
+		};
 
 		let new_section = EventLogSection {
 			id: String::new(),
