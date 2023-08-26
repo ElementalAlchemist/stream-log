@@ -242,7 +242,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 			let entry_type = (*new_entry_type.get()).clone();
 			let description = (*new_entry_description.get()).clone();
 			let media_link = (*new_entry_media_link.get()).clone();
-			let submitter_or_winner = (*new_entry_media_link.get()).clone();
+			let submitter_or_winner = (*new_entry_submitter_or_winner.get()).clone();
 			let tags = (*new_entry_tags.get()).clone();
 			let make_video = *new_entry_make_video.get();
 			let notes_to_editor = (*new_entry_notes_to_editor.get()).clone();
