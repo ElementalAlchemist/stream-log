@@ -86,11 +86,11 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	});
 
 	let addable_groups_signal = create_memo(ctx, || {
-		user_groups_signal.track();
+		let user_groups: HashSet<PermissionGroup> = user_groups_signal.get().iter().cloned().collect();
+		data.all_permission_groups.track();
 		if selected_user_signal.get().is_none() {
 			return Vec::new();
 		}
-		let user_groups: HashSet<PermissionGroup> = user_groups_signal.get().iter().cloned().collect();
 		let groups: Vec<PermissionGroup> = data
 			.all_permission_groups
 			.get()
