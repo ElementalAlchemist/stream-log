@@ -31,7 +31,7 @@ pub type UserTypingData = (UserData, HashMap<TypingTarget, String>);
 /// Formats a [`Duration`] object as hours:minutes
 fn format_duration(duration: &Duration) -> String {
 	let hours = duration.num_hours();
-	let minutes = duration.num_minutes() % 60;
+	let minutes = (duration.num_minutes() % 60).abs();
 	format!("{}:{:02}", hours, minutes)
 }
 
