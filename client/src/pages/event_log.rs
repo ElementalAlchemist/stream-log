@@ -412,6 +412,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 					div(class="event_log_header") { "Submitter/Winner" }
 					div(class="event_log_header") { "Media link" }
 					div(class="event_log_header") { "Tags" }
+					div(class="event_log_header") { "Poster?" }
 					div(class="event_log_header") { }
 					div(class="event_log_header") { }
 					div(class="event_log_header") { }
@@ -541,6 +542,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 										div(class="event_log_header") { "Description" }
 										div(class="event_log_header") { "Submitter/Winner" }
 										div(class="event_log_header") { "Media link" }
+										div(class="event_log_header") {}
 										div(class="event_log_header") {}
 										div(class="event_log_header") {}
 										div(class="event_log_header") {}

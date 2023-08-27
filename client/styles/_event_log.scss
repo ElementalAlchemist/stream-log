@@ -1,4 +1,4 @@
-$event_log_column_count: 15;
+$event_log_column_count: 16;
 
 #event_log_layout {
 	display: flex;
@@ -33,7 +33,7 @@ $event_log_column_count: 15;
 #event_log_data {
 	display: grid;
 	// Update $event_log_column_count to match the number of columns here
-	grid-template-columns: max-content max-content max-content max-content 1fr 150px 150px 150px 16px 25px 25px max-content 200px max-content 150px;
+	grid-template-columns: max-content max-content max-content max-content 1fr 150px 150px 150px max-content 16px 25px 25px max-content 200px max-content 150px;
 	font-size: 12px;
 	
 	.event_log_entry_edit {
@@ -143,6 +143,10 @@ $event_log_column_count: 15;
 
 .log_entry_tag:not(:last-child)::after {
 	content: ", ";
+}
+
+.log_entry_poster_moment {
+	text-align: center;
 }
 
 .log_entry_make_video > img {
@@ -287,7 +291,7 @@ $event_log_column_count: 15;
 
 #event_log_new_entry_typing {
 	display: grid;
-	grid-template-columns: max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content;
+	grid-template-columns: max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content;
 	gap: 8px;
 
 	.event_log_entry_typing_username {

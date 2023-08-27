@@ -570,6 +570,13 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 					}
 				)
 			}
+			div(class="log_entry_poster_moment") {
+				(if (*props.entry.get()).as_ref().map(|entry| entry.poster_moment).unwrap_or_default() {
+					"✔️"
+				} else {
+					""
+				})
+			}
 			div(class="log_entry_make_video") {
 				({
 					let make_video = (*props.entry.get()).as_ref().map(|entry| entry.make_video).unwrap_or(false);
@@ -1562,6 +1569,7 @@ pub fn EventLogEntryTyping<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryTypi
 						div { (typed_description) }
 						div { (typed_submitter_or_winner) }
 						div { (typed_media_link) }
+						div {}
 						div {}
 						div {}
 						div {}
