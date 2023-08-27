@@ -715,7 +715,14 @@ pub async fn handle_event_update(
 		EventSubscriptionUpdate::ChangePosterMoment(log_entry, poster_moment) => {
 			let mut db_connection = db_connection.lock().await;
 			let update_func = |db_connection: &mut PgConnection| {
-				diesel::update(event_log::table).filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null())).set((event_log::poster_moment.eq(poster_moment), event_log::last_update_user.eq(&user.id), event_log::last_updated.eq(Utc::now()))).get_result(db_connection)
+				diesel::update(event_log::table)
+					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
+					.set((
+						event_log::poster_moment.eq(poster_moment),
+						event_log::last_update_user.eq(&user.id),
+						event_log::last_updated.eq(Utc::now()),
+					))
+					.get_result(db_connection)
 			};
 			let update_result = log_entry_change(&mut db_connection, update_func);
 

@@ -66,6 +66,7 @@ enum ModifiedEventLogEntryParts {
 	SubmitterOrWinner,
 	Tags,
 	MakeVideo,
+	PosterMoment,
 	NotesToEditor,
 	Editor,
 	Highlighted,
@@ -153,6 +154,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 	let edit_submitter_or_winner = create_signal(ctx, entry.submitter_or_winner.clone());
 	let edit_tags = create_signal(ctx, entry.tags.clone());
 	let edit_make_video = create_signal(ctx, entry.make_video);
+	let edit_poster_moment = create_signal(ctx, entry.poster_moment);
 	let edit_notes_to_editor = create_signal(ctx, entry.notes_to_editor.clone());
 	let edit_editor = create_signal(ctx, entry.editor.clone());
 	let edit_highlighted = create_signal(ctx, entry.highlighted);
@@ -171,6 +173,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 				edit_submitter_or_winner.set(entry.submitter_or_winner.clone());
 				edit_tags.set(entry.tags.clone());
 				edit_make_video.set(entry.make_video);
+				edit_poster_moment.set(entry.poster_moment);
 				edit_notes_to_editor.set(entry.notes_to_editor.clone());
 				edit_editor.set(entry.editor.clone());
 				edit_highlighted.set(entry.highlighted);
@@ -213,6 +216,10 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 	create_effect(ctx, || {
 		edit_make_video.track();
 		modified_data.modify().insert(ModifiedEventLogEntryParts::MakeVideo);
+	});
+	create_effect(ctx, || {
+		edit_poster_moment.track();
+		modified_data.modify().insert(ModifiedEventLogEntryParts::PosterMoment);
 	});
 	create_effect(ctx, || {
 		edit_notes_to_editor.track();
@@ -300,6 +307,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 								ModifiedEventLogEntryParts::SubmitterOrWinner => EventSubscriptionUpdate::ChangeSubmitterWinner(log_entry.clone(), (*edit_submitter_or_winner.get()).clone()),
 								ModifiedEventLogEntryParts::Tags => EventSubscriptionUpdate::ChangeTags(log_entry.clone(), (*edit_tags.get()).clone()),
 								ModifiedEventLogEntryParts::MakeVideo => EventSubscriptionUpdate::ChangeMakeVideo(log_entry.clone(), *edit_make_video.get()),
+								ModifiedEventLogEntryParts::PosterMoment => EventSubscriptionUpdate::ChangePosterMoment(log_entry.clone(), *edit_poster_moment.get()),
 								ModifiedEventLogEntryParts::NotesToEditor => EventSubscriptionUpdate::ChangeNotesToEditor(log_entry.clone(), (*edit_notes_to_editor.get()).clone()),
 								ModifiedEventLogEntryParts::Editor => EventSubscriptionUpdate::ChangeEditor(log_entry.clone(), (*edit_editor.get()).clone()),
 								ModifiedEventLogEntryParts::Highlighted => EventSubscriptionUpdate::ChangeHighlighted(log_entry.clone(), *edit_highlighted.get()),
@@ -339,6 +347,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 					submitter_or_winner=edit_submitter_or_winner,
 					tags=edit_tags,
 					make_video=edit_make_video,
+					poster_moment=edit_poster_moment,
 					notes_to_editor=edit_notes_to_editor,
 					editor=edit_editor,
 					editor_name_index=editors_by_name_index,
@@ -659,6 +668,7 @@ pub struct EventLogEntryEditProps<'a, TCloseHandler: Fn(u8)> {
 	submitter_or_winner: &'a Signal<String>,
 	tags: &'a Signal<Vec<Tag>>,
 	make_video: &'a Signal<bool>,
+	poster_moment: &'a Signal<bool>,
 	notes_to_editor: &'a Signal<String>,
 	editor: &'a Signal<Option<UserData>>,
 	editor_name_index: &'a ReadSignal<HashMap<String, UserData>>,
@@ -1404,6 +1414,12 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 					label {
 						input(type="checkbox", bind:checked=props.make_video)
 						"Should make video?"
+					}
+				}
+				div(class="event_log_entry_edit_poster_moment") {
+					label {
+						input(type="checkbox", bind:checked=props.poster_moment)
+						"Poster moment"
 					}
 				}
 				div(class="event_log_entry_edit_notes_to_editor") {

@@ -209,6 +209,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 	let new_entry_submitter_or_winner = create_signal(ctx, String::new());
 	let new_entry_tags: &Signal<Vec<Tag>> = create_signal(ctx, Vec::new());
 	let new_entry_make_video = create_signal(ctx, false);
+	let new_entry_poster_moment = create_signal(ctx, false);
 	let new_entry_notes_to_editor = create_signal(ctx, String::new());
 	let new_entry_editor: &Signal<Option<UserData>> = create_signal(ctx, None);
 	let new_entry_highlighted = create_signal(ctx, false);
@@ -245,6 +246,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 			let submitter_or_winner = (*new_entry_submitter_or_winner.get()).clone();
 			let tags = (*new_entry_tags.get()).clone();
 			let make_video = *new_entry_make_video.get();
+			let poster_moment = *new_entry_poster_moment.get();
 			let notes_to_editor = (*new_entry_notes_to_editor.get()).clone();
 			let editor = (*new_entry_editor.get()).clone();
 			let highlighted = *new_entry_highlighted.get();
@@ -270,7 +272,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 				manual_sort_key,
 				video_state: None,
 				video_errors: String::new(),
-				poster_moment: false,
+				poster_moment,
 			};
 
 			spawn_local_scoped(ctx, async move {
@@ -567,6 +569,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 							submitter_or_winner=new_entry_submitter_or_winner,
 							tags=new_entry_tags,
 							make_video=new_entry_make_video,
+							poster_moment=new_entry_poster_moment,
 							notes_to_editor=new_entry_notes_to_editor,
 							editor=new_entry_editor,
 							editor_name_index=editors_by_name_index,
