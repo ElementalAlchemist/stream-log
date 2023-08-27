@@ -147,6 +147,16 @@ $event_log_column_count: 16;
 
 .log_entry_poster_moment {
 	text-align: center;
+
+	&:not(:empty) {
+		background-color: #ccf;
+	}
+}
+
+@media (prefers-color-scheme: dark) {
+	.log_entry_poster_moment:not(:empty) {
+		background-color: #009;
+	}
 }
 
 .log_entry_make_video > img {
