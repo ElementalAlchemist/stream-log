@@ -47,6 +47,7 @@ pub enum EventSubscriptionUpdate {
 	ChangeDescription(EventLogEntry, String),
 	ChangeMediaLink(EventLogEntry, String),
 	ChangeSubmitterWinner(EventLogEntry, String),
+	ChangePosterMoment(EventLogEntry, bool),
 	ChangeTags(EventLogEntry, Vec<Tag>),
 	ChangeMakeVideo(EventLogEntry, bool),
 	ChangeNotesToEditor(EventLogEntry, String),
