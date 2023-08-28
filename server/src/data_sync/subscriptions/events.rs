@@ -31,6 +31,7 @@ use stream_log_shared::messages::{DataError, FromServerMessage};
 pub async fn subscribe_to_event(
 	db_connection: Arc<Mutex<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
+	connection_id: &str,
 	user: &UserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	event_id: &str,
@@ -127,7 +128,7 @@ pub async fn subscribe_to_event(
 	{
 		let mut subscriptions = subscription_manager.lock().await;
 		subscriptions
-			.subscribe_user_to_event(event_id, user, conn_update_tx.clone())
+			.subscribe_to_event(event_id, connection_id, conn_update_tx.clone())
 			.await;
 	}
 
@@ -158,7 +159,7 @@ pub async fn subscribe_to_event(
 			subscription_manager
 				.lock()
 				.await
-				.unsubscribe_user_from_event(event_id, user)
+				.unsubscribe_from_event(event_id, connection_id)
 				.await?;
 			return Ok(());
 		}
@@ -178,7 +179,7 @@ pub async fn subscribe_to_event(
 			subscription_manager
 				.lock()
 				.await
-				.unsubscribe_user_from_event(event_id, user)
+				.unsubscribe_from_event(event_id, connection_id)
 				.await?;
 			return Ok(());
 		}
@@ -202,7 +203,7 @@ pub async fn subscribe_to_event(
 			subscription_manager
 				.lock()
 				.await
-				.unsubscribe_user_from_event(event_id, user)
+				.unsubscribe_from_event(event_id, connection_id)
 				.await?;
 			return Ok(());
 		}
@@ -230,7 +231,7 @@ pub async fn subscribe_to_event(
 			subscription_manager
 				.lock()
 				.await
-				.unsubscribe_user_from_event(event_id, user)
+				.unsubscribe_from_event(event_id, connection_id)
 				.await?;
 			return Ok(());
 		}
@@ -256,7 +257,7 @@ pub async fn subscribe_to_event(
 			subscription_manager
 				.lock()
 				.await
-				.unsubscribe_user_from_event(event_id, user)
+				.unsubscribe_from_event(event_id, connection_id)
 				.await?;
 			return Ok(());
 		}
@@ -283,7 +284,7 @@ pub async fn subscribe_to_event(
 				subscription_manager
 					.lock()
 					.await
-					.unsubscribe_user_from_event(event_id, user)
+					.unsubscribe_from_event(event_id, connection_id)
 					.await?;
 				return Ok(());
 			}
@@ -318,7 +319,7 @@ pub async fn subscribe_to_event(
 			subscription_manager
 				.lock()
 				.await
-				.unsubscribe_user_from_event(event_id, user)
+				.unsubscribe_from_event(event_id, connection_id)
 				.await?;
 			return Ok(());
 		}
@@ -341,7 +342,7 @@ pub async fn subscribe_to_event(
 			subscription_manager
 				.lock()
 				.await
-				.unsubscribe_user_from_event(event_id, user)
+				.unsubscribe_from_event(event_id, connection_id)
 				.await?;
 			return Ok(());
 		}
@@ -411,7 +412,7 @@ pub async fn subscribe_to_event(
 					subscription_manager
 						.lock()
 						.await
-						.unsubscribe_user_from_event(event_id, user)
+						.unsubscribe_from_event(event_id, connection_id)
 						.await?;
 					return Ok(());
 				}

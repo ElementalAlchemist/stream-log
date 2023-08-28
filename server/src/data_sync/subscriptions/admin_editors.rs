@@ -17,6 +17,7 @@ use stream_log_shared::messages::{DataError, FromServerMessage};
 pub async fn subscribe_to_admin_editors(
 	db_connection: Arc<Mutex<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
+	connection_id: &str,
 	user: &UserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 ) -> Result<(), HandleConnectionError> {
@@ -118,7 +119,7 @@ pub async fn subscribe_to_admin_editors(
 
 	let subscription_manager = subscription_manager.lock().await;
 	subscription_manager
-		.add_admin_editors_subscription(user, conn_update_tx.clone())
+		.add_admin_editors_subscription(connection_id, conn_update_tx.clone())
 		.await;
 
 	let message = FromServerMessage::InitialSubscriptionLoad(Box::new(InitialSubscriptionLoadData::AdminEventEditors(
@@ -133,6 +134,7 @@ pub async fn subscribe_to_admin_editors(
 
 pub async fn handle_admin_editors_message(
 	db_connection: Arc<Mutex<PgConnection>>,
+	connection_id: &str,
 	user: &UserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	update_message: AdminEventEditorUpdate,
@@ -143,7 +145,7 @@ pub async fn handle_admin_editors_message(
 	if !subscription_manager
 		.lock()
 		.await
-		.user_is_subscribed_to_admin_editors(user)
+		.is_subscribed_to_admin_editors(connection_id)
 		.await
 	{
 		return;

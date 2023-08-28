@@ -15,6 +15,7 @@ use stream_log_shared::messages::{DataError, FromServerMessage};
 pub async fn subscribe_to_admin_users(
 	db_connection: Arc<Mutex<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
+	connection_id: &str,
 	user: &UserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 ) -> Result<(), HandleConnectionError> {
@@ -46,7 +47,7 @@ pub async fn subscribe_to_admin_users(
 
 	let subscription_manager = subscription_manager.lock().await;
 	subscription_manager
-		.add_admin_user_subscription(user, conn_update_tx.clone())
+		.add_admin_user_subscription(connection_id, conn_update_tx.clone())
 		.await;
 
 	let all_user_data: Vec<UserData> = all_users.drain(..).map(|user| user.into()).collect();
@@ -61,6 +62,7 @@ pub async fn subscribe_to_admin_users(
 
 pub async fn handle_admin_users_message(
 	db_connection: Arc<Mutex<PgConnection>>,
+	connection_id: &str,
 	user: &UserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	modified_user: &UserData,
@@ -71,7 +73,7 @@ pub async fn handle_admin_users_message(
 	if !subscription_manager
 		.lock()
 		.await
-		.user_is_subscribed_to_admin_users(user)
+		.is_subscribed_to_admin_users(connection_id)
 		.await
 	{
 		return;
@@ -104,7 +106,7 @@ pub async fn handle_admin_users_message(
 	if let Err(error) = send_result {
 		tide::log::error!("Failed to send admin message for user update: {}", error);
 	}
-	let user_message = ConnectionUpdate::UserUpdate(UserDataUpdate::User(modified_user.clone()));
+	let user_message = UserDataUpdate::User(modified_user.clone());
 	subscription_manager
 		.send_message_to_user(&modified_user.id, user_message)
 		.await;

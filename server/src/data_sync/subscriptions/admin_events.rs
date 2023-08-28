@@ -16,6 +16,7 @@ use stream_log_shared::messages::{DataError, FromServerMessage};
 pub async fn subscribe_to_admin_events(
 	db_connection: Arc<Mutex<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
+	connection_id: &str,
 	user: &UserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 ) -> Result<(), HandleConnectionError> {
@@ -47,7 +48,7 @@ pub async fn subscribe_to_admin_events(
 
 	let subscription_manager = subscription_manager.lock().await;
 	subscription_manager
-		.add_admin_event_subscription(user, conn_update_tx.clone())
+		.add_admin_event_subscription(connection_id, conn_update_tx.clone())
 		.await;
 
 	let message =
@@ -61,6 +62,7 @@ pub async fn subscribe_to_admin_events(
 
 pub async fn handle_admin_event_message(
 	db_connection: Arc<Mutex<PgConnection>>,
+	connection_id: &str,
 	user: &UserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	update_message: AdminEventUpdate,
@@ -71,7 +73,7 @@ pub async fn handle_admin_event_message(
 	if !subscription_manager
 		.lock()
 		.await
-		.user_is_subscribed_to_admin_events(user)
+		.is_subscribed_to_admin_events(connection_id)
 		.await
 	{
 		return;

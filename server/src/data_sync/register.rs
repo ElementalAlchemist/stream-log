@@ -54,6 +54,7 @@ pub async fn check_username(
 pub async fn register_user(
 	db_connection: Arc<Mutex<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
+	connection_id: &str,
 	openid_user_id: &str,
 	registration_data: UserRegistrationFinalize,
 	user: &mut Option<UserData>,
@@ -117,7 +118,7 @@ pub async fn register_user(
 
 				let mut subscription_manager = subscription_manager.lock().await;
 				subscription_manager
-					.subscribe_user_to_self(&user_data, conn_update_tx.clone())
+					.subscribe_to_self_user(connection_id, &user_data, conn_update_tx.clone())
 					.await;
 
 				let admin_message = SubscriptionData::AdminUsersUpdate(user_data.clone());

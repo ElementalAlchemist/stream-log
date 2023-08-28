@@ -5,7 +5,6 @@ use async_std::sync::{Arc, Mutex};
 use async_std::task::{spawn, JoinHandle};
 use std::collections::HashMap;
 use stream_log_shared::messages::subscriptions::{SubscriptionData, SubscriptionType};
-use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::FromServerMessage;
 
 /// Manages subscriptions for a single set of subscription events
@@ -13,13 +12,13 @@ pub struct SingleSubscriptionManager {
 	subscription_type: SubscriptionType,
 	pub thread_handle: JoinHandle<()>,
 	subscription_send_channel: Sender<SubscriptionData>,
-	subscriptions: Arc<Mutex<HashMap<String, UserSubscriptionData>>>,
+	subscriptions: Arc<Mutex<HashMap<String, SingleSubscriptionData>>>,
 }
 
 impl SingleSubscriptionManager {
 	pub fn new(subscription_type: SubscriptionType) -> Self {
 		let (broadcast_tx, mut broadcast_rx) = unbounded::<SubscriptionData>();
-		let subscriptions: Arc<Mutex<HashMap<String, UserSubscriptionData>>> = Arc::new(Mutex::new(HashMap::new()));
+		let subscriptions: Arc<Mutex<HashMap<String, SingleSubscriptionData>>> = Arc::new(Mutex::new(HashMap::new()));
 		let thread_handle = spawn({
 			let subscriptions = Arc::clone(&subscriptions);
 			async move {
@@ -51,24 +50,25 @@ impl SingleSubscriptionManager {
 		}
 	}
 
-	pub async fn subscribe_user(&self, user: &UserData, channel: Sender<ConnectionUpdate>) {
+	pub async fn subscribe(&self, connection_id: &str, channel: Sender<ConnectionUpdate>) {
 		let mut subscriptions = self.subscriptions.lock().await;
-		let user_subscription_data = UserSubscriptionData { channel };
-		subscriptions.insert(user.id.clone(), user_subscription_data);
+		let subscription_data = SingleSubscriptionData { channel };
+		subscriptions.insert(connection_id.to_owned(), subscription_data);
 	}
 
-	pub async fn unsubscribe_user(&self, user: &UserData) -> Result<(), SendError<ConnectionUpdate>> {
+	/// Unsubscribes a connection. Returns a result indicating whether the connection was notified successfully.
+	pub async fn unsubscribe(&self, connection_id: &str) -> Result<(), SendError<ConnectionUpdate>> {
 		let mut subscriptions = self.subscriptions.lock().await;
-		if let Some(user_subscription_data) = subscriptions.remove(&user.id) {
+		if let Some(subscription_data) = subscriptions.remove(connection_id) {
 			let message = FromServerMessage::Unsubscribed(self.subscription_type.clone());
 			let message = ConnectionUpdate::SendData(Box::new(message));
-			user_subscription_data.channel.send(message).await?;
+			subscription_data.channel.send(message).await?;
 		}
 		Ok(())
 	}
 
-	pub async fn user_is_subscribed(&self, user: &UserData) -> bool {
-		self.subscriptions.lock().await.contains_key(&user.id)
+	pub async fn is_subscribed(&self, connection_id: &str) -> bool {
+		self.subscriptions.lock().await.contains_key(connection_id)
 	}
 
 	pub async fn broadcast_message(&self, message: SubscriptionData) -> Result<(), SendError<SubscriptionData>> {
@@ -88,6 +88,6 @@ impl SingleSubscriptionManager {
 	}
 }
 
-struct UserSubscriptionData {
+struct SingleSubscriptionData {
 	channel: Sender<ConnectionUpdate>,
 }

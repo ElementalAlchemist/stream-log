@@ -22,6 +22,7 @@ use stream_log_shared::messages::{DataError, FromServerMessage};
 pub async fn subscribe_to_admin_permission_groups(
 	db_connection: Arc<Mutex<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
+	connection_id: &str,
 	user: &UserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 ) -> Result<(), HandleConnectionError> {
@@ -74,7 +75,7 @@ pub async fn subscribe_to_admin_permission_groups(
 
 	let subscription_manager = subscription_manager.lock().await;
 	subscription_manager
-		.add_admin_permission_group_subscription(user, conn_update_tx.clone())
+		.add_admin_permission_group_subscription(connection_id, conn_update_tx.clone())
 		.await;
 
 	let message = FromServerMessage::InitialSubscriptionLoad(Box::new(
@@ -89,6 +90,7 @@ pub async fn subscribe_to_admin_permission_groups(
 
 pub async fn handle_admin_permission_groups_message(
 	db_connection: Arc<Mutex<PgConnection>>,
+	connection_id: &str,
 	user: &UserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	update_message: AdminPermissionGroupUpdate,
@@ -99,7 +101,7 @@ pub async fn handle_admin_permission_groups_message(
 	if !subscription_manager
 		.lock()
 		.await
-		.user_is_subscribed_to_admin_permission_groups(user)
+		.is_subscribed_to_admin_permission_groups(connection_id)
 		.await
 	{
 		return;
@@ -204,10 +206,7 @@ pub async fn handle_admin_permission_groups_message(
 			match user_permissions {
 				Ok(users) => {
 					for (user, permission) in users {
-						let message = ConnectionUpdate::UserUpdate(UserDataUpdate::EventPermissions(
-							event.clone().into(),
-							permission,
-						));
+						let message = UserDataUpdate::EventPermissions(event.clone().into(), permission);
 						subscription_manager.send_message_to_user(&user, message).await;
 					}
 				}
@@ -263,8 +262,7 @@ pub async fn handle_admin_permission_groups_message(
 			match user_permissions {
 				Ok(users) => {
 					for (user, permission) in users {
-						let message =
-							ConnectionUpdate::UserUpdate(UserDataUpdate::EventPermissions(event.clone(), permission));
+						let message = UserDataUpdate::EventPermissions(event.clone(), permission);
 						subscription_manager.send_message_to_user(&user, message).await;
 					}
 				}
@@ -280,6 +278,7 @@ pub async fn handle_admin_permission_groups_message(
 pub async fn subscribe_to_admin_permission_groups_users(
 	db_connection: Arc<Mutex<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
+	connection_id: &str,
 	user: &UserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 ) -> Result<(), HandleConnectionError> {
@@ -385,7 +384,7 @@ pub async fn subscribe_to_admin_permission_groups_users(
 
 	let subscription_manager = subscription_manager.lock().await;
 	subscription_manager
-		.add_admin_permission_group_users_subscription(user, conn_update_tx.clone())
+		.add_admin_permission_group_users_subscription(connection_id, conn_update_tx.clone())
 		.await;
 
 	let message = FromServerMessage::InitialSubscriptionLoad(Box::new(
@@ -400,6 +399,7 @@ pub async fn subscribe_to_admin_permission_groups_users(
 
 pub async fn handle_admin_permission_group_users_message(
 	db_connection: Arc<Mutex<PgConnection>>,
+	connection_id: &str,
 	user: &UserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	update_message: AdminUserPermissionGroupUpdate,
@@ -410,7 +410,7 @@ pub async fn handle_admin_permission_group_users_message(
 	if !subscription_manager
 		.lock()
 		.await
-		.user_is_subscribed_to_admin_permission_group_users(user)
+		.is_subscribed_to_admin_permission_group_users(connection_id)
 		.await
 	{
 		return;
@@ -499,7 +499,7 @@ pub async fn handle_admin_permission_group_users_message(
 
 			let mut subscription_manager = subscription_manager.lock().await;
 			for (event, permission) in user_event_permissions {
-				let user_message = ConnectionUpdate::UserUpdate(UserDataUpdate::EventPermissions(event, permission));
+				let user_message = UserDataUpdate::EventPermissions(event, permission);
 				subscription_manager
 					.send_message_to_user(&user_group_association.user.id, user_message)
 					.await;
@@ -597,7 +597,7 @@ pub async fn handle_admin_permission_group_users_message(
 
 			let mut subscription_manager = subscription_manager.lock().await;
 			for (event, permission) in user_event_permissions {
-				let user_message = ConnectionUpdate::UserUpdate(UserDataUpdate::EventPermissions(event, permission));
+				let user_message = UserDataUpdate::EventPermissions(event, permission);
 				subscription_manager
 					.send_message_to_user(&user_group_association.user.id, user_message)
 					.await;

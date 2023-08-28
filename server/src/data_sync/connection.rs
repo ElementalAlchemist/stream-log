@@ -179,11 +179,12 @@ async fn process_messages(
 	mut event_permission_cache: HashMap<Event, Option<Permission>>,
 ) -> Result<(), HandleConnectionError> {
 	let (conn_update_tx, conn_update_rx) = unbounded::<ConnectionUpdate>();
+	let connection_id = cuid2::create_id();
 
 	if let Some(user) = user.as_ref() {
 		let mut subscription_manager = subscription_manager.lock().await;
 		subscription_manager
-			.subscribe_user_to_self(user, conn_update_tx.clone())
+			.subscribe_to_self_user(&connection_id, user, conn_update_tx.clone())
 			.await;
 	}
 
@@ -192,6 +193,7 @@ async fn process_messages(
 			db_connection: &db_connection,
 			stream,
 			user: &mut user,
+			connection_id: &connection_id,
 			subscription_manager: &subscription_manager,
 			openid_user_id,
 			event_permission_cache: &mut event_permission_cache,
@@ -203,13 +205,11 @@ async fn process_messages(
 		}
 	};
 
-	if let Some(user) = user.as_ref() {
-		subscription_manager
-			.lock()
-			.await
-			.unsubscribe_user_from_all(user)
-			.await?;
-	}
+	subscription_manager
+		.lock()
+		.await
+		.unsubscribe_from_all(&connection_id)
+		.await?;
 
 	result
 }
@@ -218,6 +218,7 @@ struct ProcessMessageParams<'a> {
 	db_connection: &'a Arc<Mutex<PgConnection>>,
 	stream: &'a mut WebSocketConnection,
 	user: &'a mut Option<UserData>,
+	connection_id: &'a str,
 	subscription_manager: &'a Arc<Mutex<SubscriptionManager>>,
 	openid_user_id: &'a str,
 	event_permission_cache: &'a mut HashMap<Event, Option<Permission>>,
@@ -231,9 +232,12 @@ async fn process_message(args: ProcessMessageParams<'_>) -> Result<(), HandleCon
 		let mut recv_msg_future = Box::pin(recv_msg(args.stream).fuse());
 		select! {
 			conn_update_result = conn_update_future => process_connection_update(conn_update_result, args.user, args.event_permission_cache),
-			recv_msg_result = recv_msg_future => match process_incoming_message(recv_msg_result, args.db_connection, args.conn_update_tx, args.user, args.subscription_manager, args.openid_user_id, args.event_permission_cache).await {
-				Ok(_) => Ok(None),
-				Err(error) => Err(error)
+			recv_msg_result = recv_msg_future => {
+				let incoming_msg_params = ProcessIncomingMessageParams { recv_msg_result, db_connection: args.db_connection, conn_update_tx: args.conn_update_tx, user: args.user, connection_id: args.connection_id, subscription_manager: args.subscription_manager, openid_user_id: args.openid_user_id, event_permission_cache: args.event_permission_cache };
+				match process_incoming_message(incoming_msg_params).await {
+					Ok(_) => Ok(None),
+					Err(error) => Err(error)
+				}
 			}
 		}
 	};
@@ -284,17 +288,20 @@ fn process_connection_update(
 	}
 }
 
-async fn process_incoming_message(
+struct ProcessIncomingMessageParams<'a> {
 	recv_msg_result: Result<String, WebSocketRecvError>,
-	db_connection: &Arc<Mutex<PgConnection>>,
+	db_connection: &'a Arc<Mutex<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
-	user: &mut Option<UserData>,
-	subscription_manager: &Arc<Mutex<SubscriptionManager>>,
-	openid_user_id: &str,
-	event_permission_cache: &mut HashMap<Event, Option<Permission>>,
-) -> Result<(), HandleConnectionError> {
+	user: &'a mut Option<UserData>,
+	connection_id: &'a str,
+	subscription_manager: &'a Arc<Mutex<SubscriptionManager>>,
+	openid_user_id: &'a str,
+	event_permission_cache: &'a mut HashMap<Event, Option<Permission>>,
+}
+
+async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Result<(), HandleConnectionError> {
 	let incoming_msg = {
-		match recv_msg_result {
+		match args.recv_msg_result {
 			Ok(msg) => msg,
 			Err(error) => {
 				error.log();
@@ -312,239 +319,270 @@ async fn process_incoming_message(
 
 	match incoming_msg {
 		FromClientMessage::StartSubscription(subscription_type) => {
-			let Some(user) = user.as_ref() else {
+			let Some(user) = args.user.as_ref() else {
 				return Ok(());
 			}; // Only logged-in users can subscribe
 			match subscription_type {
 				SubscriptionType::EventLogData(event_id) => {
 					subscribe_to_event(
-						Arc::clone(db_connection),
-						conn_update_tx,
+						Arc::clone(args.db_connection),
+						args.conn_update_tx,
+						args.connection_id,
 						user,
-						Arc::clone(subscription_manager),
+						Arc::clone(args.subscription_manager),
 						&event_id,
-						event_permission_cache,
+						args.event_permission_cache,
 					)
 					.await?
 				}
 				SubscriptionType::TagList => {
 					subscribe_to_tag_list(
-						Arc::clone(db_connection),
-						conn_update_tx,
-						user,
-						Arc::clone(subscription_manager),
+						Arc::clone(args.db_connection),
+						args.conn_update_tx,
+						args.connection_id,
+						Arc::clone(args.subscription_manager),
 					)
 					.await?
 				}
 				SubscriptionType::AdminUsers => {
 					subscribe_to_admin_users(
-						Arc::clone(db_connection),
-						conn_update_tx,
+						Arc::clone(args.db_connection),
+						args.conn_update_tx,
+						args.connection_id,
 						user,
-						Arc::clone(subscription_manager),
+						Arc::clone(args.subscription_manager),
 					)
 					.await?
 				}
 				SubscriptionType::AdminEvents => {
 					subscribe_to_admin_events(
-						Arc::clone(db_connection),
-						conn_update_tx,
+						Arc::clone(args.db_connection),
+						args.conn_update_tx,
+						args.connection_id,
 						user,
-						Arc::clone(subscription_manager),
+						Arc::clone(args.subscription_manager),
 					)
 					.await?
 				}
 				SubscriptionType::AdminPermissionGroups => {
 					subscribe_to_admin_permission_groups(
-						Arc::clone(db_connection),
-						conn_update_tx,
+						Arc::clone(args.db_connection),
+						args.conn_update_tx,
+						args.connection_id,
 						user,
-						Arc::clone(subscription_manager),
+						Arc::clone(args.subscription_manager),
 					)
 					.await?
 				}
 				SubscriptionType::AdminPermissionGroupUsers => {
 					subscribe_to_admin_permission_groups_users(
-						Arc::clone(db_connection),
-						conn_update_tx,
+						Arc::clone(args.db_connection),
+						args.conn_update_tx,
+						args.connection_id,
 						user,
-						Arc::clone(subscription_manager),
+						Arc::clone(args.subscription_manager),
 					)
 					.await?
 				}
 				SubscriptionType::AdminEntryTypes => {
 					subscribe_to_admin_entry_types(
-						Arc::clone(db_connection),
-						conn_update_tx,
+						Arc::clone(args.db_connection),
+						args.conn_update_tx,
+						args.connection_id,
 						user,
-						Arc::clone(subscription_manager),
+						Arc::clone(args.subscription_manager),
 					)
 					.await?
 				}
 				SubscriptionType::AdminEntryTypesEvents => {
 					subscribe_to_admin_entry_types_events(
-						Arc::clone(db_connection),
-						conn_update_tx,
+						Arc::clone(args.db_connection),
+						args.conn_update_tx,
+						args.connection_id,
 						user,
-						Arc::clone(subscription_manager),
+						Arc::clone(args.subscription_manager),
 					)
 					.await?
 				}
 				SubscriptionType::AdminEventEditors => {
 					subscribe_to_admin_editors(
-						Arc::clone(db_connection),
-						conn_update_tx,
+						Arc::clone(args.db_connection),
+						args.conn_update_tx,
+						args.connection_id,
 						user,
-						Arc::clone(subscription_manager),
+						Arc::clone(args.subscription_manager),
 					)
 					.await?
 				}
 				SubscriptionType::AdminEventLogSections => {
 					subscribe_to_admin_event_log_sections(
-						Arc::clone(db_connection),
-						conn_update_tx,
+						Arc::clone(args.db_connection),
+						args.conn_update_tx,
+						args.connection_id,
 						user,
-						Arc::clone(subscription_manager),
+						Arc::clone(args.subscription_manager),
 					)
 					.await?
 				}
 			}
 		}
 		FromClientMessage::EndSubscription(subscription_type) => {
-			let Some(user) = user.as_ref() else {
-				return Ok(());
-			}; // Users who aren't logged in can't be subscribed
-			let subscription_manager = subscription_manager.lock().await;
+			let subscription_manager = args.subscription_manager.lock().await;
 			match subscription_type {
 				SubscriptionType::EventLogData(event_id) => {
 					subscription_manager
-						.unsubscribe_user_from_event(&event_id, user)
+						.unsubscribe_from_event(&event_id, args.connection_id)
 						.await?
 				}
-				SubscriptionType::TagList => subscription_manager.remove_tag_list_subscription(user).await?,
-				SubscriptionType::AdminUsers => subscription_manager.remove_admin_user_subscription(user).await?,
-				SubscriptionType::AdminEvents => subscription_manager.remove_admin_event_subscription(user).await?,
+				SubscriptionType::TagList => {
+					subscription_manager
+						.remove_tag_list_subscription(args.connection_id)
+						.await?
+				}
+				SubscriptionType::AdminUsers => {
+					subscription_manager
+						.remove_admin_user_subscription(args.connection_id)
+						.await?
+				}
+				SubscriptionType::AdminEvents => {
+					subscription_manager
+						.remove_admin_event_subscription(args.connection_id)
+						.await?
+				}
 				SubscriptionType::AdminPermissionGroups => {
 					subscription_manager
-						.remove_admin_permission_group_subscription(user)
+						.remove_admin_permission_group_subscription(args.connection_id)
 						.await?
 				}
 				SubscriptionType::AdminPermissionGroupUsers => {
 					subscription_manager
-						.remove_admin_permission_group_users_subscription(user)
+						.remove_admin_permission_group_users_subscription(args.connection_id)
 						.await?
 				}
 				SubscriptionType::AdminEntryTypes => {
-					subscription_manager.remove_admin_entry_types_subscription(user).await?
+					subscription_manager
+						.remove_admin_entry_types_subscription(args.connection_id)
+						.await?
 				}
 				SubscriptionType::AdminEntryTypesEvents => {
 					subscription_manager
-						.remove_admin_entry_types_events_subscription(user)
+						.remove_admin_entry_types_events_subscription(args.connection_id)
 						.await?
 				}
 				SubscriptionType::AdminEventEditors => {
-					subscription_manager.remove_admin_editors_subscription(user).await?
+					subscription_manager
+						.remove_admin_editors_subscription(args.connection_id)
+						.await?
 				}
 				SubscriptionType::AdminEventLogSections => {
 					subscription_manager
-						.remove_admin_event_log_sections_subscription(user)
+						.remove_admin_event_log_sections_subscription(args.connection_id)
 						.await?
 				}
 			}
 		}
 		FromClientMessage::SubscriptionMessage(subscription_update) => {
-			let Some(user) = user.as_ref() else {
+			let Some(user) = args.user.as_ref() else {
 				return Ok(());
 			}; // One must be subscribed (and therefore logged in) to send a subscription update message
 			match *subscription_update {
 				SubscriptionTargetUpdate::EventUpdate(event, update_data) => {
 					handle_event_update(
-						Arc::clone(db_connection),
-						Arc::clone(subscription_manager),
+						Arc::clone(args.db_connection),
+						Arc::clone(args.subscription_manager),
 						&event,
 						user,
-						event_permission_cache,
+						args.event_permission_cache,
 						update_data,
 					)
 					.await?
 				}
 				SubscriptionTargetUpdate::TagListUpdate(update_data) => {
 					handle_tag_list_message(
-						Arc::clone(db_connection),
+						Arc::clone(args.db_connection),
+						args.connection_id,
 						user,
-						Arc::clone(subscription_manager),
+						Arc::clone(args.subscription_manager),
 						update_data,
 					)
 					.await
 				}
 				SubscriptionTargetUpdate::AdminEventsUpdate(update_data) => {
 					handle_admin_event_message(
-						Arc::clone(db_connection),
+						Arc::clone(args.db_connection),
+						args.connection_id,
 						user,
-						Arc::clone(subscription_manager),
+						Arc::clone(args.subscription_manager),
 						update_data,
 					)
 					.await
 				}
 				SubscriptionTargetUpdate::AdminEntryTypesUpdate(update_data) => {
 					handle_admin_entry_type_message(
-						Arc::clone(db_connection),
+						Arc::clone(args.db_connection),
+						args.connection_id,
 						user,
-						Arc::clone(subscription_manager),
+						Arc::clone(args.subscription_manager),
 						update_data,
 					)
 					.await
 				}
 				SubscriptionTargetUpdate::AdminEntryTypesEventsUpdate(update_data) => {
 					handle_admin_entry_type_event_message(
-						Arc::clone(db_connection),
+						Arc::clone(args.db_connection),
+						args.connection_id,
 						user,
-						Arc::clone(subscription_manager),
+						Arc::clone(args.subscription_manager),
 						update_data,
 					)
 					.await
 				}
 				SubscriptionTargetUpdate::AdminPermissionGroupsUpdate(update_data) => {
 					handle_admin_permission_groups_message(
-						Arc::clone(db_connection),
+						Arc::clone(args.db_connection),
+						args.connection_id,
 						user,
-						Arc::clone(subscription_manager),
+						Arc::clone(args.subscription_manager),
 						update_data,
 					)
 					.await
 				}
 				SubscriptionTargetUpdate::AdminUserUpdate(modified_user) => {
 					handle_admin_users_message(
-						Arc::clone(db_connection),
+						Arc::clone(args.db_connection),
+						args.connection_id,
 						user,
-						Arc::clone(subscription_manager),
+						Arc::clone(args.subscription_manager),
 						&modified_user,
 					)
 					.await
 				}
 				SubscriptionTargetUpdate::AdminEventEditorsUpdate(update_data) => {
 					handle_admin_editors_message(
-						Arc::clone(db_connection),
+						Arc::clone(args.db_connection),
+						args.connection_id,
 						user,
-						Arc::clone(subscription_manager),
+						Arc::clone(args.subscription_manager),
 						update_data,
 					)
 					.await
 				}
 				SubscriptionTargetUpdate::AdminUserPermissionGroupsUpdate(update_data) => {
 					handle_admin_permission_group_users_message(
-						Arc::clone(db_connection),
+						Arc::clone(args.db_connection),
+						args.connection_id,
 						user,
-						Arc::clone(subscription_manager),
+						Arc::clone(args.subscription_manager),
 						update_data,
 					)
 					.await
 				}
 				SubscriptionTargetUpdate::AdminEventLogSectionsUpdate(update_data) => {
 					handle_admin_event_log_sections_message(
-						Arc::clone(db_connection),
+						Arc::clone(args.db_connection),
+						args.connection_id,
 						user,
-						Arc::clone(subscription_manager),
+						Arc::clone(args.subscription_manager),
 						update_data,
 					)
 					.await
@@ -552,19 +590,20 @@ async fn process_incoming_message(
 			}
 		}
 		FromClientMessage::RegistrationRequest(registration_data) => {
-			if user.is_none() {
+			if args.user.is_none() {
 				match registration_data {
 					UserRegistration::CheckUsername(username) => {
-						check_username(Arc::clone(db_connection), conn_update_tx, &username).await?
+						check_username(Arc::clone(args.db_connection), args.conn_update_tx, &username).await?
 					}
 					UserRegistration::Finalize(registration_data) => {
 						register_user(
-							Arc::clone(db_connection),
-							conn_update_tx,
-							openid_user_id,
+							Arc::clone(args.db_connection),
+							args.conn_update_tx,
+							args.connection_id,
+							args.openid_user_id,
 							registration_data,
-							user,
-							Arc::clone(subscription_manager),
+							args.user,
+							Arc::clone(args.subscription_manager),
 						)
 						.await?
 					}
@@ -572,11 +611,11 @@ async fn process_incoming_message(
 			}
 		}
 		FromClientMessage::UpdateProfile(profile_data) => {
-			if let Some(user) = user.as_ref() {
+			if let Some(user) = args.user.as_ref() {
 				handle_profile_update(
-					Arc::clone(db_connection),
+					Arc::clone(args.db_connection),
 					user,
-					Arc::clone(subscription_manager),
+					Arc::clone(args.subscription_manager),
 					profile_data,
 				)
 				.await?;

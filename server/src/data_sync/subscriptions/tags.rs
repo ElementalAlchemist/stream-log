@@ -17,7 +17,7 @@ use stream_log_shared::messages::{DataError, FromServerMessage};
 pub async fn subscribe_to_tag_list(
 	db_connection: Arc<Mutex<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
-	user: &UserData,
+	connection_id: &str,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 ) -> Result<(), HandleConnectionError> {
 	let mut db_connection = db_connection.lock().await;
@@ -42,7 +42,7 @@ pub async fn subscribe_to_tag_list(
 
 	let subscription_manager = subscription_manager.lock().await;
 	subscription_manager
-		.add_tag_list_subscription(user, conn_update_tx.clone())
+		.add_tag_list_subscription(connection_id, conn_update_tx.clone())
 		.await;
 
 	let message = FromServerMessage::InitialSubscriptionLoad(Box::new(InitialSubscriptionLoadData::TagList(tags)));
@@ -63,6 +63,7 @@ struct TagChange<'a> {
 
 pub async fn handle_tag_list_message(
 	db_connection: Arc<Mutex<PgConnection>>,
+	connection_id: &str,
 	user: &UserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	update_message: TagListUpdate,
@@ -70,7 +71,7 @@ pub async fn handle_tag_list_message(
 	if !subscription_manager
 		.lock()
 		.await
-		.user_is_subscribed_to_tag_list(user)
+		.is_subscribed_to_tag_list(connection_id)
 		.await
 	{
 		return;

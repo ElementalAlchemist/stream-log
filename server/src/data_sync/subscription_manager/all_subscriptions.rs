@@ -1,5 +1,6 @@
 use super::one_subscription::SingleSubscriptionManager;
 use crate::data_sync::connection::ConnectionUpdate;
+use crate::data_sync::UserDataUpdate;
 use async_std::channel::{SendError, Sender};
 use futures::future::join_all;
 use std::collections::hash_map::Entry;
@@ -10,7 +11,7 @@ use stream_log_shared::messages::user::UserData;
 /// A manager for all the subscriptions we need to track
 pub struct SubscriptionManager {
 	event_subscriptions: HashMap<String, SingleSubscriptionManager>,
-	user_subscriptions: HashMap<String, Sender<ConnectionUpdate>>,
+	user_subscriptions: HashMap<String, HashMap<String, Sender<ConnectionUpdate>>>,
 	tag_list_subscriptions: SingleSubscriptionManager,
 	admin_user_subscriptions: SingleSubscriptionManager,
 	admin_event_subscriptions: SingleSubscriptionManager,
@@ -48,7 +49,6 @@ impl SubscriptionManager {
 	}
 
 	/// Shuts down the subscription manager and all subscription tasks.
-	/// Assumes this is part of a full server shutdown, so this blocks on all the tasks ending.
 	pub async fn shutdown(mut self) {
 		let mut handles = Vec::new();
 		for (_, subscription_manager) in self.event_subscriptions.drain() {
@@ -70,41 +70,45 @@ impl SubscriptionManager {
 		}
 
 		for (_, user_connection) in self.user_subscriptions.drain() {
-			user_connection.close();
+			for (_, connection) in user_connection.iter() {
+				connection.close();
+			}
 		}
 
 		join_all(handles).await;
 	}
 
-	/// Subscribes the provided user with the provided associated connection to the provided event
-	pub async fn subscribe_user_to_event(
+	/// Subscribes the provided connection to the provided event
+	pub async fn subscribe_to_event(
 		&mut self,
 		event_id: &str,
-		subscribing_user: &UserData,
+		connection_id: &str,
 		conn_update_tx: Sender<ConnectionUpdate>,
 	) {
-		match self.event_subscriptions.entry(event_id.to_owned()) {
+		match self.event_subscriptions.entry(event_id.to_string()) {
 			Entry::Occupied(mut event_subscription) => {
 				event_subscription
 					.get_mut()
-					.subscribe_user(subscribing_user, conn_update_tx)
+					.subscribe(connection_id, conn_update_tx)
 					.await
 			}
 			Entry::Vacant(event_entry) => {
 				let event_subscription =
 					SingleSubscriptionManager::new(SubscriptionType::EventLogData(event_id.to_string()));
-				event_subscription
-					.subscribe_user(subscribing_user, conn_update_tx)
-					.await;
+				event_subscription.subscribe(connection_id, conn_update_tx).await;
 				event_entry.insert(event_subscription);
 			}
 		}
 	}
 
-	/// Unsubscribes the provided user from the provided event
-	pub async fn unsubscribe_user_from_event(&self, event_id: &str, user: &UserData) -> tide::Result<()> {
+	/// Unsubscribes the provided connection from the provided event
+	pub async fn unsubscribe_from_event(
+		&self,
+		event_id: &str,
+		connection_id: &str,
+	) -> Result<(), SendError<ConnectionUpdate>> {
 		if let Some(event_subscription) = self.event_subscriptions.get(event_id) {
-			event_subscription.unsubscribe_user(user).await?;
+			event_subscription.unsubscribe(connection_id).await?;
 		}
 		Ok(())
 	}
@@ -121,38 +125,58 @@ impl SubscriptionManager {
 		Ok(())
 	}
 
-	/// Adds a user self-subscription for the provided user
-	pub async fn subscribe_user_to_self(&mut self, user: &UserData, conn_update_tx: Sender<ConnectionUpdate>) {
-		if self.user_subscriptions.contains_key(&user.id) {
-			// We need to prevent any *other* data going to this connection so they don't get partial updates and think the connection is still alive.
-			let _ = self.unsubscribe_user_from_all(user).await; // If there was an error, the unsubscription was still successful; it just couldn't be sent to the user.
-		}
-		self.user_subscriptions.insert(user.id.clone(), conn_update_tx);
-	}
-
-	/// Sends a message to a particular user
-	pub async fn send_message_to_user(&mut self, user_id: &str, message: ConnectionUpdate) {
-		let channel = self.user_subscriptions.get(user_id);
-		if let Some(channel) = channel {
-			let send_result = channel.send(message).await;
-			if send_result.is_err() {
-				channel.close(); // Be extra sure that the channel is closed
-				self.user_subscriptions.remove(user_id);
+	/// Adds a subscription to its associated user
+	pub async fn subscribe_to_self_user(
+		&mut self,
+		connection_id: &str,
+		user: &UserData,
+		conn_update_tx: Sender<ConnectionUpdate>,
+	) {
+		match self.user_subscriptions.entry(user.id.clone()) {
+			Entry::Occupied(mut user_subscription) => {
+				user_subscription
+					.get_mut()
+					.insert(connection_id.to_owned(), conn_update_tx);
+			}
+			Entry::Vacant(user_entry) => {
+				let mut user_subscriptions = HashMap::new();
+				user_subscriptions.insert(connection_id.to_owned(), conn_update_tx);
+				user_entry.insert(user_subscriptions);
 			}
 		}
 	}
 
-	/// Adds a user to the tag list subscription
-	pub async fn add_tag_list_subscription(&self, user: &UserData, update_channel: Sender<ConnectionUpdate>) {
-		self.tag_list_subscriptions.subscribe_user(user, update_channel).await;
+	/// Sends a user update to a particular user
+	pub async fn send_message_to_user(&mut self, user_id: &str, message: UserDataUpdate) {
+		let connections = self.user_subscriptions.get_mut(user_id);
+		if let Some(connections) = connections {
+			let mut dead_connection_ids: Vec<String> = Vec::new();
+			for (connection_id, connection) in connections.iter() {
+				let send_result = connection.send(ConnectionUpdate::UserUpdate(message.clone())).await;
+				if send_result.is_err() {
+					connection.close();
+					dead_connection_ids.push(connection_id.clone());
+				}
+			}
+			for connection_id in dead_connection_ids.iter() {
+				connections.remove(connection_id);
+			}
+		}
 	}
 
-	/// Removes a user from the tag list subscription
-	pub async fn remove_tag_list_subscription(&self, user: &UserData) -> Result<(), SendError<ConnectionUpdate>> {
-		self.tag_list_subscriptions.unsubscribe_user(user).await
+	/// Adds to the tag list subscription
+	pub async fn add_tag_list_subscription(&self, connection_id: &str, update_channel: Sender<ConnectionUpdate>) {
+		self.tag_list_subscriptions
+			.subscribe(connection_id, update_channel)
+			.await;
 	}
 
-	/// Sends the given message to all subscribed users for tag list
+	/// Removes from the tag list subscription
+	pub async fn remove_tag_list_subscription(&self, connection_id: &str) -> Result<(), SendError<ConnectionUpdate>> {
+		self.tag_list_subscriptions.unsubscribe(connection_id).await
+	}
+
+	/// Sends the given message to all subscribed connections for tag list
 	pub async fn broadcast_tag_list_message(
 		&self,
 		message: SubscriptionData,
@@ -160,22 +184,24 @@ impl SubscriptionManager {
 		self.tag_list_subscriptions.broadcast_message(message).await
 	}
 
-	/// Checks whether a user is subscribed to tag list
-	pub async fn user_is_subscribed_to_tag_list(&self, user: &UserData) -> bool {
-		self.tag_list_subscriptions.user_is_subscribed(user).await
+	/// Checks whether a connection is subscribed to tag list
+	pub async fn is_subscribed_to_tag_list(&self, connection_id: &str) -> bool {
+		self.tag_list_subscriptions.is_subscribed(connection_id).await
 	}
 
-	/// Adds a user to the admin user list subscription
-	pub async fn add_admin_user_subscription(&self, user: &UserData, update_channel: Sender<ConnectionUpdate>) {
-		self.admin_user_subscriptions.subscribe_user(user, update_channel).await;
+	/// Adds to the admin user list subscription
+	pub async fn add_admin_user_subscription(&self, connection_id: &str, update_channel: Sender<ConnectionUpdate>) {
+		self.admin_user_subscriptions
+			.subscribe(connection_id, update_channel)
+			.await;
 	}
 
-	/// Removes a user from the admin user list subscription
-	pub async fn remove_admin_user_subscription(&self, user: &UserData) -> Result<(), SendError<ConnectionUpdate>> {
-		self.admin_user_subscriptions.unsubscribe_user(user).await
+	/// Removes from the admin user list subscription
+	pub async fn remove_admin_user_subscription(&self, connection_id: &str) -> Result<(), SendError<ConnectionUpdate>> {
+		self.admin_user_subscriptions.unsubscribe(connection_id).await
 	}
 
-	/// Sends the given message to all subscribed users for the admin user list
+	/// Sends the given message to all subscribed connections for the admin user list
 	pub async fn broadcast_admin_user_message(
 		&self,
 		message: SubscriptionData,
@@ -183,24 +209,27 @@ impl SubscriptionManager {
 		self.admin_user_subscriptions.broadcast_message(message).await
 	}
 
-	/// Checks whether a user is subscribed to admin users
-	pub async fn user_is_subscribed_to_admin_users(&self, user: &UserData) -> bool {
-		self.admin_user_subscriptions.user_is_subscribed(user).await
+	/// Checks whether a connection is subscribed to admin users
+	pub async fn is_subscribed_to_admin_users(&self, connection_id: &str) -> bool {
+		self.admin_user_subscriptions.is_subscribed(connection_id).await
 	}
 
-	/// Adds a user to the admin event list subscription
-	pub async fn add_admin_event_subscription(&self, user: &UserData, update_channel: Sender<ConnectionUpdate>) {
+	/// Adds to the admin event list subscription
+	pub async fn add_admin_event_subscription(&self, connection_id: &str, update_channel: Sender<ConnectionUpdate>) {
 		self.admin_event_subscriptions
-			.subscribe_user(user, update_channel)
+			.subscribe(connection_id, update_channel)
 			.await;
 	}
 
-	/// Removes a user from the admin event list subscription
-	pub async fn remove_admin_event_subscription(&self, user: &UserData) -> Result<(), SendError<ConnectionUpdate>> {
-		self.admin_event_subscriptions.unsubscribe_user(user).await
+	/// Removes from the admin event list subscription
+	pub async fn remove_admin_event_subscription(
+		&self,
+		connection_id: &str,
+	) -> Result<(), SendError<ConnectionUpdate>> {
+		self.admin_event_subscriptions.unsubscribe(connection_id).await
 	}
 
-	/// Sends the given message to all subscribed users for the admin event list
+	/// Sends the given message to all subscribed connections for the admin event list
 	pub async fn broadcast_admin_event_message(
 		&self,
 		message: SubscriptionData,
@@ -208,31 +237,33 @@ impl SubscriptionManager {
 		self.admin_event_subscriptions.broadcast_message(message).await
 	}
 
-	/// Checks whether a user is subscribed to admin events
-	pub async fn user_is_subscribed_to_admin_events(&self, user: &UserData) -> bool {
-		self.admin_event_subscriptions.user_is_subscribed(user).await
+	/// Checks whether a connection is subscribed to admin events
+	pub async fn is_subscribed_to_admin_events(&self, connection_id: &str) -> bool {
+		self.admin_event_subscriptions.is_subscribed(connection_id).await
 	}
 
-	/// Adds a user to the admin permission group list subscription
+	/// Adds to the admin permission group list subscription
 	pub async fn add_admin_permission_group_subscription(
 		&self,
-		user: &UserData,
+		connection_id: &str,
 		update_channel: Sender<ConnectionUpdate>,
 	) {
 		self.admin_permission_group_subscriptions
-			.subscribe_user(user, update_channel)
+			.subscribe(connection_id, update_channel)
 			.await;
 	}
 
-	/// Removes a user from the admin permission group list subscription
+	/// Removes from the admin permission group list subscription
 	pub async fn remove_admin_permission_group_subscription(
 		&self,
-		user: &UserData,
+		connection_id: &str,
 	) -> Result<(), SendError<ConnectionUpdate>> {
-		self.admin_permission_group_subscriptions.unsubscribe_user(user).await
+		self.admin_permission_group_subscriptions
+			.unsubscribe(connection_id)
+			.await
 	}
 
-	/// Sends the given message to all subscribed users for the admin permission group list
+	/// Sends the given message to all subscribed connections for the admin permission group list
 	pub async fn broadcast_admin_permission_groups_message(
 		&self,
 		message: SubscriptionData,
@@ -242,33 +273,35 @@ impl SubscriptionManager {
 			.await
 	}
 
-	/// Checks whether a user is subscribed to admin permission groups
-	pub async fn user_is_subscribed_to_admin_permission_groups(&self, user: &UserData) -> bool {
-		self.admin_permission_group_subscriptions.user_is_subscribed(user).await
-	}
-
-	/// Adds a user to the admin permission group user associations subscription
-	pub async fn add_admin_permission_group_users_subscription(
-		&self,
-		user: &UserData,
-		update_channel: Sender<ConnectionUpdate>,
-	) {
-		self.admin_permission_group_user_subscriptions
-			.subscribe_user(user, update_channel)
-			.await;
-	}
-
-	/// Removes a user from the admin permission group user associations subscription
-	pub async fn remove_admin_permission_group_users_subscription(
-		&self,
-		user: &UserData,
-	) -> Result<(), SendError<ConnectionUpdate>> {
-		self.admin_permission_group_user_subscriptions
-			.unsubscribe_user(user)
+	/// Checks whether a connection is subscribed to admin permission groups
+	pub async fn is_subscribed_to_admin_permission_groups(&self, connection_id: &str) -> bool {
+		self.admin_permission_group_subscriptions
+			.is_subscribed(connection_id)
 			.await
 	}
 
-	/// Sends the given message to all subscribed users for admin permission group user associations
+	/// Adds to the admin permission group user associations subscription
+	pub async fn add_admin_permission_group_users_subscription(
+		&self,
+		connection_id: &str,
+		update_channel: Sender<ConnectionUpdate>,
+	) {
+		self.admin_permission_group_user_subscriptions
+			.subscribe(connection_id, update_channel)
+			.await;
+	}
+
+	/// Removes from the admin permission group user associations subscription
+	pub async fn remove_admin_permission_group_users_subscription(
+		&self,
+		connection_id: &str,
+	) -> Result<(), SendError<ConnectionUpdate>> {
+		self.admin_permission_group_user_subscriptions
+			.unsubscribe(connection_id)
+			.await
+	}
+
+	/// Sends the given message to all subscribed connections for admin permission group user associations
 	pub async fn broadcast_admin_permission_group_users_message(
 		&self,
 		message: SubscriptionData,
@@ -278,29 +311,33 @@ impl SubscriptionManager {
 			.await
 	}
 
-	/// Checks whether a user is subscribed to admin permission group user associations
-	pub async fn user_is_subscribed_to_admin_permission_group_users(&self, user: &UserData) -> bool {
+	/// Checks whether a connection is subscribed to admin permission group user associations
+	pub async fn is_subscribed_to_admin_permission_group_users(&self, connection_id: &str) -> bool {
 		self.admin_permission_group_user_subscriptions
-			.user_is_subscribed(user)
+			.is_subscribed(connection_id)
 			.await
 	}
 
-	/// Adds a user to the admin entry types subscription
-	pub async fn add_admin_entry_types_subscription(&self, user: &UserData, update_channel: Sender<ConnectionUpdate>) {
+	/// Adds to the admin entry types subscription
+	pub async fn add_admin_entry_types_subscription(
+		&self,
+		connection_id: &str,
+		update_channel: Sender<ConnectionUpdate>,
+	) {
 		self.admin_entry_type_subscriptions
-			.subscribe_user(user, update_channel)
+			.subscribe(connection_id, update_channel)
 			.await;
 	}
 
-	/// Removes a user from the admin entry types subscription
+	/// Removes from the admin entry types subscription
 	pub async fn remove_admin_entry_types_subscription(
 		&self,
-		user: &UserData,
+		connection_id: &str,
 	) -> Result<(), SendError<ConnectionUpdate>> {
-		self.admin_entry_type_subscriptions.unsubscribe_user(user).await
+		self.admin_entry_type_subscriptions.unsubscribe(connection_id).await
 	}
 
-	/// Sends the given message to all subscribed users for admin entry types
+	/// Sends the given message to all subscribed connections for admin entry types
 	pub async fn broadcast_admin_entry_types_message(
 		&self,
 		message: SubscriptionData,
@@ -308,31 +345,33 @@ impl SubscriptionManager {
 		self.admin_entry_type_subscriptions.broadcast_message(message).await
 	}
 
-	/// Checks whether a user is subscribed to admin entry types
-	pub async fn user_is_subscribed_to_admin_entry_types(&self, user: &UserData) -> bool {
-		self.admin_entry_type_subscriptions.user_is_subscribed(user).await
+	/// Checks whether a connection is subscribed to admin entry types
+	pub async fn is_subscribed_to_admin_entry_types(&self, connection_id: &str) -> bool {
+		self.admin_entry_type_subscriptions.is_subscribed(connection_id).await
 	}
 
-	/// Adds a user to the admin entry types and event associations subscription
+	/// Adds to the admin entry types and event associations subscription
 	pub async fn add_admin_entry_types_events_subscription(
 		&self,
-		user: &UserData,
+		connection_id: &str,
 		update_channel: Sender<ConnectionUpdate>,
 	) {
 		self.admin_entry_type_event_subscriptions
-			.subscribe_user(user, update_channel)
+			.subscribe(connection_id, update_channel)
 			.await;
 	}
 
-	/// Removes a user from the admin entry types and event associations subscription
+	/// Removes from the admin entry types and event associations subscription
 	pub async fn remove_admin_entry_types_events_subscription(
 		&self,
-		user: &UserData,
+		connection_id: &str,
 	) -> Result<(), SendError<ConnectionUpdate>> {
-		self.admin_entry_type_event_subscriptions.unsubscribe_user(user).await
+		self.admin_entry_type_event_subscriptions
+			.unsubscribe(connection_id)
+			.await
 	}
 
-	/// Sends the given message to all subscribed users for admin entry type and event associations
+	/// Sends the given message to all subscribed connections for admin entry type and event associations
 	pub async fn broadcast_admin_entry_types_events_message(
 		&self,
 		message: SubscriptionData,
@@ -342,24 +381,29 @@ impl SubscriptionManager {
 			.await
 	}
 
-	/// Checks whether a user is subscribed to admin entry type and event associations
-	pub async fn user_is_subscribed_to_admin_entry_types_events(&self, user: &UserData) -> bool {
-		self.admin_entry_type_event_subscriptions.user_is_subscribed(user).await
+	/// Checks whether a connection is subscribed to admin entry type and event associations
+	pub async fn is_subscribed_to_admin_entry_types_events(&self, connection_id: &str) -> bool {
+		self.admin_entry_type_event_subscriptions
+			.is_subscribed(connection_id)
+			.await
 	}
 
-	/// Adds a user to the admin event editors subscription
-	pub async fn add_admin_editors_subscription(&self, user: &UserData, update_channel: Sender<ConnectionUpdate>) {
+	/// Adds to the admin event editors subscription
+	pub async fn add_admin_editors_subscription(&self, connection_id: &str, update_channel: Sender<ConnectionUpdate>) {
 		self.admin_event_editor_subscriptions
-			.subscribe_user(user, update_channel)
+			.subscribe(connection_id, update_channel)
 			.await;
 	}
 
-	/// Removes a user from the admin event editors subscription
-	pub async fn remove_admin_editors_subscription(&self, user: &UserData) -> Result<(), SendError<ConnectionUpdate>> {
-		self.admin_event_editor_subscriptions.unsubscribe_user(user).await
+	/// Removes from the admin event editors subscription
+	pub async fn remove_admin_editors_subscription(
+		&self,
+		connection_id: &str,
+	) -> Result<(), SendError<ConnectionUpdate>> {
+		self.admin_event_editor_subscriptions.unsubscribe(connection_id).await
 	}
 
-	/// Sends the given message to all subscribed users for admin event editors
+	/// Sends the given message to all subscribed connections for admin event editors
 	pub async fn broadcast_admin_editors_message(
 		&self,
 		message: SubscriptionData,
@@ -367,31 +411,33 @@ impl SubscriptionManager {
 		self.admin_event_editor_subscriptions.broadcast_message(message).await
 	}
 
-	/// Checks whether a user is subscribed to admin editors
-	pub async fn user_is_subscribed_to_admin_editors(&self, user: &UserData) -> bool {
-		self.admin_event_editor_subscriptions.user_is_subscribed(user).await
+	/// Checks whether a connection is subscribed to admin editors
+	pub async fn is_subscribed_to_admin_editors(&self, connection_id: &str) -> bool {
+		self.admin_event_editor_subscriptions.is_subscribed(connection_id).await
 	}
 
-	/// Adds a user to the admin event log sections subscription
+	/// Adds to the admin event log sections subscription
 	pub async fn add_admin_event_log_sections_subscription(
 		&self,
-		user: &UserData,
+		connection_id: &str,
 		update_channel: Sender<ConnectionUpdate>,
 	) {
 		self.admin_event_log_sections_subscriptions
-			.subscribe_user(user, update_channel)
+			.subscribe(connection_id, update_channel)
 			.await;
 	}
 
-	/// Removes a user from the admin event log sections subscription
+	/// Removes from the admin event log sections subscription
 	pub async fn remove_admin_event_log_sections_subscription(
 		&self,
-		user: &UserData,
+		connection_id: &str,
 	) -> Result<(), SendError<ConnectionUpdate>> {
-		self.admin_event_log_sections_subscriptions.unsubscribe_user(user).await
+		self.admin_event_log_sections_subscriptions
+			.unsubscribe(connection_id)
+			.await
 	}
 
-	/// Sends the given message to all subscribed users for admin event log sections
+	/// Sends the given message to all subscribed connections for admin event log sections
 	pub async fn broadcast_admin_event_log_sections_message(
 		&self,
 		message: SubscriptionData,
@@ -401,28 +447,33 @@ impl SubscriptionManager {
 			.await
 	}
 
-	/// Checks whether a user is subscribed to admin event log sections
-	pub async fn user_is_subscribed_to_admin_event_log_sections(&self, user: &UserData) -> bool {
+	/// Checks whether a connection is subscribed to admin event log sections
+	pub async fn is_subscribed_to_admin_event_log_sections(&self, connection_id: &str) -> bool {
 		self.admin_event_log_sections_subscriptions
-			.user_is_subscribed(user)
+			.is_subscribed(connection_id)
 			.await
 	}
 
-	/// Unsubscribes a user from all subscriptions
-	pub async fn unsubscribe_user_from_all(&mut self, user: &UserData) -> Result<(), SendError<ConnectionUpdate>> {
-		self.user_subscriptions.remove(&user.id);
+	/// Unsubscribes a connection from all subscriptions
+	pub async fn unsubscribe_from_all(&mut self, connection_id: &str) -> Result<(), SendError<ConnectionUpdate>> {
 		let mut futures = Vec::with_capacity(self.event_subscriptions.len());
 		for event_subscription in self.event_subscriptions.values() {
-			futures.push(event_subscription.unsubscribe_user(user));
+			futures.push(event_subscription.unsubscribe(connection_id));
 		}
-		futures.push(self.tag_list_subscriptions.unsubscribe_user(user));
-		futures.push(self.admin_user_subscriptions.unsubscribe_user(user));
-		futures.push(self.admin_event_subscriptions.unsubscribe_user(user));
-		futures.push(self.admin_permission_group_subscriptions.unsubscribe_user(user));
-		futures.push(self.admin_permission_group_user_subscriptions.unsubscribe_user(user));
-		futures.push(self.admin_entry_type_subscriptions.unsubscribe_user(user));
-		futures.push(self.admin_entry_type_event_subscriptions.unsubscribe_user(user));
-		futures.push(self.admin_event_editor_subscriptions.unsubscribe_user(user));
+		for user_subscription in self.user_subscriptions.values_mut() {
+			user_subscription.remove(connection_id);
+		}
+		futures.push(self.tag_list_subscriptions.unsubscribe(connection_id));
+		futures.push(self.admin_user_subscriptions.unsubscribe(connection_id));
+		futures.push(self.admin_event_subscriptions.unsubscribe(connection_id));
+		futures.push(self.admin_permission_group_subscriptions.unsubscribe(connection_id));
+		futures.push(
+			self.admin_permission_group_user_subscriptions
+				.unsubscribe(connection_id),
+		);
+		futures.push(self.admin_entry_type_subscriptions.unsubscribe(connection_id));
+		futures.push(self.admin_entry_type_event_subscriptions.unsubscribe(connection_id));
+		futures.push(self.admin_event_editor_subscriptions.unsubscribe(connection_id));
 
 		let results = join_all(futures).await;
 		for result in results {
