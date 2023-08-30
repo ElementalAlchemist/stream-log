@@ -13,7 +13,7 @@ use async_std::sync::{Arc, Mutex};
 use chrono::prelude::*;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_log::{EventLogEntry, EventLogSection};
 use stream_log_shared::messages::event_subscription::{
@@ -525,14 +525,20 @@ pub async fn handle_event_update(
 					poster_moment: false,
 				};
 
-				let db_tags: Vec<EventLogTag> = log_entry_data
+				let saved_tags: HashMap<String, Tag> = log_entry_data
 					.tags
 					.iter()
+					.map(|tag| (tag.id.clone(), tag.clone()))
+					.collect();
+
+				let db_tags: Vec<EventLogTag> = saved_tags
+					.values()
 					.map(|tag| EventLogTag {
 						tag: tag.id.clone(),
 						log_entry: new_id.clone(),
 					})
 					.collect();
+				log_entry_data.tags = saved_tags.values().cloned().collect();
 
 				let mut db_connection = db_connection.lock().await;
 				let insert_result: QueryResult<()> = db_connection.transaction(|db_connection| {
@@ -746,7 +752,7 @@ pub async fn handle_event_update(
 						event_log::last_update_user.eq(&user.id),
 					))
 					.execute(db_connection)?;
-				let new_tag_ids: Vec<String> = new_tags.iter().map(|tag| tag.id.clone()).collect();
+				let new_tag_ids: HashSet<String> = new_tags.iter().map(|tag| tag.id.clone()).collect();
 				diesel::delete(event_log_tags::table)
 					.filter(
 						event_log_tags::log_entry
