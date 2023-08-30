@@ -275,7 +275,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 				let entry = entry.clone();
 				let event_signal = event_signal.clone();
 				let log_entries = log_entries.clone();
-				move |_: u8| {
+				move |edit_count: u8| {
 					props.jump_highlight_row_id.set(String::new());
 
 					let entry = entry.clone();
@@ -283,6 +283,10 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 					let log_entries = log_entries.clone();
 					spawn_local_scoped(ctx, async move {
 						edit_open_signal.set(false);
+
+						if edit_count == 0 {
+							return;
+						}
 
 						let mut log_entries = log_entries.modify();
 						let log_entry = log_entries.iter_mut().find(|log_entry| log_entry.id == entry.id);
@@ -1191,6 +1195,12 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 		}
 	};
 
+	let cancel_handler = |_event: WebEvent| {
+		// We don't prevent event propagation here; this means that the form submit function will happen in addition to
+		// (and after) this one.
+		add_count_entry_signal.set(String::from("0"));
+	};
+
 	let delete_handler = move |_event: WebEvent| {
 		let Some(log_entry) = (*props.event_log_entry.get()).clone() else {
 			return;
@@ -1484,6 +1494,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 								view! { ctx, }
 							})
 							button(disabled=*disable_save.get()) { "Save" }
+							button(on:click=cancel_handler) { "Cancel" }
 						}
 					} else {
 						view! {
