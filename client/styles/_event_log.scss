@@ -33,7 +33,7 @@ $event_log_column_count: 16;
 #event_log_data {
 	display: grid;
 	// Update $event_log_column_count to match the number of columns here
-	grid-template-columns: max-content max-content max-content max-content 1fr 150px 150px 150px max-content 16px 25px 25px max-content max-content max-content 150px;
+	grid-template-columns: max-content max-content max-content max-content 1fr max(150px, min-content) max(100px, min-content) max(150px, min-content) max-content 16px 25px 25px max-content max-content max-content 150px;
 	font-size: 12px;
 	
 	.event_log_entry_edit {
