@@ -161,6 +161,9 @@ $event_log_column_count: 16;
 
 .log_entry_video_edit_state {
 	text-align: center;
+	align-self: stretch;
+	display: flex;
+	align-items: center;
 
 	&.log_entry_video_edit_state_marked {
 		background: #bdf;
