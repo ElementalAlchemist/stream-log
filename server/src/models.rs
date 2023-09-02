@@ -8,7 +8,7 @@ use diesel_derive_enum::DbEnum;
 use rgb::RGB8;
 use stream_log_shared::messages::admin::{PermissionGroup as PermissionGroupWs, PermissionGroupEventAssociation};
 use stream_log_shared::messages::entry_types::EntryType as EntryTypeWs;
-use stream_log_shared::messages::event_log::VideoState as VideoStateWs;
+use stream_log_shared::messages::event_log::{VideoEditState as VideoEditStateWs, VideoState as VideoStateWs};
 use stream_log_shared::messages::events::Event as EventWs;
 use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::tags::Tag as TagWs;
@@ -35,6 +35,34 @@ impl From<Permission> for PermissionLevel {
 		match permission {
 			Permission::View => Self::View,
 			Permission::Edit => Self::Edit,
+		}
+	}
+}
+
+#[derive(Clone, Copy, DbEnum, Debug, Eq, PartialEq)]
+#[ExistingTypePath = "crate::schema::sql_types::VideoEditState"]
+pub enum VideoEditState {
+	NoVideo,
+	MarkedForEditing,
+	DoneEditing,
+}
+
+impl From<VideoEditStateWs> for VideoEditState {
+	fn from(value: VideoEditStateWs) -> Self {
+		match value {
+			VideoEditStateWs::NoVideo => Self::NoVideo,
+			VideoEditStateWs::MarkedForEditing => Self::MarkedForEditing,
+			VideoEditStateWs::DoneEditing => Self::DoneEditing,
+		}
+	}
+}
+
+impl From<VideoEditState> for VideoEditStateWs {
+	fn from(value: VideoEditState) -> Self {
+		match value {
+			VideoEditState::NoVideo => Self::NoVideo,
+			VideoEditState::MarkedForEditing => Self::MarkedForEditing,
+			VideoEditState::DoneEditing => Self::DoneEditing,
 		}
 	}
 }
@@ -249,7 +277,6 @@ pub struct EventLogEntry {
 	pub description: String,
 	pub media_link: String,
 	pub submitter_or_winner: String,
-	pub make_video: bool,
 	pub notes_to_editor: String,
 	pub editor_link: Option<String>,
 	pub editor: Option<String>,
@@ -264,6 +291,7 @@ pub struct EventLogEntry {
 	pub video_state: Option<VideoState>,
 	pub video_errors: String,
 	pub poster_moment: bool,
+	pub video_edit_state: VideoEditState,
 }
 
 #[derive(Insertable, Queryable)]

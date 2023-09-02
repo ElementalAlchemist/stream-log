@@ -184,7 +184,6 @@ pub async fn handle_tag_list_message(
 								media_link: log_entry.media_link,
 								submitter_or_winner: log_entry.submitter_or_winner,
 								tags,
-								make_video: log_entry.make_video,
 								notes_to_editor: log_entry.notes_to_editor,
 								editor_link: log_entry.editor_link,
 								editor,
@@ -196,6 +195,7 @@ pub async fn handle_tag_list_message(
 								video_state,
 								video_errors: log_entry.video_errors,
 								poster_moment: log_entry.poster_moment,
+								video_edit_state: log_entry.video_edit_state.into(),
 							},
 						));
 					}
@@ -292,7 +292,6 @@ pub async fn handle_tag_list_message(
 								media_link: log_entry.media_link,
 								submitter_or_winner: log_entry.submitter_or_winner,
 								tags,
-								make_video: log_entry.make_video,
 								notes_to_editor: log_entry.notes_to_editor,
 								editor_link: log_entry.editor_link,
 								editor,
@@ -304,6 +303,7 @@ pub async fn handle_tag_list_message(
 								video_state,
 								video_errors: log_entry.video_errors,
 								poster_moment: log_entry.poster_moment,
+								video_edit_state: log_entry.video_edit_state.into(),
 							},
 						));
 					}

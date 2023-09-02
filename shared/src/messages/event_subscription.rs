@@ -1,5 +1,5 @@
 use super::entry_types::EntryType;
-use super::event_log::{EventLogEntry, EventLogSection};
+use super::event_log::{EventLogEntry, EventLogSection, VideoEditState};
 use super::tags::Tag;
 use super::user::UserData;
 use chrono::{DateTime, Utc};
@@ -49,7 +49,7 @@ pub enum EventSubscriptionUpdate {
 	ChangeSubmitterWinner(EventLogEntry, String),
 	ChangePosterMoment(EventLogEntry, bool),
 	ChangeTags(EventLogEntry, Vec<Tag>),
-	ChangeMakeVideo(EventLogEntry, bool),
+	ChangeVideoEditState(EventLogEntry, VideoEditState),
 	ChangeNotesToEditor(EventLogEntry, String),
 	ChangeEditor(EventLogEntry, Option<UserData>),
 	ChangeHighlighted(EventLogEntry, bool),

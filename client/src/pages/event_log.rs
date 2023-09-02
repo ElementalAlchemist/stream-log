@@ -14,7 +14,7 @@ use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use stream_log_shared::messages::event_log::{EventLogEntry, EventLogSection};
+use stream_log_shared::messages::event_log::{EventLogEntry, EventLogSection, VideoEditState};
 use stream_log_shared::messages::event_subscription::EventSubscriptionUpdate;
 use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::subscriptions::{SubscriptionTargetUpdate, SubscriptionType};
@@ -208,7 +208,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 	let new_entry_media_link = create_signal(ctx, String::new());
 	let new_entry_submitter_or_winner = create_signal(ctx, String::new());
 	let new_entry_tags: &Signal<Vec<Tag>> = create_signal(ctx, Vec::new());
-	let new_entry_make_video = create_signal(ctx, false);
+	let new_entry_video_edit_state = create_signal(ctx, VideoEditState::NoVideo);
 	let new_entry_poster_moment = create_signal(ctx, false);
 	let new_entry_notes_to_editor = create_signal(ctx, String::new());
 	let new_entry_editor: &Signal<Option<UserData>> = create_signal(ctx, None);
@@ -245,7 +245,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 			let media_link = (*new_entry_media_link.get()).clone();
 			let submitter_or_winner = (*new_entry_submitter_or_winner.get()).clone();
 			let tags = (*new_entry_tags.get()).clone();
-			let make_video = *new_entry_make_video.get();
+			let video_edit_state = *new_entry_video_edit_state.get();
 			let poster_moment = *new_entry_poster_moment.get();
 			let notes_to_editor = (*new_entry_notes_to_editor.get()).clone();
 			let editor = (*new_entry_editor.get()).clone();
@@ -261,7 +261,6 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 				media_link,
 				submitter_or_winner,
 				tags,
-				make_video,
 				notes_to_editor,
 				editor_link: None,
 				editor,
@@ -273,6 +272,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 				video_state: None,
 				video_errors: String::new(),
 				poster_moment,
+				video_edit_state,
 			};
 
 			spawn_local_scoped(ctx, async move {
@@ -570,7 +570,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 							media_link=new_entry_media_link,
 							submitter_or_winner=new_entry_submitter_or_winner,
 							tags=new_entry_tags,
-							make_video=new_entry_make_video,
+							video_edit_state=new_entry_video_edit_state,
 							poster_moment=new_entry_poster_moment,
 							notes_to_editor=new_entry_notes_to_editor,
 							editor=new_entry_editor,

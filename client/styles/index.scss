@@ -16,6 +16,11 @@ body {
 	margin: 0;
 }
 
+.active_button_option {
+	background: #36c;
+	color: #fff;
+}
+
 @media (prefers-color-scheme: dark) {
 	:root {
 		--base-border-color: #eee;
@@ -49,6 +54,11 @@ body {
 		color: #fff;
 		border-color: #999;
 		border-style: solid;
+	}
+
+	.active_button_option {
+		background: #9af;
+		color: #000;
 	}
 }
 

@@ -2,7 +2,7 @@ use crate::data_sync::connection::ConnectionUpdate;
 use crate::data_sync::{HandleConnectionError, SubscriptionManager};
 use crate::models::{
 	EntryType as EntryTypeDb, Event as EventDb, EventLogEntry as EventLogEntryDb, EventLogSection as EventLogSectionDb,
-	EventLogTag, Permission, PermissionEvent, Tag as TagDb, User,
+	EventLogTag, Permission, PermissionEvent, Tag as TagDb, User, VideoEditState as VideoEditStateDb,
 };
 use crate::schema::{
 	available_entry_types_for_event, entry_types, event_editors, event_log, event_log_sections, event_log_tags, events,
@@ -428,7 +428,6 @@ pub async fn subscribe_to_event(
 			media_link: log_entry.media_link.clone(),
 			submitter_or_winner: log_entry.submitter_or_winner.clone(),
 			tags,
-			make_video: log_entry.make_video,
 			notes_to_editor: log_entry.notes_to_editor.clone(),
 			editor_link: log_entry.editor_link.clone(),
 			editor,
@@ -440,6 +439,7 @@ pub async fn subscribe_to_event(
 			video_state: log_entry.video_state.map(|state| state.into()),
 			video_errors: log_entry.video_errors.clone(),
 			poster_moment: log_entry.poster_moment,
+			video_edit_state: log_entry.video_edit_state.into(),
 		};
 		event_log_entries.push(send_entry);
 	}
@@ -508,7 +508,6 @@ pub async fn handle_event_update(
 					description: log_entry_data.description.clone(),
 					media_link: log_entry_data.media_link.clone(),
 					submitter_or_winner: log_entry_data.submitter_or_winner.clone(),
-					make_video: log_entry_data.make_video,
 					notes_to_editor: log_entry_data.notes_to_editor.clone(),
 					editor_link: None,
 					editor: log_entry_data.editor.clone().map(|editor| editor.id),
@@ -523,6 +522,7 @@ pub async fn handle_event_update(
 					video_state: None,
 					video_errors: String::new(),
 					poster_moment: false,
+					video_edit_state: log_entry_data.video_edit_state.into(),
 				};
 
 				let saved_tags: HashMap<String, Tag> = log_entry_data
@@ -810,7 +810,6 @@ pub async fn handle_event_update(
 					media_link: log_entry.media_link,
 					submitter_or_winner: log_entry.submitter_or_winner,
 					tags,
-					make_video: log_entry.make_video,
 					notes_to_editor: log_entry.notes_to_editor,
 					editor_link: log_entry.editor_link,
 					editor,
@@ -822,6 +821,7 @@ pub async fn handle_event_update(
 					video_state: log_entry.video_state.map(|state| state.into()),
 					video_errors: log_entry.video_errors,
 					poster_moment: log_entry.poster_moment,
+					video_edit_state: log_entry.video_edit_state.into(),
 				};
 				Ok(log_entry)
 			});
@@ -835,13 +835,14 @@ pub async fn handle_event_update(
 			};
 			vec![EventSubscriptionData::UpdateLogEntry(log_entry, user.clone())]
 		}
-		EventSubscriptionUpdate::ChangeMakeVideo(log_entry, new_make_video_value) => {
+		EventSubscriptionUpdate::ChangeVideoEditState(log_entry, new_video_edit_state) => {
+			let new_video_edit_state: VideoEditStateDb = new_video_edit_state.into();
 			let mut db_connection = db_connection.lock().await;
 			let update_func = |db_connection: &mut PgConnection| {
 				diesel::update(event_log::table)
 					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
 					.set((
-						event_log::make_video.eq(new_make_video_value),
+						event_log::video_edit_state.eq(new_video_edit_state),
 						event_log::last_update_user.eq(&user.id),
 						event_log::last_updated.eq(Utc::now()),
 					))
@@ -1061,7 +1062,6 @@ fn log_entry_change(
 			media_link: log_entry.media_link,
 			submitter_or_winner: log_entry.submitter_or_winner,
 			tags,
-			make_video: log_entry.make_video,
 			notes_to_editor: log_entry.notes_to_editor,
 			editor_link: log_entry.editor_link,
 			editor,
@@ -1073,6 +1073,7 @@ fn log_entry_change(
 			video_state: log_entry.video_state.map(|state| state.into()),
 			video_errors: log_entry.video_errors,
 			poster_moment: log_entry.poster_moment,
+			video_edit_state: log_entry.video_edit_state.into(),
 		};
 		Ok(log_entry)
 	})

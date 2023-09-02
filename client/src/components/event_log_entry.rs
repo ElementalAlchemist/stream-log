@@ -12,7 +12,7 @@ use gloo_net::websocket::Message;
 use rgb::RGB8;
 use std::collections::{HashMap, HashSet};
 use stream_log_shared::messages::entry_types::EntryType;
-use stream_log_shared::messages::event_log::EventLogEntry;
+use stream_log_shared::messages::event_log::{EventLogEntry, VideoEditState};
 use stream_log_shared::messages::event_subscription::{EventSubscriptionUpdate, NewTypingData};
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::subscriptions::SubscriptionTargetUpdate;
@@ -65,7 +65,7 @@ enum ModifiedEventLogEntryParts {
 	MediaLink,
 	SubmitterOrWinner,
 	Tags,
-	MakeVideo,
+	VideoEditState,
 	PosterMoment,
 	NotesToEditor,
 	Editor,
@@ -153,7 +153,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 	let edit_media_link = create_signal(ctx, entry.media_link.clone());
 	let edit_submitter_or_winner = create_signal(ctx, entry.submitter_or_winner.clone());
 	let edit_tags = create_signal(ctx, entry.tags.clone());
-	let edit_make_video = create_signal(ctx, entry.make_video);
+	let edit_video_edit_state = create_signal(ctx, entry.video_edit_state);
 	let edit_poster_moment = create_signal(ctx, entry.poster_moment);
 	let edit_notes_to_editor = create_signal(ctx, entry.notes_to_editor.clone());
 	let edit_editor = create_signal(ctx, entry.editor.clone());
@@ -172,7 +172,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 				edit_media_link.set(entry.media_link.clone());
 				edit_submitter_or_winner.set(entry.submitter_or_winner.clone());
 				edit_tags.set(entry.tags.clone());
-				edit_make_video.set(entry.make_video);
+				edit_video_edit_state.set(entry.video_edit_state);
 				edit_poster_moment.set(entry.poster_moment);
 				edit_notes_to_editor.set(entry.notes_to_editor.clone());
 				edit_editor.set(entry.editor.clone());
@@ -214,8 +214,10 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 		modified_data.modify().insert(ModifiedEventLogEntryParts::Tags);
 	});
 	create_effect(ctx, || {
-		edit_make_video.track();
-		modified_data.modify().insert(ModifiedEventLogEntryParts::MakeVideo);
+		edit_video_edit_state.track();
+		modified_data
+			.modify()
+			.insert(ModifiedEventLogEntryParts::VideoEditState);
 	});
 	create_effect(ctx, || {
 		edit_poster_moment.track();
@@ -310,7 +312,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 								ModifiedEventLogEntryParts::MediaLink => EventSubscriptionUpdate::ChangeMediaLink(log_entry.clone(), (*edit_media_link.get()).clone()),
 								ModifiedEventLogEntryParts::SubmitterOrWinner => EventSubscriptionUpdate::ChangeSubmitterWinner(log_entry.clone(), (*edit_submitter_or_winner.get()).clone()),
 								ModifiedEventLogEntryParts::Tags => EventSubscriptionUpdate::ChangeTags(log_entry.clone(), (*edit_tags.get()).clone()),
-								ModifiedEventLogEntryParts::MakeVideo => EventSubscriptionUpdate::ChangeMakeVideo(log_entry.clone(), *edit_make_video.get()),
+								ModifiedEventLogEntryParts::VideoEditState => EventSubscriptionUpdate::ChangeVideoEditState(log_entry.clone(), *edit_video_edit_state.get()),
 								ModifiedEventLogEntryParts::PosterMoment => EventSubscriptionUpdate::ChangePosterMoment(log_entry.clone(), *edit_poster_moment.get()),
 								ModifiedEventLogEntryParts::NotesToEditor => EventSubscriptionUpdate::ChangeNotesToEditor(log_entry.clone(), (*edit_notes_to_editor.get()).clone()),
 								ModifiedEventLogEntryParts::Editor => EventSubscriptionUpdate::ChangeEditor(log_entry.clone(), (*edit_editor.get()).clone()),
@@ -350,7 +352,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 					media_link=edit_media_link,
 					submitter_or_winner=edit_submitter_or_winner,
 					tags=edit_tags,
-					make_video=edit_make_video,
+					video_edit_state=edit_video_edit_state,
 					poster_moment=edit_poster_moment,
 					notes_to_editor=edit_notes_to_editor,
 					editor=edit_editor,
@@ -581,16 +583,38 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 					""
 				})
 			}
-			div(class="log_entry_make_video") {
+			div(
+				class={
+					let mut classes = vec!["log_entry_video_edit_state"];
+					let video_edit_state = (*props.entry.get()).as_ref().map(|entry| entry.video_edit_state).unwrap_or_default();
+					match video_edit_state {
+						VideoEditState::NoVideo => (),
+						VideoEditState::MarkedForEditing => classes.push("log_entry_video_edit_state_marked"),
+						VideoEditState::DoneEditing => classes.push("log_entry_video_edit_state_edited")
+					}
+					classes.join(" ")
+				}
+			) {
 				({
-					let make_video = (*props.entry.get()).as_ref().map(|entry| entry.make_video).unwrap_or(false);
-					if make_video {
-						view! {
-							ctx,
-							img(src="images/video.png", alt="A video should be created for this row", title="A video should be created for this row")
+					let video_edit_state = (*props.entry.get()).as_ref().map(|entry| entry.video_edit_state).unwrap_or_default();
+					match video_edit_state {
+						VideoEditState::NoVideo => view! { ctx, },
+						VideoEditState::MarkedForEditing => {
+							view! {
+								ctx,
+								span(title="A video should be created for this row") {
+									"[+]"
+								}
+							}
 						}
-					} else {
-						view! { ctx, }
+						VideoEditState::DoneEditing => {
+							view! {
+								ctx,
+								span(title="A video has been edited for this row") {
+									"[✔️]"
+								}
+							}
+						}
 					}
 				})
 			}
@@ -678,7 +702,7 @@ pub struct EventLogEntryEditProps<'a, TCloseHandler: Fn(u8)> {
 	media_link: &'a Signal<String>,
 	submitter_or_winner: &'a Signal<String>,
 	tags: &'a Signal<Vec<Tag>>,
-	make_video: &'a Signal<bool>,
+	video_edit_state: &'a Signal<VideoEditState>,
 	poster_moment: &'a Signal<bool>,
 	notes_to_editor: &'a Signal<String>,
 	editor: &'a Signal<Option<UserData>>,
@@ -1079,6 +1103,21 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 		names
 	});
 
+	let video_edit_state_no_video = create_memo(ctx, || *props.video_edit_state.get() == VideoEditState::NoVideo);
+	let video_edit_state_marked = create_memo(ctx, || {
+		*props.video_edit_state.get() == VideoEditState::MarkedForEditing
+	});
+	let video_edit_state_done = create_memo(ctx, || *props.video_edit_state.get() == VideoEditState::DoneEditing);
+	let video_edit_state_set_no_video = |_event: WebEvent| {
+		props.video_edit_state.set(VideoEditState::NoVideo);
+	};
+	let video_edit_state_set_marked = |_event: WebEvent| {
+		props.video_edit_state.set(VideoEditState::MarkedForEditing);
+	};
+	let video_edit_state_set_done = |_event: WebEvent| {
+		props.video_edit_state.set(VideoEditState::DoneEditing);
+	};
+
 	let notes_to_editor = create_signal(ctx, (*props.notes_to_editor.get()).clone());
 	create_effect(ctx, || {
 		props.notes_to_editor.set_rc(notes_to_editor.get());
@@ -1183,7 +1222,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 			media_link.set(String::new());
 			submitter_or_winner.set(String::new());
 			props.tags.set(Vec::new());
-			props.make_video.set(false);
+			props.video_edit_state.set(VideoEditState::default());
 			notes_to_editor.set(String::new());
 			editor_entry.set(String::new());
 			props.highlighted.set(false);
@@ -1253,7 +1292,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 		media_link.set(String::new());
 		submitter_or_winner.set(String::new());
 		props.tags.set(Vec::new());
-		props.make_video.set(false);
+		props.video_edit_state.set(VideoEditState::default());
 		notes_to_editor.set(String::new());
 		editor_entry.set(String::new());
 		props.highlighted.set(false);
@@ -1437,10 +1476,27 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 				})
 			}
 			div(class="event_log_entry_edit_misc_info") {
-				div(class="event_log_entry_edit_make_video") {
-					label {
-						input(type="checkbox", bind:checked=props.make_video)
-						"Should make video?"
+				div(class="event_log_entry_edit_video_edit_state") {
+					button(
+						type="button",
+						class=if *video_edit_state_no_video.get() { "active_button_option" } else { "" },
+						on:click=video_edit_state_set_no_video
+					) {
+						"No Video"
+					}
+					button(
+						type="button",
+						class=if *video_edit_state_marked.get() { "active_button_option" } else { "" },
+						on:click=video_edit_state_set_marked
+					) {
+						"Marked"
+					}
+					button(
+						type="button",
+						class=if *video_edit_state_done.get() { "active_button_option" } else { "" },
+						on:click=video_edit_state_set_done
+					) {
+						"Done Editing"
 					}
 				}
 				div(class="event_log_entry_edit_poster_moment") {

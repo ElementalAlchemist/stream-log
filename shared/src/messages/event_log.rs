@@ -13,7 +13,6 @@ pub struct EventLogEntry {
 	pub media_link: String,
 	pub submitter_or_winner: String,
 	pub tags: Vec<Tag>,
-	pub make_video: bool,
 	pub notes_to_editor: String,
 	pub editor_link: Option<String>,
 	pub editor: Option<UserData>,
@@ -25,6 +24,7 @@ pub struct EventLogEntry {
 	pub video_state: Option<VideoState>,
 	pub video_errors: String,
 	pub poster_moment: bool,
+	pub video_edit_state: VideoEditState,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -59,5 +59,18 @@ impl std::fmt::Display for VideoState {
 			Self::Unlisted => "UNLISTED",
 		};
 		write!(f, "{}", str_value)
+	}
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub enum VideoEditState {
+	NoVideo,
+	MarkedForEditing,
+	DoneEditing,
+}
+
+impl Default for VideoEditState {
+	fn default() -> Self {
+		Self::NoVideo
 	}
 }

@@ -33,7 +33,7 @@ $event_log_column_count: 16;
 #event_log_data {
 	display: grid;
 	// Update $event_log_column_count to match the number of columns here
-	grid-template-columns: max-content max-content max-content max-content 1fr minmax(min-content, 150px) minmax(min-content, 100px) minmax(min-content, 150px) max-content 16px 25px 25px max-content max-content max-content 150px;
+	grid-template-columns: max-content max-content max-content max-content 1fr minmax(min-content, 150px) minmax(min-content, 100px) minmax(min-content, 150px) max-content max-content 25px 25px max-content max-content max-content 150px;
 	font-size: 12px;
 	
 	.event_log_entry_edit {
@@ -159,8 +159,28 @@ $event_log_column_count: 16;
 	}
 }
 
-.log_entry_make_video > img {
-	width: 12px;
+.log_entry_video_edit_state {
+	text-align: center;
+
+	&.log_entry_video_edit_state_marked {
+		background: #bdf;
+	}
+
+	&.log_entry_video_edit_state_edited {
+		background: #cfc;
+	}
+}
+
+@media (prefers-color-scheme: dark) {
+	.log_entry_video_edit_state {
+		&.log_entry_video_edit_state_marked {
+			background: #048;
+		}
+
+		&.log_entry_video_edit_state_edited {
+			background: #050;
+		}
+	}
 }
 	
 .event_log_entry_typing_data {
@@ -236,7 +256,7 @@ $event_log_column_count: 16;
 	display: flex;
 }
 
-.event_log_entry_edit_make_video {
+.event_log_entry_edit_video_edit_state {
 	flex-basis: max-content;
 }
 
