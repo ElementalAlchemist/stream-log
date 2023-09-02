@@ -416,7 +416,14 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 							let section_entry = sections.iter_mut().find(|sec| section.id == sec.id);
 							match section_entry {
 								Some(entry) => *entry = section,
-								None => sections.push(section),
+								None => {
+									match sections
+										.binary_search_by_key(&section.start_time, |section| section.start_time)
+									{
+										Ok(index) => sections.insert(index, section),
+										Err(index) => sections.insert(index, section),
+									}
+								}
 							}
 						}
 						EventSubscriptionData::DeleteSection(section) => event_data
