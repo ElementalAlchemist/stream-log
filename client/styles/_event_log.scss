@@ -272,11 +272,6 @@ $event_log_column_count: 16;
 	width: 50px;
 }
 
-.event_log_entry_edit_close {
-	flex-grow: 1;
-	text-align: right;
-}
-
 .event_log_entry_edit_new_tags_fields {
 	display: grid;
 	grid-template-columns: max-content 300px max-content;
@@ -290,8 +285,26 @@ $event_log_column_count: 16;
 	display: contents;
 }
 
-.event_log_entry_start_warning {
+.event_log_entry_edit_close {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+}
+
+.event_log_entry_edit_start_warning {
 	color: var(--error-color);
+	flex-basis: max-content;
+	width: max-content;
+}
+
+.event_log_entry_edit_delete {
+	flex-basis: max-content;
+	flex-grow: 1;
+	color: var(--error-color);
+
+	> button {
+		margin-left: 4px;
+	}
 }
 
 #event_log_new_entry {

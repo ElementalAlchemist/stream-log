@@ -1201,7 +1201,13 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 		add_count_entry_signal.set(String::from("0"));
 	};
 
+	let delete_confirm_signal = create_signal(ctx, false);
+
 	let delete_handler = move |_event: WebEvent| {
+		delete_confirm_signal.set(true);
+	};
+
+	let delete_confirm_handler = move |_event: WebEvent| {
 		let Some(log_entry) = (*props.event_log_entry.get()).clone() else {
 			return;
 		};
@@ -1233,6 +1239,10 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 				));
 			}
 		});
+	};
+
+	let delete_cancel_handler = move |_event: WebEvent| {
+		delete_confirm_signal.set(false);
 	};
 
 	let reset_handler = move |_event: WebEvent| {
@@ -1467,48 +1477,67 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 						step=1
 					)
 				}
-				div(class="event_log_entry_edit_close") {
-					(if *start_time_warning_active.get() {
-						view! {
-							ctx,
-							span(class="event_log_entry_start_warning") {
-								"The entered start time was more than one hour out."
-								button(type="button", on:click=start_time_warning_confirmation) {
-									"It's correct"
-								}
+			}
+			div(class="event_log_entry_edit_close") {
+				(if *start_time_warning_active.get() {
+					view! {
+						ctx,
+						div(class="event_log_entry_edit_start_warning") {
+							"The entered start time was more than one hour out."
+							button(type="button", on:click=start_time_warning_confirmation) {
+								"It's correct"
 							}
 						}
-					} else {
-						view! { ctx, }
-					})
-					(if let Some(entry) = (*props.event_log_entry.get()).clone() {
-						view! {
-							ctx,
-							span(class="event_log_entry_id") {
-								"ID: "
-								(entry.id)
-							}
+					}
+				} else {
+					view! { ctx, }
+				})
+				(if let Some(entry) = (*props.event_log_entry.get()).clone() {
+					view! {
+						ctx,
+						div(class="event_log_entry_edit_delete") {
 							(if entry.video_link.is_none() {
-								view! { ctx, button(type="button", on:click=delete_handler) { "Delete" } }
+								if *delete_confirm_signal.get() {
+									view! {
+										ctx,
+										"This will really delete this row. Are you sure?"
+										button(type="button", on:click=delete_confirm_handler) { "Yes, delete it!" }
+										button(type="button", on:click=delete_cancel_handler) { "No, keep it!" }
+									}
+								} else {
+									view! {
+										ctx,
+										button(type="button", on:click=delete_handler) { "Delete" }
+									}
+								}
 							} else {
 								view! { ctx, }
 							})
+						}
+						div(class="event_log_entry_id") {
+							"ID: "
+							(entry.id)
+						}
+						div(class="event_log_entry_edit_close_buttons") {
 							button(disabled=*disable_save.get()) { "Save" }
 							button(on:click=cancel_handler) { "Cancel" }
 						}
-					} else {
-						view! {
-							ctx,
-							span {
-								"Add "
-								input(type="number", min=1, max=u32::MAX, step=1, bind:value=add_count_entry_signal, class="event_log_entry_edit_add_count")
-								" rows"
-							}
+					}
+				} else {
+					view! {
+						ctx,
+						div(class="event_log_entry_edit_delete")
+						div(class="event_log_entry_edit_add_multi") {
+							"Add "
+							input(type="number", min=1, max=u32::MAX, step=1, bind:value=add_count_entry_signal, class="event_log_entry_edit_add_count")
+							" rows"
+						}
+						div(class="event_log_entry_edit_close_buttons") {
 							button(disabled=*disable_save.get()) { "Add" }
 							button(type="reset", on:click=reset_handler) { "Reset" }
 						}
-					})
-				}
+					}
+				})
 			}
 		}
 	}
