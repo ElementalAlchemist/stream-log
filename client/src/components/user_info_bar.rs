@@ -64,12 +64,12 @@ pub fn UserInfoBar<G: Html>(ctx: Scope) -> View<G> {
 									}
 									li {
 										a(href="/admin/event_types") {
-											"Manage Event Types"
+											"Manage Entry Types"
 										}
 									}
 									li {
 										a(href="/admin/assign_event_types") {
-											"Assign Event Types to Events"
+											"Assign Entry Types to Events"
 										}
 									}
 									li {
