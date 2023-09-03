@@ -1,6 +1,7 @@
-use crate::components::event_log_entry::{
-	EventLogEntry as EventLogEntryView, EventLogEntryEdit, EventLogEntryTyping, UserTypingData,
-};
+use crate::components::event_log_entry::edit::EventLogEntryEdit;
+use crate::components::event_log_entry::entry::EventLogEntry as EventLogEntryView;
+use crate::components::event_log_entry::typing::EventLogEntryTyping;
+use crate::components::event_log_entry::UserTypingData;
 use crate::subscriptions::errors::ErrorData;
 use crate::subscriptions::manager::SubscriptionManager;
 use crate::subscriptions::DataSignals;
