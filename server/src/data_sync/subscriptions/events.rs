@@ -979,10 +979,22 @@ pub async fn handle_event_update(
 			}
 			let mut db_connection = db_connection.lock().await;
 			let update_func = |db_connection: &mut PgConnection| {
-				diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
-					.set(event_log::marked_incomplete.eq(new_is_incomplete_value))
-					.get_result(db_connection)
+				if new_is_incomplete_value {
+					diesel::update(event_log::table)
+						.filter(
+							event_log::id
+								.eq(&log_entry.id)
+								.and(event_log::deleted_by.is_null())
+								.and(event_log::end_time.is_null().or(event_log::submitter_or_winner.eq(""))),
+						)
+						.set(event_log::marked_incomplete.eq(true))
+						.get_result(db_connection)
+				} else {
+					diesel::update(event_log::table)
+						.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
+						.set(event_log::marked_incomplete.eq(new_is_incomplete_value))
+						.get_result(db_connection)
+				}
 			};
 			let update_result = log_entry_change(&mut db_connection, update_func);
 
