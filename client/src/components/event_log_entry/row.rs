@@ -41,7 +41,12 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 				return String::new();
 			};
 			let Some(entry_end_time) = entry.end_time else {
-				return String::new();
+				let display_string = if entry.highlighted {
+					String::new()
+				} else {
+					String::from("—")
+				};
+				return display_string;
 			};
 			let end_time_duration = entry_end_time - event_start;
 			format_duration(&end_time_duration)
