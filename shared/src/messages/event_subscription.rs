@@ -52,7 +52,7 @@ pub enum EventSubscriptionUpdate {
 	ChangeVideoEditState(EventLogEntry, VideoEditState),
 	ChangeNotesToEditor(EventLogEntry, String),
 	ChangeEditor(EventLogEntry, Option<UserData>),
-	ChangeHighlighted(EventLogEntry, bool),
+	ChangeIsIncomplete(EventLogEntry, bool),
 	ChangeManualSortKey(EventLogEntry, Option<i32>),
 	Typing(NewTypingData),
 	NewTag(Tag),

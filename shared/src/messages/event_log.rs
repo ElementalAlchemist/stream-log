@@ -17,7 +17,6 @@ pub struct EventLogEntry {
 	pub editor_link: Option<String>,
 	pub editor: Option<UserData>,
 	pub video_link: Option<String>,
-	pub highlighted: bool,
 	pub parent: Option<String>,
 	pub created_at: DateTime<Utc>,
 	pub manual_sort_key: Option<i32>,
@@ -25,6 +24,7 @@ pub struct EventLogEntry {
 	pub video_errors: String,
 	pub poster_moment: bool,
 	pub video_edit_state: VideoEditState,
+	pub marked_incomplete: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]

@@ -436,7 +436,6 @@ pub async fn subscribe_to_event(
 			editor_link: log_entry.editor_link.clone(),
 			editor,
 			video_link: log_entry.video_link.clone(),
-			highlighted: log_entry.highlighted,
 			parent: log_entry.parent.clone(),
 			created_at: log_entry.created_at,
 			manual_sort_key: log_entry.manual_sort_key,
@@ -444,6 +443,7 @@ pub async fn subscribe_to_event(
 			video_errors: log_entry.video_errors.clone(),
 			poster_moment: log_entry.poster_moment,
 			video_edit_state: log_entry.video_edit_state.into(),
+			marked_incomplete: log_entry.marked_incomplete,
 		};
 		event_log_entries.push(send_entry);
 	}
@@ -518,7 +518,6 @@ pub async fn handle_event_update(
 					editor_link: None,
 					editor: log_entry_data.editor.clone().map(|editor| editor.id),
 					video_link: None,
-					highlighted: log_entry_data.highlighted,
 					last_update_user: user.id.clone(),
 					last_updated: create_time,
 					parent: log_entry_data.parent.clone(),
@@ -529,6 +528,7 @@ pub async fn handle_event_update(
 					video_errors: String::new(),
 					poster_moment: false,
 					video_edit_state: log_entry_data.video_edit_state.into(),
+					marked_incomplete: log_entry_data.marked_incomplete,
 				};
 
 				let saved_tags: HashMap<String, Tag> = log_entry_data
@@ -588,13 +588,13 @@ pub async fn handle_event_update(
 							editor_link: entry.editor_link,
 							editor: editor.map(|user| user.into()),
 							video_link: entry.video_link,
-							highlighted: entry.highlighted,
 							parent: entry.parent,
 							created_at: entry.created_at,
 							manual_sort_key: entry.manual_sort_key,
 							video_state: entry.video_state.map(|state| state.into()),
 							video_errors: entry.video_errors,
 							poster_moment: entry.poster_moment,
+							marked_incomplete: entry.marked_incomplete,
 						}
 					}
 					Err(error) => {
@@ -653,15 +653,25 @@ pub async fn handle_event_update(
 		}
 		EventSubscriptionUpdate::ChangeEndTime(log_entry, new_end_time) => {
 			let mut db_connection = db_connection.lock().await;
-			let update_func = |db_connection: &mut PgConnection| {
-				diesel::update(event_log::table)
+			let update_func = |db_connection: &mut PgConnection| -> QueryResult<EventLogEntryDb> {
+				let mut updated_entry: EventLogEntryDb = diesel::update(event_log::table)
 					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
 					.set((
 						event_log::end_time.eq(new_end_time),
 						event_log::last_update_user.eq(&user.id),
 						event_log::last_updated.eq(Utc::now()),
 					))
-					.get_result(db_connection)
+					.get_result(db_connection)?;
+				if updated_entry.marked_incomplete
+					&& updated_entry.end_time.is_some()
+					&& !updated_entry.submitter_or_winner.is_empty()
+				{
+					updated_entry = diesel::update(event_log::table)
+						.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
+						.set(event_log::marked_incomplete.eq(false))
+						.get_result(db_connection)?;
+				}
+				Ok(updated_entry)
 			};
 			let update_result = log_entry_change(&mut db_connection, update_func);
 
@@ -745,15 +755,25 @@ pub async fn handle_event_update(
 		}
 		EventSubscriptionUpdate::ChangeSubmitterWinner(log_entry, new_submitter_or_winner) => {
 			let mut db_connection = db_connection.lock().await;
-			let update_func = |db_connection: &mut PgConnection| {
-				diesel::update(event_log::table)
+			let update_func = |db_connection: &mut PgConnection| -> QueryResult<EventLogEntryDb> {
+				let mut updated_entry: EventLogEntryDb = diesel::update(event_log::table)
 					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
 					.set((
 						event_log::submitter_or_winner.eq(&new_submitter_or_winner),
 						event_log::last_update_user.eq(&user.id),
 						event_log::last_updated.eq(Utc::now()),
 					))
-					.get_result(db_connection)
+					.get_result(db_connection)?;
+				if updated_entry.marked_incomplete
+					&& updated_entry.end_time.is_some()
+					&& !updated_entry.submitter_or_winner.is_empty()
+				{
+					updated_entry = diesel::update(event_log::table)
+						.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
+						.set(event_log::marked_incomplete.eq(false))
+						.get_result(db_connection)?;
+				}
+				Ok(updated_entry)
 			};
 			let update_result = log_entry_change(&mut db_connection, update_func);
 
@@ -861,7 +881,6 @@ pub async fn handle_event_update(
 					editor_link: log_entry.editor_link,
 					editor,
 					video_link: log_entry.video_link,
-					highlighted: log_entry.highlighted,
 					parent: log_entry.parent,
 					created_at: log_entry.created_at,
 					manual_sort_key: log_entry.manual_sort_key,
@@ -869,6 +888,7 @@ pub async fn handle_event_update(
 					video_errors: log_entry.video_errors,
 					poster_moment: log_entry.poster_moment,
 					video_edit_state: log_entry.video_edit_state.into(),
+					marked_incomplete: log_entry.marked_incomplete,
 				};
 				Ok(log_entry)
 			});
@@ -952,16 +972,16 @@ pub async fn handle_event_update(
 			};
 			vec![EventSubscriptionData::UpdateLogEntry(log_entry, user.clone())]
 		}
-		EventSubscriptionUpdate::ChangeHighlighted(log_entry, new_highlighted_value) => {
+		EventSubscriptionUpdate::ChangeIsIncomplete(log_entry, new_is_incomplete_value) => {
+			// While setting this value can be done by any editor, removing it manually more strictly requires supervisor attention.
+			if !new_is_incomplete_value && *permission_level != Some(Permission::Supervisor) {
+				return Ok(());
+			}
 			let mut db_connection = db_connection.lock().await;
 			let update_func = |db_connection: &mut PgConnection| {
 				diesel::update(event_log::table)
 					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
-					.set((
-						event_log::highlighted.eq(new_highlighted_value),
-						event_log::last_update_user.eq(&user.id),
-						event_log::last_updated.eq(Utc::now()),
-					))
+					.set(event_log::marked_incomplete.eq(new_is_incomplete_value))
 					.get_result(db_connection)
 			};
 			let update_result = log_entry_change(&mut db_connection, update_func);
@@ -969,7 +989,7 @@ pub async fn handle_event_update(
 			let log_entry = match update_result {
 				Ok(entry) => entry,
 				Err(error) => {
-					tide::log::error!("Database error updating log entry highlight: {}", error);
+					tide::log::error!("Database error updating incomplete entry flag: {}", error);
 					return Ok(());
 				}
 			};
@@ -1113,7 +1133,6 @@ fn log_entry_change(
 			editor_link: log_entry.editor_link,
 			editor,
 			video_link: log_entry.video_link,
-			highlighted: log_entry.highlighted,
 			parent: log_entry.parent,
 			created_at: log_entry.created_at,
 			manual_sort_key: log_entry.manual_sort_key,
@@ -1121,6 +1140,7 @@ fn log_entry_change(
 			video_errors: log_entry.video_errors,
 			poster_moment: log_entry.poster_moment,
 			video_edit_state: log_entry.video_edit_state.into(),
+			marked_incomplete: log_entry.marked_incomplete,
 		};
 		Ok(log_entry)
 	})

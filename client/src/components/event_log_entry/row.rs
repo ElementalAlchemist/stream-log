@@ -41,7 +41,7 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 				return String::new();
 			};
 			let Some(entry_end_time) = entry.end_time else {
-				let display_string = if entry.highlighted {
+				let display_string = if entry.marked_incomplete {
 					String::new()
 				} else {
 					String::from("—")
@@ -123,7 +123,7 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 				let mut row_class = String::from("event_log_entry");
 				if (*props.entry.get())
 					.as_ref()
-					.map(|entry| entry.highlighted)
+					.map(|entry| entry.marked_incomplete)
 					.unwrap_or(false)
 				{
 					row_class = format!("{} log_entry_highlight", row_class);

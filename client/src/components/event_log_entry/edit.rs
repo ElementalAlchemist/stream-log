@@ -12,6 +12,7 @@ use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_log::{EventLogEntry, VideoEditState};
 use stream_log_shared::messages::event_subscription::{EventSubscriptionUpdate, NewTypingData};
 use stream_log_shared::messages::events::Event;
+use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::subscriptions::SubscriptionTargetUpdate;
 use stream_log_shared::messages::tags::Tag;
 use stream_log_shared::messages::user::UserData;
@@ -23,6 +24,7 @@ use web_sys::Event as WebEvent;
 #[derive(Prop)]
 pub struct EventLogEntryEditProps<'a, TCloseHandler: Fn(u8)> {
 	event: &'a ReadSignal<Event>,
+	permission_level: &'a ReadSignal<PermissionLevel>,
 	event_entry_types: &'a ReadSignal<Vec<EntryType>>,
 	event_tags_name_index: &'a ReadSignal<HashMap<String, Tag>>,
 	entry_types_datalist_id: &'a str,
@@ -41,7 +43,7 @@ pub struct EventLogEntryEditProps<'a, TCloseHandler: Fn(u8)> {
 	editor: &'a Signal<Option<UserData>>,
 	editor_name_index: &'a ReadSignal<HashMap<String, UserData>>,
 	editor_name_datalist_id: &'a str,
-	highlighted: &'a Signal<bool>,
+	marked_incomplete: &'a Signal<bool>,
 	parent_log_entry: &'a Signal<Option<EventLogEntry>>,
 	sort_key: &'a Signal<Option<i32>>,
 	close_handler: TCloseHandler,
@@ -515,6 +517,24 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 		}
 	});
 
+	let disable_marked_incomplete = create_signal(ctx, false);
+	create_effect(ctx, || {
+		let entered_end_time = end_time_input.get();
+		let entered_submitter_or_winner = submitter_or_winner.get();
+		let permission_level = props.permission_level.get();
+		let marked_incomplete = props.marked_incomplete.get();
+		let editing_existing_entry = props.event_log_entry.get().is_some();
+
+		if !entered_end_time.is_empty() && !entered_submitter_or_winner.is_empty() {
+			props.marked_incomplete.set(false);
+			disable_marked_incomplete.set(true);
+		} else if editing_existing_entry && *marked_incomplete && *permission_level != PermissionLevel::Supervisor {
+			disable_marked_incomplete.set(true);
+		} else {
+			disable_marked_incomplete.set(false);
+		}
+	});
+
 	let sort_key_entry = create_signal(ctx, props.sort_key.get().map(|key| key.to_string()).unwrap_or_default());
 	create_effect(ctx, || {
 		let sort_key: Option<i32> = sort_key_entry.get().parse().ok();
@@ -558,7 +578,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 			props.video_edit_state.set(VideoEditState::default());
 			notes_to_editor.set(String::new());
 			editor_entry.set(String::new());
-			props.highlighted.set(false);
+			props.marked_incomplete.set(false);
 			props.parent_log_entry.set(None);
 			entered_tag_entry.set(vec![create_signal(ctx, String::new())]);
 			entered_tags.set(Vec::new());
@@ -628,7 +648,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 		props.video_edit_state.set(VideoEditState::default());
 		notes_to_editor.set(String::new());
 		editor_entry.set(String::new());
-		props.highlighted.set(false);
+		props.marked_incomplete.set(false);
 		sort_key_entry.set(String::new());
 		add_count_entry_signal.set(String::from("1"));
 	};
@@ -850,10 +870,10 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 						title=(*editor_error.get()).as_ref().unwrap_or(&String::new())
 					)
 				}
-				div(class="event_log_entry_edit_highlighted") {
+				div(class="event_log_entry_edit_incomplete") {
 					label {
-						input(type="checkbox", bind:checked=props.highlighted)
-						"Highlight row"
+						input(type="checkbox", bind:checked=props.marked_incomplete, disabled=*disable_marked_incomplete.get())
+						"Mark incomplete"
 					}
 				}
 				div(class="event_log_entry_edit_sort_key") {

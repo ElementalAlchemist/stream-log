@@ -15,6 +15,7 @@ use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_log::EventLogEntry;
 use stream_log_shared::messages::event_subscription::EventSubscriptionUpdate;
 use stream_log_shared::messages::events::Event;
+use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::subscriptions::SubscriptionTargetUpdate;
 use stream_log_shared::messages::tags::Tag;
 use stream_log_shared::messages::user::UserData;
@@ -35,7 +36,7 @@ enum ModifiedEventLogEntryParts {
 	PosterMoment,
 	NotesToEditor,
 	Editor,
-	Highlighted,
+	MarkedIncomplete,
 	SortKey,
 }
 
@@ -44,6 +45,7 @@ pub struct EventLogEntryProps<'a> {
 	entry: EventLogEntry,
 	jump_highlight_row_id: &'a Signal<String>,
 	event_signal: RcSignal<Event>,
+	permission_level: &'a ReadSignal<PermissionLevel>,
 	entry_types_signal: RcSignal<Vec<EntryType>>,
 	all_log_entries: RcSignal<Vec<EventLogEntry>>,
 	event_typing_events_signal: RcSignal<Vec<TypingEvent>>,
@@ -123,7 +125,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 	let edit_poster_moment = create_signal(ctx, entry.poster_moment);
 	let edit_notes_to_editor = create_signal(ctx, entry.notes_to_editor.clone());
 	let edit_editor = create_signal(ctx, entry.editor.clone());
-	let edit_highlighted = create_signal(ctx, entry.highlighted);
+	let edit_is_incomplete = create_signal(ctx, entry.marked_incomplete);
 	let edit_sort_key = create_signal(ctx, entry.manual_sort_key);
 
 	let modified_data: &Signal<HashSet<ModifiedEventLogEntryParts>> = create_signal(ctx, HashSet::new());
@@ -142,7 +144,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 				edit_poster_moment.set(entry.poster_moment);
 				edit_notes_to_editor.set(entry.notes_to_editor.clone());
 				edit_editor.set(entry.editor.clone());
-				edit_highlighted.set(entry.highlighted);
+				edit_is_incomplete.set(entry.marked_incomplete);
 				edit_sort_key.set(entry.manual_sort_key);
 			}
 			modified_data.modify().clear();
@@ -198,8 +200,10 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 		modified_data.modify().insert(ModifiedEventLogEntryParts::Editor);
 	});
 	create_effect(ctx, || {
-		edit_highlighted.track();
-		modified_data.modify().insert(ModifiedEventLogEntryParts::Highlighted);
+		edit_is_incomplete.track();
+		modified_data
+			.modify()
+			.insert(ModifiedEventLogEntryParts::MarkedIncomplete);
 	});
 	create_effect(ctx, || {
 		edit_sort_key.track();
@@ -282,7 +286,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 								ModifiedEventLogEntryParts::PosterMoment => EventSubscriptionUpdate::ChangePosterMoment(log_entry.clone(), *edit_poster_moment.get()),
 								ModifiedEventLogEntryParts::NotesToEditor => EventSubscriptionUpdate::ChangeNotesToEditor(log_entry.clone(), (*edit_notes_to_editor.get()).clone()),
 								ModifiedEventLogEntryParts::Editor => EventSubscriptionUpdate::ChangeEditor(log_entry.clone(), (*edit_editor.get()).clone()),
-								ModifiedEventLogEntryParts::Highlighted => EventSubscriptionUpdate::ChangeHighlighted(log_entry.clone(), *edit_highlighted.get()),
+								ModifiedEventLogEntryParts::MarkedIncomplete => EventSubscriptionUpdate::ChangeIsIncomplete(log_entry.clone(), *edit_is_incomplete.get()),
 								ModifiedEventLogEntryParts::SortKey => EventSubscriptionUpdate::ChangeManualSortKey(log_entry.clone(), *edit_sort_key.get())
 							};
 							let event_message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(event.clone(), Box::new(event_message))));
@@ -306,6 +310,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 				ctx,
 				EventLogEntryEdit(
 					event=read_event_signal,
+					permission_level=props.permission_level,
 					event_entry_types=read_entry_types_signal,
 					event_tags_name_index=tags_by_name_index,
 					entry_types_datalist_id="event_entry_types",
@@ -324,7 +329,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 					editor=edit_editor,
 					editor_name_index=editors_by_name_index,
 					editor_name_datalist_id="editor_names",
-					highlighted=edit_highlighted,
+					marked_incomplete=edit_is_incomplete,
 					parent_log_entry=row_edit_parent,
 					sort_key=edit_sort_key,
 					close_handler=close_handler
@@ -353,6 +358,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 								entry=entry,
 								jump_highlight_row_id=props.jump_highlight_row_id,
 								event_signal=event_signal,
+								permission_level=props.permission_level,
 								entry_types_signal=entry_types_signal,
 								all_log_entries=all_log_entries,
 								event_typing_events_signal=typing_events,

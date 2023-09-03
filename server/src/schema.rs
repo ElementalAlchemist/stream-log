@@ -56,7 +56,6 @@ diesel::table! {
 		editor_link -> Nullable<Text>,
 		editor -> Nullable<Text>,
 		video_link -> Nullable<Text>,
-		highlighted -> Bool,
 		last_updated -> Timestamptz,
 		last_update_user -> Text,
 		parent -> Nullable<Text>,
@@ -67,6 +66,7 @@ diesel::table! {
 		video_errors -> Text,
 		poster_moment -> Bool,
 		video_edit_state -> VideoEditState,
+		marked_incomplete -> Bool,
 	}
 }
 

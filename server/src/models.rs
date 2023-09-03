@@ -290,7 +290,6 @@ pub struct EventLogEntry {
 	pub editor_link: Option<String>,
 	pub editor: Option<String>,
 	pub video_link: Option<String>,
-	pub highlighted: bool,
 	pub last_updated: DateTime<Utc>,
 	pub last_update_user: String,
 	pub parent: Option<String>,
@@ -301,6 +300,7 @@ pub struct EventLogEntry {
 	pub video_errors: String,
 	pub poster_moment: bool,
 	pub video_edit_state: VideoEditState,
+	pub marked_incomplete: bool,
 }
 
 #[derive(Insertable, Queryable)]

@@ -123,6 +123,10 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		let event_signal = event_signal.clone();
 		move || (*event_signal.get()).clone()
 	});
+	let read_permission_signal = create_memo(ctx, {
+		let permission_signal = permission_signal.clone();
+		move || *permission_signal.get()
+	});
 	let read_entry_types_signal = create_memo(ctx, {
 		let entry_types_signal = entry_types_signal.clone();
 		move || (*entry_types_signal.get()).clone()
@@ -212,7 +216,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 	let new_entry_poster_moment = create_signal(ctx, false);
 	let new_entry_notes_to_editor = create_signal(ctx, String::new());
 	let new_entry_editor: &Signal<Option<UserData>> = create_signal(ctx, None);
-	let new_entry_highlighted = create_signal(ctx, false);
+	let new_entry_marked_incomplete = create_signal(ctx, false);
 	let new_entry_parent: &Signal<Option<EventLogEntry>> = create_signal(ctx, None);
 	let new_entry_sort_key: &Signal<Option<i32>> = create_signal(ctx, None);
 	let new_entry_typing_data = create_memo(ctx, {
@@ -249,7 +253,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 			let poster_moment = *new_entry_poster_moment.get();
 			let notes_to_editor = (*new_entry_notes_to_editor.get()).clone();
 			let editor = (*new_entry_editor.get()).clone();
-			let highlighted = *new_entry_highlighted.get();
+			let marked_incomplete = *new_entry_marked_incomplete.get();
 			let parent = (*new_entry_parent.get()).as_ref().map(|entry| entry.id.clone());
 			let manual_sort_key = *new_entry_sort_key.get();
 			let new_event_log_entry = EventLogEntry {
@@ -265,7 +269,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 				editor_link: None,
 				editor,
 				video_link: None,
-				highlighted,
+				marked_incomplete,
 				parent,
 				created_at: Utc::now(),
 				manual_sort_key,
@@ -499,6 +503,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 														entry=entry,
 														jump_highlight_row_id=jump_highlight_row_id,
 														event_signal=event_signal,
+														permission_level=read_permission_signal,
 														entry_types_signal=entry_types_signal,
 														all_log_entries=log_entries,
 														event_typing_events_signal=typing_events,
@@ -558,6 +563,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 						})
 						EventLogEntryEdit(
 							event=read_event_signal,
+							permission_level=read_permission_signal,
 							event_entry_types=read_entry_types_signal,
 							event_tags_name_index=tags_by_name_index,
 							entry_types_datalist_id="event_entry_types",
@@ -576,7 +582,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 							editor=new_entry_editor,
 							editor_name_index=editors_by_name_index,
 							editor_name_datalist_id="editor_names",
-							highlighted=new_entry_highlighted,
+							marked_incomplete=new_entry_marked_incomplete,
 							parent_log_entry=new_entry_parent,
 							sort_key=new_entry_sort_key,
 							close_handler=new_entry_close_handler
