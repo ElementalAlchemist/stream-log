@@ -17,7 +17,6 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use stream_log_shared::messages::event_log::{EventLogEntry, EventLogSection, VideoEditState};
 use stream_log_shared::messages::event_subscription::EventSubscriptionUpdate;
-use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::subscriptions::{SubscriptionTargetUpdate, SubscriptionType};
 use stream_log_shared::messages::tags::Tag;
 use stream_log_shared::messages::user::UserData;
@@ -197,7 +196,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 			.collect();
 		name_index
 	});
-	let can_edit = create_memo(ctx, move || *permission_signal.get() == PermissionLevel::Edit);
+	let can_edit = create_memo(ctx, move || permission_signal.get().can_edit());
 
 	log::debug!("Set up loaded data signals for event {}", props.id);
 

@@ -22,6 +22,12 @@ pub enum Permission {
 	Supervisor,
 }
 
+impl Permission {
+	pub fn can_edit(&self) -> bool {
+		matches!(self, Self::Supervisor | Self::Edit)
+	}
+}
+
 impl From<PermissionLevel> for Permission {
 	fn from(level: PermissionLevel) -> Self {
 		match level {

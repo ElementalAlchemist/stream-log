@@ -477,7 +477,7 @@ pub async fn handle_event_update(
 		return Ok(());
 	};
 
-	if *permission_level != Some(Permission::Edit) {
+	if !permission_level.map(|level| level.can_edit()).unwrap_or_default() {
 		// The user doesn't have access to do this; they should either only view the data we send them or not interact
 		// with it at all. Therefore, we'll ignore their request in this case.
 		return Ok(());

@@ -7,3 +7,9 @@ pub enum PermissionLevel {
 	Edit,
 	Supervisor,
 }
+
+impl PermissionLevel {
+	pub fn can_edit(&self) -> bool {
+		matches!(self, Self::Supervisor | Self::Edit)
+	}
+}
