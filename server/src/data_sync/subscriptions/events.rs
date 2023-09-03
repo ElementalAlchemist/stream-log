@@ -499,6 +499,8 @@ pub async fn handle_event_update(
 					}
 				}
 
+				let create_time = Utc::now();
+
 				let db_entry = EventLogEntryDb {
 					id: new_id.clone(),
 					event: event.id.clone(),
@@ -514,10 +516,10 @@ pub async fn handle_event_update(
 					video_link: None,
 					highlighted: log_entry_data.highlighted,
 					last_update_user: user.id.clone(),
-					last_updated: Utc::now(),
+					last_updated: create_time,
 					parent: log_entry_data.parent.clone(),
 					deleted_by: None,
-					created_at: Utc::now(),
+					created_at: create_time,
 					manual_sort_key: log_entry_data.manual_sort_key,
 					video_state: None,
 					video_errors: String::new(),
@@ -541,22 +543,63 @@ pub async fn handle_event_update(
 				log_entry_data.tags = saved_tags.values().cloned().collect();
 
 				let mut db_connection = db_connection.lock().await;
-				let insert_result: QueryResult<()> = db_connection.transaction(|db_connection| {
-					diesel::insert_into(event_log::table)
-						.values(db_entry)
-						.execute(db_connection)?;
-					diesel::insert_into(event_log_tags::table)
-						.values(db_tags)
-						.execute(db_connection)?;
-					Ok(())
-				});
-				if let Err(error) = insert_result {
-					tide::log::error!("Database error adding an event log entry: {}", error);
-					return Ok(());
-				}
+				let insert_result: QueryResult<(EventLogEntryDb, Vec<TagDb>, Option<User>)> = db_connection
+					.transaction(|db_connection| {
+						let new_row: EventLogEntryDb = diesel::insert_into(event_log::table)
+							.values(db_entry)
+							.get_result(db_connection)?;
+						let new_row_tags: Vec<EventLogTag> = diesel::insert_into(event_log_tags::table)
+							.values(db_tags)
+							.get_results(db_connection)?;
+						let tag_ids: Vec<String> = new_row_tags.iter().map(|tag| tag.tag.clone()).collect();
+						let tags: Vec<TagDb> = tags::table.filter(tags::id.eq_any(tag_ids)).load(db_connection)?;
+						let editor: Option<User> = match new_row.editor.as_ref() {
+							Some(editor) => Some(users::table.find(editor).first(db_connection)?),
+							None => None,
+						};
+						Ok((new_row, tags, editor))
+					});
+				let new_log_entry = match insert_result {
+					Ok((entry, entry_tags, editor)) => {
+						let tags: Vec<Tag> = entry_tags
+							.iter()
+							.map(|tag| Tag {
+								id: tag.id.clone(),
+								name: tag.tag.clone(),
+								description: tag.description.clone(),
+								playlist: tag.playlist.clone(),
+							})
+							.collect();
+						EventLogEntry {
+							id: entry.id,
+							start_time: entry.start_time,
+							end_time: entry.end_time,
+							entry_type: entry.entry_type,
+							description: entry.description,
+							media_link: entry.media_link,
+							submitter_or_winner: entry.submitter_or_winner,
+							tags,
+							video_edit_state: entry.video_edit_state.into(),
+							notes_to_editor: entry.notes_to_editor,
+							editor_link: entry.editor_link,
+							editor: editor.map(|user| user.into()),
+							video_link: entry.video_link,
+							highlighted: entry.highlighted,
+							parent: entry.parent,
+							created_at: entry.created_at,
+							manual_sort_key: entry.manual_sort_key,
+							video_state: entry.video_state.map(|state| state.into()),
+							video_errors: entry.video_errors,
+							poster_moment: entry.poster_moment,
+						}
+					}
+					Err(error) => {
+						tide::log::error!("Database error adding an event log entry: {}", error);
+						return Ok(());
+					}
+				};
 
-				log_entry_data.id = new_id;
-				new_entry_messages.push(EventSubscriptionData::NewLogEntry(log_entry_data, user.clone()));
+				new_entry_messages.push(EventSubscriptionData::NewLogEntry(new_log_entry, user.clone()));
 			}
 			new_entry_messages
 		}
