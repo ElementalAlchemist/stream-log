@@ -19,6 +19,7 @@ use stream_log_shared::messages::user::UserData;
 pub enum Permission {
 	View,
 	Edit,
+	Supervisor,
 }
 
 impl From<PermissionLevel> for Permission {
@@ -26,6 +27,7 @@ impl From<PermissionLevel> for Permission {
 		match level {
 			PermissionLevel::View => Self::View,
 			PermissionLevel::Edit => Self::Edit,
+			PermissionLevel::Supervisor => Self::Supervisor,
 		}
 	}
 }
@@ -35,6 +37,7 @@ impl From<Permission> for PermissionLevel {
 		match permission {
 			Permission::View => Self::View,
 			Permission::Edit => Self::Edit,
+			Permission::Supervisor => Self::Supervisor,
 		}
 	}
 }

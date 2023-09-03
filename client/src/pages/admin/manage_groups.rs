@@ -168,6 +168,7 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 							div(class="admin_manage_groups_events_header") { "Event" }
 							div(class="admin_manage_groups_events_header") { "View" }
 							div(class="admin_manage_groups_events_header") { "Edit" }
+							div(class="admin_manage_groups_events_header") { "Supervisor" }
 							div(class="admin_manage_groups_events_header") { }
 
 							Keyed(
@@ -177,30 +178,42 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 									let group = group.clone();
 									let can_view_signal = create_signal(ctx, false);
 									let can_edit_signal = create_signal(ctx, false);
+									let is_supervisor_signal = create_signal(ctx, false);
 
 									create_effect(ctx, {
 										let event_id = event.id.clone();
 										move || {
 											let event_permissions_data = event_permissions.get();
 											let permission = event_permissions_data.get(&event_id);
-											let (can_view, can_edit) = match permission {
-												Some(PermissionLevel::Edit) => (true, true),
-												Some(PermissionLevel::View) => (true, false),
-												None => (false, false)
+											let (can_view, can_edit, is_supervisor) = match permission {
+												Some(PermissionLevel::Supervisor) => (true, true, true),
+												Some(PermissionLevel::Edit) => (true, true, false),
+												Some(PermissionLevel::View) => (true, false, false),
+												None => (false, false, false)
 											};
 											can_view_signal.set(can_view);
 											can_edit_signal.set(can_edit);
+											is_supervisor_signal.set(is_supervisor);
 										}
 									});
 
 									create_effect(ctx, || {
+										if *is_supervisor_signal.get() {
+											can_edit_signal.set(true);
+											can_view_signal.set(true);
+										}
+									});
+									create_effect(ctx, || {
 										if *can_edit_signal.get() {
 											can_view_signal.set(true);
+										} else {
+											is_supervisor_signal.set(false);
 										}
 									});
 									create_effect(ctx, || {
 										if !*can_view_signal.get() {
 											can_edit_signal.set(false);
+											is_supervisor_signal.set(false);
 										}
 									});
 
@@ -209,7 +222,9 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 										move |web_event: WebEvent| {
 											web_event.prevent_default();
 
-											let message = if *can_edit_signal.get() {
+											let message = if *is_supervisor_signal.get() {
+												AdminPermissionGroupUpdate::SetEventPermissionForGroup(PermissionGroupEventAssociation { group: group.id.clone(), event: event.id.clone(), permission: PermissionLevel::Supervisor })
+											} else if *can_edit_signal.get() {
 												AdminPermissionGroupUpdate::SetEventPermissionForGroup(PermissionGroupEventAssociation { group: group.id.clone(), event: event.id.clone(), permission: PermissionLevel::Edit })
 											} else if *can_view_signal.get() {
 												AdminPermissionGroupUpdate::SetEventPermissionForGroup(PermissionGroupEventAssociation { group: group.id.clone(), event: event.id.clone(), permission: PermissionLevel::View })
@@ -247,6 +262,9 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 											}
 											div(class="admin_manage_groups_events_edit") {
 												input(type="checkbox", bind:checked=can_edit_signal)
+											}
+											div(class="admin_manage_gropus_events_supervisor") {
+												input(type="checkbox", bind:checked=is_supervisor_signal)
 											}
 											div(class="admin_manage_groups_events_update") {
 												button(type="submit") { "Update" }

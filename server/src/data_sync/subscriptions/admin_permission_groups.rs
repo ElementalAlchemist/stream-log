@@ -468,12 +468,16 @@ pub async fn handle_admin_permission_group_users_message(
 								Some(event_permissions) => {
 									let mut highest_permission_level: Option<Permission> = None;
 									for event_permission in event_permissions.iter() {
-										match event_permission.level {
-											Permission::Edit => {
-												highest_permission_level = Some(Permission::Edit);
+										match (event_permission.level, highest_permission_level) {
+											(Permission::Supervisor, _) => {
+												highest_permission_level = Some(Permission::Supervisor);
 												break;
 											}
-											Permission::View => highest_permission_level = Some(Permission::View),
+											(Permission::Edit, Some(Permission::Supervisor)) => (),
+											(Permission::Edit, _) => highest_permission_level = Some(Permission::Edit),
+											(Permission::View, Some(Permission::Supervisor)) => (),
+											(Permission::View, Some(Permission::Edit)) => (),
+											(Permission::View, _) => highest_permission_level = Some(Permission::View),
 										}
 									}
 									user_event_permissions.push((event, highest_permission_level));
@@ -566,12 +570,15 @@ pub async fn handle_admin_permission_group_users_message(
 								Some(event_permissions) => {
 									let mut highest_permission_level: Option<Permission> = None;
 									for event_permission in event_permissions.iter() {
-										match event_permission.level {
-											Permission::Edit => {
-												highest_permission_level = Some(Permission::Edit);
-												break;
+										match (event_permission.level, highest_permission_level) {
+											(Permission::Supervisor, _) => {
+												highest_permission_level = Some(Permission::Supervisor)
 											}
-											Permission::View => highest_permission_level = Some(Permission::View),
+											(Permission::Edit, Some(Permission::Supervisor)) => (),
+											(Permission::Edit, _) => highest_permission_level = Some(Permission::Edit),
+											(Permission::View, Some(Permission::Supervisor)) => (),
+											(Permission::View, Some(Permission::Edit)) => (),
+											(Permission::View, _) => highest_permission_level = Some(Permission::View),
 										}
 									}
 									user_event_permissions.push((event, highest_permission_level));
