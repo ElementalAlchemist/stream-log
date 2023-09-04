@@ -1,3 +1,4 @@
+use crate::color_utils::rgb_str_from_color;
 use crate::subscriptions::errors::ErrorData;
 use crate::subscriptions::manager::SubscriptionManager;
 use crate::subscriptions::DataSignals;
@@ -43,16 +44,7 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	}
 
 	let all_users = create_memo(ctx, || (*data.all_users.get()).clone());
-
-	let users_name_index_signal = create_memo(ctx, || {
-		let name_indexed_users: HashMap<String, UserData> = data
-			.all_users
-			.get()
-			.iter()
-			.map(|user| (user.username.clone(), user.clone()))
-			.collect();
-		name_indexed_users
-	});
+	let all_groups = create_memo(ctx, || (*data.all_permission_groups.get()).clone());
 
 	let groups_name_index_signal = create_memo(ctx, || {
 		let name_indexed_groups: HashMap<String, PermissionGroup> = data
@@ -64,139 +56,51 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		name_indexed_groups
 	});
 
-	let selected_user_signal: &Signal<Option<UserData>> = create_signal(ctx, None);
-	let entered_user_name_signal = create_signal(ctx, String::new());
-	let entered_user_error_signal: &Signal<String> = create_signal(ctx, String::new());
+	let selected_group_signal: &Signal<Option<PermissionGroup>> = create_signal(ctx, None);
+	let entered_group_name_signal = create_signal(ctx, String::new());
+	let entered_group_error_signal = create_signal(ctx, String::new());
 
-	let user_groups_signal = create_memo(ctx, || {
+	let group_users_signal = create_memo(ctx, || {
 		data.user_permission_groups.track();
-		match selected_user_signal.get().as_ref() {
-			Some(user) => {
-				let groups: Vec<PermissionGroup> = data
+		match selected_group_signal.get().as_ref() {
+			Some(group) => {
+				let user_ids: HashSet<String> = data
 					.user_permission_groups
 					.get()
 					.iter()
-					.filter(|association| association.user == *user)
-					.map(|association| association.permission_group.clone())
+					.filter(|association| association.permission_group.id == group.id)
+					.map(|association| association.user.id.clone())
 					.collect();
-				groups
+				user_ids
 			}
-			None => Vec::new(),
+			None => HashSet::new(),
 		}
 	});
 
-	let addable_groups_signal = create_memo(ctx, || {
-		let user_groups: HashSet<PermissionGroup> = user_groups_signal.get().iter().cloned().collect();
-		data.all_permission_groups.track();
-		if selected_user_signal.get().is_none() {
-			return Vec::new();
-		}
-		let groups: Vec<PermissionGroup> = data
-			.all_permission_groups
-			.get()
-			.iter()
-			.filter(|group| !user_groups.contains(*group))
-			.cloned()
-			.collect();
-		groups
-	});
-	let has_addable_groups_signal = create_memo(ctx, || !addable_groups_signal.get().is_empty());
-
-	let entered_group_name_signal = create_signal(ctx, String::new());
-	let entered_group_error_signal: &Signal<String> = create_signal(ctx, String::new());
-
-	let user_submission_handler = |event: WebEvent| {
+	let group_selection_handler = |event: WebEvent| {
 		event.prevent_default();
 
-		let entered_name = entered_user_name_signal.get();
-		if entered_name.is_empty() {
-			selected_user_signal.set(None);
-			entered_user_error_signal.modify().clear();
+		let group_name = entered_group_name_signal.get();
+		if group_name.is_empty() {
+			entered_group_error_signal.set(String::new());
+			selected_group_signal.set(None);
 			return;
 		}
-
-		let name_index = users_name_index_signal.get();
-		let user = if let Some(user) = name_index.get(entered_name.as_ref()) {
-			user.clone()
-		} else {
-			entered_user_error_signal.set(String::from("That name doesn't match any users."));
+		let groups_name_index = groups_name_index_signal.get();
+		let Some(group) = groups_name_index.get(&*group_name) else {
+			entered_group_error_signal.set(String::from("That's not the name of a group."));
 			return;
 		};
 
-		selected_user_signal.set(Some(user));
-		entered_user_error_signal.modify().clear();
-	};
-
-	let add_group_submission_handler = move |event: WebEvent| {
-		event.prevent_default();
-
-		let entered_group_name = (*entered_group_name_signal.get()).clone();
-		if entered_group_name.is_empty() {
-			entered_group_error_signal.modify().clear();
-			return;
-		}
-
-		let Some(permission_group) = groups_name_index_signal.get().get(&entered_group_name).cloned() else {
-			entered_group_error_signal.set(String::from("That name doesn't match any groups."));
-			return;
-		};
-
-		entered_group_name_signal.set(String::new());
-		entered_group_error_signal.modify().clear();
-
-		let Some(user) = (*selected_user_signal.get()).clone() else {
-			return;
-		};
-
-		let permission_group_user = UserPermissionGroupAssociation { user, permission_group };
-		let message = FromClientMessage::SubscriptionMessage(Box::new(
-			SubscriptionTargetUpdate::AdminUserPermissionGroupsUpdate(AdminUserPermissionGroupUpdate::AddUserToGroup(
-				permission_group_user,
-			)),
-		));
-		let message_json = match serde_json::to_string(&message) {
-			Ok(msg) => msg,
-			Err(error) => {
-				let data: &DataSignals = use_context(ctx);
-				data.errors.modify().push(ErrorData::new_with_error(
-					"Failed to serialize user group addition message.",
-					error,
-				));
-				return;
-			}
-		};
-
-		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
-			let mut ws = ws_context.lock().await;
-
-			if let Err(error) = ws.send(Message::Text(message_json)).await {
-				let data: &DataSignals = use_context(ctx);
-				data.errors.modify().push(ErrorData::new_with_error(
-					"Failed to send user group addition message.",
-					error,
-				));
-			}
-		});
+		selected_group_signal.set(Some(group.clone()));
+		entered_group_error_signal.set(String::new());
 	};
 
 	view! {
 		ctx,
-		datalist(id="all_users") {
+		datalist(id="all_groups") {
 			Keyed(
-				iterable=all_users,
-				key=|user| user.id.clone(),
-				view=|ctx, user| {
-					view! {
-						ctx,
-						option(value=user.username)
-					}
-				}
-			)
-		}
-		datalist(id="addable_groups") {
-			Keyed(
-				iterable=addable_groups_signal,
+				iterable=all_groups,
 				key=|group| group.id.clone(),
 				view=|ctx, group| {
 					view! {
@@ -206,89 +110,97 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				}
 			)
 		}
-		form(on:submit=user_submission_handler) {
+		form(on:submit=group_selection_handler) {
 			input(
-				id="admin_assign_user",
-				list="all_users",
-				placeholder="Enter a user...",
-				bind:value=entered_user_name_signal,
-				class=if entered_user_error_signal.get().is_empty() { "" } else { "error" },
-				title=*entered_user_error_signal.get()
+				id="admin_assign_group",
+				list="all_groups",
+				placeholder="Enter a group...",
+				bind:value=entered_group_name_signal,
+				class=if entered_group_error_signal.get().is_empty() { "" } else { "error" }
 			)
 			button(type="submit") { "Load User Groups" }
+			span(class="input_error") { (*entered_group_error_signal.get()) }
 		}
-		div(id="admin_assign_groups_list_for_user") {
-			Keyed(
-				iterable=user_groups_signal,
-				key=|group| group.id.clone(),
-				view=move |ctx, group| {
-					let remove_handler = {
-						let group = group.clone();
-						move |_event: WebEvent| {
-							let group = group.clone();
-
-							let user = if let Some(user) = selected_user_signal.get().as_ref() {
-								user.clone()
-							} else {
-								return;
-							};
-							let user_permission_group = UserPermissionGroupAssociation { user, permission_group: group };
-							let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminUserPermissionGroupsUpdate(AdminUserPermissionGroupUpdate::RemoveUserFromGroup(user_permission_group))));
-							let message_json = match serde_json::to_string(&message) {
-								Ok(msg) => msg,
-								Err(error) => {
-									let data: &DataSignals = use_context(ctx);
-									data.errors.modify().push(ErrorData::new_with_error("Failed to serialize permission group user removal message.", error));
-									return;
-								}
-							};
-
-							spawn_local_scoped(ctx, async move {
-								let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
-								let mut ws = ws_context.lock().await;
-
-								if let Err(error) = ws.send(Message::Text(message_json)).await {
-									let data: &DataSignals = use_context(ctx);
-									data.errors.modify().push(ErrorData::new_with_error("Failed to send permission group user removal message.", error));
-								}
+		table(id="admin_assign_groups_user_list") {
+			(if selected_group_signal.get().is_some() {
+				view! {
+					ctx,
+					Keyed(
+						iterable=all_users,
+						key=|user| user.id.clone(),
+						view=move |ctx, user| {
+							let user_in_group = create_memo(ctx, {
+								let user_id = user.id.clone();
+								move || group_users_signal.get().contains(&user_id)
 							});
-						}
-					};
+							let change_user_group_handler = {
+								let user = user.clone();
+								move |_event: WebEvent| {
+									let user = user.clone();
+									let group = match selected_group_signal.get().as_ref() {
+										Some(group) => group.clone(),
+										None => return
+									};
+									spawn_local_scoped(ctx, async move {
+										let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+										let mut ws = ws_context.lock().await;
 
-					view! {
-						ctx,
-						div(class="admin_assign_group_row") {
-							div(class="admin_assign_group_name") {
-								(group.name)
-							}
-							div(class="admin_assign_group_remove") {
-								button(on:click=remove_handler) {
-									"Remove"
+										let user_group_association = UserPermissionGroupAssociation { user: user.clone(), permission_group: group };
+										let user_group_message = if *user_in_group.get() {
+											AdminUserPermissionGroupUpdate::RemoveUserFromGroup(user_group_association)
+										} else {
+											AdminUserPermissionGroupUpdate::AddUserToGroup(user_group_association)
+										};
+										let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminUserPermissionGroupsUpdate(user_group_message)));
+										let message_json = match serde_json::to_string(&message) {
+											Ok(msg) => msg,
+											Err(error) => {
+												let data: &DataSignals = use_context(ctx);
+												data.errors.modify().push(ErrorData::new_with_error("Failed to serialize user permission group update.", error));
+												return;
+											}
+										};
+
+										let send_result = ws.send(Message::Text(message_json)).await;
+										if let Err(error) = send_result {
+											let data: &DataSignals = use_context(ctx);
+											data.errors.modify().push(ErrorData::new_with_error("Failed to send user permission group update.", error));
+										}
+									});
+								}
+							};
+
+							let username_style = format!("color: {}", rgb_str_from_color(user.color));
+
+							view! {
+								ctx,
+								tr {
+									td(style=username_style) { (user.username) }
+									td {
+										(if *user_in_group.get() {
+											"✔️"
+										} else {
+											""
+										})
+									}
+									td {
+										button(type="button", on:click=change_user_group_handler) {
+											(if *user_in_group.get() {
+												"Remove"
+											} else {
+												"Add"
+											})
+										}
+									}
 								}
 							}
 						}
-					}
-				}
-			)
-		}
-		(if *has_addable_groups_signal.get() {
-			view! {
-				ctx,
-				form(id="admin_assign_groups_add_to_user", on:submit=add_group_submission_handler) {
-					input(
-						id="admin_assign_add_group",
-						placeholder="Add group for user...",
-						list="addable_groups",
-						bind:value=entered_group_name_signal,
-						class=if entered_group_error_signal.get().is_empty() { "" } else { "error" },
-						title=*entered_group_error_signal.get()
 					)
-					button(type="submit") { "Add Group" }
 				}
-			}
-		} else {
-			view! { ctx, }
-		})
+			} else {
+				view! { ctx, }
+			})
+		}
 	}
 }
 
