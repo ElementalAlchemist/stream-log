@@ -5,5 +5,6 @@ use serde::{Deserialize, Serialize};
 pub struct EntryType {
 	pub id: String,
 	pub name: String,
+	pub description: String,
 	pub color: RGB8,
 }

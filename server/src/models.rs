@@ -217,13 +217,14 @@ pub struct UserPermission {
 	pub permission_group: String,
 }
 
-#[derive(Insertable, Queryable)]
+#[derive(Clone, Insertable, Queryable)]
 pub struct EntryType {
 	pub id: String,
 	pub name: String,
 	pub color_red: i32,
 	pub color_green: i32,
 	pub color_blue: i32,
+	pub description: String,
 }
 
 impl EntryType {
@@ -241,7 +242,13 @@ impl From<EntryType> for EntryTypeWs {
 		let color = value.color();
 		let id = value.id;
 		let name = value.name;
-		Self { id, name, color }
+		let description = value.description;
+		Self {
+			id,
+			name,
+			description,
+			color,
+		}
 	}
 }
 

@@ -1,0 +1,2 @@
+ALTER TABLE entry_types ADD COLUMN description TEXT NOT NULL DEFAULT '';
+ALTER TABLE entry_types ALTER COLUMN description DROP DEFAULT;

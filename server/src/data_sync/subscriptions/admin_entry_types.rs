@@ -99,6 +99,7 @@ pub async fn handle_admin_entry_type_message(
 					let db_entry_type = EntryTypeDb {
 						id: entry_type.id.clone(),
 						name: entry_type.name.clone(),
+						description: entry_type.description.clone(),
 						color_red: entry_type.color.r.into(),
 						color_green: entry_type.color.g.into(),
 						color_blue: entry_type.color.b.into(),
@@ -114,6 +115,7 @@ pub async fn handle_admin_entry_type_message(
 						.filter(entry_types::id.eq(&entry_type.id))
 						.set((
 							entry_types::name.eq(&entry_type.name),
+							entry_types::description.eq(&entry_type.description),
 							entry_types::color_red.eq(red),
 							entry_types::color_green.eq(green),
 							entry_types::color_blue.eq(blue),

@@ -1,6 +1,6 @@
 #admin_manage_entry_types {
 	display: grid;
-	grid-template-columns: max-content max-content max-content max-content;
+	grid-template-columns: max-content max-content max-content max-content max-content;
 	align-items: center;
 	gap: 3px;
 
@@ -17,4 +17,8 @@
 	display: grid;
 	grid-template-columns: max-content 50px;
 	margin-bottom: 10px;
+}
+
+.admin_entry_type_description_field {
+	width: 400px;
 }

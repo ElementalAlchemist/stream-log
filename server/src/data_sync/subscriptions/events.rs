@@ -136,7 +136,7 @@ pub async fn subscribe_to_event(
 			.await;
 	}
 
-	let event_types: Vec<EntryTypeDb> = match entry_types::table
+	let entry_types: Vec<EntryTypeDb> = match entry_types::table
 		.filter(
 			available_entry_types_for_event::table
 				.filter(
@@ -370,14 +370,7 @@ pub async fn subscribe_to_event(
 		start_time: event.start_time,
 	};
 	let permission_level: PermissionLevel = permission_level.into();
-	let entry_types: Vec<EntryType> = event_types
-		.iter()
-		.map(|et| EntryType {
-			id: et.id.clone(),
-			name: et.name.clone(),
-			color: et.color(),
-		})
-		.collect();
+	let entry_types: Vec<EntryType> = entry_types.iter().map(|et| (*et).clone().into()).collect();
 	let event_log_sections: Vec<EventLogSection> = log_sections
 		.drain(..)
 		.map(|section| EventLogSection {

@@ -80,6 +80,12 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 			.map(|entry_type| entry_type.name.clone())
 			.unwrap_or_default()
 	});
+	let entry_type_description = create_memo(ctx, || {
+		(*props.entry_type.get())
+			.as_ref()
+			.map(|entry_type| entry_type.description.clone())
+			.unwrap_or_default()
+	});
 
 	let tags_signal = create_signal(
 		ctx,
@@ -150,7 +156,7 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 			}
 			div(class="log_entry_start_time") { (start_time.get()) }
 			div(class="log_entry_end_time") { (end_time.get()) }
-			div(class="log_entry_type", style=entry_type_style.get()) { (entry_type_name.get()) }
+			div(class="log_entry_type", style=entry_type_style.get(), title=entry_type_description.get()) { (entry_type_name.get()) }
 			div(class="log_entry_description") { ((*props.entry.get()).as_ref().map(|entry| entry.description.clone()).unwrap_or_default()) }
 			div(class="log_entry_submitter_winner") { ((*props.entry.get()).as_ref().map(|entry| entry.submitter_or_winner.clone()).unwrap_or_default()) }
 			div(class="log_entry_media_link") {
