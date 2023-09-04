@@ -1,3 +1,4 @@
+use crate::color_utils::rgb_str_from_color;
 use crate::subscriptions::errors::ErrorData;
 use crate::subscriptions::manager::SubscriptionManager;
 use crate::subscriptions::DataSignals;
@@ -42,26 +43,11 @@ async fn AdminManageEditorsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	}
 
 	let all_events = create_memo(ctx, || (*data.all_events.get()).clone());
+	let all_users = create_memo(ctx, || (*data.all_users.get()).clone());
 
-	let event_entry = create_signal(ctx, String::new());
-	let current_event: &Signal<Option<Event>> = create_signal(ctx, None);
-	let event_editors = create_memo(ctx, || {
-		data.event_editors.track();
-		let event = (*current_event.get()).clone();
-		let event = match event {
-			Some(event) => event,
-			None => return Vec::new(),
-		};
-
-		let editors: Vec<UserData> = data
-			.event_editors
-			.get()
-			.iter()
-			.filter(|association| association.event.id == event.id)
-			.map(|association| association.editor.clone())
-			.collect();
-		editors
-	});
+	let selected_event: &Signal<Option<Event>> = create_signal(ctx, None);
+	let event_input = create_signal(ctx, String::new());
+	let event_input_error = create_signal(ctx, String::new());
 
 	let event_name_index = create_memo(ctx, || {
 		let name_index: HashMap<String, Event> = data
@@ -72,121 +58,51 @@ async fn AdminManageEditorsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			.collect();
 		name_index
 	});
-	let event_entry_error: &Signal<String> = create_signal(ctx, String::new());
-	let non_editor_users_signal = create_memo(ctx, || {
-		let event_user_ids: HashSet<String> = event_editors.get().iter().map(|editor| editor.id.clone()).collect();
-		let non_editor_users: Vec<UserData> = data
-			.all_users
-			.get()
+
+	let current_event_editor_ids = create_memo(ctx, || {
+		let event_editors = data.event_editors.get();
+		let current_event = match selected_event.get().as_ref() {
+			Some(event) => event.clone(),
+			None => return HashSet::new(),
+		};
+
+		let mut users: HashSet<String> = HashSet::new();
+		for event_editor in event_editors
 			.iter()
-			.filter(|editor| !event_user_ids.contains(&editor.id))
-			.cloned()
-			.collect();
-		non_editor_users
-	});
-	let non_editor_users_name_index = create_memo(ctx, || {
-		let non_editor_map: HashMap<String, UserData> = non_editor_users_signal
-			.get()
-			.iter()
-			.map(|user| (user.username.clone(), user.clone()))
-			.collect();
-		non_editor_map
-	});
-
-	let add_user_entry = create_signal(ctx, String::new());
-	let add_user_error: &Signal<String> = create_signal(ctx, String::new());
-
-	let event_selection_handler = move |event: WebEvent| {
-		event.prevent_default();
-
-		let new_event_name = event_entry.get();
-		if new_event_name.is_empty() {
-			current_event.set(None);
-			event_entry_error.modify().clear();
-			return;
+			.filter(|association| association.event.id == current_event.id)
+		{
+			users.insert(event_editor.editor.id.clone());
 		}
+		users
+	});
+
+	let event_selection_handler = |event: WebEvent| {
+		event.prevent_default();
 
 		let name_index = event_name_index.get();
-		let new_event = name_index.get(&*new_event_name);
-		let new_event = match new_event {
-			Some(event) => event.clone(),
-			None => {
-				event_entry_error.set(format!("The event {} doesn't exist.", *new_event_name));
-				return;
-			}
-		};
-		event_entry_error.modify().clear();
-		current_event.set(Some(new_event));
-	};
+		let entered_name = event_input.get();
 
-	let add_user_handler = move |event: WebEvent| {
-		event.prevent_default();
-
-		let current_event = (*current_event.get()).clone();
-		let current_event = match current_event {
-			Some(event) => event,
-			None => return,
-		};
-		let new_editor_name = add_user_entry.get();
-		if new_editor_name.is_empty() {
-			add_user_error.modify().clear();
+		if entered_name.is_empty() {
+			event_input_error.set(String::new());
+			selected_event.set(None);
 			return;
 		}
 
-		let name_index = non_editor_users_name_index.get();
-		let new_editor = name_index.get(&*new_editor_name);
-		let new_editor = match new_editor {
-			Some(user) => user.clone(),
+		let entered_event = name_index.get(&*entered_name);
+		match entered_event {
+			Some(event) => {
+				selected_event.set(Some(event.clone()));
+				event_input_error.set(String::new());
+			}
 			None => {
-				add_user_error.set(format!("{} is not a user or is already an editor.", *new_editor_name));
-				return;
+				selected_event.set(None);
+				event_input_error.set(String::from("Entered name doesn't match the name of an event"));
 			}
-		};
-
-		add_user_entry.modify().clear();
-		add_user_error.modify().clear();
-
-		let association = EditorEventAssociation {
-			event: current_event,
-			editor: new_editor,
-		};
-		let message = FromClientMessage::SubscriptionMessage(Box::new(
-			SubscriptionTargetUpdate::AdminEventEditorsUpdate(AdminEventEditorUpdate::AddEditor(association)),
-		));
-		let message_json = match serde_json::to_string(&message) {
-			Ok(msg) => msg,
-			Err(error) => {
-				let data: &DataSignals = use_context(ctx);
-				data.errors.modify().push(ErrorData::new_with_error(
-					"Failed to serialize new editor message.",
-					error,
-				));
-				return;
-			}
-		};
-
-		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
-			let mut ws = ws_context.lock().await;
-
-			if let Err(error) = ws.send(Message::Text(message_json)).await {
-				let data: &DataSignals = use_context(ctx);
-				data.errors
-					.modify()
-					.push(ErrorData::new_with_error("Failed to send new editor message.", error));
-			}
-		});
+		}
 	};
 
 	view! {
 		ctx,
-		datalist(id="add_user_selection") {
-			Keyed(
-				iterable=non_editor_users_signal,
-				key=|user| user.id.clone(),
-				view=|ctx, user| view! { ctx, option(value=&user.username) }
-			)
-		}
 		datalist(id="events_selection") {
 			Keyed(
 				iterable=all_events,
@@ -199,78 +115,92 @@ async fn AdminManageEditorsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			input(
 				list="events_selection",
 				placeholder="Event name",
-				bind:value=event_entry,
-				class=if event_entry_error.get().is_empty() { "" } else { "error" },
-				title=*event_entry_error.get()
+				bind:value=event_input
 			)
-			button { "Load" }
+			button { "Select Event" }
+			span(class="input_error") { (event_input_error.get()) }
 		}
-		(if current_event.get().is_some() {
-			view! {
-				ctx,
-				div(id="admin_event_editors_list") {
+		table(id="admin_event_editors_list") {
+			(if selected_event.get().is_some() {
+				view! {
+					ctx,
 					Keyed(
-						iterable=event_editors,
-						key=|editor| editor.id.clone(),
-						view=move |ctx, editor| {
-							let remove_click_handler = {
-								let editor = editor.clone();
+						iterable=all_users,
+						key=|user| user.id.clone(),
+						view=move |ctx, user| {
+							let is_editor = create_memo(ctx, {
+								let user_id = user.id.clone();
+								move || current_event_editor_ids.get().contains(&user_id)
+							});
+
+							let toggle_user_editor = {
+								let user = user.clone();
 								move |_event: WebEvent| {
-									let editor = editor.clone();
-									let event = (*current_event.get()).clone().unwrap();
-									let association = EditorEventAssociation { event, editor };
-									let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminEventEditorsUpdate(AdminEventEditorUpdate::RemoveEditor(association))));
-									let message_json = match serde_json::to_string(&message) {
-										Ok(msg) => msg,
-										Err(error) => {
-											let data: &DataSignals = use_context(ctx);
-											data.errors.modify().push(ErrorData::new_with_error("Failed to serialize editor removal message.", error));
-											return;
-										}
+									let selected_event = match selected_event.get().as_ref() {
+										Some(event) => event.clone(),
+										None => return
 									};
+									let editor_event_association = EditorEventAssociation { event: selected_event, editor: user.clone() };
+									let editor_update_message = if *is_editor.get() {
+										AdminEventEditorUpdate::RemoveEditor(editor_event_association)
+									} else {
+										AdminEventEditorUpdate::AddEditor(editor_event_association)
+									};
+									let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminEventEditorsUpdate(editor_update_message)));
 
 									spawn_local_scoped(ctx, async move {
 										let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 										let mut ws = ws_context.lock().await;
 
-										if let Err(error) = ws.send(Message::Text(message_json)).await {
+										let message_json = match serde_json::to_string(&message) {
+											Ok(msg) => msg,
+											Err(error) => {
+												let data: &DataSignals = use_context(ctx);
+												data.errors.modify().push(ErrorData::new_with_error("Failed to serialize admin editor update.", error));
+												return;
+											}
+										};
+
+										let send_result = ws.send(Message::Text(message_json)).await;
+										if let Err(error) = send_result {
 											let data: &DataSignals = use_context(ctx);
-											data.errors.modify().push(ErrorData::new_with_error("Failed to send editor removal message.", error));
+											data.errors.modify().push(ErrorData::new_with_error("Failed to send admin editor update.", error));
 										}
 									});
 								}
 							};
+
+							let user_color_style = format!("color: {}", rgb_str_from_color(user.color));
+
 							view! {
 								ctx,
-								div(class="admin_event_editors_list_name") { (editor.username) }
-								div(class="admin_event_editors_list_remove") {
-									button(type="button", on:click=remove_click_handler) { "Remove" }
+								tr {
+									td(style=user_color_style) { (user.username) }
+									td {
+										(if *is_editor.get() {
+											"✔️"
+										} else {
+											""
+										})
+									}
+									td {
+										button(type="button", on:click=toggle_user_editor) {
+											(if *is_editor.get() {
+												"Remove"
+											} else {
+												"Add"
+											})
+										}
+									}
 								}
 							}
 						}
 					)
 				}
-				(if non_editor_users_signal.get().is_empty() {
-					view! { ctx, }
-				} else {
-					view! {
-						ctx,
-						form(id="admin_event_editors_add_editor", on:submit=add_user_handler) {
-							input(
-								list="add_user_selection",
-								placeholder="Add user as editor",
-								bind:value=add_user_entry,
-								class=if add_user_error.get().is_empty() { "" } else { "error" },
-								title=*add_user_error.get()
-							)
-							button { "Add" }
-						}
-					}
-				})
-			}
-		} else {
-			view! { ctx, }
-		})
+			} else {
+				view! { ctx, }
+			})
+		}
 	}
 }
 
