@@ -141,6 +141,10 @@ $event_log_column_count: 16;
 	width: 12px;
 }
 
+.log_entry_type {
+	font-weight: 700;
+}
+
 .log_entry_tag:not(:last-child)::after {
 	content: ", ";
 }
