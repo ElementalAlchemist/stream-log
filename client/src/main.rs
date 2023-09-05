@@ -14,7 +14,7 @@ use websocket::websocket_endpoint;
 mod color_utils;
 mod components;
 mod entry_utils;
-mod event_type_colors;
+mod entry_type_colors;
 mod pages;
 mod subscriptions;
 mod websocket;

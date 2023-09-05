@@ -1,5 +1,5 @@
 use crate::color_utils::{color_from_rgb_str, rgb_str_from_color};
-use crate::event_type_colors::{use_white_foreground, BLACK, WHITE};
+use crate::entry_type_colors::{use_white_foreground, BLACK, WHITE};
 use crate::subscriptions::errors::ErrorData;
 use crate::subscriptions::manager::SubscriptionManager;
 use crate::subscriptions::DataSignals;
