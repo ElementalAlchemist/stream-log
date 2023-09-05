@@ -141,8 +141,20 @@ $event_log_column_count: 16;
 	width: 12px;
 }
 
+.log_entry_start_time {
+	text-align: right;
+}
+
+.log_entry_end_time {
+	text-align: right;
+}
+
 .log_entry_type {
 	font-weight: 700;
+}
+
+.log_entry_submitter_winner {
+	text-align: center;
 }
 
 .log_entry_tag:not(:last-child)::after {
