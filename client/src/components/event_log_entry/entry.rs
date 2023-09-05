@@ -229,6 +229,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 	let child_event_signal = props.event_signal.clone();
 	let child_entry_types_signal = props.entry_types_signal.clone();
 	let child_all_log_entries_signal = props.all_log_entries.clone();
+	let typing_event_signal = event_signal.clone();
 
 	view! {
 		ctx,
@@ -241,7 +242,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 			new_entry_parent=props.new_entry_parent,
 			child_depth=props.child_depth
 		)
-		EventLogEntryTyping(typing_data=typing_data)
+		EventLogEntryTyping(event=typing_event_signal, event_entry_types=props.read_entry_types_signal, event_log=props.all_log_entries, typing_data=typing_data)
 		(if *edit_open_signal.get() {
 			let close_handler = {
 				let entry = entry.clone();

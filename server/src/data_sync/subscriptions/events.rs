@@ -1036,6 +1036,9 @@ pub async fn handle_event_update(
 				color: user.color,
 			};
 			let typing_data = match typing_data {
+				NewTypingData::Parent(log_entry, parent_entry_id) => {
+					TypingData::Parent(log_entry, parent_entry_id, user_data)
+				}
 				NewTypingData::StartTime(log_entry, start_time_str) => {
 					TypingData::StartTime(log_entry, start_time_str, user_data)
 				}

@@ -297,6 +297,17 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 								continue;
 							};
 							match typing_data {
+								TypingData::Parent(event_log_entry, parent_entry_id, typing_user) => {
+									if user.id != typing_user.id {
+										handle_typing_data(
+											event_data,
+											event_log_entry,
+											parent_entry_id,
+											typing_user,
+											TypingTarget::Parent,
+										)
+									}
+								}
 								TypingData::StartTime(event_log_entry, typed_time, typing_user) => {
 									if user.id != typing_user.id {
 										handle_typing_data(

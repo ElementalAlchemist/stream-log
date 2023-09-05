@@ -26,6 +26,7 @@ pub enum EventSubscriptionData {
 /// data by other users.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum TypingData {
+	Parent(Option<EventLogEntry>, String, UserData),
 	StartTime(Option<EventLogEntry>, String, UserData),
 	EndTime(Option<EventLogEntry>, String, UserData),
 	EntryType(Option<EventLogEntry>, String, UserData),
@@ -60,6 +61,7 @@ pub enum EventSubscriptionUpdate {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub enum NewTypingData {
+	Parent(Option<EventLogEntry>, String),
 	StartTime(Option<EventLogEntry>, String),
 	EndTime(Option<EventLogEntry>, String),
 	EntryType(Option<EventLogEntry>, String),

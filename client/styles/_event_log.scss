@@ -356,7 +356,7 @@ $event_log_column_count: 16;
 	grid-template-columns: max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content;
 	gap: 8px;
 
-	.event_log_entry_typing_username {
+	.event_log_entry_typing_header {
 		grid-column: 1 / span $event_log_column_count;
 	}
 }

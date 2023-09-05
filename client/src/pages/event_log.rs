@@ -385,6 +385,8 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 	};
 
 	let visible_event_signal = event_signal.clone();
+	let typing_event = event_signal.clone();
+	let typing_event_log = log_entries.clone();
 
 	let entry_type_page_url = format!("/log/{}/entry_types", props.id);
 
@@ -533,6 +535,8 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 			}
 			(if *can_edit.get() {
 				let new_entry_close_handler = new_entry_close_handler.clone();
+				let typing_event = typing_event.clone();
+				let typing_event_log = typing_event_log.clone();
 				view! {
 					ctx,
 					div(id="event_log_new_entry") {
@@ -540,6 +544,8 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 							if new_entry_typing_data.get().is_empty() {
 								view! { ctx, }
 							} else {
+								let typing_event = typing_event.clone();
+								let typing_event_log = typing_event_log.clone();
 								view! {
 									ctx,
 									div(id="event_log_new_entry_typing") {
@@ -559,7 +565,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 										div(class="event_log_header") { "Notes to editor" }
 										div(class="event_log_header") {}
 										div(class="event_log_header") {}
-										EventLogEntryTyping(typing_data=new_entry_typing_data)
+										EventLogEntryTyping(event=typing_event, event_entry_types=read_entry_types_signal, event_log=typing_event_log, typing_data=new_entry_typing_data)
 									}
 								}
 							}
