@@ -1,5 +1,6 @@
 pub mod admin;
 pub mod event_log;
+pub mod event_log_entry_types;
 pub mod event_selection;
 pub mod not_found;
 pub mod register;

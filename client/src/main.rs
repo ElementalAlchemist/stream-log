@@ -29,6 +29,7 @@ use pages::admin::manage_groups::AdminManageGroupsView;
 use pages::admin::manage_sections::AdminManageEventLogSectionsView;
 use pages::admin::manage_users::AdminManageUsersView;
 use pages::event_log::EventLogView;
+use pages::event_log_entry_types::EventLogEntryTypesView;
 use pages::event_selection::EventSelectionView;
 use pages::not_found::NotFoundView;
 use pages::register::RegistrationView;
@@ -49,6 +50,8 @@ enum AppRoutes {
 	RegistrationComplete,
 	#[to("/log/<id>")]
 	EventLog(String),
+	#[to("/log//<id>/entry_types")]
+	EventLogEntryTypes(String),
 	#[to("/tags")]
 	TagList,
 	#[to("/admin/events")]
@@ -183,6 +186,7 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 						AppRoutes::Register => view! { ctx, RegistrationView },
 						AppRoutes::RegistrationComplete => view! { ctx, RegistrationCompleteView },
 						AppRoutes::EventLog(id) => view! { ctx, EventLogView(id=id.clone()) },
+						AppRoutes::EventLogEntryTypes(id) => view! { ctx, EventLogEntryTypesView(id=id.clone()) },
 						AppRoutes::TagList => view! { ctx, TagListView },
 						AppRoutes::AdminEventManager => view! { ctx, AdminManageEventsView },
 						AppRoutes::AdminUserManager => view! { ctx, AdminManageUsersView },

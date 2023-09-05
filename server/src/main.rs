@@ -88,6 +88,7 @@ async fn main() -> miette::Result<()> {
 	establish_alternate_route(&mut app, "/register")?;
 	establish_alternate_route(&mut app, "/register_complete")?;
 	establish_alternate_route(&mut app, "/log/:id")?;
+	establish_alternate_route(&mut app, "/log/:id/entry_types")?;
 	establish_alternate_route(&mut app, "/tags")?;
 	establish_alternate_route(&mut app, "/admin/events")?;
 	establish_alternate_route(&mut app, "/admin/users")?;
