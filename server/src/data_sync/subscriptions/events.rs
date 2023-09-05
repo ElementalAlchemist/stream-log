@@ -601,6 +601,11 @@ pub async fn handle_event_update(
 			new_entry_messages
 		}
 		EventSubscriptionUpdate::DeleteLogEntry(deleted_log_entry) => {
+			// Deleting an entry requires supervisor permissions, so we'll ignore requests from non-supervisors.
+			if *permission_level != Some(Permission::Supervisor) {
+				return Ok(());
+			}
+
 			let mut db_connection = db_connection.lock().await;
 			let delete_result: QueryResult<usize> = diesel::update(event_log::table)
 				.filter(

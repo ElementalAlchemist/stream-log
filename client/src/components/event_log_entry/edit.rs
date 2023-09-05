@@ -905,7 +905,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 					view! {
 						ctx,
 						div(class="event_log_entry_edit_delete") {
-							(if entry.video_link.is_none() {
+							(if entry.video_link.is_none() && *props.permission_level.get() == PermissionLevel::Supervisor {
 								if *delete_confirm_signal.get() {
 									view! {
 										ctx,
