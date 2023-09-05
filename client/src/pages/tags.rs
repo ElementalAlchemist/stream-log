@@ -300,7 +300,7 @@ async fn TagListLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 									td {
 										form(on:submit=replace_tag_handler) {
 											input(type="text", list="tag_names", bind:value=entered_replacement_tag_signal, class=if *entered_replacement_tag_has_error_signal.get() { "error" } else { "" })
-											button(type="submit") { "Replace Tag" }
+											button(type="submit", title="Replacing a tag will remove this tag and add the replacement tag where this tag was used previously.") { "Replace Tag" }
 											span(class="input_error") { (entered_replacement_tag_error_signal.get()) }
 										}
 									}
