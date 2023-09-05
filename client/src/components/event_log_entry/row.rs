@@ -1,6 +1,6 @@
-use super::utils::{format_duration, BLACK, WHITE};
+use super::utils::format_duration;
 use crate::color_utils::rgb_str_from_color;
-use contrast::contrast;
+use crate::entry_type_colors::use_white_foreground;
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_log::{EventLogEntry, VideoEditState};
 use stream_log_shared::messages::events::Event;
@@ -57,13 +57,9 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 		let Some(entry_type) = (*props.entry_type.get()).clone() else {
 			return String::new();
 		};
-		let entry_type_background = entry_type.color;
 
-		let entry_type_light_contrast: f64 = contrast(entry_type_background, WHITE);
-		let entry_type_dark_contrast: f64 = contrast(entry_type_background, BLACK);
-
-		let entry_type_background = rgb_str_from_color(entry_type_background);
-		let entry_type_foreground = if entry_type_light_contrast > entry_type_dark_contrast {
+		let entry_type_background = rgb_str_from_color(entry_type.color);
+		let entry_type_foreground = if use_white_foreground(&entry_type.color) {
 			"#ffffff"
 		} else {
 			"#000000"

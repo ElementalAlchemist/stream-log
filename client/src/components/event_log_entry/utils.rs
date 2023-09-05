@@ -1,8 +1,4 @@
 use chrono::Duration;
-use rgb::RGB8;
-
-pub const WHITE: RGB8 = RGB8::new(255, 255, 255);
-pub const BLACK: RGB8 = RGB8::new(0, 0, 0);
 
 /// Formats a [`Duration`] object as hours:minutes
 pub fn format_duration(duration: &Duration) -> String {
