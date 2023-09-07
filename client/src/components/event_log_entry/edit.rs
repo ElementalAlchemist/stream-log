@@ -75,11 +75,49 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 		}
 	});
 
-	let event_start = props.event.get().start_time;
+	create_effect(ctx, move || {
+		let parent_entry = props.parent_log_entry.get();
+		let parent_entry_id = (*parent_entry)
+			.as_ref()
+			.map(|entry| entry.id.clone())
+			.unwrap_or_default();
+		spawn_local_scoped(ctx, async move {
+			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+			let mut ws = ws_context.lock().await;
+
+			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
+				(*props.event.get()).clone(),
+				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::Parent(
+					(*props.event_log_entry.get()).clone(),
+					parent_entry_id,
+				))),
+			)));
+			let message_json = match serde_json::to_string(&message) {
+				Ok(msg) => msg,
+				Err(error) => {
+					let data: &DataSignals = use_context(ctx);
+					data.errors.modify().push(ErrorData::new_with_error(
+						"Failed to serialize typing notification.",
+						error,
+					));
+					return;
+				}
+			};
+
+			let send_result = ws.send(Message::Text(message_json)).await;
+			if let Err(error) = send_result {
+				let data: &DataSignals = use_context(ctx);
+				data.errors
+					.modify()
+					.push(ErrorData::new_with_error("Failed to send typing notification.", error));
+			}
+		});
+	});
+
 	let start_time_warning_base = (*props.event_log_entry.get()).as_ref().map(|entry| entry.start_time);
 	let start_time_warning_active = create_signal(ctx, false);
 	let start_time_input = if props.event_log_entry.get().is_some() {
-		let initial_start_time_duration = *props.start_time.get() - event_start;
+		let initial_start_time_duration = *props.start_time.get() - props.event.get().start_time;
 		create_signal(ctx, format_duration(&initial_start_time_duration))
 	} else {
 		create_signal(ctx, String::new())
@@ -87,6 +125,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 	let start_time_error: &Signal<Option<String>> = create_signal(ctx, None);
 	create_effect(ctx, move || {
 		let start_time_result = get_duration_from_formatted(&start_time_input.get());
+		let event_start = props.event.get().start_time;
 		match start_time_result {
 			Ok(duration) => {
 				start_time_error.set(None);
@@ -137,7 +176,9 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 		});
 	});
 
-	let initial_end_time_duration = (*props.end_time.get()).as_ref().map(|end_time| *end_time - event_start);
+	let initial_end_time_duration = (*props.end_time.get())
+		.as_ref()
+		.map(|end_time| *end_time - props.event.get().start_time);
 	let initial_end_time_input = if let Some(duration) = initial_end_time_duration.as_ref() {
 		format_duration(duration)
 	} else {
@@ -147,6 +188,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 	let end_time_error: &Signal<Option<String>> = create_signal(ctx, None);
 	create_effect(ctx, move || {
 		let end_time_input = &*end_time_input.get();
+		let event_start = props.event.get().start_time;
 		if end_time_input.is_empty() {
 			end_time_error.set(None);
 			props.end_time.set(None);
@@ -548,13 +590,13 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 	});
 
 	let start_now_handler = move |_event: WebEvent| {
-		let start_time_duration = Utc::now() - event_start;
+		let start_time_duration = Utc::now() - props.event.get().start_time;
 		let start_time_duration = format_duration(&start_time_duration);
 		start_time_input.set(start_time_duration);
 	};
 
 	let end_now_handler = move |_event: WebEvent| {
-		let end_time_duration = Utc::now() - event_start;
+		let end_time_duration = Utc::now() - props.event.get().start_time;
 		let end_time_duration = format_duration(&end_time_duration);
 		end_time_input.set(end_time_duration);
 	};
