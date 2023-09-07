@@ -305,7 +305,7 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 											parent_entry_id,
 											typing_user,
 											TypingTarget::Parent,
-										)
+										);
 									}
 								}
 								TypingData::StartTime(event_log_entry, typed_time, typing_user) => {
