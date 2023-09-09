@@ -1,9 +1,26 @@
+use std::fmt;
 use stream_log_shared::messages::user::UserData;
 use sycamore::prelude::*;
+
+pub struct EventId(String);
+
+impl EventId {
+	pub fn new(id: String) -> Self {
+		Self(id)
+	}
+}
+
+impl fmt::Display for EventId {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		let Self(id) = self;
+		write!(f, "{}", id)
+	}
+}
 
 #[component]
 pub fn UserInfoBar<G: Html>(ctx: Scope) -> View<G> {
 	let user_signal: &Signal<Option<UserData>> = use_context(ctx);
+	let event_id_signal: &Signal<Option<EventId>> = use_context(ctx);
 	view! {
 		ctx,
 		(if let Some(user) = user_signal.get().as_ref().clone() {
@@ -31,11 +48,36 @@ pub fn UserInfoBar<G: Html>(ctx: Scope) -> View<G> {
 							}
 						}
 					}
-					div(id="user_tags_link") {
-						a(href="/tags") {
-							"Tags"
+					(if let Some(event_id) = event_id_signal.get().as_ref() {
+						let event_log_link = format!("/log/{}", event_id);
+						let tags_link = format!("/log/{}/tags", event_id);
+						let entry_types_link = format!("/log/{}/entry_types", event_id);
+						view! {
+							ctx,
+							div(id="user_event_menu") {
+								"Event Menu"
+								ul(id="user_event_menu_pages", class="user_info_menu") {
+									li {
+										a(href=event_log_link) {
+											"Event Log"
+										}
+									}
+									li {
+										a(href=tags_link) {
+											"Tags"
+										}
+									}
+									li {
+										a(href=entry_types_link) {
+											"Entry Types"
+										}
+									}
+								}
+							}
 						}
-					}
+					} else {
+						view! { ctx, }
+					})
 					(if user.is_admin {
 						view! {
 							ctx,

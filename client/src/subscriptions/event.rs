@@ -5,6 +5,7 @@ use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_log::{EventLogEntry, EventLogSection};
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::permissions::PermissionLevel;
+use stream_log_shared::messages::tags::Tag;
 use stream_log_shared::messages::user::UserData;
 use sycamore::prelude::*;
 
@@ -13,6 +14,7 @@ pub struct EventSubscriptionSignals {
 	pub event: RcSignal<Event>,
 	pub permission: RcSignal<PermissionLevel>,
 	pub entry_types: RcSignal<Vec<EntryType>>,
+	pub tags: RcSignal<Vec<Tag>>,
 	pub editors: RcSignal<Vec<UserData>>,
 	pub event_log_sections: RcSignal<Vec<EventLogSection>>,
 	pub event_log_entries: RcSignal<Vec<EventLogEntry>>,
@@ -25,6 +27,7 @@ impl EventSubscriptionSignals {
 		event: Event,
 		permission: PermissionLevel,
 		entry_types: Vec<EntryType>,
+		tags: Vec<Tag>,
 		editors: Vec<UserData>,
 		event_log_sections: Vec<EventLogSection>,
 		event_log_entries: Vec<EventLogEntry>,
@@ -43,6 +46,7 @@ impl EventSubscriptionSignals {
 		let event = create_rc_signal(event);
 		let permission = create_rc_signal(permission);
 		let entry_types = create_rc_signal(entry_types);
+		let tags = create_rc_signal(tags);
 		let editors = create_rc_signal(editors);
 		let event_log_sections = create_rc_signal(event_log_sections);
 		let event_log_entries = create_rc_signal(event_log_entries);
@@ -51,6 +55,7 @@ impl EventSubscriptionSignals {
 			event,
 			permission,
 			entry_types,
+			tags,
 			editors,
 			event_log_sections,
 			event_log_entries,

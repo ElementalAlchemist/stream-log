@@ -60,13 +60,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		let subscription_manager: &Mutex<SubscriptionManager> = use_context(ctx);
 		let mut subscription_manager = subscription_manager.lock().await;
 		subscription_manager
-			.set_subscriptions(
-				vec![
-					SubscriptionType::EventLogData(props.id.clone()),
-					SubscriptionType::TagList,
-				],
-				&mut ws,
-			)
+			.set_subscription(SubscriptionType::EventLogData(props.id.clone()), &mut ws)
 			.await
 	};
 	if let Err(error) = add_subscription_data {
@@ -115,7 +109,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 	let event_signal = event_subscription_data.event.clone();
 	let permission_signal = event_subscription_data.permission.clone();
 	let entry_types_signal = event_subscription_data.entry_types.clone();
-	let tags_signal = data.all_tags.clone();
+	let tags_signal = event_subscription_data.tags.clone();
 	let log_entries = event_subscription_data.event_log_entries.clone();
 	let available_editors = event_subscription_data.editors;
 

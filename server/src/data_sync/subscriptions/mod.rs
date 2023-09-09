@@ -5,4 +5,3 @@ pub mod admin_permission_groups;
 pub mod admin_sections;
 pub mod admin_users;
 pub mod events;
-pub mod tags;

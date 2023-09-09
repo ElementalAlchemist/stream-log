@@ -59,11 +59,8 @@ async fn EventLogEntryTypesLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogEn
 
 	let event_entry_types = create_memo(ctx, move || (*event_subscription_data.entry_types.get()).clone());
 
-	let event_log_url = format!("/log/{}", props.id);
-
 	view! {
 		ctx,
-		a(href=event_log_url) { "⬅️ Return to event log" }
 		table(id="event_log_entry_type_list") {
 			Keyed(
 				iterable=event_entry_types,

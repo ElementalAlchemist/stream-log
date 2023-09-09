@@ -19,7 +19,7 @@ mod pages;
 mod subscriptions;
 mod websocket;
 use components::error_display::ErrorDisplay;
-use components::user_info_bar::UserInfoBar;
+use components::user_info_bar::{EventId, UserInfoBar};
 use pages::admin::assign_entry_types::AdminManageEntryTypesForEventsView;
 use pages::admin::assign_groups::AssignUsersToGroupsView;
 use pages::admin::manage_editors::AdminManageEditorsView;
@@ -28,13 +28,13 @@ use pages::admin::manage_events::AdminManageEventsView;
 use pages::admin::manage_groups::AdminManageGroupsView;
 use pages::admin::manage_sections::AdminManageEventLogSectionsView;
 use pages::admin::manage_users::AdminManageUsersView;
-use pages::event_log::EventLogView;
-use pages::event_log_entry_types::EventLogEntryTypesView;
+use pages::event_log::entry_types::EventLogEntryTypesView;
+use pages::event_log::log::EventLogView;
+use pages::event_log::tags::EventLogTagsView;
 use pages::event_selection::EventSelectionView;
 use pages::not_found::NotFoundView;
 use pages::register::RegistrationView;
 use pages::register_complete::RegistrationCompleteView;
-use pages::tags::TagListView;
 use pages::user_profile::UserProfileView;
 use subscriptions::manager::SubscriptionManager;
 use subscriptions::{process_messages, DataSignals};
@@ -50,10 +50,10 @@ enum AppRoutes {
 	RegistrationComplete,
 	#[to("/log/<id>")]
 	EventLog(String),
-	#[to("/log//<id>/entry_types")]
+	#[to("/log/<id>/tags")]
+	EventLogTags(String),
+	#[to("/log/<id>/entry_types")]
 	EventLogEntryTypes(String),
-	#[to("/tags")]
-	TagList,
 	#[to("/admin/events")]
 	AdminEventManager,
 	#[to("/admin/users")]
@@ -171,33 +171,42 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 	spawn_local_scoped(ctx, process_messages(ctx, ws_read));
 
+	let current_event_id: &Signal<Option<EventId>> = create_signal(ctx, None);
+	provide_context_ref(ctx, current_event_id);
+
 	view! {
 		ctx,
 		ErrorDisplay
 		Router(
 			integration=HistoryIntegration::new(),
-			view=|ctx, route: &ReadSignal<AppRoutes>| {
-				log::info!("Navigating to route: {:?}", route.get());
+			view=move |ctx, route: &ReadSignal<AppRoutes>| {
 				view! {
 					ctx,
 					UserInfoBar {} // This must remain in the router so its links can be handled by the router
-					(match route.get().as_ref() {
-						AppRoutes::EventSelection => view! { ctx, EventSelectionView },
-						AppRoutes::Register => view! { ctx, RegistrationView },
-						AppRoutes::RegistrationComplete => view! { ctx, RegistrationCompleteView },
-						AppRoutes::EventLog(id) => view! { ctx, EventLogView(id=id.clone()) },
-						AppRoutes::EventLogEntryTypes(id) => view! { ctx, EventLogEntryTypesView(id=id.clone()) },
-						AppRoutes::TagList => view! { ctx, TagListView },
-						AppRoutes::AdminEventManager => view! { ctx, AdminManageEventsView },
-						AppRoutes::AdminUserManager => view! { ctx, AdminManageUsersView },
-						AppRoutes::AdminPermissionGroupManager => view! { ctx, AdminManageGroupsView },
-						AppRoutes::AdminUserGroupAssignmentManager => view! { ctx, AssignUsersToGroupsView },
-						AppRoutes::AdminEntryTypeManager => view! { ctx, AdminManageEntryTypesView },
-						AppRoutes::AdminEntryTypesForEventManager => view! { ctx, AdminManageEntryTypesForEventsView },
-						AppRoutes::AdminEditorsManager => view! { ctx, AdminManageEditorsView },
-						AppRoutes::AdminEventLogSectionsManager => view! { ctx, AdminManageEventLogSectionsView },
-						AppRoutes::UserProfile => view! { ctx, UserProfileView },
-						AppRoutes::NotFound => view! { ctx, NotFoundView }
+					({
+						log::info!("Navigating to route: {:?}", route.get());
+						match route.get().as_ref() {
+							AppRoutes::EventLog(id) | AppRoutes::EventLogTags(id) | AppRoutes::EventLogEntryTypes(id) => current_event_id.set(Some(EventId::new(id.clone()))),
+							_ => current_event_id.set(None)
+						}
+						match route.get().as_ref() {
+							AppRoutes::EventSelection => view! { ctx, EventSelectionView },
+							AppRoutes::Register => view! { ctx, RegistrationView },
+							AppRoutes::RegistrationComplete => view! { ctx, RegistrationCompleteView },
+							AppRoutes::EventLog(id) => view! { ctx, EventLogView(id=id.clone()) },
+							AppRoutes::EventLogTags(id) => view! { ctx, EventLogTagsView(id=id.clone()) },
+							AppRoutes::EventLogEntryTypes(id) => view! { ctx, EventLogEntryTypesView(id=id.clone()) },
+							AppRoutes::AdminEventManager => view! { ctx, AdminManageEventsView },
+							AppRoutes::AdminUserManager => view! { ctx, AdminManageUsersView },
+							AppRoutes::AdminPermissionGroupManager => view! { ctx, AdminManageGroupsView },
+							AppRoutes::AdminUserGroupAssignmentManager => view! { ctx, AssignUsersToGroupsView },
+							AppRoutes::AdminEntryTypeManager => view! { ctx, AdminManageEntryTypesView },
+							AppRoutes::AdminEntryTypesForEventManager => view! { ctx, AdminManageEntryTypesForEventsView },
+							AppRoutes::AdminEditorsManager => view! { ctx, AdminManageEditorsView },
+							AppRoutes::AdminEventLogSectionsManager => view! { ctx, AdminManageEventLogSectionsView },
+							AppRoutes::UserProfile => view! { ctx, UserProfileView },
+							AppRoutes::NotFound => view! { ctx, NotFoundView }
+						}
 					})
 				}
 			}

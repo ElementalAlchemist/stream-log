@@ -19,7 +19,6 @@ use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::subscriptions::{
 	InitialSubscriptionLoadData, SubscriptionData, SubscriptionFailureInfo, SubscriptionType,
 };
-use stream_log_shared::messages::tags::{Tag, TagListData};
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::user_register::RegistrationResponse;
 use stream_log_shared::messages::{DataError, FromServerMessage};
@@ -51,9 +50,6 @@ pub struct DataSignals {
 
 	/// List of events available to the currently logged-in user.
 	pub available_events: RcSignal<Vec<Event>>,
-
-	/// List of all tags that have been created.
-	pub all_tags: RcSignal<Vec<Tag>>,
 
 	/// List of all users registered.
 	pub all_users: RcSignal<Vec<UserData>>,
@@ -90,7 +86,6 @@ impl DataSignals {
 			events: create_rc_signal(HashMap::new()),
 			registration: RegistrationData::new(),
 			available_events: create_rc_signal(Vec::new()),
-			all_tags: create_rc_signal(Vec::new()),
 			all_users: create_rc_signal(Vec::new()),
 			all_events: create_rc_signal(Vec::new()),
 			all_entry_types: create_rc_signal(Vec::new()),
@@ -128,6 +123,7 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 						event,
 						permission_level,
 						entry_types,
+						tags,
 						editors,
 						event_log_sections,
 						event_log_entries,
@@ -140,6 +136,7 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 								event_data.event.set(event);
 								event_data.permission.set(permission_level);
 								event_data.entry_types.set(entry_types);
+								event_data.tags.set(tags);
 								event_data.editors.set(editors);
 								event_data.event_log_sections.set(event_log_sections);
 								event_data.event_log_entries.set(event_log_entries);
@@ -149,6 +146,7 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 									event,
 									permission_level,
 									entry_types,
+									tags,
 									editors,
 									event_log_sections,
 									event_log_entries,
@@ -163,10 +161,6 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 						for waker in event_wakers.values() {
 							waker.wake_by_ref();
 						}
-					}
-					InitialSubscriptionLoadData::TagList(tags) => {
-						data_signals.all_tags.set(tags);
-						subscription_manager.subscription_confirmation_received(SubscriptionType::TagList);
 					}
 					InitialSubscriptionLoadData::AdminUsers(users) => {
 						data_signals.all_users.set(users);
@@ -441,6 +435,25 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 							.event_log_sections
 							.modify()
 							.retain(|section_entry| section_entry.id != section.id),
+						EventSubscriptionData::UpdateTag(tag) => {
+							let mut tags = event_data.tags.modify();
+							let tag_entry = tags.iter_mut().find(|t| t.id == tag.id);
+							match tag_entry {
+								Some(entry) => *entry = tag,
+								None => tags.push(tag),
+							}
+						}
+						EventSubscriptionData::RemoveTag(tag) => {
+							let mut tags = event_data.tags.modify();
+							let tag_index = tags
+								.iter()
+								.enumerate()
+								.find(|(_, t)| t.id == tag.id)
+								.map(|(index, _)| index);
+							if let Some(index) = tag_index {
+								tags.remove(index);
+							}
+						}
 					}
 				}
 				SubscriptionData::UserUpdate(user_update) => {
@@ -448,27 +461,6 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 					user_signal.set(Some(user_update.user));
 					data_signals.available_events.set(user_update.available_events);
 				}
-				SubscriptionData::TagListUpdate(tag_update) => match tag_update {
-					TagListData::UpdateTag(updated_tag) => {
-						let mut available_tags = data_signals.all_tags.modify();
-						let existing_tag = available_tags.iter_mut().find(|tag| tag.id == updated_tag.id);
-						match existing_tag {
-							Some(tag) => *tag = updated_tag,
-							None => available_tags.push(updated_tag),
-						}
-					}
-					TagListData::RemoveTag(removed_tag) => {
-						let mut available_tags = data_signals.all_tags.modify();
-						let tag_index = available_tags
-							.iter()
-							.enumerate()
-							.find(|(_, tag)| tag.id == removed_tag.id)
-							.map(|(index, _)| index);
-						if let Some(index) = tag_index {
-							available_tags.remove(index);
-						}
-					}
-				},
 				SubscriptionData::AdminEventsUpdate(event_data) => match event_data {
 					AdminEventData::UpdateEvent(event) => {
 						let mut all_events = data_signals.all_events.modify();

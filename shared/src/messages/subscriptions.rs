@@ -10,7 +10,7 @@ use crate::messages::event_log::{EventLogEntry, EventLogSection};
 use crate::messages::event_subscription::{EventSubscriptionData, EventSubscriptionUpdate};
 use crate::messages::events::Event;
 use crate::messages::permissions::PermissionLevel;
-use crate::messages::tags::{Tag, TagListData, TagListUpdate};
+use crate::messages::tags::Tag;
 use crate::messages::user::{UserData, UserSubscriptionUpdate};
 use crate::messages::DataError;
 use serde::{Deserialize, Serialize};
@@ -20,8 +20,6 @@ use serde::{Deserialize, Serialize};
 pub enum SubscriptionType {
 	/// A subscription to the event log for a particular event. An event ID is provided with this variant.
 	EventLogData(String),
-	/// A subscription to all tags.
-	TagList,
 	/// A subscription to all user data.
 	AdminUsers,
 	/// A subscription to all events.
@@ -47,6 +45,7 @@ pub enum InitialSubscriptionLoadData {
 	/// - The event to which the user subscribed
 	/// - The user's permission level for that event
 	/// - The event entry types that can be used for that event
+	/// - The tags that can be used for that event
 	/// - The list of users that can be entered as editors
 	/// - The event log section headers
 	/// - The event log entries that have already been created
@@ -54,11 +53,11 @@ pub enum InitialSubscriptionLoadData {
 		Event,
 		PermissionLevel,
 		Vec<EntryType>,
+		Vec<Tag>,
 		Vec<UserData>,
 		Vec<EventLogSection>,
 		Vec<EventLogEntry>,
 	),
-	TagList(Vec<Tag>),
 	AdminUsers(Vec<UserData>),
 	AdminEvents(Vec<Event>),
 	AdminPermissionGroups(Vec<PermissionGroup>, Vec<PermissionGroupEventAssociation>),
@@ -74,7 +73,6 @@ pub enum SubscriptionData {
 	EventUpdate(Event, Box<EventSubscriptionData>),
 	/// Indicates an update to data related to the logged-in user.
 	UserUpdate(UserSubscriptionUpdate),
-	TagListUpdate(TagListData),
 	AdminEventsUpdate(AdminEventData),
 	AdminEntryTypesUpdate(AdminEntryTypeData),
 	AdminEntryTypesEventsUpdate(AdminEntryTypeEventData),
@@ -96,7 +94,6 @@ pub enum SubscriptionFailureInfo {
 #[derive(Debug, Deserialize, Serialize)]
 pub enum SubscriptionTargetUpdate {
 	EventUpdate(Event, Box<EventSubscriptionUpdate>),
-	TagListUpdate(TagListUpdate),
 	AdminEventsUpdate(AdminEventUpdate),
 	AdminEntryTypesUpdate(AdminEntryTypeUpdate),
 	AdminEntryTypesEventsUpdate(AdminEntryTypeEventUpdate),

@@ -119,6 +119,8 @@ diesel::table! {
 		tag -> Text,
 		description -> Text,
 		playlist -> Text,
+		for_event -> Text,
+		deleted -> Bool,
 	}
 }
 
@@ -152,6 +154,7 @@ diesel::joinable!(event_log_tags -> event_log (log_entry));
 diesel::joinable!(event_log_tags -> tags (tag));
 diesel::joinable!(permission_events -> events (event));
 diesel::joinable!(permission_events -> permission_groups (permission_group));
+diesel::joinable!(tags -> events (for_event));
 diesel::joinable!(user_permissions -> permission_groups (permission_group));
 diesel::joinable!(user_permissions -> users (user_id));
 

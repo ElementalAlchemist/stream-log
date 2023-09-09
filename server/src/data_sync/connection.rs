@@ -14,7 +14,6 @@ use super::subscriptions::admin_sections::{
 };
 use super::subscriptions::admin_users::{handle_admin_users_message, subscribe_to_admin_users};
 use super::subscriptions::events::{handle_event_update, subscribe_to_event};
-use super::subscriptions::tags::{handle_tag_list_message, subscribe_to_tag_list};
 use super::user_profile::handle_profile_update;
 use super::HandleConnectionError;
 use crate::data_sync::{SubscriptionManager, UserDataUpdate};
@@ -335,15 +334,6 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 					)
 					.await?
 				}
-				SubscriptionType::TagList => {
-					subscribe_to_tag_list(
-						Arc::clone(args.db_connection),
-						args.conn_update_tx,
-						args.connection_id,
-						Arc::clone(args.subscription_manager),
-					)
-					.await?
-				}
 				SubscriptionType::AdminUsers => {
 					subscribe_to_admin_users(
 						Arc::clone(args.db_connection),
@@ -434,11 +424,6 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 						.unsubscribe_from_event(&event_id, args.connection_id)
 						.await?
 				}
-				SubscriptionType::TagList => {
-					subscription_manager
-						.remove_tag_list_subscription(args.connection_id)
-						.await?
-				}
 				SubscriptionType::AdminUsers => {
 					subscription_manager
 						.remove_admin_user_subscription(args.connection_id)
@@ -496,16 +481,6 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 						update_data,
 					)
 					.await?
-				}
-				SubscriptionTargetUpdate::TagListUpdate(update_data) => {
-					handle_tag_list_message(
-						Arc::clone(args.db_connection),
-						args.connection_id,
-						user,
-						Arc::clone(args.subscription_manager),
-						update_data,
-					)
-					.await
 				}
 				SubscriptionTargetUpdate::AdminEventsUpdate(update_data) => {
 					handle_admin_event_message(

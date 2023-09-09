@@ -84,9 +84,9 @@ input.error {
 @import "admin/users";
 @import "admin/permission_groups";
 @import "admin/entry_types";
-@import "admin/tags";
 @import "admin/editors";
 @import "admin/sections";
 @import "user_profile";
-@import "event_log";
-@import "event_log_entry_types";
+@import "event_log/log";
+@import "event_log/entry_types";
+@import "event_log/tags";

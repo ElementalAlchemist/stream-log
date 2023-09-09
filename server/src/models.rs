@@ -3,7 +3,7 @@ use crate::schema::{
 	permission_events, permission_groups, tags, user_permissions, users,
 };
 use chrono::prelude::*;
-use diesel::{Insertable, Queryable};
+use diesel::{AsChangeset, Insertable, Queryable};
 use diesel_derive_enum::DbEnum;
 use rgb::RGB8;
 use stream_log_shared::messages::admin::{PermissionGroup as PermissionGroupWs, PermissionGroupEventAssociation};
@@ -259,12 +259,14 @@ pub struct AvailableEntryType {
 	pub event_id: String,
 }
 
-#[derive(Insertable, Queryable)]
+#[derive(AsChangeset, Clone, Insertable, Queryable)]
 pub struct Tag {
 	pub id: String,
 	pub tag: String,
 	pub description: String,
 	pub playlist: String,
+	pub for_event: String,
+	pub deleted: bool,
 }
 
 impl From<Tag> for TagWs {

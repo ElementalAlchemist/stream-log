@@ -12,7 +12,7 @@
 	}
 }
 
-#user_menu, #user_admin_menu_pages {
+#user_menu, #user_event_menu_pages, #user_admin_menu_pages {
 	display: none;
 	list-style: none;
 	margin: 0;
@@ -22,12 +22,12 @@
 }
 
 @media (prefers-color-scheme: dark) {
-	#user_menu, #user_admin_menu_pages {
+	#user_menu, #user_event_menu_pages, #user_admin_menu_pages {
 		background: colors.$dark-background;
 	}
 }
 
-#user_greeting, #user_admin_menu {
+#user_greeting, #user_event_menu, #user_admin_menu {
 	width: 200px;
 	text-align: center;
 

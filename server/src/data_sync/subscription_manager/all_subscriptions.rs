@@ -12,7 +12,6 @@ use stream_log_shared::messages::user::UserData;
 pub struct SubscriptionManager {
 	event_subscriptions: HashMap<String, SingleSubscriptionManager>,
 	user_subscriptions: HashMap<String, HashMap<String, Sender<ConnectionUpdate>>>,
-	tag_list_subscriptions: SingleSubscriptionManager,
 	admin_user_subscriptions: SingleSubscriptionManager,
 	admin_event_subscriptions: SingleSubscriptionManager,
 	admin_permission_group_subscriptions: SingleSubscriptionManager,
@@ -28,7 +27,6 @@ impl SubscriptionManager {
 		Self {
 			event_subscriptions: HashMap::new(),
 			user_subscriptions: HashMap::new(),
-			tag_list_subscriptions: SingleSubscriptionManager::new(SubscriptionType::TagList),
 			admin_user_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AdminUsers),
 			admin_event_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AdminEvents),
 			admin_permission_group_subscriptions: SingleSubscriptionManager::new(
@@ -56,7 +54,6 @@ impl SubscriptionManager {
 		}
 
 		let subscription_shutdown_handles = vec![
-			self.tag_list_subscriptions.shutdown(),
 			self.admin_user_subscriptions.shutdown(),
 			self.admin_event_subscriptions.shutdown(),
 			self.admin_permission_group_subscriptions.shutdown(),
@@ -162,31 +159,6 @@ impl SubscriptionManager {
 				connections.remove(connection_id);
 			}
 		}
-	}
-
-	/// Adds to the tag list subscription
-	pub async fn add_tag_list_subscription(&self, connection_id: &str, update_channel: Sender<ConnectionUpdate>) {
-		self.tag_list_subscriptions
-			.subscribe(connection_id, update_channel)
-			.await;
-	}
-
-	/// Removes from the tag list subscription
-	pub async fn remove_tag_list_subscription(&self, connection_id: &str) -> Result<(), SendError<ConnectionUpdate>> {
-		self.tag_list_subscriptions.unsubscribe(connection_id).await
-	}
-
-	/// Sends the given message to all subscribed connections for tag list
-	pub async fn broadcast_tag_list_message(
-		&self,
-		message: SubscriptionData,
-	) -> Result<(), SendError<SubscriptionData>> {
-		self.tag_list_subscriptions.broadcast_message(message).await
-	}
-
-	/// Checks whether a connection is subscribed to tag list
-	pub async fn is_subscribed_to_tag_list(&self, connection_id: &str) -> bool {
-		self.tag_list_subscriptions.is_subscribed(connection_id).await
 	}
 
 	/// Adds to the admin user list subscription
@@ -463,7 +435,6 @@ impl SubscriptionManager {
 		for user_subscription in self.user_subscriptions.values_mut() {
 			user_subscription.remove(connection_id);
 		}
-		futures.push(self.tag_list_subscriptions.unsubscribe(connection_id));
 		futures.push(self.admin_user_subscriptions.unsubscribe(connection_id));
 		futures.push(self.admin_event_subscriptions.unsubscribe(connection_id));
 		futures.push(self.admin_permission_group_subscriptions.unsubscribe(connection_id));

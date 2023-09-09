@@ -1,5 +1,6 @@
 use super::entry_types::EntryType;
 use super::event_log::{EventLogEntry, EventLogSection, VideoEditState};
+use super::events::Event;
 use super::tags::Tag;
 use super::user::UserData;
 use chrono::{DateTime, Utc};
@@ -20,6 +21,8 @@ pub enum EventSubscriptionData {
 	RemoveEditor(UserData),
 	UpdateSection(EventLogSection),
 	DeleteSection(EventLogSection),
+	UpdateTag(Tag),
+	RemoveTag(Tag),
 }
 
 /// Typing data sent by the server as part of event subscription data with information on what updates to make to typing
@@ -56,7 +59,10 @@ pub enum EventSubscriptionUpdate {
 	ChangeIsIncomplete(EventLogEntry, bool),
 	ChangeManualSortKey(EventLogEntry, Option<i32>),
 	Typing(NewTypingData),
-	NewTag(Tag),
+	UpdateTag(Tag),
+	RemoveTag(Tag),
+	ReplaceTag(Tag, Tag),
+	CopyTagsFromEvent(Event),
 }
 
 #[derive(Debug, Deserialize, Serialize)]

@@ -24,7 +24,7 @@ use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::subscriptions::{
 	InitialSubscriptionLoadData, SubscriptionData, SubscriptionFailureInfo, SubscriptionType,
 };
-use stream_log_shared::messages::tags::{Tag, TagListData};
+use stream_log_shared::messages::tags::Tag;
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::{DataError, FromServerMessage};
 
@@ -169,7 +169,10 @@ pub async fn subscribe_to_event(
 		}
 	};
 
-	let tags: Vec<TagDb> = match tags::table.load(&mut *db_connection) {
+	let tags: Vec<TagDb> = match tags::table
+		.filter(tags::deleted.eq(false).and(tags::for_event.eq(&event.id)))
+		.load(&mut *db_connection)
+	{
 		Ok(tags) => tags,
 		Err(error) => {
 			tide::log::error!("Database error getting tags for an event: {}", error);
@@ -371,6 +374,7 @@ pub async fn subscribe_to_event(
 	};
 	let permission_level: PermissionLevel = permission_level.into();
 	let entry_types: Vec<EntryType> = entry_types.iter().map(|et| (*et).clone().into()).collect();
+	let tags: Vec<Tag> = tags.iter().map(|tag| (*tag).clone().into()).collect();
 	let event_log_sections: Vec<EventLogSection> = log_sections
 		.drain(..)
 		.map(|section| EventLogSection {
@@ -445,6 +449,7 @@ pub async fn subscribe_to_event(
 		event,
 		permission_level,
 		entry_types,
+		tags,
 		available_editors_list,
 		event_log_sections,
 		event_log_entries,
@@ -1061,35 +1066,232 @@ pub async fn handle_event_update(
 			};
 			vec![EventSubscriptionData::Typing(typing_data)]
 		}
-		EventSubscriptionUpdate::NewTag(mut new_tag) => {
-			if new_tag.name.is_empty() || new_tag.name.contains(',') || new_tag.description.is_empty() {
-				return Ok(());
+		EventSubscriptionUpdate::UpdateTag(mut tag) => {
+			let new_tag = tag.id.is_empty();
+			if new_tag {
+				if tag.name.is_empty() || tag.name.contains(',') || tag.description.is_empty() {
+					return Ok(());
+				}
+				tag.id = cuid2::create_id();
 			}
-			let new_id = cuid2::create_id();
-			new_tag.id = new_id.clone();
+
 			let mut db_connection = db_connection.lock().await;
-			let new_tag_db = TagDb {
-				id: new_id,
-				tag: new_tag.name.clone(),
-				description: new_tag.description.clone(),
-				playlist: String::new(),
+			let tag_db = TagDb {
+				id: tag.id.clone(),
+				tag: tag.name.clone(),
+				description: tag.description.clone(),
+				playlist: tag.playlist.clone(),
+				for_event: event.id.clone(),
+				deleted: false,
 			};
-			let insert_result = diesel::insert_into(tags::table)
-				.values(new_tag_db)
-				.execute(&mut *db_connection);
-			if let Err(error) = insert_result {
-				tide::log::error!("Database error adding a new tag: {}", error);
+			let db_result: QueryResult<bool> = db_connection.transaction(|db_connection| {
+				if new_tag {
+					diesel::insert_into(tags::table)
+						.values(&tag_db)
+						.execute(db_connection)?;
+					Ok(true)
+				} else {
+					let this_tag: TagDb = tags::table.find(&tag_db.id).first(db_connection)?;
+					if this_tag.for_event != event.id {
+						return Ok(false);
+					}
+					diesel::update(tags::table)
+						.filter(tags::id.eq(&tag_db.id))
+						.set(&tag_db)
+						.execute(db_connection)?;
+					Ok(true)
+				}
+			});
+			match db_result {
+				Ok(true) => (),
+				Ok(false) => return Ok(()),
+				Err(error) => {
+					tide::log::error!("Database error updating a tag: {}", error);
+					return Ok(());
+				}
+			}
+
+			vec![EventSubscriptionData::UpdateTag(tag)]
+		}
+		EventSubscriptionUpdate::RemoveTag(tag) => {
+			if *permission_level != Some(Permission::Supervisor) {
+				return Ok(());
+			}
+			let mut db_connection = db_connection.lock().await;
+			let delete_result: QueryResult<bool> = db_connection.transaction(|db_connection| {
+				let this_tag: TagDb = tags::table.find(&tag.id).first(db_connection)?;
+				if this_tag.for_event != event.id {
+					return Ok(false);
+				}
+				diesel::update(tags::table)
+					.filter(tags::id.eq(&tag.id))
+					.set(tags::deleted.eq(true))
+					.execute(db_connection)?;
+				Ok(true)
+			});
+			match delete_result {
+				Ok(true) => (),
+				Ok(false) => return Ok(()),
+				Err(error) => {
+					tide::log::error!("Database error removing a tag: {}", error);
+					return Ok(());
+				}
+			}
+
+			vec![EventSubscriptionData::RemoveTag(tag)]
+		}
+		EventSubscriptionUpdate::ReplaceTag(tag, replacement_tag) => {
+			if *permission_level != Some(Permission::Supervisor) {
+				return Ok(());
+			}
+			let mut db_connection = db_connection.lock().await;
+			let replace_result: QueryResult<(bool, Vec<EventLogEntry>)> = db_connection.transaction(|db_connection| {
+				let original_tag: TagDb = tags::table.find(&tag.id).first(db_connection)?;
+				let replacement: TagDb = tags::table.find(&replacement_tag.id).first(db_connection)?;
+				if original_tag.for_event != event.id || replacement.for_event != event.id {
+					return Ok((false, Vec::new()));
+				}
+
+				let log_entry_tags: Vec<EventLogTag> = event_log_tags::table
+					.filter(event_log_tags::tag.eq(&tag.id))
+					.load(db_connection)?;
+				let entry_tags: Vec<EventLogTag> = log_entry_tags
+					.iter()
+					.map(|log_entry_tag| EventLogTag {
+						tag: replacement_tag.id.clone(),
+						log_entry: log_entry_tag.log_entry.clone(),
+					})
+					.collect();
+				diesel::insert_into(event_log_tags::table)
+					.values(&entry_tags)
+					.on_conflict_do_nothing()
+					.execute(db_connection)?;
+				diesel::delete(event_log_tags::table)
+					.filter(event_log_tags::tag.eq(&tag.id))
+					.execute(db_connection)?;
+				diesel::update(tags::table)
+					.filter(tags::id.eq(&tag.id))
+					.set(tags::deleted.eq(true))
+					.execute(db_connection)?;
+
+				let log_entry_ids: Vec<String> = log_entry_tags
+					.iter()
+					.map(|tag_entry| tag_entry.log_entry.clone())
+					.collect();
+				let affected_log_entries: Vec<EventLogEntryDb> = event_log::table
+					.filter(event_log::id.eq_any(log_entry_ids))
+					.load(db_connection)?;
+
+				let mut output_log_entries: Vec<EventLogEntry> = Vec::with_capacity(affected_log_entries.len());
+				for log_entry in affected_log_entries.iter() {
+					let tag_ids: Vec<String> = entry_tags
+						.iter()
+						.filter(|entry_tag| entry_tag.log_entry == log_entry.id)
+						.map(|entry_tag| entry_tag.tag.clone())
+						.collect();
+					let mut tags: Vec<TagDb> = tags::table.filter(tags::id.eq_any(tag_ids)).load(db_connection)?;
+					let tags: Vec<Tag> = tags.drain(..).map(|tag| tag.into()).collect();
+
+					let editor = match log_entry.editor.as_ref() {
+						Some(editor) => {
+							let editor: User = users::table.find(editor).first(db_connection)?;
+							let editor: UserData = editor.into();
+							Some(editor)
+						}
+						None => None,
+					};
+
+					let updated_entry = EventLogEntry {
+						id: log_entry.id.clone(),
+						start_time: log_entry.start_time,
+						end_time: log_entry.end_time,
+						entry_type: log_entry.entry_type.clone(),
+						description: log_entry.description.clone(),
+						media_link: log_entry.media_link.clone(),
+						submitter_or_winner: log_entry.submitter_or_winner.clone(),
+						tags,
+						notes_to_editor: log_entry.notes_to_editor.clone(),
+						editor,
+						editor_link: log_entry.editor_link.clone(),
+						video_link: log_entry.video_link.clone(),
+						parent: log_entry.parent.clone(),
+						created_at: log_entry.created_at,
+						manual_sort_key: log_entry.manual_sort_key,
+						video_state: log_entry.video_state.map(|video_state| video_state.into()),
+						video_errors: log_entry.video_errors.clone(),
+						poster_moment: log_entry.poster_moment,
+						video_edit_state: log_entry.video_edit_state.into(),
+						marked_incomplete: log_entry.marked_incomplete,
+					};
+					output_log_entries.push(updated_entry);
+				}
+
+				Ok((true, output_log_entries))
+			});
+			let mut log_entries = match replace_result {
+				Ok((true, entries)) => entries,
+				Ok((false, _)) => return Ok(()),
+				Err(error) => {
+					tide::log::error!("Database error replacing a tag: {}", error);
+					return Ok(());
+				}
+			};
+			let mut send_messages: Vec<EventSubscriptionData> = Vec::with_capacity(log_entries.len() + 1);
+			for log_entry in log_entries.drain(..) {
+				send_messages.push(EventSubscriptionData::UpdateLogEntry(log_entry, user.clone()));
+			}
+			send_messages.push(EventSubscriptionData::RemoveTag(tag));
+
+			send_messages
+		}
+		EventSubscriptionUpdate::CopyTagsFromEvent(copy_from_event) => {
+			if !user.is_admin {
 				return Ok(());
 			}
 
-			let subscription_manager = subscription_manager.lock().await;
-			let message = SubscriptionData::TagListUpdate(TagListData::UpdateTag(new_tag.clone()));
-			let send_result = subscription_manager.broadcast_tag_list_message(message).await;
-			if let Err(error) = send_result {
-				tide::log::error!("Error occurred broadcasting an event tag update: {}", error);
-			}
+			let mut db_connection = db_connection.lock().await;
+			let added_tags: QueryResult<Vec<TagDb>> = db_connection.transaction(|db_connection| {
+				let event_tags: Vec<TagDb> = tags::table
+					.filter(tags::for_event.eq(copy_from_event.id).and(tags::deleted.eq(false)))
+					.load(db_connection)?;
+				let event_tag_names: Vec<String> = event_tags.iter().map(|tag| tag.tag.clone()).collect();
+				let mut overlapping_event_tag_names: Vec<String> = tags::table
+					.filter(
+						tags::for_event
+							.eq(&event.id)
+							.and(tags::tag.eq_any(&event_tag_names))
+							.and(tags::deleted.eq(false)),
+					)
+					.select(tags::tag)
+					.load(db_connection)?;
+				let overlapping_event_tag_names: HashSet<String> = overlapping_event_tag_names.drain(..).collect();
+				let new_event_tags: Vec<TagDb> = event_tags
+					.iter()
+					.filter(|tag| !overlapping_event_tag_names.contains(&tag.tag))
+					.map(|tag| TagDb {
+						id: cuid2::create_id(),
+						tag: tag.tag.clone(),
+						description: tag.description.clone(),
+						playlist: String::new(),
+						for_event: event.id.clone(),
+						deleted: false,
+					})
+					.collect();
+				diesel::insert_into(tags::table)
+					.values(&new_event_tags)
+					.execute(db_connection)?;
 
-			Vec::new()
+				Ok(new_event_tags)
+			});
+			let mut added_tags: Vec<Tag> = match added_tags {
+				Ok(mut tags) => tags.drain(..).map(|tag| tag.into()).collect(),
+				Err(error) => {
+					tide::log::error!("Database error copying event tags: {}", error);
+					return Ok(());
+				}
+			};
+
+			added_tags.drain(..).map(EventSubscriptionData::UpdateTag).collect()
 		}
 	};
 
