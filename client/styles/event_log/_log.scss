@@ -268,11 +268,11 @@ $event_log_column_count: 16;
 	display: inline-flex;
 
 	> div {
-		flex-basis: 80px;
-		width: 80px;
+		flex-basis: 125px;
+		width: 125px;
 
 		> input {
-			width: 125px;
+			width: calc(100% - 10px);
 		}
 	}
 }
