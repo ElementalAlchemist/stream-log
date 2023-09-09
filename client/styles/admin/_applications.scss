@@ -1,0 +1,13 @@
+#admin_manage_applications {
+	display: grid;
+	grid-template-columns: max-content max-content max-content max-content max-content max-content;
+	gap: 4px;
+}
+
+.admin_manage_applications_application {
+	display: contents;
+}
+
+#admin_manage_applications_new > div {
+	margin: 5px 0;
+}

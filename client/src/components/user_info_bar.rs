@@ -124,6 +124,11 @@ pub fn UserInfoBar<G: Html>(ctx: Scope) -> View<G> {
 											"Manage Event Log Sections"
 										}
 									}
+									li {
+										a(href="/admin/applications") {
+											"Manage Applications"
+										}
+									}
 								}
 							}
 						}

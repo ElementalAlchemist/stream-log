@@ -1,4 +1,5 @@
 use super::register::{check_username, register_user};
+use super::subscriptions::admin_applications::{handle_admin_applications_message, subscribe_to_admin_applications};
 use super::subscriptions::admin_editors::{handle_admin_editors_message, subscribe_to_admin_editors};
 use super::subscriptions::admin_entry_types::{
 	handle_admin_entry_type_event_message, handle_admin_entry_type_message, subscribe_to_admin_entry_types,
@@ -414,6 +415,16 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 					)
 					.await?
 				}
+				SubscriptionType::AdminApplications => {
+					subscribe_to_admin_applications(
+						Arc::clone(args.db_connection),
+						args.conn_update_tx,
+						args.connection_id,
+						user,
+						Arc::clone(args.subscription_manager),
+					)
+					.await?
+				}
 			}
 		}
 		FromClientMessage::EndSubscription(subscription_type) => {
@@ -462,6 +473,11 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 				SubscriptionType::AdminEventLogSections => {
 					subscription_manager
 						.remove_admin_event_log_sections_subscription(args.connection_id)
+						.await?
+				}
+				SubscriptionType::AdminApplications => {
+					subscription_manager
+						.remove_admin_applications_subscription(args.connection_id)
 						.await?
 				}
 			}
@@ -559,6 +575,17 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 						user,
 						Arc::clone(args.subscription_manager),
 						update_data,
+					)
+					.await
+				}
+				SubscriptionTargetUpdate::AdminApplicationsUpdate(update_data) => {
+					handle_admin_applications_message(
+						Arc::clone(args.db_connection),
+						args.connection_id,
+						user,
+						Arc::clone(args.subscription_manager),
+						update_data,
+						args.conn_update_tx,
 					)
 					.await
 				}

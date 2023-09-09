@@ -124,3 +124,25 @@ pub enum AdminEventLogSectionsUpdate {
 	UpdateSection(EventLogSection),
 	DeleteSection(EventLogSection),
 }
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct Application {
+	pub id: String,
+	pub name: String,
+	pub read_log: bool,
+	pub write_links: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum AdminApplicationData {
+	UpdateApplication(Application),
+	ShowApplicationAuthKey(Application, String),
+	RevokeApplication(Application),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum AdminApplicationUpdate {
+	UpdateApplication(Application),
+	ResetAuthToken(Application),
+	RevokeApplication(Application),
+}

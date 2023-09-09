@@ -22,6 +22,7 @@ use components::error_display::ErrorDisplay;
 use components::user_info_bar::{EventId, UserInfoBar};
 use pages::admin::assign_entry_types::AdminManageEntryTypesForEventsView;
 use pages::admin::assign_groups::AssignUsersToGroupsView;
+use pages::admin::manage_applications::AdminApplicationsView;
 use pages::admin::manage_editors::AdminManageEditorsView;
 use pages::admin::manage_entry_types::AdminManageEntryTypesView;
 use pages::admin::manage_events::AdminManageEventsView;
@@ -70,6 +71,8 @@ enum AppRoutes {
 	AdminEditorsManager,
 	#[to("/admin/sections")]
 	AdminEventLogSectionsManager,
+	#[to("/admin/applications")]
+	AdminApplicationsManager,
 	#[to("/user_profile")]
 	UserProfile,
 	#[not_found]
@@ -204,6 +207,7 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 							AppRoutes::AdminEntryTypesForEventManager => view! { ctx, AdminManageEntryTypesForEventsView },
 							AppRoutes::AdminEditorsManager => view! { ctx, AdminManageEditorsView },
 							AppRoutes::AdminEventLogSectionsManager => view! { ctx, AdminManageEventLogSectionsView },
+							AppRoutes::AdminApplicationsManager => view! { ctx, AdminApplicationsView },
 							AppRoutes::UserProfile => view! { ctx, UserProfileView },
 							AppRoutes::NotFound => view! { ctx, NotFoundView }
 						}

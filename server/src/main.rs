@@ -98,6 +98,7 @@ async fn main() -> miette::Result<()> {
 	establish_alternate_route(&mut app, "/admin/assign_event_types")?;
 	establish_alternate_route(&mut app, "/admin/editors")?;
 	establish_alternate_route(&mut app, "/admin/sections")?;
+	establish_alternate_route(&mut app, "/admin/applications")?;
 	establish_alternate_route(&mut app, "/user_profile")?;
 
 	app.listen(&config.listen.addr).await.into_diagnostic()?;

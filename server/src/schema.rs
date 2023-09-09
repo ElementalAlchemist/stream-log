@@ -15,6 +15,17 @@ pub mod sql_types {
 }
 
 diesel::table! {
+	applications (id) {
+		id -> Text,
+		name -> Text,
+		auth_key -> Nullable<Text>,
+		read_log -> Bool,
+		write_links -> Bool,
+		creation_user -> Text,
+	}
+}
+
+diesel::table! {
 	available_entry_types_for_event (entry_type, event_id) {
 		entry_type -> Text,
 		event_id -> Text,
@@ -143,6 +154,7 @@ diesel::table! {
 	}
 }
 
+diesel::joinable!(applications -> users (creation_user));
 diesel::joinable!(available_entry_types_for_event -> entry_types (entry_type));
 diesel::joinable!(available_entry_types_for_event -> events (event_id));
 diesel::joinable!(event_editors -> events (event));
@@ -159,6 +171,7 @@ diesel::joinable!(user_permissions -> permission_groups (permission_group));
 diesel::joinable!(user_permissions -> users (user_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
+	applications,
 	available_entry_types_for_event,
 	entry_types,
 	event_editors,

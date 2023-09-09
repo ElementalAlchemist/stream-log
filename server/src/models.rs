@@ -1,12 +1,14 @@
 use crate::schema::{
-	available_entry_types_for_event, entry_types, event_editors, event_log, event_log_sections, event_log_tags, events,
-	permission_events, permission_groups, tags, user_permissions, users,
+	applications, available_entry_types_for_event, entry_types, event_editors, event_log, event_log_sections,
+	event_log_tags, events, permission_events, permission_groups, tags, user_permissions, users,
 };
 use chrono::prelude::*;
 use diesel::{AsChangeset, Insertable, Queryable};
 use diesel_derive_enum::DbEnum;
 use rgb::RGB8;
-use stream_log_shared::messages::admin::{PermissionGroup as PermissionGroupWs, PermissionGroupEventAssociation};
+use stream_log_shared::messages::admin::{
+	Application as ApplicationWs, PermissionGroup as PermissionGroupWs, PermissionGroupEventAssociation,
+};
 use stream_log_shared::messages::entry_types::EntryType as EntryTypeWs;
 use stream_log_shared::messages::event_log::{VideoEditState as VideoEditStateWs, VideoState as VideoStateWs};
 use stream_log_shared::messages::events::Event as EventWs;
@@ -330,4 +332,25 @@ pub struct EventLogSection {
 	pub event: String,
 	pub name: String,
 	pub start_time: DateTime<Utc>,
+}
+
+#[derive(Insertable, Queryable)]
+pub struct Application {
+	pub id: String,
+	pub name: String,
+	pub auth_key: Option<String>,
+	pub read_log: bool,
+	pub write_links: bool,
+	pub creation_user: String,
+}
+
+impl From<Application> for ApplicationWs {
+	fn from(value: Application) -> Self {
+		Self {
+			id: value.id,
+			name: value.name,
+			read_log: value.read_log,
+			write_links: value.write_links,
+		}
+	}
 }

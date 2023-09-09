@@ -1,9 +1,10 @@
 use crate::messages::admin::{
-	AdminEntryTypeData, AdminEntryTypeEventData, AdminEntryTypeEventUpdate, AdminEntryTypeUpdate, AdminEventData,
-	AdminEventEditorData, AdminEventEditorUpdate, AdminEventLogSectionsData, AdminEventLogSectionsUpdate,
-	AdminEventUpdate, AdminPermissionGroupData, AdminPermissionGroupUpdate, AdminUserPermissionGroupData,
-	AdminUserPermissionGroupUpdate, EditorEventAssociation, EntryTypeEventAssociation, PermissionGroup,
-	PermissionGroupEventAssociation, UserPermissionGroupAssociation,
+	AdminApplicationData, AdminApplicationUpdate, AdminEntryTypeData, AdminEntryTypeEventData,
+	AdminEntryTypeEventUpdate, AdminEntryTypeUpdate, AdminEventData, AdminEventEditorData, AdminEventEditorUpdate,
+	AdminEventLogSectionsData, AdminEventLogSectionsUpdate, AdminEventUpdate, AdminPermissionGroupData,
+	AdminPermissionGroupUpdate, AdminUserPermissionGroupData, AdminUserPermissionGroupUpdate, Application,
+	EditorEventAssociation, EntryTypeEventAssociation, PermissionGroup, PermissionGroupEventAssociation,
+	UserPermissionGroupAssociation,
 };
 use crate::messages::entry_types::EntryType;
 use crate::messages::event_log::{EventLogEntry, EventLogSection};
@@ -36,6 +37,8 @@ pub enum SubscriptionType {
 	AdminEventEditors,
 	/// A subscription to event log sections.
 	AdminEventLogSections,
+	/// A subscription to all applications.
+	AdminApplications,
 }
 
 /// Sent to the client when a new subscription is created.
@@ -66,6 +69,7 @@ pub enum InitialSubscriptionLoadData {
 	AdminEntryTypesEvents(Vec<EntryTypeEventAssociation>),
 	AdminEventEditors(Vec<EditorEventAssociation>),
 	AdminEventLogSections(Vec<(Event, EventLogSection)>),
+	AdminApplications(Vec<Application>),
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -81,6 +85,7 @@ pub enum SubscriptionData {
 	AdminEventEditorsUpdate(AdminEventEditorData),
 	AdminUserPermissionGroupsUpdate(AdminUserPermissionGroupData),
 	AdminEventLogSectionsUpdate(AdminEventLogSectionsData),
+	AdminApplicationsUpdate(AdminApplicationData),
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -102,4 +107,5 @@ pub enum SubscriptionTargetUpdate {
 	AdminEventEditorsUpdate(AdminEventEditorUpdate),
 	AdminUserPermissionGroupsUpdate(AdminUserPermissionGroupUpdate),
 	AdminEventLogSectionsUpdate(AdminEventLogSectionsUpdate),
+	AdminApplicationsUpdate(AdminApplicationUpdate),
 }

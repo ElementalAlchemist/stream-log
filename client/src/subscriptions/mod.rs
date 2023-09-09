@@ -8,9 +8,10 @@ use std::cmp::Ordering;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use stream_log_shared::messages::admin::{
-	AdminEntryTypeData, AdminEntryTypeEventData, AdminEventData, AdminEventEditorData, AdminEventLogSectionsData,
-	AdminPermissionGroupData, AdminUserPermissionGroupData, EditorEventAssociation, EntryTypeEventAssociation,
-	PermissionGroup, PermissionGroupEventAssociation, UserPermissionGroupAssociation,
+	AdminApplicationData, AdminEntryTypeData, AdminEntryTypeEventData, AdminEventData, AdminEventEditorData,
+	AdminEventLogSectionsData, AdminPermissionGroupData, AdminUserPermissionGroupData, Application,
+	EditorEventAssociation, EntryTypeEventAssociation, PermissionGroup, PermissionGroupEventAssociation,
+	UserPermissionGroupAssociation,
 };
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_log::{EventLogEntry, EventLogSection};
@@ -77,6 +78,12 @@ pub struct DataSignals {
 
 	/// List of all event log sections with their associated events
 	pub all_event_log_sections: RcSignal<Vec<(Event, EventLogSection)>>,
+
+	/// List of all applications
+	pub all_applications: RcSignal<Vec<Application>>,
+
+	/// List of application auth keys to show
+	pub show_application_auth_keys: RcSignal<Vec<(Application, String)>>,
 }
 
 impl DataSignals {
@@ -95,6 +102,8 @@ impl DataSignals {
 			user_permission_groups: create_rc_signal(Vec::new()),
 			entry_type_event_associations: create_rc_signal(Vec::new()),
 			all_event_log_sections: create_rc_signal(Vec::new()),
+			all_applications: create_rc_signal(Vec::new()),
+			show_application_auth_keys: create_rc_signal(Vec::new()),
 		}
 	}
 }
@@ -200,6 +209,10 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 						data_signals.all_event_log_sections.set(sections);
 						subscription_manager
 							.subscription_confirmation_received(SubscriptionType::AdminEventLogSections);
+					}
+					InitialSubscriptionLoadData::AdminApplications(applications) => {
+						data_signals.all_applications.set(applications);
+						subscription_manager.subscription_confirmation_received(SubscriptionType::AdminApplications);
 					}
 				}
 			}
@@ -624,6 +637,40 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 							.retain(|entry| entry.1.id != section.id),
 					}
 				}
+				SubscriptionData::AdminApplicationsUpdate(application_update) => match application_update {
+					AdminApplicationData::UpdateApplication(application) => {
+						let mut all_applications = data_signals.all_applications.modify();
+						let application_entry = all_applications.iter_mut().find(|app| app.id == application.id);
+						match application_entry {
+							Some(app) => *app = application,
+							None => all_applications.push(application),
+						}
+					}
+					AdminApplicationData::ShowApplicationAuthKey(application, auth_key) => {
+						{
+							let mut application_auth_keys = data_signals.show_application_auth_keys.modify();
+							let auth_key_entry = application_auth_keys
+								.iter_mut()
+								.find(|(app, _)| app.id == application.id);
+							match auth_key_entry {
+								Some(entry) => *entry = (application, auth_key),
+								None => application_auth_keys.push((application, auth_key)),
+							}
+						}
+						data_signals.show_application_auth_keys.trigger_subscribers();
+					}
+					AdminApplicationData::RevokeApplication(application) => {
+						let mut all_applications = data_signals.all_applications.modify();
+						let application_index = all_applications
+							.iter()
+							.enumerate()
+							.find(|(_, app)| app.id == application.id)
+							.map(|(index, _)| index);
+						if let Some(index) = application_index {
+							all_applications.remove(index);
+						}
+					}
+				},
 			},
 			FromServerMessage::Unsubscribed(subscription_type) => {
 				let mut subscription_manager = subscription_manager.lock().await;

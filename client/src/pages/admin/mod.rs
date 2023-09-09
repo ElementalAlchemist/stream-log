@@ -1,5 +1,6 @@
 pub mod assign_entry_types;
 pub mod assign_groups;
+pub mod manage_applications;
 pub mod manage_editors;
 pub mod manage_entry_types;
 pub mod manage_events;
