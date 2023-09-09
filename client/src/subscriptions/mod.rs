@@ -669,6 +669,16 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 						if let Some(index) = application_index {
 							all_applications.remove(index);
 						}
+
+						let mut application_auth_keys = data_signals.show_application_auth_keys.modify();
+						let auth_key_index = application_auth_keys
+							.iter()
+							.enumerate()
+							.find(|(_, (app, _))| app.id == application.id)
+							.map(|(index, _)| index);
+						if let Some(index) = auth_key_index {
+							application_auth_keys.remove(index);
+						}
 					}
 				},
 			},
