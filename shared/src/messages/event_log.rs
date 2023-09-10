@@ -34,7 +34,7 @@ pub struct EventLogSection {
 	pub start_time: DateTime<Utc>,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub enum VideoState {
 	Unedited,
 	Edited,
@@ -44,6 +44,21 @@ pub enum VideoState {
 	Done,
 	Modified,
 	Unlisted,
+}
+
+impl VideoState {
+	pub fn all_states() -> Vec<Self> {
+		vec![
+			Self::Unedited,
+			Self::Edited,
+			Self::Claimed,
+			Self::Finalizing,
+			Self::Transcoding,
+			Self::Done,
+			Self::Modified,
+			Self::Unlisted,
+		]
+	}
 }
 
 impl std::fmt::Display for VideoState {

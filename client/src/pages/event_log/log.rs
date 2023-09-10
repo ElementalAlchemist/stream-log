@@ -14,8 +14,8 @@ use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
 use std::collections::hash_map::Entry;
-use std::collections::HashMap;
-use stream_log_shared::messages::event_log::{EventLogEntry, EventLogSection, VideoEditState};
+use std::collections::{HashMap, HashSet};
+use stream_log_shared::messages::event_log::{EventLogEntry, EventLogSection, VideoEditState, VideoState};
 use stream_log_shared::messages::event_subscription::EventSubscriptionUpdate;
 use stream_log_shared::messages::subscriptions::{SubscriptionTargetUpdate, SubscriptionType};
 use stream_log_shared::messages::tags::Tag;
@@ -134,6 +134,8 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		move || (*available_editors.get()).clone()
 	});
 
+	let active_state_filters: &Signal<HashSet<Option<VideoState>>> = create_signal(ctx, HashSet::new());
+
 	let log_lines = create_memo(ctx, move || {
 		let entries: Vec<EventLogEntry> = event_subscription_data
 			.event_log_entries
@@ -143,6 +145,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 			.cloned()
 			.collect();
 		let sections = event_subscription_data.event_log_sections.get();
+		let state_filters = active_state_filters.get();
 
 		let mut entries_iter = entries.iter();
 		let mut sections_iter = sections.iter();
@@ -156,7 +159,9 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 			match (next_entry, next_section) {
 				(Some(entry), Some(section)) => {
 					if entry.start_time < section.start_time {
-						log_lines.push(LogLineData::Entry(Box::new(entry.clone())));
+						if state_filters.is_empty() || state_filters.contains(&entry.video_state) {
+							log_lines.push(LogLineData::Entry(Box::new(entry.clone())));
+						}
 						next_entry = entries_iter.next();
 					} else {
 						if let Some(LogLineData::Section(existing_section)) = log_lines.last_mut() {
@@ -168,11 +173,17 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 					}
 				}
 				(Some(entry), None) => {
-					log_lines.push(LogLineData::Entry(Box::new(entry.clone())));
+					if state_filters.is_empty() || state_filters.contains(&entry.video_state) {
+						log_lines.push(LogLineData::Entry(Box::new(entry.clone())));
+					}
 					next_entry = entries_iter.next();
 				}
 				(None, _) => break,
 			}
+		}
+
+		while let Some(LogLineData::Section(_)) = log_lines.last() {
+			log_lines.pop();
 		}
 
 		log_lines
@@ -342,6 +353,33 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		}
 	};
 
+	let mut all_video_states = vec![None];
+	for video_state in VideoState::all_states() {
+		all_video_states.push(Some(video_state));
+	}
+	let all_video_state_filters: Vec<(String, &Signal<bool>)> = all_video_states
+		.iter()
+		.map(|state| {
+			let state_name = match state {
+				Some(state) => format!("{}", state),
+				None => String::from("(empty)"),
+			};
+			let active_signal = create_signal(ctx, active_state_filters.get().contains(state));
+
+			let state = *state;
+			create_effect(ctx, move || {
+				if *active_signal.get() {
+					active_state_filters.modify().insert(state);
+				} else {
+					active_state_filters.modify().remove(&state);
+				}
+			});
+
+			(state_name, active_signal)
+		})
+		.collect();
+	let all_video_state_filters = create_signal(ctx, all_video_state_filters);
+
 	let jump_highlight_row_id = create_signal(ctx, String::new());
 	let jump_id_entry = create_signal(ctx, String::new());
 	let jump_handler = |event: WebEvent| {
@@ -390,11 +428,35 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 			div(id="event_log_header") {
 				h1(id="event_log_title") { (visible_event_signal.get().name) }
 				div(id="event_log_view_settings") {
-					a(id="event_log_expand_all", class="click", on:click=expand_all_handler) {
-						"Expand All"
+					div(id="event_log_view_settings_section_control") {
+						a(id="event_log_expand_all", class="click", on:click=expand_all_handler) {
+							"Expand All"
+						}
+						a(id="event_log_collapse_all", class="click", on:click=collapse_all_handler) {
+							"Collapse All"
+						}
 					}
-					a(id="event_log_collapse_all", class="click", on:click=collapse_all_handler) {
-						"Collapse All"
+					div(id="event_log_view_settings_filter") {
+						div(id="event_log_view_settings_filter_video_state") {
+							"Video State Filter"
+							ul(class="event_log_view_settings_filter_dropdown") {
+								Keyed(
+									iterable=all_video_state_filters,
+									key=|(state_name, _)| state_name.clone(),
+									view=|ctx, (state_name, filter_active)| {
+										view! {
+											ctx,
+											li {
+												label {
+													input(type="checkbox", bind:checked=filter_active)
+													(state_name)
+												}
+											}
+										}
+									}
+								)
+							}
+						}
 					}
 					form(id="event_log_jump", on:submit=jump_handler) {
 						input(type="text", bind:value=jump_id_entry, placeholder="ID")

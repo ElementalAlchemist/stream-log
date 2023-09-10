@@ -1,3 +1,4 @@
+@use "../colors";
 $event_log_column_count: 16;
 
 #event_log_layout {
@@ -19,6 +20,30 @@ $event_log_column_count: 16;
 
 #event_log_view_settings {
 	flex-basis: max-content;
+}
+
+#event_log_view_settings_filter_video_state {
+	position: relative;
+
+	&:hover .event_log_view_settings_filter_dropdown {
+		display: block;
+	}
+}
+
+.event_log_view_settings_filter_dropdown {
+	position: absolute;
+	display: none;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	background: colors.$light-background;
+	border: 1px solid var(--base-border-color);
+}
+
+@media (prefers-color-scheme: dark) {
+	.event_log_view_settings_filter_dropdown {
+		background: colors.$dark-background;
+	}
 }
 
 #event_log {
