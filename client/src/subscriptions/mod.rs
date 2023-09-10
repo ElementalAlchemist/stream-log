@@ -261,16 +261,18 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 							}
 						}
 						EventSubscriptionData::UpdateLogEntry(log_entry, update_user) => {
-							let mut typing_events = event_data.typing_events.modify();
-							*typing_events = typing_events
-								.iter()
-								.filter(|typing_event| {
-									typing_event.user.id != update_user.id
-										|| typing_event.event_log_entry.as_ref().map(|entry| &entry.id)
-											!= Some(&log_entry.id)
-								})
-								.cloned()
-								.collect();
+							if let Some(update_user) = update_user {
+								let mut typing_events = event_data.typing_events.modify();
+								*typing_events = typing_events
+									.iter()
+									.filter(|typing_event| {
+										typing_event.user.id != update_user.id
+											|| typing_event.event_log_entry.as_ref().map(|entry| &entry.id)
+												!= Some(&log_entry.id)
+									})
+									.cloned()
+									.collect();
+							}
 
 							let mut log_entries = event_data.event_log_entries.modify();
 							let existing_entry_index = log_entries

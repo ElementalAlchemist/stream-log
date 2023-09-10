@@ -686,7 +686,7 @@ pub async fn handle_event_update(
 					return Ok(());
 				}
 			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry, user.clone())]
+			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
 		}
 		EventSubscriptionUpdate::ChangeEndTime(log_entry, new_end_time) => {
 			let mut db_connection = db_connection.lock().await;
@@ -715,7 +715,7 @@ pub async fn handle_event_update(
 					return Ok(());
 				}
 			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry, user.clone())]
+			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
 		}
 		EventSubscriptionUpdate::ChangeEntryType(log_entry, new_entry_type) => {
 			let mut db_connection = db_connection.lock().await;
@@ -734,7 +734,7 @@ pub async fn handle_event_update(
 					return Ok(());
 				}
 			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry, user.clone())]
+			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
 		}
 		EventSubscriptionUpdate::ChangeDescription(log_entry, new_description) => {
 			let mut db_connection = db_connection.lock().await;
@@ -753,7 +753,7 @@ pub async fn handle_event_update(
 					return Ok(());
 				}
 			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry, user.clone())]
+			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
 		}
 		EventSubscriptionUpdate::ChangeMediaLink(log_entry, new_media_link) => {
 			let mut db_connection = db_connection.lock().await;
@@ -772,7 +772,7 @@ pub async fn handle_event_update(
 					return Ok(());
 				}
 			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry, user.clone())]
+			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
 		}
 		EventSubscriptionUpdate::ChangeSubmitterWinner(log_entry, new_submitter_or_winner) => {
 			let mut db_connection = db_connection.lock().await;
@@ -801,7 +801,7 @@ pub async fn handle_event_update(
 					return Ok(());
 				}
 			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry, user.clone())]
+			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
 		}
 		EventSubscriptionUpdate::ChangePosterMoment(log_entry, poster_moment) => {
 			let mut db_connection = db_connection.lock().await;
@@ -820,7 +820,7 @@ pub async fn handle_event_update(
 					return Ok(());
 				}
 			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry, user.clone())]
+			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
 		}
 		EventSubscriptionUpdate::ChangeTags(log_entry, new_tags) => {
 			let mut db_connection = db_connection.lock().await;
@@ -926,7 +926,7 @@ pub async fn handle_event_update(
 					return Ok(());
 				}
 			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry, user.clone())]
+			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
 		}
 		EventSubscriptionUpdate::ChangeVideoEditState(log_entry, new_video_edit_state) => {
 			let new_video_edit_state: VideoEditStateDb = new_video_edit_state.into();
@@ -946,7 +946,7 @@ pub async fn handle_event_update(
 					return Ok(());
 				}
 			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry, user.clone())]
+			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
 		}
 		EventSubscriptionUpdate::ChangeNotesToEditor(log_entry, new_notes_to_editor) => {
 			let mut db_connection = db_connection.lock().await;
@@ -965,7 +965,7 @@ pub async fn handle_event_update(
 					return Ok(());
 				}
 			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry, user.clone())]
+			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
 		}
 		EventSubscriptionUpdate::ChangeEditor(log_entry, new_editor) => {
 			let mut db_connection = db_connection.lock().await;
@@ -984,7 +984,7 @@ pub async fn handle_event_update(
 					return Ok(());
 				}
 			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry, user.clone())]
+			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
 		}
 		EventSubscriptionUpdate::ChangeIsIncomplete(log_entry, new_is_incomplete_value) => {
 			// While setting this value can be done by any editor, removing it manually more strictly requires supervisor attention.
@@ -1019,7 +1019,7 @@ pub async fn handle_event_update(
 					return Ok(());
 				}
 			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry, user.clone())]
+			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
 		}
 		EventSubscriptionUpdate::ChangeManualSortKey(log_entry, manual_sort_key) => {
 			let mut db_connection = db_connection.lock().await;
@@ -1038,7 +1038,7 @@ pub async fn handle_event_update(
 					return Ok(());
 				}
 			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry, user.clone())]
+			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
 		}
 		EventSubscriptionUpdate::Typing(typing_data) => {
 			let user_data = UserData {
@@ -1245,7 +1245,7 @@ pub async fn handle_event_update(
 			};
 			let mut send_messages: Vec<EventSubscriptionData> = Vec::with_capacity(log_entries.len() + 1);
 			for log_entry in log_entries.drain(..) {
-				send_messages.push(EventSubscriptionData::UpdateLogEntry(log_entry, user.clone()));
+				send_messages.push(EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone())));
 			}
 			send_messages.push(EventSubscriptionData::RemoveTag(tag));
 
