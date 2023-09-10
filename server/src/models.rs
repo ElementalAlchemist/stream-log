@@ -1,6 +1,7 @@
 use crate::schema::{
-	applications, available_entry_types_for_event, entry_types, event_editors, event_log, event_log_sections,
-	event_log_tags, events, permission_events, permission_groups, tags, user_permissions, users,
+	applications, available_entry_types_for_event, entry_types, event_editors, event_log, event_log_history,
+	event_log_history_tags, event_log_sections, event_log_tags, events, permission_events, permission_groups, tags,
+	user_permissions, users,
 };
 use chrono::prelude::*;
 use diesel::{AsChangeset, Insertable, Queryable};
@@ -301,8 +302,6 @@ pub struct EventLogEntry {
 	pub editor_link: Option<String>,
 	pub editor: Option<String>,
 	pub video_link: Option<String>,
-	pub last_updated: DateTime<Utc>,
-	pub last_update_user: String,
 	pub parent: Option<String>,
 	pub deleted_by: Option<String>,
 	pub created_at: DateTime<Utc>,
@@ -353,4 +352,80 @@ impl From<Application> for ApplicationWs {
 			write_links: value.write_links,
 		}
 	}
+}
+
+#[derive(Insertable, Queryable)]
+#[diesel(table_name = event_log_history)]
+pub struct EventLogHistoryEntry {
+	pub id: String,
+	pub log_entry: String,
+	pub edit_time: DateTime<Utc>,
+	pub edit_user: Option<String>,
+	pub edit_application: Option<String>,
+	pub start_time: DateTime<Utc>,
+	pub end_time: Option<DateTime<Utc>>,
+	pub entry_type: String,
+	pub description: String,
+	pub media_link: String,
+	pub submitter_or_winner: String,
+	pub notes_to_editor: String,
+	pub editor_link: Option<String>,
+	pub editor: Option<String>,
+	pub video_link: Option<String>,
+	pub parent: Option<String>,
+	pub deleted_by: Option<String>,
+	pub created_at: DateTime<Utc>,
+	pub manual_sort_key: Option<i32>,
+	pub video_state: Option<VideoState>,
+	pub video_errors: String,
+	pub poster_moment: bool,
+	pub video_edit_state: VideoEditState,
+	pub marked_incomplete: bool,
+}
+
+pub enum EditSource {
+	User(String),
+	Application(String),
+}
+
+impl EventLogHistoryEntry {
+	pub fn new_from_event_log_entry(entry: &EventLogEntry, edit_time: DateTime<Utc>, editor: EditSource) -> Self {
+		let (edit_user, edit_application) = match editor {
+			EditSource::User(user_id) => (Some(user_id), None),
+			EditSource::Application(app_id) => (None, Some(app_id)),
+		};
+
+		Self {
+			id: cuid2::create_id(),
+			log_entry: entry.id.clone(),
+			edit_time,
+			edit_user,
+			edit_application,
+			start_time: entry.start_time,
+			end_time: entry.end_time,
+			entry_type: entry.entry_type.clone(),
+			description: entry.description.clone(),
+			media_link: entry.media_link.clone(),
+			submitter_or_winner: entry.submitter_or_winner.clone(),
+			notes_to_editor: entry.notes_to_editor.clone(),
+			editor_link: entry.editor_link.clone(),
+			editor: entry.editor.clone(),
+			video_link: entry.video_link.clone(),
+			parent: entry.parent.clone(),
+			deleted_by: entry.deleted_by.clone(),
+			created_at: entry.created_at,
+			manual_sort_key: entry.manual_sort_key,
+			video_state: entry.video_state,
+			video_errors: entry.video_errors.clone(),
+			poster_moment: entry.poster_moment,
+			video_edit_state: entry.video_edit_state,
+			marked_incomplete: entry.marked_incomplete,
+		}
+	}
+}
+
+#[derive(Insertable, Queryable)]
+pub struct EventLogHistoryTag {
+	pub tag: String,
+	pub history_log_entry: String,
 }
