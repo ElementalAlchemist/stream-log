@@ -10,6 +10,8 @@ use tide_openidconnect::{
 };
 use tide_websockets::WebSocket;
 
+mod api;
+
 mod args;
 use args::CliArgs;
 
@@ -69,6 +71,8 @@ async fn main() -> miette::Result<()> {
 		idp_logout_url: Some(config.openid.logout_url.clone()),
 	};
 	app.with(OpenIdConnectMiddleware::new(&openid_config).await);
+
+	api::add_routes(&mut app, Arc::clone(&db_connection))?;
 
 	app.at("/ws").authenticated().get(WebSocket::new({
 		let subscription_manager = Arc::clone(&subscription_manager);

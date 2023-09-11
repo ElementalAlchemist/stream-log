@@ -157,9 +157,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.72"
+version = "1.0.75"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b13c32d80ecc7ab747b80c3784bce54ee8a7a0cc4fbda9bf4cda2cf6fe90854"
+checksum = "a4668cab20f66d8d020e1fbc0ebe47217433c1b6c8f2040faf858554e394ace6"
 
 [[package]]
 name = "arrayref"
@@ -2542,6 +2542,7 @@ checksum = "213701ba3370744dcd1a12960caa4843b3d68b4d1c0a5d575e0d65b2ee9d16c0"
 name = "stream-log-server"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-std",
  "base64 0.21.3",
  "chrono",
@@ -2552,10 +2553,12 @@ dependencies = [
  "diesel_migrations",
  "erased-serde",
  "futures",
+ "http-types",
  "knuffel",
  "miette",
  "rand 0.8.5",
  "rgb",
+ "serde",
  "serde_json",
  "stream-log-shared",
  "tide",
