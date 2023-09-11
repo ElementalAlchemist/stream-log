@@ -9,6 +9,9 @@ mod structures;
 mod event_by_name;
 use event_by_name::event_by_name;
 
+mod event_log_list;
+use event_log_list::event_log_list;
+
 mod list_events;
 use list_events::list_events;
 
@@ -20,6 +23,10 @@ pub fn add_routes(app: &mut Server<()>, db_connection: Arc<Mutex<PgConnection>>)
 	app.at("/api/event_by_name/:name").get({
 		let db_connection = Arc::clone(&db_connection);
 		move |request| event_by_name(request, Arc::clone(&db_connection))
+	});
+	app.at("/api/event/:id/log").get({
+		let db_connection = Arc::clone(&db_connection);
+		move |request| event_log_list(request, Arc::clone(&db_connection))
 	});
 
 	Ok(())
