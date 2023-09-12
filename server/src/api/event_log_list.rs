@@ -2,9 +2,13 @@ use super::check_application;
 use super::structures::entry_type::EntryType as EntryTypeApi;
 use super::structures::event_log_entry::EventLogEntry as EventLogEntryApi;
 use super::structures::event_log_response::EventLogResponse;
+use super::structures::tag::Tag as TagApi;
 use super::structures::user::User as UserApi;
-use crate::models::{EntryType as EntryTypeDb, Event as EventDb, EventLogEntry as EventLogEntryDb, User as UserDb};
-use crate::schema::{entry_types, event_log, event_log_history, events, users};
+use crate::models::{
+	EntryType as EntryTypeDb, Event as EventDb, EventLogEntry as EventLogEntryDb, EventLogTag, Tag as TagDb,
+	User as UserDb,
+};
+use crate::schema::{entry_types, event_log, event_log_history, event_log_tags, events, tags, users};
 use async_std::sync::{Arc, Mutex};
 use chrono::{DateTime, Utc};
 use diesel::dsl::max;
@@ -159,16 +163,79 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 		}
 	};
 
+	let event_log_ids: Vec<String> = event_log.iter().map(|entry| entry.id.clone()).collect();
+	let entry_tags: QueryResult<Vec<EventLogTag>> = event_log_tags::table
+		.filter(event_log_tags::log_entry.eq_any(event_log_ids))
+		.load(&mut *db_connection);
+	let entry_tags = match entry_tags {
+		Ok(entry_tags) => entry_tags,
+		Err(error) => {
+			tide::log::error!("API error loading event log tags: {}", error);
+			return Err(tide::Error::new(
+				StatusCode::InternalServerError,
+				anyhow::Error::msg("Database error"),
+			));
+		}
+	};
+	let tag_ids: Vec<String> = entry_tags.iter().map(|entry_tag| entry_tag.tag.clone()).collect();
+	let tags: QueryResult<Vec<TagDb>> = tags::table.filter(tags::id.eq_any(tag_ids)).load(&mut *db_connection);
+	let mut tags = match tags {
+		Ok(tags) => tags,
+		Err(error) => {
+			tide::log::error!("API error loading tags for event log: {}", error);
+			return Err(tide::Error::new(
+				StatusCode::InternalServerError,
+				anyhow::Error::msg("Database error"),
+			));
+		}
+	};
+	let mut entry_tag_map: HashMap<String, Vec<String>> = HashMap::new();
+	for entry_tag in entry_tags {
+		entry_tag_map
+			.entry(entry_tag.log_entry)
+			.or_default()
+			.push(entry_tag.tag);
+	}
+	let tags_by_id: HashMap<String, TagApi> = tags
+		.drain(..)
+		.map(|tag| {
+			(
+				tag.id.clone(),
+				TagApi {
+					id: tag.id,
+					tag: tag.tag,
+					description: tag.description,
+					playlist: if tag.playlist.is_empty() {
+						None
+					} else {
+						Some(tag.playlist)
+					},
+				},
+			)
+		})
+		.collect();
+	let entry_tag_map: HashMap<String, Vec<TagApi>> = entry_tag_map
+		.drain()
+		.map(|(entry_id, tag_ids)| {
+			let tags = tag_ids
+				.iter()
+				.map(|tag_id| tags_by_id.get(tag_id).cloned().unwrap())
+				.collect();
+			(entry_id, tags)
+		})
+		.collect();
+
 	let event_log: Vec<EventLogEntryApi> = event_log
 		.drain(..)
 		.map(|entry| EventLogEntryApi {
-			id: entry.id,
+			id: entry.id.clone(),
 			start_time: entry.start_time,
 			end_time: entry.end_time,
 			entry_type: (*entry_types.get(&entry.entry_type).unwrap()).clone(),
 			description: entry.description.clone(),
 			media_link: entry.media_link.clone(),
 			submitter_or_winner: entry.submitter_or_winner.clone(),
+			tags: entry_tag_map.get(&entry.id).cloned().unwrap_or_default(),
 			notes_to_editor: entry.notes_to_editor.clone(),
 			editor_link: entry.editor_link.clone(),
 			editor: entry

@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// Entry type object used to define entry types.
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Serialize)]
 pub struct EntryType {
 	/// The entry type's ID
 	pub id: String,

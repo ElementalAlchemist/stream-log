@@ -1,10 +1,11 @@
 use super::entry_type::EntryType;
+use super::tag::Tag;
 use super::user::User;
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// The event log entry object representing an entry in the event log.
-#[derive(Deserialize, Serialize)]
+#[derive(Serialize)]
 pub struct EventLogEntry {
 	/// The ID of the entry
 	pub id: String,
@@ -20,6 +21,8 @@ pub struct EventLogEntry {
 	pub media_link: String,
 	/// The submitter or winner related to the entry
 	pub submitter_or_winner: String,
+	/// The tags associated with the entry
+	pub tags: Vec<Tag>,
 	/// The notes about this entry to the editor
 	pub notes_to_editor: String,
 	/// The link to the video editor page for this entry

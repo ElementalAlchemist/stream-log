@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// Event object associated with an event.
-#[derive(Deserialize, Serialize)]
+#[derive(Serialize)]
 pub struct Event {
 	/// The event ID to be used for all routes that take an event ID.
 	pub id: String,
