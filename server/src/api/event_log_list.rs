@@ -4,17 +4,26 @@ use super::structures::event_log_entry::EventLogEntry as EventLogEntryApi;
 use super::structures::event_log_response::EventLogResponse;
 use super::structures::user::User as UserApi;
 use crate::models::{EntryType as EntryTypeDb, Event as EventDb, EventLogEntry as EventLogEntryDb, User as UserDb};
-use crate::schema::{entry_types, event_log, events, users};
+use crate::schema::{entry_types, event_log, event_log_history, events, users};
 use async_std::sync::{Arc, Mutex};
-use chrono::Utc;
+use chrono::{DateTime, Utc};
+use diesel::dsl::max;
 use diesel::prelude::*;
 use http_types::mime;
+use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use tide::{Request, Response, StatusCode};
+
+#[derive(Deserialize)]
+struct QueryParams {
+	since: Option<DateTime<Utc>>,
+}
 
 /// GET /api/event/:id/log
 /// Gets all events in the event log for the specified event. Pass an event using the ID.
 pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgConnection>>) -> tide::Result {
+	let query_params: QueryParams = request.query()?;
+
 	let mut db_connection = db_connection.lock().await;
 	let application = check_application(&request, &mut db_connection).await?;
 	if !application.read_log {
@@ -41,14 +50,33 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 	};
 
 	let retrieved_time = Utc::now();
-	let event_log: QueryResult<Vec<EventLogEntryDb>> = event_log::table
-		.filter(event_log::event.eq(event_id).and(event_log::deleted_by.is_null()))
-		.order_by((
-			event_log::start_time.asc(),
-			event_log::manual_sort_key.asc(),
-			event_log::created_at.asc(),
-		))
-		.load(&mut *db_connection);
+	let event_log: QueryResult<Vec<EventLogEntryDb>> = if let Some(edited_since) = query_params.since {
+		event_log::table
+			.filter(
+				event_log::event.eq(event_id).and(event_log::deleted_by.is_null()).and(
+					event_log_history::table
+						.filter(event_log_history::log_entry.eq(event_log::id))
+						.select(max(event_log_history::edit_time))
+						.single_value()
+						.ge(edited_since),
+				),
+			)
+			.order_by((
+				event_log::start_time.asc(),
+				event_log::manual_sort_key.asc(),
+				event_log::created_at.asc(),
+			))
+			.load(&mut *db_connection)
+	} else {
+		event_log::table
+			.filter(event_log::event.eq(event_id).and(event_log::deleted_by.is_null()))
+			.order_by((
+				event_log::start_time.asc(),
+				event_log::manual_sort_key.asc(),
+				event_log::created_at.asc(),
+			))
+			.load(&mut *db_connection)
+	};
 	let mut event_log: Vec<EventLogEntryDb> = match event_log {
 		Ok(event_log) => event_log,
 		Err(error) => {
