@@ -17,6 +17,9 @@ use list_events::list_events;
 mod set_editor_link;
 use set_editor_link::{delete_editor_link, set_editor_link};
 
+mod set_video_errors;
+use set_video_errors::set_video_errors;
+
 mod set_video_link;
 use set_video_link::{delete_video_link, set_video_link};
 
@@ -63,6 +66,10 @@ pub fn add_routes(app: &mut Server<()>, db_connection: Arc<Mutex<PgConnection>>)
 			let db_connection = Arc::clone(&db_connection);
 			move |request| delete_video_state(request, Arc::clone(&db_connection))
 		});
+	app.at("/api/v1/entry/:id/video_errors").post({
+		let db_connection = Arc::clone(&db_connection);
+		move |request| set_video_errors(request, Arc::clone(&db_connection))
+	});
 
 	Ok(())
 }

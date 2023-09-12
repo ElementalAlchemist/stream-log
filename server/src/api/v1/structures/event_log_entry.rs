@@ -38,6 +38,8 @@ pub struct EventLogEntry {
 	pub manual_sort_key: Option<i32>,
 	/// The current state of the video for the entry, if set
 	pub video_state: Option<VideoState>,
+	/// Video errors for this entry; if empty, no video errors are set for this entry
+	pub video_errors: String,
 	/// Whether this entry is marked as a poster moment
 	pub poster_moment: bool,
 	/// Whether this entry is marked as incomplete
