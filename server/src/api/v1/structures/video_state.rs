@@ -46,3 +46,18 @@ impl From<VideoStateDb> for VideoState {
 		}
 	}
 }
+
+impl From<VideoState> for VideoStateDb {
+	fn from(state: VideoState) -> Self {
+		match state {
+			VideoState::Unedited => Self::Unedited,
+			VideoState::Edited => Self::Edited,
+			VideoState::Claimed => Self::Claimed,
+			VideoState::Finalizing => Self::Finalizing,
+			VideoState::Transcoding => Self::Transcoding,
+			VideoState::Done => Self::Done,
+			VideoState::Modified => Self::Modified,
+			VideoState::Unlisted => Self::Unlisted,
+		}
+	}
+}
