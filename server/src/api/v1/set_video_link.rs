@@ -5,6 +5,8 @@ use async_std::sync::{Arc, Mutex};
 use diesel::prelude::*;
 use tide::{Request, Response, StatusCode};
 
+/// POST /api/v1/entry/:id/video
+///
 /// Sets the published video link for an event log entry. The body of the request is the link that's associated with the
 /// log entry.
 pub async fn set_video_link(mut request: Request<()>, db_connection: Arc<Mutex<PgConnection>>) -> tide::Result {
@@ -24,6 +26,8 @@ pub async fn set_video_link(mut request: Request<()>, db_connection: Arc<Mutex<P
 	update_video_link(&request, &mut db_connection, &application.id, Some(video_link))
 }
 
+/// DELETE /api/v1/entry/:id/video
+///
 /// Deletes the published video link for an event log entry.
 pub async fn delete_video_link(request: Request<()>, db_connection: Arc<Mutex<PgConnection>>) -> tide::Result {
 	let mut db_connection = db_connection.lock().await;

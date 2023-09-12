@@ -5,6 +5,8 @@ use async_std::sync::{Arc, Mutex};
 use diesel::prelude::*;
 use tide::{Request, Response, StatusCode};
 
+/// POST /api/v1/entry/:id/editor
+///
 /// Sets the editor link for an event log entry. The body of the request is the link that's associated with the log
 /// entry.
 pub async fn set_editor_link(mut request: Request<()>, db_connection: Arc<Mutex<PgConnection>>) -> tide::Result {
@@ -24,6 +26,8 @@ pub async fn set_editor_link(mut request: Request<()>, db_connection: Arc<Mutex<
 	update_editor_link(&request, &mut db_connection, &application.id, Some(editor_link))
 }
 
+/// DELETE /api/v1/entry/:id/editor
+///
 /// Deletes the editor link for an event log entry.
 pub async fn delete_editor_link(request: Request<()>, db_connection: Arc<Mutex<PgConnection>>) -> tide::Result {
 	let mut db_connection = db_connection.lock().await;

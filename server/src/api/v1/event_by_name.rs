@@ -7,8 +7,9 @@ use diesel::prelude::*;
 use http_types::mime;
 use tide::{Request, Response, StatusCode};
 
-/// GET /api/event_by_name/:name
-/// Gets the event with a particular name. Returns the event object associated with that event.
+/// GET /api/v1/event_by_name/:name
+///
+/// Gets the event with a particular name. Returns the [Event](EventApi) object associated with that event.
 pub async fn event_by_name(request: Request<()>, db_connection: Arc<Mutex<PgConnection>>) -> tide::Result {
 	let mut db_connection = db_connection.lock().await;
 	let application = check_application(&request, &mut db_connection).await?;
