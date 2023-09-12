@@ -1,6 +1,7 @@
 use super::entry_type::EntryType;
 use super::tag::Tag;
 use super::user::User;
+use super::video_state::VideoState;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
@@ -35,6 +36,8 @@ pub struct EventLogEntry {
 	pub parent: Option<String>,
 	/// The entered manual sort key for the entry
 	pub manual_sort_key: Option<i32>,
+	/// The current state of the video for the entry, if set
+	pub video_state: Option<VideoState>,
 	/// Whether this entry is marked as a poster moment
 	pub poster_moment: bool,
 	/// Whether this entry is marked as incomplete

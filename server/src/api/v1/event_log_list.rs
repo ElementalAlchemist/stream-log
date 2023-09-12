@@ -23,7 +23,7 @@ struct QueryParams {
 	since: Option<DateTime<Utc>>,
 }
 
-/// GET /api/event/:id/log
+/// GET /api/v1/event/:id/log
 ///
 /// Gets all events in the event log for the specified event. Pass an event using the ID. Responds with a list of
 /// [EventLogEntry](EventLogEntryApi) objects. If the `since` query argument is passed with an ISO 8601 timestamp, only
@@ -248,6 +248,7 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 			video_link: entry.video_link.clone(),
 			parent: entry.parent.clone(),
 			manual_sort_key: entry.manual_sort_key,
+			video_state: entry.video_state.map(|state| state.into()),
 			poster_moment: entry.poster_moment,
 			marked_incomplete: entry.marked_incomplete,
 		})

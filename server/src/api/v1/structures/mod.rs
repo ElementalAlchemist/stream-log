@@ -4,3 +4,4 @@ pub mod event_log_entry;
 pub mod event_log_response;
 pub mod tag;
 pub mod user;
+pub mod video_state;
