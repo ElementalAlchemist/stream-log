@@ -5,9 +5,9 @@ use async_std::sync::{Arc, Mutex};
 use diesel::prelude::*;
 use tide::{Request, Response, StatusCode};
 
-/// Sets the editor link for an event log entry. The body of the request is the link that's associated with the log
-/// entry.
-pub async fn set_editor_link(mut request: Request<()>, db_connection: Arc<Mutex<PgConnection>>) -> tide::Result {
+/// Sets the published video link for an event log entry. The body of the request is the link that's associated with the
+/// log entry.
+pub async fn set_video_link(mut request: Request<()>, db_connection: Arc<Mutex<PgConnection>>) -> tide::Result {
 	let mut db_connection = db_connection.lock().await;
 	let application = check_application(&request, &mut db_connection).await?;
 	if !application.write_links {
@@ -17,15 +17,15 @@ pub async fn set_editor_link(mut request: Request<()>, db_connection: Arc<Mutex<
 		));
 	}
 
-	let editor_link = request.body_string().await?;
-	if editor_link.is_empty() {
+	let video_link = request.body_string().await?;
+	if video_link.is_empty() {
 		return Ok(Response::builder(StatusCode::BadRequest).build());
 	}
-	update_editor_link(&request, &mut db_connection, &application.id, Some(editor_link))
+	update_video_link(&request, &mut db_connection, &application.id, Some(video_link))
 }
 
-/// Deletes the editor link for an event log entry.
-pub async fn delete_editor_link(request: Request<()>, db_connection: Arc<Mutex<PgConnection>>) -> tide::Result {
+/// Deletes the published video link for an event log entry.
+pub async fn delete_video_link(request: Request<()>, db_connection: Arc<Mutex<PgConnection>>) -> tide::Result {
 	let mut db_connection = db_connection.lock().await;
 	let application = check_application(&request, &mut db_connection).await?;
 	if !application.write_links {
@@ -35,20 +35,20 @@ pub async fn delete_editor_link(request: Request<()>, db_connection: Arc<Mutex<P
 		));
 	}
 
-	update_editor_link(&request, &mut db_connection, &application.id, None)
+	update_video_link(&request, &mut db_connection, &application.id, None)
 }
 
-fn update_editor_link(
+fn update_video_link(
 	request: &Request<()>,
 	db_connection: &mut PgConnection,
 	application_id: &str,
-	editor_link: Option<String>,
+	video_link: Option<String>,
 ) -> tide::Result {
 	let entry_id = request.param("id")?;
 	let update_result: QueryResult<()> = db_connection.transaction(|db_connection| {
 		let entry: EventLogEntry = diesel::update(event_log::table)
 			.filter(event_log::id.eq(entry_id).and(event_log::deleted_by.is_null()))
-			.set(event_log::editor_link.eq(editor_link))
+			.set(event_log::video_link.eq(video_link))
 			.get_result(db_connection)?;
 		update_history(db_connection, entry, application_id)?;
 

@@ -1,4 +1,5 @@
 use super::structures::event::Event as EventApi;
+use super::utils::check_application;
 use crate::models::Event as EventDb;
 use crate::schema::events;
 use async_std::sync::{Arc, Mutex};
@@ -10,7 +11,7 @@ use tide::{Request, Response, StatusCode};
 /// Gets a list of events in the database.
 pub async fn list_events(request: Request<()>, db_connection: Arc<Mutex<PgConnection>>) -> tide::Result {
 	let mut db_connection = db_connection.lock().await;
-	let application = super::check_application(&request, &mut db_connection).await?;
+	let application = check_application(&request, &mut db_connection).await?;
 	if !application.read_log {
 		return Err(tide::Error::new(
 			StatusCode::Unauthorized,

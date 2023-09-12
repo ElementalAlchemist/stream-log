@@ -1,9 +1,9 @@
-use super::check_application;
 use super::structures::entry_type::EntryType as EntryTypeApi;
 use super::structures::event_log_entry::EventLogEntry as EventLogEntryApi;
 use super::structures::event_log_response::EventLogResponse;
 use super::structures::tag::Tag as TagApi;
 use super::structures::user::User as UserApi;
+use super::utils::check_application;
 use crate::models::{
 	EntryType as EntryTypeDb, Event as EventDb, EventLogEntry as EventLogEntryDb, EventLogTag, Tag as TagDb,
 	User as UserDb,

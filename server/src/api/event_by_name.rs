@@ -1,5 +1,5 @@
-use super::check_application;
 use super::structures::event::Event as EventApi;
+use super::utils::check_application;
 use crate::models::Event as EventDb;
 use crate::schema::events;
 use async_std::sync::{Arc, Mutex};
