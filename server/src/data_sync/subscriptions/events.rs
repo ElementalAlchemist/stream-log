@@ -1,9 +1,9 @@
 use crate::data_sync::connection::ConnectionUpdate;
 use crate::data_sync::{HandleConnectionError, SubscriptionManager};
 use crate::models::{
-	EditSource, EntryType as EntryTypeDb, Event as EventDb, EventLogEntry as EventLogEntryDb, EventLogHistoryEntry,
-	EventLogHistoryTag, EventLogSection as EventLogSectionDb, EventLogTag, Permission, PermissionEvent, Tag as TagDb,
-	User, VideoEditState as VideoEditStateDb,
+	AvailableEntryType, EditSource, EntryType as EntryTypeDb, Event as EventDb, EventLogEntry as EventLogEntryDb,
+	EventLogHistoryEntry, EventLogHistoryTag, EventLogSection as EventLogSectionDb, EventLogTag, Permission,
+	PermissionEvent, Tag as TagDb, User, VideoEditState as VideoEditStateDb,
 };
 use crate::schema::{
 	available_entry_types_for_event, entry_types, event_editors, event_log, event_log_history, event_log_history_tags,
@@ -559,6 +559,17 @@ pub async fn handle_event_update(
 				let mut db_connection = db_connection.lock().await;
 				let insert_result: QueryResult<(EventLogEntryDb, Vec<TagDb>, Option<User>)> = db_connection
 					.transaction(|db_connection| {
+						let matching_entry_types: Vec<AvailableEntryType> = available_entry_types_for_event::table
+							.filter(
+								available_entry_types_for_event::event_id
+									.eq(&event.id)
+									.and(available_entry_types_for_event::entry_type.eq(&db_entry.entry_type)),
+							)
+							.limit(1)
+							.load(db_connection)?;
+						if matching_entry_types.is_empty() {
+							return Err(diesel::result::Error::RollbackTransaction);
+						}
 						let new_row: EventLogEntryDb = diesel::insert_into(event_log::table)
 							.values(db_entry)
 							.get_result(db_connection)?;
@@ -720,10 +731,24 @@ pub async fn handle_event_update(
 		EventSubscriptionUpdate::ChangeEntryType(log_entry, new_entry_type) => {
 			let mut db_connection = db_connection.lock().await;
 			let update_func = |db_connection: &mut PgConnection| {
-				diesel::update(event_log::table)
+				let entry: EventLogEntryDb = diesel::update(event_log::table)
 					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
 					.set(event_log::entry_type.eq(&new_entry_type))
-					.get_result(db_connection)
+					.get_result(db_connection)?;
+
+				let matching_entry_types: Vec<AvailableEntryType> = available_entry_types_for_event::table
+					.filter(
+						available_entry_types_for_event::event_id
+							.eq(&entry.event)
+							.and(available_entry_types_for_event::entry_type.eq(&entry.entry_type)),
+					)
+					.limit(1)
+					.load(db_connection)?;
+				if matching_entry_types.is_empty() {
+					return Err(diesel::result::Error::RollbackTransaction);
+				}
+
+				Ok(entry)
 			};
 			let update_result = log_entry_change(&mut db_connection, update_func, user.id.clone());
 
