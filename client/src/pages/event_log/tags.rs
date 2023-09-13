@@ -152,7 +152,7 @@ async fn EventLogTagsLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogTagsProp
 					let entered_description = create_signal(ctx, tag.description.clone());
 					let entered_description_error = create_signal(ctx, String::new());
 
-					let entered_playlist = create_signal(ctx, String::new());
+					let entered_playlist = create_signal(ctx, tag.playlist.clone());
 
 					let confirming_delete = create_signal(ctx, false);
 
