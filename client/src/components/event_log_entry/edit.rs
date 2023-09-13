@@ -7,7 +7,7 @@ use futures::stream::SplitSink;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_log::{EventLogEntry, VideoEditState};
 use stream_log_shared::messages::event_subscription::{EventSubscriptionUpdate, NewTypingData};
@@ -63,6 +63,13 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 				.collect();
 			name_index
 		}
+	});
+	let event_entry_types_name_case_map = create_memo(ctx, || {
+		let mut case_map: BTreeMap<String, String> = BTreeMap::new();
+		for name in event_entry_types_name_index.get().keys() {
+			case_map.insert(name.to_lowercase(), name.clone());
+		}
+		case_map
 	});
 	let event_entry_types_id_index = create_memo(ctx, {
 		let event_entry_types = (*props.event_entry_types.get()).clone();
@@ -605,6 +612,37 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 		start_time_warning_active.set(false);
 	};
 
+	let entry_type_lost_focus = move |_event: WebEvent| {
+		let entered_name = entry_type_name.get();
+		let name_index = event_entry_types_name_index.get();
+		let entered_type = name_index.get(&*entered_name);
+		if entered_type.is_some() {
+			return;
+		}
+		let lower_name = entered_name.to_lowercase();
+		let case_map = event_entry_types_name_case_map.get();
+		let entered_type_name = case_map.get(&lower_name);
+		if let Some(name) = entered_type_name {
+			entry_type_name.set(name.clone());
+			return;
+		}
+
+		let mut found_name: Option<&String> = None;
+		for (case_insensitive_name, case_sensitive_name) in case_map.range(lower_name.clone()..) {
+			if !case_insensitive_name.starts_with(&lower_name) {
+				break;
+			}
+			if found_name.is_some() {
+				found_name = None;
+				break;
+			}
+			found_name = Some(case_sensitive_name);
+		}
+		if let Some(name) = found_name {
+			entry_type_name.set(name.clone());
+		}
+	};
+
 	let close_handler = move |event: WebEvent| {
 		event.prevent_default();
 
@@ -782,7 +820,8 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 						bind:value=entry_type_name,
 						class=if entry_type_error.get().is_some() { "error" } else { "" },
 						title=(*entry_type_error.get()).as_ref().unwrap_or(&String::new()),
-						list=props.entry_types_datalist_id
+						list=props.entry_types_datalist_id,
+						on:blur=entry_type_lost_focus
 					)
 				}
 				div(class="event_log_entry_edit_description") {
