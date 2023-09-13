@@ -74,6 +74,15 @@ $event_log_column_count: 16;
 .event_log_header {
 	padding: 2px;
 	font-weight: 700;
+	position: sticky;
+	top: 0;
+	background: colors.$light-background;
+}
+
+@media (prefers-color-scheme: dark) {
+	.event_log_header {
+		background: colors.$dark-background;
+	}
 }
 
 #event_log_expand_all, #event_log_collapse_all {
