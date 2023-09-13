@@ -30,6 +30,8 @@
 #user_greeting, #user_event_menu, #user_admin_menu {
 	width: 200px;
 	text-align: center;
+	position: relative; // Required for z-index to work
+	z-index: 1;
 
 	&:hover .user_info_menu {
 		display: block;
