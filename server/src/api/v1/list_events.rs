@@ -7,9 +7,9 @@ use diesel::prelude::*;
 use http_types::mime;
 use tide::{Request, Response, StatusCode};
 
-/// GET /api/events
+/// GET /api/v1/events
 ///
-/// Gets a list of events in the database. Responds with a list of [Event](EventDb) objects.
+/// Gets a list of events in the database. Responds with a list of [Event](EventApi) objects.
 pub async fn list_events(request: Request<()>, db_connection: Arc<Mutex<PgConnection>>) -> tide::Result {
 	let mut db_connection = db_connection.lock().await;
 	let application = check_application(&request, &mut db_connection).await?;
