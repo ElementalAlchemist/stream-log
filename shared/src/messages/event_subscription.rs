@@ -58,6 +58,7 @@ pub enum EventSubscriptionUpdate {
 	ChangeEditor(EventLogEntry, Option<UserData>),
 	ChangeIsIncomplete(EventLogEntry, bool),
 	ChangeManualSortKey(EventLogEntry, Option<i32>),
+	ChangeParent(EventLogEntry, Option<Box<EventLogEntry>>),
 	Typing(NewTypingData),
 	UpdateTag(Tag),
 	RemoveTag(Tag),

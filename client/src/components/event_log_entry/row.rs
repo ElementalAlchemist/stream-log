@@ -14,7 +14,7 @@ pub struct EventLogEntryRowProps<'a, THandler: Fn()> {
 	entry_type: &'a ReadSignal<Option<EntryType>>,
 	click_handler: Option<THandler>,
 	jump_highlight_row_id: &'a Signal<String>,
-	new_entry_parent: &'a Signal<Option<EventLogEntry>>,
+	editing_entry_parent: &'a Signal<Option<EventLogEntry>>,
 	child_depth: u32,
 }
 
@@ -107,7 +107,7 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 
 	let parent_select_handler = move |event: WebEvent| {
 		event.stop_propagation();
-		props.new_entry_parent.set((*props.entry.get()).clone());
+		props.editing_entry_parent.set((*props.entry.get()).clone());
 	};
 
 	view! {

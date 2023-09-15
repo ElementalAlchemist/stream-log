@@ -1065,6 +1065,44 @@ pub async fn handle_event_update(
 			};
 			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
 		}
+		EventSubscriptionUpdate::ChangeParent(log_entry, new_parent) => {
+			if let Some(parent) = new_parent.as_ref() {
+				if log_entry.id == parent.id {
+					return Ok(());
+				}
+			}
+			let mut db_connection = db_connection.lock().await;
+			let update_func = |db_connection: &mut PgConnection| {
+				if let Some(parent) = new_parent.as_ref() {
+					let log_entry_event_id: String = event_log::table
+						.find(&log_entry.id)
+						.select(event_log::event)
+						.first(db_connection)?;
+					let parent_event_id: String = event_log::table
+						.find(&parent.id)
+						.select(event_log::event)
+						.first(db_connection)?;
+					if log_entry_event_id != parent_event_id {
+						return Err(diesel::result::Error::RollbackTransaction);
+					}
+				}
+				let new_parent_id = new_parent.as_ref().map(|parent| parent.id.clone());
+				diesel::update(event_log::table)
+					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
+					.set(event_log::parent.eq(&new_parent_id))
+					.get_result(db_connection)
+			};
+			let update_result = log_entry_change(&mut db_connection, update_func, user.id.clone());
+
+			let log_entry = match update_result {
+				Ok(entry) => entry,
+				Err(error) => {
+					tide::log::error!("Database error updating log entry parent: {}", error);
+					return Ok(());
+				}
+			};
+			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
+		}
 		EventSubscriptionUpdate::Typing(typing_data) => {
 			let user_data = UserData {
 				id: user.id.clone(),

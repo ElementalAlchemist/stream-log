@@ -5,23 +5,16 @@ use crate::components::event_log_entry::UserTypingData;
 use crate::subscriptions::errors::ErrorData;
 use crate::subscriptions::manager::SubscriptionManager;
 use crate::subscriptions::DataSignals;
-use chrono::{DateTime, Utc};
 use futures::future::poll_fn;
 use futures::lock::Mutex;
 use futures::stream::SplitSink;
 use futures::task::{Context, Poll, Waker};
-use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
-use stream_log_shared::messages::event_log::{EventLogEntry, EventLogSection, VideoEditState, VideoState};
-use stream_log_shared::messages::event_subscription::EventSubscriptionUpdate;
-use stream_log_shared::messages::subscriptions::{SubscriptionTargetUpdate, SubscriptionType};
-use stream_log_shared::messages::tags::Tag;
-use stream_log_shared::messages::user::UserData;
-use stream_log_shared::messages::FromClientMessage;
-use sycamore::futures::spawn_local_scoped;
+use stream_log_shared::messages::event_log::{EventLogEntry, EventLogSection, VideoState};
+use stream_log_shared::messages::subscriptions::SubscriptionType;
 use sycamore::prelude::*;
 use sycamore::suspense::Suspense;
 use web_sys::{window, Event as WebEvent};
@@ -129,10 +122,16 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		let tags_signal = tags_signal.clone();
 		move || (*tags_signal.get()).clone()
 	});
+	let read_log_entries = create_memo(ctx, {
+		let log_entries = log_entries.clone();
+		move || (*log_entries.get()).clone()
+	});
 	let read_available_editors = create_memo(ctx, {
 		let available_editors = available_editors.clone();
 		move || (*available_editors.get()).clone()
 	});
+
+	let editing_log_entry: &Signal<Option<EventLogEntry>> = create_signal(ctx, None);
 
 	let active_state_filters: &Signal<HashSet<Option<VideoState>>> = create_signal(ctx, HashSet::new());
 
@@ -188,50 +187,32 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 
 		log_lines
 	});
-
-	let tags_by_name_index = create_memo(ctx, move || {
-		let name_index: HashMap<String, Tag> = tags_signal
-			.get()
-			.iter()
-			.map(|tag| (tag.name.clone(), tag.clone()))
-			.collect();
-		name_index
-	});
-	let editors_by_name_index = create_memo(ctx, move || {
-		let name_index: HashMap<String, UserData> = available_editors
-			.get()
-			.iter()
-			.map(|editor| (editor.username.clone(), editor.clone()))
-			.collect();
-		name_index
-	});
 	let can_edit = create_memo(ctx, move || permission_signal.get().can_edit());
 
 	log::debug!("Set up loaded data signals for event {}", props.id);
 
-	let new_event_log_entry: &Signal<Option<EventLogEntry>> = create_signal(ctx, None);
-	let new_entry_start_time = create_signal(ctx, Utc::now());
-	let new_entry_end_time: &Signal<Option<DateTime<Utc>>> = create_signal(ctx, None);
-	let new_entry_type = create_signal(ctx, String::new());
-	let new_entry_description = create_signal(ctx, String::new());
-	let new_entry_media_link = create_signal(ctx, String::new());
-	let new_entry_submitter_or_winner = create_signal(ctx, String::new());
-	let new_entry_tags: &Signal<Vec<Tag>> = create_signal(ctx, Vec::new());
-	let new_entry_video_edit_state = create_signal(ctx, VideoEditState::NoVideo);
-	let new_entry_poster_moment = create_signal(ctx, false);
-	let new_entry_notes_to_editor = create_signal(ctx, String::new());
-	let new_entry_editor: &Signal<Option<UserData>> = create_signal(ctx, None);
-	let new_entry_marked_incomplete = create_signal(ctx, false);
-	let new_entry_parent: &Signal<Option<EventLogEntry>> = create_signal(ctx, None);
-	let new_entry_sort_key: &Signal<Option<i32>> = create_signal(ctx, None);
-	let new_entry_typing_data = create_memo(ctx, {
+	let editing_entry_parent: &Signal<Option<EventLogEntry>> = create_signal(ctx, None);
+	create_effect(ctx, || {
+		let editing_entry = editing_log_entry.get();
+		let parent_entry = editing_entry_parent.get();
+		if let Some(edit_entry) = editing_entry.as_ref() {
+			if let Some(parent) = parent_entry.as_ref() {
+				if edit_entry.id == parent.id {
+					editing_entry_parent.set(None);
+				}
+			}
+		}
+	});
+
+	let editing_typing_data = create_memo(ctx, {
 		let typing_events = event_subscription_data.typing_events.clone();
 		move || {
 			let mut typing_data: HashMap<String, UserTypingData> = HashMap::new();
+			let editing_entry = editing_log_entry.get();
 			for typing_event in typing_events
 				.get()
 				.iter()
-				.filter(|typing_event| typing_event.event_log_entry.is_none())
+				.filter(|typing_event| typing_event.event_log_entry == *editing_entry)
 			{
 				let (_, user_typing_data) = typing_data
 					.entry(typing_event.user.id.clone())
@@ -241,76 +222,6 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 			typing_data
 		}
 	});
-
-	let new_entry_close_handler = {
-		let event_signal = event_signal.clone();
-		move |count: u8| {
-			let event_signal = event_signal.clone();
-
-			let start_time = *new_entry_start_time.get();
-			let end_time = *new_entry_end_time.get();
-			let entry_type = (*new_entry_type.get()).clone();
-			let description = (*new_entry_description.get()).clone();
-			let media_link = (*new_entry_media_link.get()).clone();
-			let submitter_or_winner = (*new_entry_submitter_or_winner.get()).clone();
-			let tags = (*new_entry_tags.get()).clone();
-			let video_edit_state = *new_entry_video_edit_state.get();
-			let poster_moment = *new_entry_poster_moment.get();
-			let notes_to_editor = (*new_entry_notes_to_editor.get()).clone();
-			let editor = (*new_entry_editor.get()).clone();
-			let marked_incomplete = *new_entry_marked_incomplete.get();
-			let parent = (*new_entry_parent.get()).as_ref().map(|entry| entry.id.clone());
-			let manual_sort_key = *new_entry_sort_key.get();
-			let new_event_log_entry = EventLogEntry {
-				id: String::new(),
-				start_time,
-				end_time,
-				entry_type,
-				description,
-				media_link,
-				submitter_or_winner,
-				tags,
-				notes_to_editor,
-				editor_link: None,
-				editor,
-				video_link: None,
-				marked_incomplete,
-				parent,
-				created_at: Utc::now(),
-				manual_sort_key,
-				video_state: None,
-				video_errors: String::new(),
-				poster_moment,
-				video_edit_state,
-			};
-
-			spawn_local_scoped(ctx, async move {
-				let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
-				let mut ws = ws_context.lock().await;
-
-				let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
-					(*event_signal.get()).clone(),
-					Box::new(EventSubscriptionUpdate::NewLogEntry(new_event_log_entry, count)),
-				)));
-				let message_json = match serde_json::to_string(&message) {
-					Ok(msg) => msg,
-					Err(error) => {
-						data.errors.modify().push(ErrorData::new_with_error(
-							"Failed to serialize new log entry submission.",
-							error,
-						));
-						return;
-					}
-				};
-				if let Err(error) = ws.send(Message::Text(message_json)).await {
-					data.errors.modify().push(ErrorData::new_with_error(
-						"Failed to send new log entry submission.",
-						error,
-					));
-				}
-			});
-		}
-	};
 
 	let expanded_sections: &Signal<HashMap<String, RcSignal<bool>>> = create_signal(ctx, HashMap::new());
 
@@ -566,11 +477,9 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 														all_log_entries=log_entries,
 														event_typing_events_signal=typing_events,
 														can_edit=can_edit,
-														tags_by_name_index=tags_by_name_index,
-														editors_by_name_index=editors_by_name_index,
-														read_event_signal=read_event_signal,
+														editing_log_entry=editing_log_entry,
 														read_entry_types_signal=read_entry_types_signal,
-														new_entry_parent=new_entry_parent,
+														editing_entry_parent=editing_entry_parent,
 														entries_by_parent=entries_by_parent_signal,
 														child_depth=0
 													)
@@ -587,14 +496,13 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 				}
 			}
 			(if *can_edit.get() {
-				let new_entry_close_handler = new_entry_close_handler.clone();
 				let typing_event = typing_event.clone();
 				let typing_event_log = typing_event_log.clone();
 				view! {
 					ctx,
 					div(id="event_log_new_entry") {
 						({
-							if new_entry_typing_data.get().is_empty() {
+							if editing_typing_data.get().is_empty() {
 								view! { ctx, }
 							} else {
 								let typing_event = typing_event.clone();
@@ -618,7 +526,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 										div(class="event_log_header") { "Notes to editor" }
 										div(class="event_log_header") {}
 										div(class="event_log_header") {}
-										EventLogEntryTyping(event=typing_event, event_entry_types=read_entry_types_signal, event_log=typing_event_log, typing_data=new_entry_typing_data)
+										EventLogEntryTyping(event=typing_event, event_entry_types=read_entry_types_signal, event_log=typing_event_log, typing_data=editing_typing_data)
 									}
 								}
 							}
@@ -627,27 +535,11 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 							event=read_event_signal,
 							permission_level=read_permission_signal,
 							event_entry_types=read_entry_types_signal,
-							event_tags_name_index=tags_by_name_index,
-							entry_types_datalist_id="event_entry_types",
-							event_log_entry=new_event_log_entry,
-							tags_datalist_id="event_tags",
-							start_time=new_entry_start_time,
-							end_time=new_entry_end_time,
-							entry_type=new_entry_type,
-							description=new_entry_description,
-							media_link=new_entry_media_link,
-							submitter_or_winner=new_entry_submitter_or_winner,
-							tags=new_entry_tags,
-							video_edit_state=new_entry_video_edit_state,
-							poster_moment=new_entry_poster_moment,
-							notes_to_editor=new_entry_notes_to_editor,
-							editor=new_entry_editor,
-							editor_name_index=editors_by_name_index,
-							editor_name_datalist_id="editor_names",
-							marked_incomplete=new_entry_marked_incomplete,
-							parent_log_entry=new_entry_parent,
-							sort_key=new_entry_sort_key,
-							close_handler=new_entry_close_handler
+							event_tags=read_tags_signal,
+							event_editors=read_available_editors,
+							event_log_entries=read_log_entries,
+							editing_log_entry=editing_log_entry,
+							edit_parent_log_entry=editing_entry_parent
 						)
 					}
 				}

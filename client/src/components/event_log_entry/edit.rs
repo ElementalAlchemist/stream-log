@@ -1,13 +1,13 @@
 use super::utils::{format_duration, get_duration_from_formatted};
 use crate::subscriptions::errors::ErrorData;
 use crate::subscriptions::DataSignals;
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use futures::lock::Mutex;
 use futures::stream::SplitSink;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_log::{EventLogEntry, VideoEditState};
 use stream_log_shared::messages::event_subscription::{EventSubscriptionUpdate, NewTypingData};
@@ -21,39 +21,38 @@ use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use web_sys::Event as WebEvent;
 
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+enum ModifiedEventLogEntryParts {
+	StartTime,
+	EndTime,
+	EntryType,
+	Description,
+	MediaLink,
+	SubmitterOrWinner,
+	Tags,
+	VideoEditState,
+	PosterMoment,
+	NotesToEditor,
+	Editor,
+	MarkedIncomplete,
+	SortKey,
+	Parent,
+}
+
 #[derive(Prop)]
-pub struct EventLogEntryEditProps<'a, TCloseHandler: Fn(u8)> {
+pub struct EventLogEntryEditProps<'a> {
 	event: &'a ReadSignal<Event>,
 	permission_level: &'a ReadSignal<PermissionLevel>,
 	event_entry_types: &'a ReadSignal<Vec<EntryType>>,
-	event_tags_name_index: &'a ReadSignal<HashMap<String, Tag>>,
-	entry_types_datalist_id: &'a str,
-	event_log_entry: &'a ReadSignal<Option<EventLogEntry>>,
-	tags_datalist_id: &'a str,
-	start_time: &'a Signal<DateTime<Utc>>,
-	end_time: &'a Signal<Option<DateTime<Utc>>>,
-	entry_type: &'a Signal<String>,
-	description: &'a Signal<String>,
-	media_link: &'a Signal<String>,
-	submitter_or_winner: &'a Signal<String>,
-	tags: &'a Signal<Vec<Tag>>,
-	video_edit_state: &'a Signal<VideoEditState>,
-	poster_moment: &'a Signal<bool>,
-	notes_to_editor: &'a Signal<String>,
-	editor: &'a Signal<Option<UserData>>,
-	editor_name_index: &'a ReadSignal<HashMap<String, UserData>>,
-	editor_name_datalist_id: &'a str,
-	marked_incomplete: &'a Signal<bool>,
-	parent_log_entry: &'a Signal<Option<EventLogEntry>>,
-	sort_key: &'a Signal<Option<i32>>,
-	close_handler: TCloseHandler,
+	event_tags: &'a ReadSignal<Vec<Tag>>,
+	event_editors: &'a ReadSignal<Vec<UserData>>,
+	event_log_entries: &'a ReadSignal<Vec<EventLogEntry>>,
+	editing_log_entry: &'a Signal<Option<EventLogEntry>>,
+	edit_parent_log_entry: &'a Signal<Option<EventLogEntry>>,
 }
 
 #[component]
-pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
-	ctx: Scope<'a>,
-	props: EventLogEntryEditProps<'a, TCloseHandler>,
-) -> View<G> {
+pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditProps<'a>) -> View<G> {
 	let event_entry_types_name_index = create_memo(ctx, {
 		let event_entry_types = (*props.event_entry_types.get()).clone();
 		move || {
@@ -81,9 +80,30 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 			id_index
 		}
 	});
+	let event_tags_name_index = create_memo(ctx, || {
+		let tag_index: HashMap<String, Tag> = props
+			.event_tags
+			.get()
+			.iter()
+			.map(|tag| (tag.id.clone(), tag.clone()))
+			.collect();
+		tag_index
+	});
+	let event_editors_name_index = create_memo(ctx, || {
+		let editor_index: HashMap<String, UserData> = props
+			.event_editors
+			.get()
+			.iter()
+			.map(|editor| (editor.username.clone(), editor.clone()))
+			.collect();
+		editor_index
+	});
+
+	let modified_entry_data: &Signal<HashSet<ModifiedEventLogEntryParts>> = create_signal(ctx, HashSet::new());
+	let suppress_typing_notifications = create_signal(ctx, true);
 
 	create_effect(ctx, move || {
-		let parent_entry = props.parent_log_entry.get();
+		let parent_entry = props.edit_parent_log_entry.get();
 		let parent_entry_id = (*parent_entry)
 			.as_ref()
 			.map(|entry| entry.id.clone())
@@ -95,7 +115,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
 				(*props.event.get()).clone(),
 				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::Parent(
-					(*props.event_log_entry.get()).clone(),
+					(*props.editing_log_entry.get()).clone(),
 					parent_entry_id,
 				))),
 			)));
@@ -121,14 +141,22 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 		});
 	});
 
-	let start_time_warning_base = (*props.event_log_entry.get()).as_ref().map(|entry| entry.start_time);
+	let start_time_warning_base = (*props.editing_log_entry.get()).as_ref().map(|entry| entry.start_time);
 	let start_time_warning_active = create_signal(ctx, false);
-	let start_time_input = if props.event_log_entry.get().is_some() {
-		let initial_start_time_duration = *props.start_time.get() - props.event.get().start_time;
+	let start_time_input = if let Some(entry) = props.editing_log_entry.get().as_ref() {
+		let initial_start_time_duration = entry.start_time - props.event.get().start_time;
 		create_signal(ctx, format_duration(&initial_start_time_duration))
 	} else {
 		create_signal(ctx, String::new())
 	};
+	let start_time_value = create_signal(
+		ctx,
+		if let Some(entry) = props.editing_log_entry.get().as_ref() {
+			entry.start_time
+		} else {
+			Utc::now()
+		},
+	);
 	let start_time_error: &Signal<Option<String>> = create_signal(ctx, None);
 	create_effect(ctx, move || {
 		let start_time_result = get_duration_from_formatted(&start_time_input.get());
@@ -137,19 +165,21 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 			Ok(duration) => {
 				start_time_error.set(None);
 				let new_start_time = event_start + duration;
-				props.start_time.set(new_start_time);
+				start_time_value.set(new_start_time);
 
 				let warning_start_time = start_time_warning_base.unwrap_or_else(Utc::now);
 				start_time_warning_active.set((new_start_time - warning_start_time).num_minutes().abs() >= 60);
+
+				modified_entry_data
+					.modify()
+					.insert(ModifiedEventLogEntryParts::StartTime);
 			}
 			Err(error) => start_time_error.set(Some(error)),
 		}
 	});
-	let start_time_typing_ran_once = create_signal(ctx, false);
 	create_effect(ctx, move || {
 		start_time_input.track();
-		if !*start_time_typing_ran_once.get_untracked() {
-			start_time_typing_ran_once.set(true);
+		if *suppress_typing_notifications.get_untracked() {
 			return;
 		}
 		spawn_local_scoped(ctx, async move {
@@ -159,7 +189,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
 				(*props.event.get()).clone(),
 				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::StartTime(
-					(*props.event_log_entry.get()).clone(),
+					(*props.editing_log_entry.get()).clone(),
 					(*start_time_input.get()).clone(),
 				))),
 			)));
@@ -183,14 +213,21 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 		});
 	});
 
-	let initial_end_time_duration = (*props.end_time.get())
+	let initial_end_time = (*props.editing_log_entry.get())
 		.as_ref()
-		.map(|end_time| *end_time - props.event.get().start_time);
+		.and_then(|entry| entry.end_time);
+	let initial_end_time_duration = initial_end_time.map(|end_time| end_time - props.event.get().start_time);
 	let initial_end_time_input = if let Some(duration) = initial_end_time_duration.as_ref() {
 		format_duration(duration)
 	} else {
 		String::new()
 	};
+	let end_time_value = create_signal(
+		ctx,
+		(*props.editing_log_entry.get())
+			.as_ref()
+			.and_then(|entry| entry.end_time),
+	);
 	let end_time_input = create_signal(ctx, initial_end_time_input);
 	let end_time_error: &Signal<Option<String>> = create_signal(ctx, None);
 	create_effect(ctx, move || {
@@ -198,24 +235,24 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 		let event_start = props.event.get().start_time;
 		if end_time_input.is_empty() {
 			end_time_error.set(None);
-			props.end_time.set(None);
+			end_time_value.set(None);
 		} else {
 			let end_time_result = get_duration_from_formatted(end_time_input);
 			match end_time_result {
 				Ok(duration) => {
 					end_time_error.set(None);
 					let new_end_time = event_start + duration;
-					props.end_time.set(Some(new_end_time));
+					end_time_value.set(Some(new_end_time));
+
+					modified_entry_data.modify().insert(ModifiedEventLogEntryParts::EndTime);
 				}
 				Err(error) => end_time_error.set(Some(error)),
 			}
 		}
 	});
-	let end_time_typing_ran_once = create_signal(ctx, false);
 	create_effect(ctx, move || {
 		end_time_input.track();
-		if !*end_time_typing_ran_once.get_untracked() {
-			end_time_typing_ran_once.set(true);
+		if *suppress_typing_notifications.get_untracked() {
 			return;
 		}
 		spawn_local_scoped(ctx, async move {
@@ -225,7 +262,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
 				(*props.event.get()).clone(),
 				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::EndTime(
-					(*props.event_log_entry.get()).clone(),
+					(*props.editing_log_entry.get()).clone(),
 					(*end_time_input.get()).clone(),
 				))),
 			)));
@@ -249,12 +286,19 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 		});
 	});
 
-	let initial_entry_type_name =
-		if let Some(entry_type) = event_entry_types_id_index.get().get(&*props.entry_type.get()) {
+	let initial_entry_type_id = (*props.editing_log_entry.get())
+		.as_ref()
+		.map(|entry| entry.entry_type.clone());
+	let initial_entry_type_name = if let Some(entry_type_id) = initial_entry_type_id.as_ref() {
+		if let Some(entry_type) = event_entry_types_id_index.get().get(entry_type_id) {
 			entry_type.name.clone()
 		} else {
 			String::new()
-		};
+		}
+	} else {
+		String::new()
+	};
+	let entry_type_id = create_signal(ctx, initial_entry_type_id.unwrap_or_default());
 	let entry_type_name = create_signal(ctx, initial_entry_type_name);
 	let entry_type_error: &Signal<Option<String>> = create_signal(ctx, None);
 	create_effect(ctx, || {
@@ -263,16 +307,18 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 			entry_type_error.set(Some(String::from("An entry type is required")));
 		} else if let Some(entry_type) = event_entry_types_name_index.get().get(&*name) {
 			entry_type_error.set(None);
-			props.entry_type.set(entry_type.id.clone());
+			entry_type_id.set(entry_type.id.clone());
+
+			modified_entry_data
+				.modify()
+				.insert(ModifiedEventLogEntryParts::EntryType);
 		} else {
 			entry_type_error.set(Some(String::from("No entry type exists with that name")));
 		}
 	});
-	let entry_type_typing_ran_once = create_signal(ctx, false);
 	create_effect(ctx, move || {
 		entry_type_name.track();
-		if !*entry_type_typing_ran_once.get_untracked() {
-			entry_type_typing_ran_once.set(true);
+		if *suppress_typing_notifications.get_untracked() {
 			return;
 		}
 		spawn_local_scoped(ctx, async move {
@@ -282,7 +328,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
 				(*props.event.get()).clone(),
 				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::EntryType(
-					(*props.event_log_entry.get()).clone(),
+					(*props.editing_log_entry.get()).clone(),
 					(*entry_type_name.get()).clone(),
 				))),
 			)));
@@ -306,15 +352,22 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 		});
 	});
 
-	let description = create_signal(ctx, (*props.description.get()).clone());
+	let description = create_signal(
+		ctx,
+		(*props.editing_log_entry.get())
+			.as_ref()
+			.map(|entry| entry.description.clone())
+			.unwrap_or_default(),
+	);
 	create_effect(ctx, || {
-		props.description.set_rc(description.get());
+		description.track();
+		modified_entry_data
+			.modify()
+			.insert(ModifiedEventLogEntryParts::Description);
 	});
-	let description_typing_ran_once = create_signal(ctx, false);
 	create_effect(ctx, move || {
 		description.track();
-		if !*description_typing_ran_once.get_untracked() {
-			description_typing_ran_once.set(true);
+		if *suppress_typing_notifications.get_untracked() {
 			return;
 		}
 		spawn_local_scoped(ctx, async move {
@@ -324,7 +377,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
 				(*props.event.get_untracked()).clone(),
 				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::Description(
-					(*props.event_log_entry.get_untracked()).clone(),
+					(*props.editing_log_entry.get_untracked()).clone(),
 					(*description.get()).clone(),
 				))),
 			)));
@@ -348,15 +401,22 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 		});
 	});
 
-	let media_link = create_signal(ctx, (*props.media_link.get()).clone());
+	let media_link = create_signal(
+		ctx,
+		(*props.editing_log_entry.get())
+			.as_ref()
+			.map(|entry| entry.media_link.clone())
+			.unwrap_or_default(),
+	);
 	create_effect(ctx, || {
-		props.media_link.set_rc(media_link.get());
+		media_link.modify();
+		modified_entry_data
+			.modify()
+			.insert(ModifiedEventLogEntryParts::MediaLink);
 	});
-	let media_link_typing_ran_once = create_signal(ctx, false);
 	create_effect(ctx, move || {
 		media_link.track();
-		if !*media_link_typing_ran_once.get_untracked() {
-			media_link_typing_ran_once.set(true);
+		if *suppress_typing_notifications.get_untracked() {
 			return;
 		}
 		spawn_local_scoped(ctx, async move {
@@ -366,7 +426,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
 				(*props.event.get()).clone(),
 				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::MediaLink(
-					(*props.event_log_entry.get()).clone(),
+					(*props.editing_log_entry.get()).clone(),
 					(*media_link.get()).clone(),
 				))),
 			)));
@@ -390,15 +450,22 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 		});
 	});
 
-	let submitter_or_winner = create_signal(ctx, (*props.submitter_or_winner.get()).clone());
+	let submitter_or_winner = create_signal(
+		ctx,
+		(*props.editing_log_entry.get())
+			.as_ref()
+			.map(|entry| entry.submitter_or_winner.clone())
+			.unwrap_or_default(),
+	);
 	create_effect(ctx, || {
-		props.submitter_or_winner.set_rc(submitter_or_winner.get());
+		submitter_or_winner.track();
+		modified_entry_data
+			.modify()
+			.insert(ModifiedEventLogEntryParts::SubmitterOrWinner);
 	});
-	let submitter_or_winner_typing_ran_once = create_signal(ctx, false);
 	create_effect(ctx, move || {
 		submitter_or_winner.track();
-		if !*submitter_or_winner_typing_ran_once.get_untracked() {
-			submitter_or_winner_typing_ran_once.set(true);
+		if *suppress_typing_notifications.get_untracked() {
 			return;
 		}
 		spawn_local_scoped(ctx, async move {
@@ -408,7 +475,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
 				(*props.event.get()).clone(),
 				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::SubmitterWinner(
-					(*props.event_log_entry.get()).clone(),
+					(*props.editing_log_entry.get()).clone(),
 					(*submitter_or_winner.get()).clone(),
 				))),
 			)));
@@ -432,21 +499,31 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 		});
 	});
 
-	let entered_tags: Vec<String> = props.tags.get().iter().map(|tag| tag.name.clone()).collect();
+	let tags: &Signal<Vec<Tag>> = create_signal(
+		ctx,
+		(*props.editing_log_entry.get())
+			.as_ref()
+			.map(|entry| entry.tags.clone())
+			.unwrap_or_default(),
+	);
+	let entered_tags: Vec<String> = tags.get().iter().map(|tag| tag.name.clone()).collect();
 	let entered_tags = create_signal(ctx, entered_tags);
 	let entered_tag_entry: &Signal<Vec<&Signal<String>>> = create_signal(ctx, Vec::new());
 
 	create_effect(ctx, || {
-		let mut tags: Vec<Tag> = Vec::new();
+		let mut entry_tags: Vec<Tag> = Vec::new();
 		for tag_name in entered_tags.get().iter() {
 			if tag_name.is_empty() {
 				continue;
 			}
-			if let Some(tag) = props.event_tags_name_index.get().get(tag_name) {
-				tags.push(tag.clone());
+			if let Some(tag) = event_tags_name_index.get().get(tag_name) {
+				entry_tags.push(tag.clone());
 			}
 		}
-		props.tags.set(tags);
+		if *tags.get() != entry_tags {
+			tags.set(entry_tags);
+			modified_entry_data.modify().insert(ModifiedEventLogEntryParts::Tags);
+		}
 	});
 
 	create_effect(ctx, || {
@@ -478,39 +555,60 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 
 	let new_tag_names = create_memo(ctx, || {
 		let mut names: Vec<String> = Vec::new();
-		props.event_tags_name_index.track();
+		event_tags_name_index.track();
 		for tag_name in entered_tags.get().iter() {
-			if !tag_name.is_empty() && props.event_tags_name_index.get().get(tag_name).is_none() {
+			if !tag_name.is_empty() && event_tags_name_index.get().get(tag_name).is_none() {
 				names.push(tag_name.clone());
 			}
 		}
 		names
 	});
 
-	let video_edit_state_no_video = create_memo(ctx, || *props.video_edit_state.get() == VideoEditState::NoVideo);
-	let video_edit_state_marked = create_memo(ctx, || {
-		*props.video_edit_state.get() == VideoEditState::MarkedForEditing
-	});
-	let video_edit_state_done = create_memo(ctx, || *props.video_edit_state.get() == VideoEditState::DoneEditing);
+	let video_edit_state = create_signal(
+		ctx,
+		(*props.editing_log_entry.get())
+			.as_ref()
+			.map(|entry| entry.video_edit_state)
+			.unwrap_or_default(),
+	);
+	let video_edit_state_no_video = create_memo(ctx, || *video_edit_state.get() == VideoEditState::NoVideo);
+	let video_edit_state_marked = create_memo(ctx, || *video_edit_state.get() == VideoEditState::MarkedForEditing);
+	let video_edit_state_done = create_memo(ctx, || *video_edit_state.get() == VideoEditState::DoneEditing);
 	let video_edit_state_set_no_video = |_event: WebEvent| {
-		props.video_edit_state.set(VideoEditState::NoVideo);
+		video_edit_state.set(VideoEditState::NoVideo);
+		modified_entry_data
+			.modify()
+			.insert(ModifiedEventLogEntryParts::VideoEditState);
 	};
 	let video_edit_state_set_marked = |_event: WebEvent| {
-		props.video_edit_state.set(VideoEditState::MarkedForEditing);
+		video_edit_state.set(VideoEditState::MarkedForEditing);
+		modified_entry_data
+			.modify()
+			.insert(ModifiedEventLogEntryParts::VideoEditState);
 	};
 	let video_edit_state_set_done = |_event: WebEvent| {
-		props.video_edit_state.set(VideoEditState::DoneEditing);
+		video_edit_state.set(VideoEditState::DoneEditing);
+		modified_entry_data
+			.modify()
+			.insert(ModifiedEventLogEntryParts::VideoEditState);
 	};
 
-	let notes_to_editor = create_signal(ctx, (*props.notes_to_editor.get()).clone());
+	let notes_to_editor = create_signal(
+		ctx,
+		(*props.editing_log_entry.get())
+			.as_ref()
+			.map(|entry| entry.notes_to_editor.clone())
+			.unwrap_or_default(),
+	);
 	create_effect(ctx, || {
-		props.notes_to_editor.set_rc(notes_to_editor.get());
+		notes_to_editor.track();
+		modified_entry_data
+			.modify()
+			.insert(ModifiedEventLogEntryParts::NotesToEditor);
 	});
-	let notes_to_editor_typing_ran_once = create_signal(ctx, false);
 	create_effect(ctx, move || {
 		notes_to_editor.track();
-		if !*notes_to_editor_typing_ran_once.get_untracked() {
-			notes_to_editor_typing_ran_once.set(true);
+		if *suppress_typing_notifications.get_untracked() {
 			return;
 		}
 		spawn_local_scoped(ctx, async move {
@@ -520,7 +618,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
 				(*props.event.get()).clone(),
 				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::NotesToEditor(
-					(*props.event_log_entry.get()).clone(),
+					(*props.editing_log_entry.get()).clone(),
 					(*notes_to_editor.get()).clone(),
 				))),
 			)));
@@ -544,7 +642,13 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 		});
 	});
 
-	let editor_entry = if let Some(editor) = (*props.editor.get()).as_ref() {
+	let editor_value = create_signal(
+		ctx,
+		(*props.editing_log_entry.get())
+			.as_ref()
+			.and_then(|entry| entry.editor.clone()),
+	);
+	let editor_entry = if let Some(editor) = (*editor_value.get()).as_ref() {
 		editor.username.clone()
 	} else {
 		String::new()
@@ -554,40 +658,80 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 	create_effect(ctx, || {
 		let editor_name = editor_entry.get();
 		if editor_name.is_empty() {
-			props.editor.set(None);
+			editor_value.set(None);
 			editor_error.set(None);
+			modified_entry_data.modify().insert(ModifiedEventLogEntryParts::Editor);
 			return;
 		}
-		if let Some(editor_user) = props.editor_name_index.get().get(&*editor_name) {
+		if let Some(editor_user) = event_editors_name_index.get().get(&*editor_name) {
 			editor_error.set(None);
-			props.editor.set(Some(editor_user.clone()));
+			editor_value.set(Some(editor_user.clone()));
+			modified_entry_data.modify().insert(ModifiedEventLogEntryParts::Editor);
 		} else {
 			editor_error.set(Some(String::from("The entered name couldn't be matched to an editor")));
 		}
 	});
 
+	let poster_moment = create_signal(
+		ctx,
+		(*props.editing_log_entry.get())
+			.as_ref()
+			.map(|entry| entry.poster_moment)
+			.unwrap_or_default(),
+	);
+	create_effect(ctx, || {
+		poster_moment.track();
+		modified_entry_data
+			.modify()
+			.insert(ModifiedEventLogEntryParts::PosterMoment);
+	});
+
+	let marked_incomplete = create_signal(
+		ctx,
+		(*props.editing_log_entry.get())
+			.as_ref()
+			.map(|entry| entry.marked_incomplete)
+			.unwrap_or_default(),
+	);
+	create_effect(ctx, || {
+		marked_incomplete.track();
+		modified_entry_data
+			.modify()
+			.insert(ModifiedEventLogEntryParts::MarkedIncomplete);
+	});
 	let disable_marked_incomplete = create_signal(ctx, false);
 	create_effect(ctx, || {
 		let entered_end_time = end_time_input.get();
 		let entered_submitter_or_winner = submitter_or_winner.get();
 		let permission_level = props.permission_level.get();
-		let marked_incomplete = props.marked_incomplete.get();
-		let editing_existing_entry = props.event_log_entry.get().is_some();
+		let entry_marked_incomplete = marked_incomplete.get();
+		let editing_existing_entry = props.editing_log_entry.get().is_some();
 
 		if !entered_end_time.is_empty() && !entered_submitter_or_winner.is_empty() {
-			props.marked_incomplete.set(false);
+			marked_incomplete.set(false);
 			disable_marked_incomplete.set(true);
-		} else if editing_existing_entry && *marked_incomplete && *permission_level != PermissionLevel::Supervisor {
+		} else if editing_existing_entry && *entry_marked_incomplete && *permission_level != PermissionLevel::Supervisor
+		{
 			disable_marked_incomplete.set(true);
 		} else {
 			disable_marked_incomplete.set(false);
 		}
 	});
 
-	let sort_key_entry = create_signal(ctx, props.sort_key.get().map(|key| key.to_string()).unwrap_or_default());
+	let manual_sort_key = create_signal(
+		ctx,
+		(*props.editing_log_entry.get())
+			.as_ref()
+			.and_then(|entry| entry.manual_sort_key),
+	);
+	let sort_key_entry = create_signal(
+		ctx,
+		manual_sort_key.get().map(|key| key.to_string()).unwrap_or_default(),
+	);
 	create_effect(ctx, || {
 		let sort_key: Option<i32> = sort_key_entry.get().parse().ok();
-		props.sort_key.set(sort_key);
+		manual_sort_key.set(sort_key);
+		modified_entry_data.modify().insert(ModifiedEventLogEntryParts::SortKey);
 	});
 
 	let add_count_entry_signal = create_signal(ctx, String::from("1"));
@@ -595,6 +739,15 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 		let count: u8 = add_count_entry_signal.get().parse().unwrap_or(1);
 		count
 	});
+
+	create_effect(ctx, || {
+		props.edit_parent_log_entry.track();
+		modified_entry_data.modify().insert(ModifiedEventLogEntryParts::Parent);
+	});
+
+	// After setting up all the effects, initialize the modified data tracking to empty
+	modified_entry_data.modify().clear();
+	suppress_typing_notifications.set(false);
 
 	let start_now_handler = move |_event: WebEvent| {
 		let start_time_duration = Utc::now() - props.event.get().start_time;
@@ -643,34 +796,252 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 		}
 	};
 
-	let close_handler = move |event: WebEvent| {
-		event.prevent_default();
+	create_effect(ctx, move || {
+		let editing_log_entry = props.editing_log_entry.get();
+		suppress_typing_notifications.set(true);
 
-		(props.close_handler)(*add_count_signal.get());
-		if props.event_log_entry.get().is_none() {
+		if let Some(entry) = editing_log_entry.as_ref() {
+			let event_start_time = props.event.get_untracked().start_time;
+			let start_duration = entry.start_time - event_start_time;
+			let start_duration = format_duration(&start_duration);
+			let end_duration = entry.end_time.map(|end_time| end_time - event_start_time);
+			let end_duration = end_duration.map(|d| format_duration(&d)).unwrap_or_default();
+			let entry_type = event_entry_types_id_index
+				.get()
+				.get(&entry.entry_type)
+				.map(|entry_type| entry_type.name.clone())
+				.unwrap_or_default();
+			let tags: Vec<String> = entry.tags.iter().map(|tag| tag.name.clone()).collect();
+			let mut tag_signals: Vec<&Signal<String>> = tags
+				.iter()
+				.map(|tag_name| create_signal(ctx, tag_name.clone()))
+				.collect();
+			tag_signals.push(create_signal(ctx, String::new()));
+			let parent_entry = entry.parent.as_ref().and_then(|parent_id| {
+				props
+					.event_log_entries
+					.get_untracked()
+					.iter()
+					.find(|entry| entry.id == *parent_id)
+					.cloned()
+			});
+
+			start_time_input.set(start_duration);
+			end_time_input.set(end_duration);
+			entry_type_name.set(entry_type);
+			description.set(entry.description.clone());
+			media_link.set(entry.media_link.clone());
+			submitter_or_winner.set(entry.submitter_or_winner.clone());
+			entered_tags.set(tags);
+			entered_tag_entry.set(tag_signals);
+			video_edit_state.set(entry.video_edit_state);
+			notes_to_editor.set(entry.notes_to_editor.clone());
+			editor_entry.set(
+				entry
+					.editor
+					.as_ref()
+					.map(|editor| editor.username.clone())
+					.unwrap_or_default(),
+			);
+			marked_incomplete.set(entry.marked_incomplete);
+			sort_key_entry.set(entry.manual_sort_key.map(|key| key.to_string()).unwrap_or_default());
+			props.edit_parent_log_entry.set(parent_entry);
+		} else {
 			start_time_input.set(String::new());
 			end_time_input.set(String::new());
 			entry_type_name.set(String::new());
 			description.set(String::new());
 			media_link.set(String::new());
 			submitter_or_winner.set(String::new());
-			props.tags.set(Vec::new());
-			props.video_edit_state.set(VideoEditState::default());
+			entered_tags.set(Vec::new());
+			entered_tag_entry.set(vec![create_signal(ctx, String::new())]);
+			video_edit_state.set(VideoEditState::default());
 			notes_to_editor.set(String::new());
 			editor_entry.set(String::new());
-			props.marked_incomplete.set(false);
-			props.parent_log_entry.set(None);
-			entered_tag_entry.set(vec![create_signal(ctx, String::new())]);
-			entered_tags.set(Vec::new());
+			marked_incomplete.set(false);
 			sort_key_entry.set(String::new());
-			add_count_entry_signal.set(String::from("1"));
+			props.edit_parent_log_entry.set(None);
 		}
+
+		add_count_entry_signal.set(String::from("1"));
+		start_time_warning_active.set(false);
+		modified_entry_data.modify().clear();
+		suppress_typing_notifications.set(false);
+	});
+
+	let reset_data = move || {
+		suppress_typing_notifications.set(true);
+		start_time_input.set(String::new());
+		end_time_input.set(String::new());
+		entry_type_name.set(String::new());
+		description.set(String::new());
+		media_link.set(String::new());
+		submitter_or_winner.set(String::new());
+		entered_tags.set(Vec::new());
+		entered_tag_entry.set(vec![create_signal(ctx, String::new())]);
+		video_edit_state.set(VideoEditState::default());
+		notes_to_editor.set(String::new());
+		editor_entry.set(String::new());
+		marked_incomplete.set(false);
+		sort_key_entry.set(String::new());
+		add_count_entry_signal.set(String::from("1"));
+
+		props.edit_parent_log_entry.set(None);
+		props.editing_log_entry.set(None);
+		start_time_warning_active.set(false);
+		modified_entry_data.modify().clear();
+		suppress_typing_notifications.set(false);
 	};
 
-	let cancel_handler = |_event: WebEvent| {
-		// We don't prevent event propagation here; this means that the form submit function will happen in addition to
-		// (and after) this one.
-		add_count_entry_signal.set(String::from("0"));
+	let save_handler = move |event: WebEvent| {
+		event.prevent_default();
+
+		if let Some(entry) = (*props.editing_log_entry.get()).as_ref() {
+			let mut messages: Vec<FromClientMessage> = Vec::new();
+			for modification in modified_entry_data.get().iter() {
+				let change_message = match *modification {
+					ModifiedEventLogEntryParts::StartTime => {
+						EventSubscriptionUpdate::ChangeStartTime(entry.clone(), *start_time_value.get())
+					}
+					ModifiedEventLogEntryParts::EndTime => {
+						EventSubscriptionUpdate::ChangeEndTime(entry.clone(), *end_time_value.get())
+					}
+					ModifiedEventLogEntryParts::EntryType => {
+						EventSubscriptionUpdate::ChangeEntryType(entry.clone(), (*entry_type_id.get()).clone())
+					}
+					ModifiedEventLogEntryParts::Description => {
+						EventSubscriptionUpdate::ChangeDescription(entry.clone(), (*description.get()).clone())
+					}
+					ModifiedEventLogEntryParts::MediaLink => {
+						EventSubscriptionUpdate::ChangeMediaLink(entry.clone(), (*media_link.get()).clone())
+					}
+					ModifiedEventLogEntryParts::SubmitterOrWinner => EventSubscriptionUpdate::ChangeSubmitterWinner(
+						entry.clone(),
+						(*submitter_or_winner.get()).clone(),
+					),
+					ModifiedEventLogEntryParts::Tags => {
+						EventSubscriptionUpdate::ChangeTags(entry.clone(), (*tags.get()).clone())
+					}
+					ModifiedEventLogEntryParts::VideoEditState => {
+						EventSubscriptionUpdate::ChangeVideoEditState(entry.clone(), *video_edit_state.get())
+					}
+					ModifiedEventLogEntryParts::PosterMoment => {
+						EventSubscriptionUpdate::ChangePosterMoment(entry.clone(), *poster_moment.get())
+					}
+					ModifiedEventLogEntryParts::NotesToEditor => {
+						EventSubscriptionUpdate::ChangeNotesToEditor(entry.clone(), (*notes_to_editor.get()).clone())
+					}
+					ModifiedEventLogEntryParts::Editor => {
+						EventSubscriptionUpdate::ChangeEditor(entry.clone(), (*editor_value.get()).clone())
+					}
+					ModifiedEventLogEntryParts::MarkedIncomplete => {
+						EventSubscriptionUpdate::ChangeIsIncomplete(entry.clone(), *marked_incomplete.get())
+					}
+					ModifiedEventLogEntryParts::SortKey => {
+						EventSubscriptionUpdate::ChangeManualSortKey(entry.clone(), *manual_sort_key.get())
+					}
+					ModifiedEventLogEntryParts::Parent => EventSubscriptionUpdate::ChangeParent(
+						entry.clone(),
+						(*props.edit_parent_log_entry.get())
+							.as_ref()
+							.map(|parent_entry| Box::new(parent_entry.clone())),
+					),
+				};
+				messages.push(FromClientMessage::SubscriptionMessage(Box::new(
+					SubscriptionTargetUpdate::EventUpdate((*props.event.get()).clone(), Box::new(change_message)),
+				)));
+			}
+			spawn_local_scoped(ctx, async move {
+				let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+				let mut ws = ws_context.lock().await;
+
+				for message in messages.iter() {
+					let message_json = match serde_json::to_string(message) {
+						Ok(msg) => msg,
+						Err(error) => {
+							let data: &DataSignals = use_context(ctx);
+							data.errors.modify().push(ErrorData::new_with_error(
+								"Failed to serialize event log entry update.",
+								error,
+							));
+							continue;
+						}
+					};
+
+					let send_result = ws.send(Message::Text(message_json)).await;
+					if let Err(error) = send_result {
+						let data: &DataSignals = use_context(ctx);
+						data.errors.modify().push(ErrorData::new_with_error(
+							"Failed to send event log entry update.",
+							error,
+						));
+					}
+				}
+			});
+		} else {
+			let new_entry = EventLogEntry {
+				id: String::new(),
+				start_time: *start_time_value.get(),
+				end_time: *end_time_value.get(),
+				entry_type: (*entry_type_id.get()).clone(),
+				description: (*description.get()).clone(),
+				media_link: (*media_link.get()).clone(),
+				submitter_or_winner: (*submitter_or_winner.get()).clone(),
+				tags: (*tags.get()).clone(),
+				notes_to_editor: (*notes_to_editor.get()).clone(),
+				editor_link: None,
+				editor: (*editor_value.get()).clone(),
+				video_link: None,
+				parent: (*props.edit_parent_log_entry.get())
+					.as_ref()
+					.map(|entry| entry.id.clone()),
+				created_at: Utc::now(),
+				manual_sort_key: *manual_sort_key.get(),
+				video_state: None,
+				video_errors: String::new(),
+				poster_moment: *poster_moment.get(),
+				video_edit_state: *video_edit_state.get(),
+				marked_incomplete: *marked_incomplete.get(),
+			};
+			let add_count = *add_count_signal.get();
+			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
+				(*props.event.get()).clone(),
+				Box::new(EventSubscriptionUpdate::NewLogEntry(new_entry, add_count)),
+			)));
+			spawn_local_scoped(ctx, async move {
+				let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+				let mut ws = ws_context.lock().await;
+
+				let message_json = match serde_json::to_string(&message) {
+					Ok(msg) => msg,
+					Err(error) => {
+						let data: &DataSignals = use_context(ctx);
+						data.errors.modify().push(ErrorData::new_with_error(
+							"Failed to serialize new event log entry message.",
+							error,
+						));
+						return;
+					}
+				};
+
+				let send_result = ws.send(Message::Text(message_json)).await;
+				if let Err(error) = send_result {
+					let data: &DataSignals = use_context(ctx);
+					data.errors.modify().push(ErrorData::new_with_error(
+						"Failed to send new event log entry message.",
+						error,
+					));
+				}
+			});
+		}
+
+		reset_data();
+	};
+
+	let cancel_handler = move |event: WebEvent| {
+		event.prevent_default();
+
+		reset_data();
 	};
 
 	let delete_confirm_signal = create_signal(ctx, false);
@@ -680,7 +1051,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 	};
 
 	let delete_confirm_handler = move |_event: WebEvent| {
-		let Some(log_entry) = (*props.event_log_entry.get()).clone() else {
+		let Some(log_entry) = (*props.editing_log_entry.get()).clone() else {
 			return;
 		};
 		spawn_local_scoped(ctx, async move {
@@ -718,19 +1089,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 	};
 
 	let reset_handler = move |_event: WebEvent| {
-		start_time_input.set(String::new());
-		end_time_input.set(String::new());
-		entry_type_name.set(String::new());
-		description.set(String::new());
-		media_link.set(String::new());
-		submitter_or_winner.set(String::new());
-		props.tags.set(Vec::new());
-		props.video_edit_state.set(VideoEditState::default());
-		notes_to_editor.set(String::new());
-		editor_entry.set(String::new());
-		props.marked_incomplete.set(false);
-		sort_key_entry.set(String::new());
-		add_count_entry_signal.set(String::from("1"));
+		reset_data();
 	};
 
 	let disable_save = create_memo(ctx, || {
@@ -743,14 +1102,61 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 	});
 
 	let remove_parent_handler = |_event: WebEvent| {
-		props.parent_log_entry.set(None);
+		props.edit_parent_log_entry.set(None);
 	};
 
 	view! {
 		ctx,
-		form(class="event_log_entry_edit", on:submit=close_handler) {
+		datalist(id="event_log_entry_edit_type_list") {
+			Keyed(
+				iterable=props.event_entry_types,
+				key=|entry_type| entry_type.id.clone(),
+				view=|ctx, entry_type| {
+					view! {
+						ctx,
+						option(value=entry_type.name)
+					}
+				}
+			)
+		}
+		datalist(id="event_log_entry_edit_tags_list") {
+			Keyed(
+				iterable=props.event_tags,
+				key=|tag| tag.id.clone(),
+				view=|ctx, tag| {
+					view! {
+						ctx,
+						option(value=tag.name)
+					}
+				}
+			)
+		}
+		datalist(id="event_log_entry_edit_editors_list") {
+			Keyed(
+				iterable=props.event_editors,
+				key=|editor| editor.id.clone(),
+				view=|ctx, editor| {
+					view! {
+						ctx,
+						option(value=editor.username)
+					}
+				}
+			)
+		}
+		form(class="event_log_entry_edit", on:submit=save_handler) {
+			div(class="event_log_entry_edit_editing_info") {
+				(if let Some(entry) = (*props.editing_log_entry.get()).as_ref() {
+					let start_duration = entry.start_time - props.event.get().start_time;
+					let start_duration = format_duration(&start_duration);
+					let end_duration = entry.end_time.map(|end_time| end_time - props.event.get().start_time);
+					let end_duration = end_duration.map(|d| format_duration(&d)).unwrap_or_default();
+					format!("Editing entry: {} / {} / {} / {}", start_duration, end_duration, entry.entry_type, entry.description)
+				} else {
+					String::from("Creating new entry")
+				})
+			}
 			div(class="event_log_entry_edit_parent_info") {
-				(if let Some(parent) = props.parent_log_entry.get().as_ref() {
+				(if let Some(parent) = props.edit_parent_log_entry.get().as_ref() {
 					let start_time_duration = parent.start_time - props.event.get().start_time;
 					let end_time_duration = parent.end_time.map(|end_time| end_time - props.event.get().start_time);
 					let event_entry_types = props.event_entry_types.get();
@@ -786,7 +1192,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 						title=(*start_time_error.get()).as_ref().unwrap_or(&String::new())
 					)
 					(
-						if props.event_log_entry.get().is_none() {
+						if props.editing_log_entry.get().is_none() {
 							view! {
 								ctx,
 								button(type="button", tabindex=-1, on:click=start_now_handler) { "Now" }
@@ -804,7 +1210,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 						title=(*end_time_error.get()).as_ref().unwrap_or(&String::new())
 					)
 					(
-						if props.event_log_entry.get().is_none() {
+						if props.editing_log_entry.get().is_none() {
 							view! {
 								ctx,
 								button(type="button", tabindex=-1, on:click=end_now_handler) { "Now" }
@@ -820,7 +1226,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 						bind:value=entry_type_name,
 						class=if entry_type_error.get().is_some() { "error" } else { "" },
 						title=(*entry_type_error.get()).as_ref().unwrap_or(&String::new()),
-						list=props.entry_types_datalist_id,
+						list="event_log_entry_edit_type_list",
 						on:blur=entry_type_lost_focus
 					)
 				}
@@ -841,13 +1247,13 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 						iterable=entered_tag_entry,
 						view=move |ctx, entry_signal| {
 							let tag_description = create_memo(ctx, || {
-								let tag_index = props.event_tags_name_index.get();
+								let tag_index = event_tags_name_index.get();
 								tag_index.get(&*entry_signal.get()).map(|tag| tag.description.clone()).unwrap_or_default()
 							});
 							view! {
 								ctx,
 								div {
-									input(bind:value=entry_signal, list=props.tags_datalist_id, title=tag_description.get())
+									input(bind:value=entry_signal, list="event_log_entry_edit_tags_list", title=tag_description.get())
 								}
 							}
 						}
@@ -935,7 +1341,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 				}
 				div(class="event_log_entry_edit_poster_moment") {
 					label {
-						input(type="checkbox", bind:checked=props.poster_moment)
+						input(type="checkbox", bind:checked=poster_moment)
 						"Poster moment"
 					}
 				}
@@ -946,14 +1352,14 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 					input(
 						bind:value=editor_entry,
 						placeholder="Editor",
-						list=props.editor_name_datalist_id,
+						list="event_log_entry_edit_editors_list",
 						class=if editor_error.get().is_some() { "error" } else { "" },
 						title=(*editor_error.get()).as_ref().unwrap_or(&String::new())
 					)
 				}
 				div(class="event_log_entry_edit_incomplete") {
 					label {
-						input(type="checkbox", bind:checked=props.marked_incomplete, disabled=*disable_marked_incomplete.get())
+						input(type="checkbox", bind:checked=marked_incomplete, disabled=*disable_marked_incomplete.get())
 						"Mark incomplete"
 					}
 				}
@@ -982,7 +1388,7 @@ pub fn EventLogEntryEdit<'a, G: Html, TCloseHandler: Fn(u8) + 'a>(
 				} else {
 					view! { ctx, }
 				})
-				(if let Some(entry) = (*props.event_log_entry.get()).clone() {
+				(if let Some(entry) = (*props.editing_log_entry.get()).clone() {
 					view! {
 						ctx,
 						div(class="event_log_entry_edit_delete") {
