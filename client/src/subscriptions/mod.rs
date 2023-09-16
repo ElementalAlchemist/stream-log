@@ -474,7 +474,9 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 				SubscriptionData::UserUpdate(user_update) => {
 					let user_signal: &Signal<Option<UserData>> = use_context(ctx);
 					user_signal.set(Some(user_update.user));
-					data_signals.available_events.set(user_update.available_events);
+					let mut available_events = user_update.available_events;
+					available_events.sort_unstable_by(|a, b| a.start_time.cmp(&b.start_time).reverse());
+					data_signals.available_events.set(available_events);
 				}
 				SubscriptionData::AdminEventsUpdate(event_data) => match event_data {
 					AdminEventData::UpdateEvent(event) => {
