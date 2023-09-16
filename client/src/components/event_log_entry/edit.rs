@@ -1054,6 +1054,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		let Some(log_entry) = (*props.editing_log_entry.get()).clone() else {
 			return;
 		};
+		delete_confirm_signal.set(false);
 		spawn_local_scoped(ctx, async move {
 			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
