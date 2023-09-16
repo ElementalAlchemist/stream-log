@@ -17,7 +17,7 @@ use stream_log_shared::messages::event_log::{EventLogEntry, EventLogSection, Vid
 use stream_log_shared::messages::subscriptions::SubscriptionType;
 use sycamore::prelude::*;
 use sycamore::suspense::Suspense;
-use web_sys::{window, Event as WebEvent};
+use web_sys::{window, Event as WebEvent, ScrollIntoViewOptions, ScrollLogicalPosition};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum LogLineData {
@@ -315,15 +315,12 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		let Some(document) = window.document() else {
 			return;
 		};
-		let Some(row_element) = document.get_element_by_id(&jump_to_id) else {
+		let Some(row_top_element) = document.get_element_by_id(&jump_to_id) else {
 			return;
 		};
-		// The row doesn't have a size, so the browser won't scroll to it. As such, we pick a child element to which we
-		// can scroll.
-		let Some(cell_element) = row_element.first_element_child() else {
-			return;
-		};
-		cell_element.scroll_into_view();
+		let mut scroll_into_view_options = ScrollIntoViewOptions::new();
+		scroll_into_view_options.block(ScrollLogicalPosition::Center);
+		row_top_element.scroll_into_view_with_scroll_into_view_options(&scroll_into_view_options);
 		jump_highlight_row_id.set(jump_id);
 	};
 

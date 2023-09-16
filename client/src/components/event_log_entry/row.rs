@@ -112,7 +112,6 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 
 	view! {
 		ctx,
-		div(class="event_log_entry_top_border")
 		div(
 			id={
 				if let Some(entry) = props.entry.get().as_ref() {
@@ -121,6 +120,9 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 					String::new()
 				}
 			},
+			class="event_log_entry_top_border"
+		)
+		div(
 			class={
 				let mut row_class = String::from("event_log_entry");
 				if (*props.entry.get())
