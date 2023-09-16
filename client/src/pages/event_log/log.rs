@@ -204,6 +204,20 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		}
 	});
 
+	create_effect(ctx, {
+		let log_entries = log_entries.clone();
+		move || {
+			let log_entries = log_entries.get();
+			let editing_entry = editing_log_entry.get_untracked();
+			let editing_entry_id = (*editing_entry).as_ref().map(|entry| entry.id.clone());
+			if let Some(id) = editing_entry_id {
+				if !log_entries.iter().any(|entry| entry.id == id) {
+					editing_log_entry.set(None);
+				}
+			}
+		}
+	});
+
 	let editing_typing_data = create_memo(ctx, {
 		let typing_events = event_subscription_data.typing_events.clone();
 		move || {
