@@ -557,7 +557,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		let mut names: Vec<String> = Vec::new();
 		event_tags_name_index.track();
 		for tag_name in entered_tags.get().iter() {
-			if !tag_name.is_empty() && event_tags_name_index.get().get(tag_name).is_none() {
+			if !tag_name.is_empty() && !event_tags_name_index.get().contains_key(tag_name) {
 				names.push(tag_name.clone());
 			}
 		}
