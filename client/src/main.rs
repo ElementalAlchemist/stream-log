@@ -149,7 +149,8 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 			}
 		}
 	};
-	let (user_data, available_events) = if let Some((user, events)) = initial_data {
+	let (user_data, available_events) = if let Some((user, mut events)) = initial_data {
+		events.sort_unstable_by(|a, b| a.start_time.cmp(&b.start_time).reverse());
 		(Some(user), Some(events))
 	} else {
 		(None, None)
