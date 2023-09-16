@@ -506,17 +506,24 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			.map(|entry| entry.tags.clone())
 			.unwrap_or_default(),
 	);
-	let entered_tags: Vec<String> = tags.get().iter().map(|tag| tag.name.clone()).collect();
-	let entered_tags = create_signal(ctx, entered_tags);
-	let entered_tag_entry: &Signal<Vec<&Signal<String>>> = create_signal(ctx, Vec::new());
+	let entered_tags: &Signal<Vec<&Signal<String>>> = create_signal(ctx, Vec::new());
+	let add_entered_tag = move |name: String| {
+		let new_tag = create_signal(ctx, name);
+		create_effect(ctx, || {
+			new_tag.track();
+			entered_tags.trigger_subscribers();
+		});
+		entered_tags.modify().push(new_tag);
+	};
 
 	create_effect(ctx, || {
 		let mut entry_tags: Vec<Tag> = Vec::new();
 		for tag_name in entered_tags.get().iter() {
+			let tag_name = tag_name.get();
 			if tag_name.is_empty() {
 				continue;
 			}
-			if let Some(tag) = event_tags_name_index.get().get(tag_name) {
+			if let Some(tag) = event_tags_name_index.get().get(&*tag_name) {
 				entry_tags.push(tag.clone());
 			}
 		}
@@ -526,30 +533,10 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		}
 	});
 
-	create_effect(ctx, || {
-		let tag_names = entered_tags.get();
-		let last_entry = tag_names.last();
-		if let Some(entry) = last_entry {
-			if !entry.is_empty() {
-				entered_tags.modify().push(String::new());
-			}
-		} else {
-			entered_tags.modify().push(String::new());
-		}
-	});
-
 	create_effect(ctx, move || {
-		let mut tag_names_entry = entered_tag_entry.modify();
-		for (tag_index, tag_name) in entered_tags.get().iter().enumerate() {
-			if tag_names_entry.len() > tag_index {
-				tag_names_entry[tag_index].set(tag_name.clone());
-			} else {
-				let tag_name_signal = create_signal(ctx, tag_name.clone());
-				tag_names_entry.push(tag_name_signal);
-				create_effect(ctx, move || {
-					entered_tags.modify()[tag_index] = (*tag_name_signal.get()).clone();
-				});
-			}
+		let tag_names = entered_tags.get();
+		if !tag_names.iter().any(|tag_name_signal| tag_name_signal.get().is_empty()) {
+			add_entered_tag(String::new());
 		}
 	});
 
@@ -557,8 +544,9 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		let mut names: Vec<String> = Vec::new();
 		event_tags_name_index.track();
 		for tag_name in entered_tags.get().iter() {
-			if !tag_name.is_empty() && !event_tags_name_index.get().contains_key(tag_name) {
-				names.push(tag_name.clone());
+			let tag_name = (*tag_name.get_untracked()).clone();
+			if !tag_name.is_empty() && !event_tags_name_index.get().contains_key(&tag_name) {
+				names.push(tag_name);
 			}
 		}
 		names
@@ -811,12 +799,6 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 				.get(&entry.entry_type)
 				.map(|entry_type| entry_type.name.clone())
 				.unwrap_or_default();
-			let tags: Vec<String> = entry.tags.iter().map(|tag| tag.name.clone()).collect();
-			let mut tag_signals: Vec<&Signal<String>> = tags
-				.iter()
-				.map(|tag_name| create_signal(ctx, tag_name.clone()))
-				.collect();
-			tag_signals.push(create_signal(ctx, String::new()));
 			let parent_entry = entry.parent.as_ref().and_then(|parent_id| {
 				props
 					.event_log_entries
@@ -832,8 +814,10 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			description.set(entry.description.clone());
 			media_link.set(entry.media_link.clone());
 			submitter_or_winner.set(entry.submitter_or_winner.clone());
-			entered_tags.set(tags);
-			entered_tag_entry.set(tag_signals);
+			entered_tags.set(Vec::new());
+			for tag in entry.tags.iter() {
+				add_entered_tag(tag.name.clone());
+			}
 			video_edit_state.set(entry.video_edit_state);
 			notes_to_editor.set(entry.notes_to_editor.clone());
 			editor_entry.set(
@@ -854,7 +838,6 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			media_link.set(String::new());
 			submitter_or_winner.set(String::new());
 			entered_tags.set(Vec::new());
-			entered_tag_entry.set(vec![create_signal(ctx, String::new())]);
 			video_edit_state.set(VideoEditState::default());
 			notes_to_editor.set(String::new());
 			editor_entry.set(String::new());
@@ -878,7 +861,6 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		media_link.set(String::new());
 		submitter_or_winner.set(String::new());
 		entered_tags.set(Vec::new());
-		entered_tag_entry.set(vec![create_signal(ctx, String::new())]);
 		video_edit_state.set(VideoEditState::default());
 		notes_to_editor.set(String::new());
 		editor_entry.set(String::new());
@@ -1245,7 +1227,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 				label { "Tags:" }
 				div(class="event_log_entry_edit_tags_fields") {
 					Indexed(
-						iterable=entered_tag_entry,
+						iterable=entered_tags,
 						view=move |ctx, entry_signal| {
 							let tag_description = create_memo(ctx, || {
 								let tag_index = event_tags_name_index.get();
