@@ -24,6 +24,7 @@ $event_log_column_count: 16;
 
 #event_log_view_settings_filter_video_state {
 	position: relative;
+	z-index: 1;
 
 	&:hover .event_log_view_settings_filter_dropdown {
 		display: block;

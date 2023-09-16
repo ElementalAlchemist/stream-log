@@ -31,7 +31,7 @@
 	width: 200px;
 	text-align: center;
 	position: relative; // Required for z-index to work
-	z-index: 1;
+	z-index: 2;
 
 	&:hover .user_info_menu {
 		display: block;
