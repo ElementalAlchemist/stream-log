@@ -68,9 +68,9 @@ pub async fn subscribe_to_admin_editors(
 		.load(&mut *db_connection);
 
 	let users = match users {
-		Ok(mut users) => {
+		Ok(users) => {
 			let user_map: HashMap<String, UserData> =
-				users.drain(..).map(|user| (user.id.clone(), user.into())).collect();
+				users.into_iter().map(|user| (user.id.clone(), user.into())).collect();
 			user_map
 		}
 		Err(error) => {
@@ -89,9 +89,11 @@ pub async fn subscribe_to_admin_editors(
 		}
 	};
 	let events = match events {
-		Ok(mut events) => {
-			let event_map: HashMap<String, Event> =
-				events.drain(..).map(|event| (event.id.clone(), event.into())).collect();
+		Ok(events) => {
+			let event_map: HashMap<String, Event> = events
+				.into_iter()
+				.map(|event| (event.id.clone(), event.into()))
+				.collect();
 			event_map
 		}
 		Err(error) => {

@@ -37,7 +37,7 @@ pub async fn subscribe_to_admin_applications(
 		.filter(applications::auth_key.is_not_null())
 		.load(&mut *db_connection);
 	let applications: Vec<Application> = match applications {
-		Ok(mut apps) => apps.drain(..).map(|app| app.into()).collect(),
+		Ok(apps) => apps.into_iter().map(|app| app.into()).collect(),
 		Err(error) => {
 			tide::log::error!(
 				"A database error occurred loading applications for admin subscription: {}",

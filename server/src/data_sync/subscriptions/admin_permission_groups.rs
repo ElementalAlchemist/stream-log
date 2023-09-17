@@ -45,7 +45,7 @@ pub async fn subscribe_to_admin_permission_groups(
 		(permission_groups, permission_group_events)
 	};
 	let permission_groups: Vec<PermissionGroup> = match permission_groups {
-		Ok(mut permission_groups) => permission_groups.drain(..).map(|group| group.into()).collect(),
+		Ok(permission_groups) => permission_groups.into_iter().map(|group| group.into()).collect(),
 		Err(error) => {
 			tide::log::error!("A database error occurred getting the permission groups for an admin permission groups subscription: {}", error);
 			let message = FromServerMessage::SubscriptionFailure(
@@ -59,7 +59,7 @@ pub async fn subscribe_to_admin_permission_groups(
 		}
 	};
 	let permission_group_events: Vec<PermissionGroupEventAssociation> = match permission_group_events {
-		Ok(mut group_events) => group_events.drain(..).map(|association| association.into()).collect(),
+		Ok(group_events) => group_events.into_iter().map(|association| association.into()).collect(),
 		Err(error) => {
 			tide::log::error!("A database error occurred getting the permission group and event associations for an admin permission groups subscription: {}", error);
 			let message = FromServerMessage::SubscriptionFailure(
@@ -329,9 +329,9 @@ pub async fn subscribe_to_admin_permission_groups_users(
 		.load(&mut *db_connection);
 
 	let users = match users {
-		Ok(mut users) => {
+		Ok(users) => {
 			let user_map: HashMap<String, UserData> =
-				users.drain(..).map(|user| (user.id.clone(), user.into())).collect();
+				users.into_iter().map(|user| (user.id.clone(), user.into())).collect();
 			user_map
 		}
 		Err(error) => {
@@ -350,9 +350,11 @@ pub async fn subscribe_to_admin_permission_groups_users(
 		}
 	};
 	let permission_groups = match groups {
-		Ok(mut groups) => {
-			let group_map: HashMap<String, PermissionGroup> =
-				groups.drain(..).map(|group| (group.id.clone(), group.into())).collect();
+		Ok(groups) => {
+			let group_map: HashMap<String, PermissionGroup> = groups
+				.into_iter()
+				.map(|group| (group.id.clone(), group.into()))
+				.collect();
 			group_map
 		}
 		Err(error) => {
@@ -438,10 +440,11 @@ pub async fn handle_admin_permission_group_users_message(
 							.iter()
 							.map(|event_permission| event_permission.event.clone())
 							.collect();
-						let mut affected_events: Vec<EventDb> = events::table
+						let affected_events: Vec<EventDb> = events::table
 							.filter(events::id.eq_any(&affected_event_ids))
 							.load(db_connection)?;
-						let affected_events: Vec<Event> = affected_events.drain(..).map(|event| event.into()).collect();
+						let affected_events: Vec<Event> =
+							affected_events.into_iter().map(|event| event.into()).collect();
 
 						let all_user_event_permissions: Vec<PermissionEvent> = permission_events::table
 							.filter(
@@ -540,10 +543,11 @@ pub async fn handle_admin_permission_group_users_message(
 							.iter()
 							.map(|event_permission| event_permission.event.clone())
 							.collect();
-						let mut affected_events: Vec<EventDb> = events::table
+						let affected_events: Vec<EventDb> = events::table
 							.filter(events::id.eq_any(&affected_event_ids))
 							.load(db_connection)?;
-						let affected_events: Vec<Event> = affected_events.drain(..).map(|event| event.into()).collect();
+						let affected_events: Vec<Event> =
+							affected_events.into_iter().map(|event| event.into()).collect();
 
 						let all_user_event_permissions: Vec<PermissionEvent> = permission_events::table
 							.filter(

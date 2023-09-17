@@ -84,7 +84,7 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 			))
 			.load(&mut *db_connection)
 	};
-	let mut event_log: Vec<EventLogEntryDb> = match event_log {
+	let event_log: Vec<EventLogEntryDb> = match event_log {
 		Ok(event_log) => event_log,
 		Err(error) => {
 			tide::log::error!("API error loading event log: {}", error);
@@ -95,8 +95,8 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 		}
 	};
 
-	let mut entry_type_ids: HashSet<String> = event_log.iter().map(|log_entry| log_entry.entry_type.clone()).collect();
-	let entry_type_ids: Vec<String> = entry_type_ids.drain().collect();
+	let entry_type_ids: HashSet<String> = event_log.iter().map(|log_entry| log_entry.entry_type.clone()).collect();
+	let entry_type_ids: Vec<String> = entry_type_ids.into_iter().collect();
 	let entry_types: HashMap<String, EntryTypeApi> = if entry_type_ids.is_empty() {
 		HashMap::new()
 	} else {
@@ -104,8 +104,8 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 			.filter(entry_types::id.eq_any(&entry_type_ids))
 			.load(&mut *db_connection);
 		match entry_types {
-			Ok(mut entry_types) => entry_types
-				.drain(..)
+			Ok(entry_types) => entry_types
+				.into_iter()
 				.map(|entry_type| {
 					(
 						entry_type.id.clone(),
@@ -129,11 +129,11 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 		}
 	};
 
-	let mut editor_ids: HashSet<String> = event_log
+	let editor_ids: HashSet<String> = event_log
 		.iter()
 		.filter_map(|log_entry| log_entry.editor.clone())
 		.collect();
-	let editor_ids: Vec<String> = editor_ids.drain().collect();
+	let editor_ids: Vec<String> = editor_ids.into_iter().collect();
 	let editors: HashMap<String, UserApi> = if editor_ids.is_empty() {
 		HashMap::new()
 	} else {
@@ -141,8 +141,8 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 			.filter(users::id.eq_any(&editor_ids))
 			.load(&mut *db_connection);
 		match editors {
-			Ok(mut editors) => editors
-				.drain(..)
+			Ok(editors) => editors
+				.into_iter()
 				.map(|user| {
 					(
 						user.id.clone(),
@@ -182,7 +182,7 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 	};
 	let tag_ids: Vec<String> = entry_tags.iter().map(|entry_tag| entry_tag.tag.clone()).collect();
 	let tags: QueryResult<Vec<TagDb>> = tags::table.filter(tags::id.eq_any(tag_ids)).load(&mut *db_connection);
-	let mut tags = match tags {
+	let tags = match tags {
 		Ok(tags) => tags,
 		Err(error) => {
 			tide::log::error!("API error loading tags for event log: {}", error);
@@ -200,7 +200,7 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 			.push(entry_tag.tag);
 	}
 	let tags_by_id: HashMap<String, TagApi> = tags
-		.drain(..)
+		.into_iter()
 		.map(|tag| {
 			(
 				tag.id.clone(),
@@ -218,7 +218,7 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 		})
 		.collect();
 	let entry_tag_map: HashMap<String, Vec<TagApi>> = entry_tag_map
-		.drain()
+		.into_iter()
 		.map(|(entry_id, tag_ids)| {
 			let tags = tag_ids
 				.iter()
@@ -229,7 +229,7 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 		.collect();
 
 	let event_log: Vec<EventLogEntryApi> = event_log
-		.drain(..)
+		.into_iter()
 		.map(|entry| EventLogEntryApi {
 			id: entry.id.clone(),
 			start_time: entry.start_time,

@@ -193,7 +193,7 @@ pub async fn subscribe_to_event(
 		}
 	};
 
-	let mut log_sections: Vec<EventLogSectionDb> = match event_log_sections::table
+	let log_sections: Vec<EventLogSectionDb> = match event_log_sections::table
 		.filter(event_log_sections::event.eq(event_id))
 		.order(event_log_sections::start_time.asc())
 		.load(&mut *db_connection)
@@ -333,7 +333,7 @@ pub async fn subscribe_to_event(
 		}
 	};
 
-	let mut editors: Vec<User> = match users::table
+	let editors: Vec<User> = match users::table
 		.filter(users::id.eq_any(&editor_user_ids))
 		.load(&mut *db_connection)
 	{
@@ -365,7 +365,7 @@ pub async fn subscribe_to_event(
 			color: user.color(),
 		})
 		.collect();
-	let editors: HashMap<String, User> = editors.drain(..).map(|user| (user.id.clone(), user)).collect();
+	let editors: HashMap<String, User> = editors.into_iter().map(|user| (user.id.clone(), user)).collect();
 
 	// Turn all the data we have into client-usable data
 	let event = Event {
@@ -377,7 +377,7 @@ pub async fn subscribe_to_event(
 	let entry_types: Vec<EntryType> = entry_types.iter().map(|et| (*et).clone().into()).collect();
 	let tags: Vec<Tag> = tags.iter().map(|tag| (*tag).clone().into()).collect();
 	let event_log_sections: Vec<EventLogSection> = log_sections
-		.drain(..)
+		.into_iter()
 		.map(|section| EventLogSection {
 			id: section.id,
 			name: section.name,
@@ -650,7 +650,7 @@ pub async fn handle_event_update(
 					)
 					.set(event_log::deleted_by.eq(&user.id))
 					.get_result(db_connection)?;
-				let mut deleted_entry_tags: Vec<EventLogTag> = event_log_tags::table
+				let deleted_entry_tags: Vec<EventLogTag> = event_log_tags::table
 					.filter(event_log_tags::log_entry.eq(&deleted_entry.id))
 					.load(db_connection)?;
 				let history_entry = EventLogHistoryEntry::new_from_event_log_entry(
@@ -659,7 +659,7 @@ pub async fn handle_event_update(
 					EditSource::User(user.id.clone()),
 				);
 				let history_entry_tags: Vec<EventLogHistoryTag> = deleted_entry_tags
-					.drain(..)
+					.into_iter()
 					.map(|tag| EventLogHistoryTag {
 						tag: tag.tag,
 						history_log_entry: history_entry.id.clone(),
@@ -879,7 +879,7 @@ pub async fn handle_event_update(
 					.execute(db_connection)?;
 
 				let log_entry: EventLogEntryDb = event_log::table.find(&log_entry.id).first(db_connection)?;
-				let mut tags: Vec<TagDb> = tags::table
+				let tags: Vec<TagDb> = tags::table
 					.filter(
 						event_log_tags::table
 							.filter(
@@ -912,7 +912,7 @@ pub async fn handle_event_update(
 					.values(history_entry_tags)
 					.execute(db_connection)?;
 
-				let tags: Vec<Tag> = tags.drain(..).map(|tag| tag.into()).collect();
+				let tags: Vec<Tag> = tags.into_iter().map(|tag| tag.into()).collect();
 				let editor: Option<User> = match log_entry.editor {
 					Some(editor) => Some(users::table.find(editor).first(db_connection)?),
 					None => None,
@@ -1259,8 +1259,8 @@ pub async fn handle_event_update(
 						.filter(|entry_tag| entry_tag.log_entry == log_entry.id)
 						.map(|entry_tag| entry_tag.tag.clone())
 						.collect();
-					let mut tags: Vec<TagDb> = tags::table.filter(tags::id.eq_any(tag_ids)).load(db_connection)?;
-					let tags: Vec<Tag> = tags.drain(..).map(|tag| tag.into()).collect();
+					let tags: Vec<TagDb> = tags::table.filter(tags::id.eq_any(tag_ids)).load(db_connection)?;
+					let tags: Vec<Tag> = tags.into_iter().map(|tag| tag.into()).collect();
 
 					let editor = match log_entry.editor.as_ref() {
 						Some(editor) => {
@@ -1298,7 +1298,7 @@ pub async fn handle_event_update(
 
 				Ok((true, output_log_entries))
 			});
-			let mut log_entries = match replace_result {
+			let log_entries = match replace_result {
 				Ok((true, entries)) => entries,
 				Ok((false, _)) => return Ok(()),
 				Err(error) => {
@@ -1307,7 +1307,7 @@ pub async fn handle_event_update(
 				}
 			};
 			let mut send_messages: Vec<EventSubscriptionData> = Vec::with_capacity(log_entries.len() + 1);
-			for log_entry in log_entries.drain(..) {
+			for log_entry in log_entries.into_iter() {
 				send_messages.push(EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone())));
 			}
 			send_messages.push(EventSubscriptionData::RemoveTag(tag));
@@ -1325,7 +1325,7 @@ pub async fn handle_event_update(
 					.filter(tags::for_event.eq(copy_from_event.id).and(tags::deleted.eq(false)))
 					.load(db_connection)?;
 				let event_tag_names: Vec<String> = event_tags.iter().map(|tag| tag.tag.clone()).collect();
-				let mut overlapping_event_tag_names: Vec<String> = tags::table
+				let overlapping_event_tag_names: Vec<String> = tags::table
 					.filter(
 						tags::for_event
 							.eq(&event.id)
@@ -1334,7 +1334,7 @@ pub async fn handle_event_update(
 					)
 					.select(tags::tag)
 					.load(db_connection)?;
-				let overlapping_event_tag_names: HashSet<String> = overlapping_event_tag_names.drain(..).collect();
+				let overlapping_event_tag_names: HashSet<String> = overlapping_event_tag_names.into_iter().collect();
 				let new_event_tags: Vec<TagDb> = event_tags
 					.iter()
 					.filter(|tag| !overlapping_event_tag_names.contains(&tag.tag))
@@ -1353,15 +1353,15 @@ pub async fn handle_event_update(
 
 				Ok(new_event_tags)
 			});
-			let mut added_tags: Vec<Tag> = match added_tags {
-				Ok(mut tags) => tags.drain(..).map(|tag| tag.into()).collect(),
+			let added_tags: Vec<Tag> = match added_tags {
+				Ok(tags) => tags.into_iter().map(|tag| tag.into()).collect(),
 				Err(error) => {
 					tide::log::error!("Database error copying event tags: {}", error);
 					return Ok(());
 				}
 			};
 
-			added_tags.drain(..).map(EventSubscriptionData::UpdateTag).collect()
+			added_tags.into_iter().map(EventSubscriptionData::UpdateTag).collect()
 		}
 	};
 
@@ -1386,7 +1386,7 @@ fn log_entry_change(
 ) -> QueryResult<EventLogEntry> {
 	db_connection.transaction(|db_connection| {
 		let log_entry = record_update(db_connection)?;
-		let mut tags: Vec<TagDb> = tags::table
+		let tags: Vec<TagDb> = tags::table
 			.filter(
 				event_log_tags::table
 					.filter(
@@ -1416,7 +1416,7 @@ fn log_entry_change(
 			.values(history_entry_tags)
 			.execute(db_connection)?;
 
-		let tags: Vec<Tag> = tags.drain(..).map(|tag| tag.into()).collect();
+		let tags: Vec<Tag> = tags.into_iter().map(|tag| tag.into()).collect();
 		let editor: Option<User> = match log_entry.editor {
 			Some(user_id) => Some(users::table.find(user_id).first(db_connection)?),
 			None => None,

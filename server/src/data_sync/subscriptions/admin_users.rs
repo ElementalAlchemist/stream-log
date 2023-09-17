@@ -30,7 +30,7 @@ pub async fn subscribe_to_admin_users(
 
 	let mut db_connection = db_connection.lock().await;
 	let all_users: QueryResult<Vec<User>> = users::table.load(&mut *db_connection);
-	let mut all_users = match all_users {
+	let all_users = match all_users {
 		Ok(users) => users,
 		Err(error) => {
 			tide::log::error!("A database error occurred getting the user list: {}", error);
@@ -50,7 +50,7 @@ pub async fn subscribe_to_admin_users(
 		.add_admin_user_subscription(connection_id, conn_update_tx.clone())
 		.await;
 
-	let all_user_data: Vec<UserData> = all_users.drain(..).map(|user| user.into()).collect();
+	let all_user_data: Vec<UserData> = all_users.into_iter().map(|user| user.into()).collect();
 	let message =
 		FromServerMessage::InitialSubscriptionLoad(Box::new(InitialSubscriptionLoadData::AdminUsers(all_user_data)));
 	conn_update_tx

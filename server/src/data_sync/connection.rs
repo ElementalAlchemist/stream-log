@@ -117,7 +117,7 @@ pub async fn handle_connection(
 			.iter()
 			.map(|permission_event| permission_event.event.clone())
 			.collect();
-		let mut events: Vec<EventDb> = match events::table.filter(events::id.eq_any(&event_ids)).load(&mut *db_conn) {
+		let events: Vec<EventDb> = match events::table.filter(events::id.eq_any(&event_ids)).load(&mut *db_conn) {
 			Ok(events) => events,
 			Err(error) => {
 				tide::log::error!("Failed to retrieve events from database: {}", error);
@@ -126,7 +126,10 @@ pub async fn handle_connection(
 				return Ok(());
 			}
 		};
-		let events: HashMap<String, Event> = events.drain(..).map(|event| (event.id.clone(), event.into())).collect();
+		let events: HashMap<String, Event> = events
+			.into_iter()
+			.map(|event| (event.id.clone(), event.into()))
+			.collect();
 		let mut available_events: HashMap<Event, Option<Permission>> = HashMap::new();
 		for permission_event in permission_events {
 			// We can expect the events we found to remain in the database, as nothing should remove them.

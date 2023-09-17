@@ -32,7 +32,7 @@ pub async fn subscribe_to_admin_events(
 	let mut db_connection = db_connection.lock().await;
 	let events: QueryResult<Vec<EventDb>> = events::table.load(&mut *db_connection);
 	let events: Vec<Event> = match events {
-		Ok(mut events) => events.drain(..).map(|event| event.into()).collect(),
+		Ok(events) => events.into_iter().map(|event| event.into()).collect(),
 		Err(error) => {
 			tide::log::error!("A database error occurred getting the admin events list: {}", error);
 			let message = FromServerMessage::SubscriptionFailure(

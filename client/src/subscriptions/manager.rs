@@ -146,7 +146,7 @@ impl SubscriptionManager {
 			}
 		}
 
-		for (new_subscription, new_count) in new_subscriptions.drain() {
+		for (new_subscription, new_count) in new_subscriptions.into_iter() {
 			let subscription_message = FromClientMessage::StartSubscription(new_subscription.clone());
 			let subscription_message_json = serde_json::to_string(&subscription_message)?;
 			subscription_update_messages.push(Message::Text(subscription_message_json));

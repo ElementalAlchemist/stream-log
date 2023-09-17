@@ -40,7 +40,7 @@ pub async fn subscribe_to_admin_entry_types(
 	let entry_types: QueryResult<Vec<EntryTypeDb>> = entry_types::table.load(&mut *db_connection);
 
 	let entry_types: Vec<EntryType> = match entry_types {
-		Ok(mut types) => types.drain(..).map(|entry_type| entry_type.into()).collect(),
+		Ok(types) => types.into_iter().map(|entry_type| entry_type.into()).collect(),
 		Err(error) => {
 			tide::log::error!(
 				"A database error occurred getting admin entry type subscription data: {}",
@@ -227,9 +227,11 @@ pub async fn subscribe_to_admin_entry_types_events(
 		.load(&mut *db_connection);
 
 	let events = match events {
-		Ok(mut events) => {
-			let events_map: HashMap<String, Event> =
-				events.drain(..).map(|event| (event.id.clone(), event.into())).collect();
+		Ok(events) => {
+			let events_map: HashMap<String, Event> = events
+				.into_iter()
+				.map(|event| (event.id.clone(), event.into()))
+				.collect();
 			events_map
 		}
 		Err(error) => {
@@ -248,9 +250,9 @@ pub async fn subscribe_to_admin_entry_types_events(
 		}
 	};
 	let entry_types = match entry_types {
-		Ok(mut entry_types) => {
+		Ok(entry_types) => {
 			let entry_types_map: HashMap<String, EntryType> = entry_types
-				.drain(..)
+				.into_iter()
 				.map(|entry_type| (entry_type.id.clone(), entry_type.into()))
 				.collect();
 			entry_types_map
