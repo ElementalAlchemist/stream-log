@@ -1,0 +1,1 @@
+CREATE INDEX event_log_history_entry_edit_time ON event_log_history (log_entry, edit_time);
