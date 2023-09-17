@@ -70,7 +70,7 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 			)
 			.order_by((
 				event_log::start_time.asc(),
-				event_log::manual_sort_key.asc(),
+				event_log::manual_sort_key.asc().nulls_last(),
 				event_log::created_at.asc(),
 			))
 			.load(&mut *db_connection)
@@ -79,7 +79,7 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 			.filter(event_log::event.eq(event_id).and(event_log::deleted_by.is_null()))
 			.order_by((
 				event_log::start_time.asc(),
-				event_log::manual_sort_key.asc(),
+				event_log::manual_sort_key.asc().nulls_last(),
 				event_log::created_at.asc(),
 			))
 			.load(&mut *db_connection)
