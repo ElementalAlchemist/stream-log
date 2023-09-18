@@ -4,10 +4,22 @@ use std::rc::Rc;
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_log::{EventLogEntry, EventLogSection};
 use stream_log_shared::messages::events::Event;
+use stream_log_shared::messages::info_pages::InfoPage;
 use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::tags::Tag;
 use stream_log_shared::messages::user::UserData;
 use sycamore::prelude::*;
+
+pub struct EventSubscriptionSignalsInitData {
+	pub event: Event,
+	pub permission: PermissionLevel,
+	pub entry_types: Vec<EntryType>,
+	pub tags: Vec<Tag>,
+	pub editors: Vec<UserData>,
+	pub info_pages: Vec<InfoPage>,
+	pub event_log_sections: Vec<EventLogSection>,
+	pub event_log_entries: Vec<EventLogEntry>,
+}
 
 #[derive(Clone)]
 pub struct EventSubscriptionSignals {
@@ -16,6 +28,7 @@ pub struct EventSubscriptionSignals {
 	pub entry_types: RcSignal<Vec<EntryType>>,
 	pub tags: RcSignal<Vec<Tag>>,
 	pub editors: RcSignal<Vec<UserData>>,
+	pub info_pages: RcSignal<Vec<InfoPage>>,
 	pub event_log_sections: RcSignal<Vec<EventLogSection>>,
 	pub event_log_entries: RcSignal<Vec<EventLogEntry>>,
 	pub typing_events: RcSignal<Vec<TypingEvent>>,
@@ -23,15 +36,7 @@ pub struct EventSubscriptionSignals {
 }
 
 impl EventSubscriptionSignals {
-	pub fn new(
-		event: Event,
-		permission: PermissionLevel,
-		entry_types: Vec<EntryType>,
-		tags: Vec<Tag>,
-		editors: Vec<UserData>,
-		event_log_sections: Vec<EventLogSection>,
-		event_log_entries: Vec<EventLogEntry>,
-	) -> Self {
+	pub fn new(init_data: EventSubscriptionSignalsInitData) -> Self {
 		let typing_events: RcSignal<Vec<TypingEvent>> = create_rc_signal(Vec::new());
 		let typing_expire_interval = Interval::new(10_000, {
 			let typing_events = typing_events.clone();
@@ -43,13 +48,14 @@ impl EventSubscriptionSignals {
 		});
 		let _typing_expire_interval = Rc::new(typing_expire_interval);
 
-		let event = create_rc_signal(event);
-		let permission = create_rc_signal(permission);
-		let entry_types = create_rc_signal(entry_types);
-		let tags = create_rc_signal(tags);
-		let editors = create_rc_signal(editors);
-		let event_log_sections = create_rc_signal(event_log_sections);
-		let event_log_entries = create_rc_signal(event_log_entries);
+		let event = create_rc_signal(init_data.event);
+		let permission = create_rc_signal(init_data.permission);
+		let entry_types = create_rc_signal(init_data.entry_types);
+		let tags = create_rc_signal(init_data.tags);
+		let editors = create_rc_signal(init_data.editors);
+		let info_pages = create_rc_signal(init_data.info_pages);
+		let event_log_sections = create_rc_signal(init_data.event_log_sections);
+		let event_log_entries = create_rc_signal(init_data.event_log_entries);
 
 		Self {
 			event,
@@ -57,6 +63,7 @@ impl EventSubscriptionSignals {
 			entry_types,
 			tags,
 			editors,
+			info_pages,
 			event_log_sections,
 			event_log_entries,
 			typing_events,

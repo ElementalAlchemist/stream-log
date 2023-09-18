@@ -21,6 +21,7 @@ pub struct SubscriptionManager {
 	admin_event_editor_subscriptions: SingleSubscriptionManager,
 	admin_event_log_sections_subscriptions: SingleSubscriptionManager,
 	admin_applications_subscriptions: SingleSubscriptionManager,
+	admin_info_pages_subscriptions: SingleSubscriptionManager,
 }
 
 impl SubscriptionManager {
@@ -45,6 +46,7 @@ impl SubscriptionManager {
 				SubscriptionType::AdminEventLogSections,
 			),
 			admin_applications_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AdminApplications),
+			admin_info_pages_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AdminInfoPages),
 		}
 	}
 
@@ -64,6 +66,7 @@ impl SubscriptionManager {
 			self.admin_entry_type_event_subscriptions.shutdown(),
 			self.admin_event_editor_subscriptions.shutdown(),
 			self.admin_applications_subscriptions.shutdown(),
+			self.admin_info_pages_subscriptions.shutdown(),
 		];
 		for handle in join_all(subscription_shutdown_handles).await {
 			handles.push(handle);
@@ -461,6 +464,38 @@ impl SubscriptionManager {
 		self.admin_applications_subscriptions.is_subscribed(connection_id).await
 	}
 
+	/// Adds to the admin info pages subscription
+	pub async fn add_admin_info_pages_subscription(
+		&self,
+		connection_id: &str,
+		update_channel: Sender<ConnectionUpdate>,
+	) {
+		self.admin_info_pages_subscriptions
+			.subscribe(connection_id, update_channel)
+			.await;
+	}
+
+	/// Removes from the admin info pages subscription
+	pub async fn remove_admin_info_pages_subscription(
+		&self,
+		connection_id: &str,
+	) -> Result<(), SendError<ConnectionUpdate>> {
+		self.admin_info_pages_subscriptions.unsubscribe(connection_id).await
+	}
+
+	/// Sends the given message to all subscribed connections for admin info pages
+	pub async fn broadcast_admin_info_pages_message(
+		&self,
+		message: SubscriptionData,
+	) -> Result<(), SendError<SubscriptionData>> {
+		self.admin_info_pages_subscriptions.broadcast_message(message).await
+	}
+
+	/// Checks whether a connection is subscribed to admin info pages
+	pub async fn is_subscribed_to_admin_info_pages(&self, connection_id: &str) -> bool {
+		self.admin_info_pages_subscriptions.is_subscribed(connection_id).await
+	}
+
 	/// Unsubscribes a connection from all subscriptions
 	pub async fn unsubscribe_from_all(&mut self, connection_id: &str) -> Result<(), SendError<ConnectionUpdate>> {
 		let mut futures = Vec::with_capacity(self.event_subscriptions.len());
@@ -481,6 +516,7 @@ impl SubscriptionManager {
 		futures.push(self.admin_entry_type_event_subscriptions.unsubscribe(connection_id));
 		futures.push(self.admin_event_editor_subscriptions.unsubscribe(connection_id));
 		futures.push(self.admin_applications_subscriptions.unsubscribe(connection_id));
+		futures.push(self.admin_info_pages_subscriptions.unsubscribe(connection_id));
 
 		let results = join_all(futures).await;
 		for result in results {

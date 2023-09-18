@@ -1,6 +1,7 @@
 use super::entry_types::EntryType;
 use super::event_log::{EventLogEntry, EventLogSection, VideoEditState};
 use super::events::Event;
+use super::info_pages::InfoPage;
 use super::tags::Tag;
 use super::user::UserData;
 use chrono::{DateTime, Utc};
@@ -19,6 +20,8 @@ pub enum EventSubscriptionData {
 	DeleteEntryType(EntryType),
 	AddEditor(UserData),
 	RemoveEditor(UserData),
+	UpdateInfoPage(InfoPage),
+	DeleteInfoPage(InfoPage),
 	UpdateSection(EventLogSection),
 	DeleteSection(EventLogSection),
 	UpdateTag(Tag),

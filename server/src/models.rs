@@ -1,7 +1,7 @@
 use crate::schema::{
 	applications, available_entry_types_for_event, entry_types, event_editors, event_log, event_log_history,
-	event_log_history_tags, event_log_sections, event_log_tags, events, permission_events, permission_groups, tags,
-	user_permissions, users,
+	event_log_history_tags, event_log_sections, event_log_tags, events, info_pages, permission_events,
+	permission_groups, tags, user_permissions, users,
 };
 use chrono::prelude::*;
 use diesel::{AsChangeset, Insertable, Queryable};
@@ -13,6 +13,7 @@ use stream_log_shared::messages::admin::{
 use stream_log_shared::messages::entry_types::EntryType as EntryTypeWs;
 use stream_log_shared::messages::event_log::{VideoEditState as VideoEditStateWs, VideoState as VideoStateWs};
 use stream_log_shared::messages::events::Event as EventWs;
+use stream_log_shared::messages::info_pages::InfoPage as InfoPageWs;
 use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::tags::Tag as TagWs;
 use stream_log_shared::messages::user::UserData;
@@ -428,4 +429,23 @@ impl EventLogHistoryEntry {
 pub struct EventLogHistoryTag {
 	pub tag: String,
 	pub history_log_entry: String,
+}
+
+#[derive(Insertable, Queryable)]
+pub struct InfoPage {
+	pub id: String,
+	pub event: String,
+	pub title: String,
+	pub contents: String,
+}
+
+impl From<InfoPageWs> for InfoPage {
+	fn from(page: InfoPageWs) -> Self {
+		Self {
+			id: page.id,
+			event: page.event.id,
+			title: page.title,
+			contents: page.contents,
+		}
+	}
 }

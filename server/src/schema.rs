@@ -145,6 +145,15 @@ diesel::table! {
 }
 
 diesel::table! {
+	info_pages (id) {
+		id -> Text,
+		event -> Text,
+		title -> Text,
+		contents -> Text,
+	}
+}
+
+diesel::table! {
 	use diesel::sql_types::*;
 	use super::sql_types::Permission;
 
@@ -206,6 +215,7 @@ diesel::joinable!(event_log_history_tags -> tags (tag));
 diesel::joinable!(event_log_sections -> events (event));
 diesel::joinable!(event_log_tags -> event_log (log_entry));
 diesel::joinable!(event_log_tags -> tags (tag));
+diesel::joinable!(info_pages -> events (event));
 diesel::joinable!(permission_events -> events (event));
 diesel::joinable!(permission_events -> permission_groups (permission_group));
 diesel::joinable!(tags -> events (for_event));
@@ -223,6 +233,7 @@ diesel::allow_tables_to_appear_in_same_query!(
 	event_log_sections,
 	event_log_tags,
 	events,
+	info_pages,
 	permission_events,
 	permission_groups,
 	tags,

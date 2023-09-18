@@ -9,7 +9,7 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use stream_log_shared::messages::admin::{
 	AdminApplicationData, AdminEntryTypeData, AdminEntryTypeEventData, AdminEventData, AdminEventEditorData,
-	AdminEventLogSectionsData, AdminPermissionGroupData, AdminUserPermissionGroupData, Application,
+	AdminEventLogSectionsData, AdminInfoPageData, AdminPermissionGroupData, AdminUserPermissionGroupData, Application,
 	EditorEventAssociation, EntryTypeEventAssociation, PermissionGroup, PermissionGroupEventAssociation,
 	UserPermissionGroupAssociation,
 };
@@ -17,6 +17,7 @@ use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_log::{EventLogEntry, EventLogSection};
 use stream_log_shared::messages::event_subscription::{EventSubscriptionData, TypingData};
 use stream_log_shared::messages::events::Event;
+use stream_log_shared::messages::info_pages::InfoPage;
 use stream_log_shared::messages::subscriptions::{
 	InitialSubscriptionLoadData, SubscriptionData, SubscriptionFailureInfo, SubscriptionType,
 };
@@ -29,7 +30,7 @@ pub mod errors;
 use errors::ErrorData;
 
 pub mod event;
-use event::{EventSubscriptionSignals, TypingEvent, TypingTarget};
+use event::{EventSubscriptionSignals, EventSubscriptionSignalsInitData, TypingEvent, TypingTarget};
 
 pub mod manager;
 use manager::SubscriptionManager;
@@ -82,6 +83,9 @@ pub struct DataSignals {
 	/// List of all applications
 	pub all_applications: RcSignal<Vec<Application>>,
 
+	/// List of all info pages
+	pub all_info_pages: RcSignal<Vec<InfoPage>>,
+
 	/// List of application auth keys to show
 	pub show_application_auth_keys: RcSignal<Vec<(Application, String)>>,
 }
@@ -103,6 +107,7 @@ impl DataSignals {
 			entry_type_event_associations: create_rc_signal(Vec::new()),
 			all_event_log_sections: create_rc_signal(Vec::new()),
 			all_applications: create_rc_signal(Vec::new()),
+			all_info_pages: create_rc_signal(Vec::new()),
 			show_application_auth_keys: create_rc_signal(Vec::new()),
 		}
 	}
@@ -134,6 +139,7 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 						entry_types,
 						tags,
 						editors,
+						info_pages,
 						event_log_sections,
 						event_log_entries,
 					) => {
@@ -147,19 +153,22 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 								event_data.entry_types.set(entry_types);
 								event_data.tags.set(tags);
 								event_data.editors.set(editors);
+								event_data.info_pages.set(info_pages);
 								event_data.event_log_sections.set(event_log_sections);
 								event_data.event_log_entries.set(event_log_entries);
 							}
 							Entry::Vacant(event_entry) => {
-								event_entry.insert(EventSubscriptionSignals::new(
+								let signal_data = EventSubscriptionSignalsInitData {
 									event,
-									permission_level,
+									permission: permission_level,
 									entry_types,
 									tags,
 									editors,
+									info_pages,
 									event_log_sections,
 									event_log_entries,
-								));
+								};
+								event_entry.insert(EventSubscriptionSignals::new(signal_data));
 							}
 						}
 						subscription_manager
@@ -213,6 +222,10 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 					InitialSubscriptionLoadData::AdminApplications(applications) => {
 						data_signals.all_applications.set(applications);
 						subscription_manager.subscription_confirmation_received(SubscriptionType::AdminApplications);
+					}
+					InitialSubscriptionLoadData::AdminInfoPages(info_pages) => {
+						data_signals.all_info_pages.set(info_pages);
+						subscription_manager.subscription_confirmation_received(SubscriptionType::AdminInfoPages);
 					}
 				}
 			}
@@ -429,6 +442,25 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 								.map(|(index, _)| index);
 							if let Some(index) = editor_index {
 								editors.remove(index);
+							}
+						}
+						EventSubscriptionData::UpdateInfoPage(info_page) => {
+							let mut info_pages = event_data.info_pages.modify();
+							let info_page_entry = info_pages.iter_mut().find(|page| page.id == info_page.id);
+							match info_page_entry {
+								Some(entry) => *entry = info_page,
+								None => info_pages.push(info_page),
+							}
+						}
+						EventSubscriptionData::DeleteInfoPage(info_page) => {
+							let mut info_pages = event_data.info_pages.modify();
+							let info_page_index = info_pages
+								.iter()
+								.enumerate()
+								.find(|(_, page)| page.id == info_page.id)
+								.map(|(index, _)| index);
+							if let Some(index) = info_page_index {
+								info_pages.remove(index);
 							}
 						}
 						EventSubscriptionData::UpdateSection(section) => {
@@ -682,6 +714,27 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 							.map(|(index, _)| index);
 						if let Some(index) = auth_key_index {
 							application_auth_keys.remove(index);
+						}
+					}
+				},
+				SubscriptionData::AdminInfoPagesUpdate(info_pages_update) => match info_pages_update {
+					AdminInfoPageData::UpdateInfoPage(info_page) => {
+						let mut all_info_pages = data_signals.all_info_pages.modify();
+						let info_page_entry = all_info_pages.iter_mut().find(|page| page.id == info_page.id);
+						match info_page_entry {
+							Some(entry) => *entry = info_page,
+							None => all_info_pages.push(info_page),
+						}
+					}
+					AdminInfoPageData::DeleteInfoPage(info_page) => {
+						let mut all_info_pages = data_signals.all_info_pages.modify();
+						let info_page_index = all_info_pages
+							.iter()
+							.enumerate()
+							.find(|(_, page)| page.id == info_page.id)
+							.map(|(index, _)| index);
+						if let Some(index) = info_page_index {
+							all_info_pages.remove(index);
 						}
 					}
 				},

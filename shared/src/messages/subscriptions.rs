@@ -1,15 +1,16 @@
 use crate::messages::admin::{
 	AdminApplicationData, AdminApplicationUpdate, AdminEntryTypeData, AdminEntryTypeEventData,
 	AdminEntryTypeEventUpdate, AdminEntryTypeUpdate, AdminEventData, AdminEventEditorData, AdminEventEditorUpdate,
-	AdminEventLogSectionsData, AdminEventLogSectionsUpdate, AdminEventUpdate, AdminPermissionGroupData,
-	AdminPermissionGroupUpdate, AdminUserPermissionGroupData, AdminUserPermissionGroupUpdate, Application,
-	EditorEventAssociation, EntryTypeEventAssociation, PermissionGroup, PermissionGroupEventAssociation,
+	AdminEventLogSectionsData, AdminEventLogSectionsUpdate, AdminEventUpdate, AdminInfoPageData, AdminInfoPageUpdate,
+	AdminPermissionGroupData, AdminPermissionGroupUpdate, AdminUserPermissionGroupData, AdminUserPermissionGroupUpdate,
+	Application, EditorEventAssociation, EntryTypeEventAssociation, PermissionGroup, PermissionGroupEventAssociation,
 	UserPermissionGroupAssociation,
 };
 use crate::messages::entry_types::EntryType;
 use crate::messages::event_log::{EventLogEntry, EventLogSection};
 use crate::messages::event_subscription::{EventSubscriptionData, EventSubscriptionUpdate};
 use crate::messages::events::Event;
+use crate::messages::info_pages::InfoPage;
 use crate::messages::permissions::PermissionLevel;
 use crate::messages::tags::Tag;
 use crate::messages::user::{UserData, UserSubscriptionUpdate};
@@ -39,6 +40,8 @@ pub enum SubscriptionType {
 	AdminEventLogSections,
 	/// A subscription to all applications.
 	AdminApplications,
+	/// A subscription to all info pages.
+	AdminInfoPages,
 }
 
 /// Sent to the client when a new subscription is created.
@@ -50,6 +53,7 @@ pub enum InitialSubscriptionLoadData {
 	/// - The event entry types that can be used for that event
 	/// - The tags that can be used for that event
 	/// - The list of users that can be entered as editors
+	/// - The list of info pages that can be read for this event
 	/// - The event log section headers
 	/// - The event log entries that have already been created
 	Event(
@@ -58,6 +62,7 @@ pub enum InitialSubscriptionLoadData {
 		Vec<EntryType>,
 		Vec<Tag>,
 		Vec<UserData>,
+		Vec<InfoPage>,
 		Vec<EventLogSection>,
 		Vec<EventLogEntry>,
 	),
@@ -70,6 +75,7 @@ pub enum InitialSubscriptionLoadData {
 	AdminEventEditors(Vec<EditorEventAssociation>),
 	AdminEventLogSections(Vec<(Event, EventLogSection)>),
 	AdminApplications(Vec<Application>),
+	AdminInfoPages(Vec<InfoPage>),
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -86,6 +92,7 @@ pub enum SubscriptionData {
 	AdminUserPermissionGroupsUpdate(AdminUserPermissionGroupData),
 	AdminEventLogSectionsUpdate(AdminEventLogSectionsData),
 	AdminApplicationsUpdate(AdminApplicationData),
+	AdminInfoPagesUpdate(AdminInfoPageData),
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -108,4 +115,5 @@ pub enum SubscriptionTargetUpdate {
 	AdminUserPermissionGroupsUpdate(AdminUserPermissionGroupUpdate),
 	AdminEventLogSectionsUpdate(AdminEventLogSectionsUpdate),
 	AdminApplicationsUpdate(AdminApplicationUpdate),
+	AdminInfoPagesUpdate(AdminInfoPageUpdate),
 }

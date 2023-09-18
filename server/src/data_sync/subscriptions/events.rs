@@ -2,12 +2,12 @@ use crate::data_sync::connection::ConnectionUpdate;
 use crate::data_sync::{HandleConnectionError, SubscriptionManager};
 use crate::models::{
 	AvailableEntryType, EditSource, EntryType as EntryTypeDb, Event as EventDb, EventLogEntry as EventLogEntryDb,
-	EventLogHistoryEntry, EventLogHistoryTag, EventLogSection as EventLogSectionDb, EventLogTag, Permission,
-	PermissionEvent, Tag as TagDb, User, VideoEditState as VideoEditStateDb,
+	EventLogHistoryEntry, EventLogHistoryTag, EventLogSection as EventLogSectionDb, EventLogTag,
+	InfoPage as InfoPageDb, Permission, PermissionEvent, Tag as TagDb, User, VideoEditState as VideoEditStateDb,
 };
 use crate::schema::{
 	available_entry_types_for_event, entry_types, event_editors, event_log, event_log_history, event_log_history_tags,
-	event_log_sections, event_log_tags, events, permission_events, tags, user_permissions, users,
+	event_log_sections, event_log_tags, events, info_pages, permission_events, tags, user_permissions, users,
 };
 use async_std::channel::Sender;
 use async_std::sync::{Arc, Mutex};
@@ -21,6 +21,7 @@ use stream_log_shared::messages::event_subscription::{
 	EventSubscriptionData, EventSubscriptionUpdate, NewTypingData, TypingData,
 };
 use stream_log_shared::messages::events::Event;
+use stream_log_shared::messages::info_pages::InfoPage;
 use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::subscriptions::{
 	InitialSubscriptionLoadData, SubscriptionData, SubscriptionFailureInfo, SubscriptionType,
@@ -367,6 +368,29 @@ pub async fn subscribe_to_event(
 		.collect();
 	let editors: HashMap<String, User> = editors.into_iter().map(|user| (user.id.clone(), user)).collect();
 
+	let info_pages: Vec<InfoPageDb> = match info_pages::table
+		.filter(info_pages::event.eq(&event.id))
+		.load(&mut *db_connection)
+	{
+		Ok(pages) => pages,
+		Err(error) => {
+			tide::log::error!("Database error getting event info pages: {}", error);
+			let message = FromServerMessage::SubscriptionFailure(
+				SubscriptionType::EventLogData(event_id.to_string()),
+				SubscriptionFailureInfo::Error(DataError::DatabaseError),
+			);
+			conn_update_tx
+				.send(ConnectionUpdate::SendData(Box::new(message)))
+				.await?;
+			subscription_manager
+				.lock()
+				.await
+				.unsubscribe_from_event(event_id, connection_id)
+				.await?;
+			return Ok(());
+		}
+	};
+
 	// Turn all the data we have into client-usable data
 	let event = Event {
 		id: event.id.clone(),
@@ -376,6 +400,15 @@ pub async fn subscribe_to_event(
 	let permission_level: PermissionLevel = permission_level.into();
 	let entry_types: Vec<EntryType> = entry_types.iter().map(|et| (*et).clone().into()).collect();
 	let tags: Vec<Tag> = tags.iter().map(|tag| (*tag).clone().into()).collect();
+	let info_pages: Vec<InfoPage> = info_pages
+		.into_iter()
+		.map(|page| InfoPage {
+			id: page.id,
+			event: event.clone(),
+			title: page.title,
+			contents: page.contents,
+		})
+		.collect();
 	let event_log_sections: Vec<EventLogSection> = log_sections
 		.into_iter()
 		.map(|section| EventLogSection {
@@ -452,6 +485,7 @@ pub async fn subscribe_to_event(
 		entry_types,
 		tags,
 		available_editors_list,
+		info_pages,
 		event_log_sections,
 		event_log_entries,
 	)));

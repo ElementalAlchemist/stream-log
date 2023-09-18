@@ -6,6 +6,7 @@ pub mod entry_types;
 pub mod event_log;
 pub mod event_subscription;
 pub mod events;
+pub mod info_pages;
 pub mod initial;
 pub mod permissions;
 pub mod subscriptions;

@@ -1,6 +1,7 @@
 use super::entry_types::EntryType;
 use super::event_log::EventLogSection;
 use super::events::Event;
+use super::info_pages::InfoPage;
 use super::permissions::PermissionLevel;
 use super::user::UserData;
 use serde::{Deserialize, Serialize};
@@ -145,4 +146,16 @@ pub enum AdminApplicationUpdate {
 	UpdateApplication(Application),
 	ResetAuthToken(Application),
 	RevokeApplication(Application),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum AdminInfoPageData {
+	UpdateInfoPage(InfoPage),
+	DeleteInfoPage(InfoPage),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum AdminInfoPageUpdate {
+	UpdateInfoPage(InfoPage),
+	DeleteInfoPage(InfoPage),
 }
