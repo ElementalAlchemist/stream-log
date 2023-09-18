@@ -94,6 +94,7 @@ async fn main() -> miette::Result<()> {
 	establish_alternate_route(&mut app, "/log/:id")?;
 	establish_alternate_route(&mut app, "/log/:id/tags")?;
 	establish_alternate_route(&mut app, "/log/:id/entry_types")?;
+	establish_alternate_route(&mut app, "/log/:event_id/page/:page_id")?;
 	establish_alternate_route(&mut app, "/admin/events")?;
 	establish_alternate_route(&mut app, "/admin/users")?;
 	establish_alternate_route(&mut app, "/admin/groups")?;
@@ -103,6 +104,7 @@ async fn main() -> miette::Result<()> {
 	establish_alternate_route(&mut app, "/admin/editors")?;
 	establish_alternate_route(&mut app, "/admin/sections")?;
 	establish_alternate_route(&mut app, "/admin/applications")?;
+	establish_alternate_route(&mut app, "/admin/info_pages")?;
 	establish_alternate_route(&mut app, "/user_profile")?;
 
 	app.listen(&config.listen.addr).await.into_diagnostic()?;

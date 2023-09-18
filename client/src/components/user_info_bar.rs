@@ -129,6 +129,11 @@ pub fn UserInfoBar<G: Html>(ctx: Scope) -> View<G> {
 											"Manage Applications"
 										}
 									}
+									li {
+										a(href="/admin/info_pages") {
+											"Manage Info Pages"
+										}
+									}
 								}
 							}
 						}

@@ -27,6 +27,7 @@ use pages::admin::manage_editors::AdminManageEditorsView;
 use pages::admin::manage_entry_types::AdminManageEntryTypesView;
 use pages::admin::manage_events::AdminManageEventsView;
 use pages::admin::manage_groups::AdminManageGroupsView;
+use pages::admin::manage_info_pages::AdminInfoPagesView;
 use pages::admin::manage_sections::AdminManageEventLogSectionsView;
 use pages::admin::manage_users::AdminManageUsersView;
 use pages::event_log::entry_types::EventLogEntryTypesView;
@@ -55,6 +56,8 @@ enum AppRoutes {
 	EventLogTags(String),
 	#[to("/log/<id>/entry_types")]
 	EventLogEntryTypes(String),
+	#[to("/log/<event_id>/page/<page_id>")]
+	EventLogInfoPage(String, String),
 	#[to("/admin/events")]
 	AdminEventManager,
 	#[to("/admin/users")]
@@ -73,6 +76,8 @@ enum AppRoutes {
 	AdminEventLogSectionsManager,
 	#[to("/admin/applications")]
 	AdminApplicationsManager,
+	#[to("/admin/info_pages")]
+	AdminInfoPagesManager,
 	#[to("/user_profile")]
 	UserProfile,
 	#[not_found]
@@ -190,7 +195,7 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 					({
 						log::info!("Navigating to route: {:?}", route.get());
 						match route.get().as_ref() {
-							AppRoutes::EventLog(id) | AppRoutes::EventLogTags(id) | AppRoutes::EventLogEntryTypes(id) => current_event_id.set(Some(EventId::new(id.clone()))),
+							AppRoutes::EventLog(id) | AppRoutes::EventLogTags(id) | AppRoutes::EventLogEntryTypes(id) | AppRoutes::EventLogInfoPage(id, _) => current_event_id.set(Some(EventId::new(id.clone()))),
 							_ => current_event_id.set(None)
 						}
 						match route.get().as_ref() {
@@ -200,6 +205,7 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 							AppRoutes::EventLog(id) => view! { ctx, EventLogView(id=id.clone()) },
 							AppRoutes::EventLogTags(id) => view! { ctx, EventLogTagsView(id=id.clone()) },
 							AppRoutes::EventLogEntryTypes(id) => view! { ctx, EventLogEntryTypesView(id=id.clone()) },
+							AppRoutes::EventLogInfoPage(event_id, page_id) => todo!(),
 							AppRoutes::AdminEventManager => view! { ctx, AdminManageEventsView },
 							AppRoutes::AdminUserManager => view! { ctx, AdminManageUsersView },
 							AppRoutes::AdminPermissionGroupManager => view! { ctx, AdminManageGroupsView },
@@ -209,6 +215,7 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 							AppRoutes::AdminEditorsManager => view! { ctx, AdminManageEditorsView },
 							AppRoutes::AdminEventLogSectionsManager => view! { ctx, AdminManageEventLogSectionsView },
 							AppRoutes::AdminApplicationsManager => view! { ctx, AdminApplicationsView },
+							AppRoutes::AdminInfoPagesManager => view! { ctx, AdminInfoPagesView },
 							AppRoutes::UserProfile => view! { ctx, UserProfileView },
 							AppRoutes::NotFound => view! { ctx, NotFoundView }
 						}

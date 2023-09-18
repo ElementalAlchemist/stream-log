@@ -1,0 +1,40 @@
+#admin_info_pages_event_selection {
+	display: grid;
+	grid-template-columns: max-content max-content;
+	gap: 10px;
+	align-items: baseline;
+}
+
+#admin_info_pages_page_selection {
+	margin-top: 20px;
+	display: grid;
+	grid-template-columns: max-content max-content;
+	gap: 10px;
+	align-items: baseline;
+}
+
+#admin_info_pages_page_edit {
+	> label {
+		display: block;
+
+		> input {
+			margin: 0 5px;
+		}
+	}
+
+	> textarea {
+		width: calc(100% - 10px);
+		height: 400px;
+		margin: 2px;
+	}
+}
+
+#admin_info_pages_page_edit_done_controls {
+	margin-top: 20px;
+	display: flex;
+	gap: 5px;
+}
+
+#admin_info_pages_page_edit_cancel {
+	flex-grow: 1;
+}
