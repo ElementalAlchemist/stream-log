@@ -73,16 +73,18 @@ async fn EventLogInfoPageLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogInfo
 			.unwrap_or_default()
 	});
 	let page_contents = create_memo(ctx, || {
-		(*info_page.get())
+		let contents = (*info_page.get())
 			.as_ref()
 			.map(|page| page.contents.clone())
-			.unwrap_or_default()
+			.unwrap_or_default();
+		markdown::to_html(&contents)
 	});
 
 	view! {
 		ctx,
 		h1 { (page_title.get()) }
-		div { (page_contents.get()) }
+		// The markdown parser escapes HTML.
+		div(dangerously_set_inner_html=&page_contents.get())
 	}
 }
 
