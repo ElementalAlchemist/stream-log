@@ -92,17 +92,16 @@ async fn AdminInfoPagesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			let info_page = info_page.clone();
 
 			let title_entry = create_signal(ctx, initial_page_title);
-			let title_error = create_signal(ctx, String::new());
-			create_effect(ctx, {
+			let title_error = create_memo(ctx, {
 				let page_id = page_id.clone();
 				move || {
 					let title = title_entry.get();
 					if title.is_empty() {
-						title_error.set(String::from("Title cannot be empty."));
+						String::from("Title cannot be empty.")
 					} else if event_info_pages.get().iter().any(|page| page.title == *title && page.id != page_id) {
-						title_error.set(String::from("Another page already has this title."));
+						String::from("Another page already has this title.")
 					} else {
-						title_error.set(String::new());
+						String::new()
 					}
 				}
 			});

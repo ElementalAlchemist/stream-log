@@ -66,16 +66,18 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 
 	let event_subscription_data = poll_fn(|poll_context: &mut Context<'_>| {
 		log::debug!(
-			"Checking whether event {} is present yet in the subscription manager",
+			"[Log] Checking whether event {} is present yet in the subscription manager",
 			props.id
 		);
 		match data.events.get().get(&props.id) {
 			Some(event_subscription_data) => Poll::Ready(event_subscription_data.clone()),
 			None => {
-				let event_wakers: &Signal<HashMap<String, Waker>> = use_context(ctx);
+				let event_wakers: &Signal<HashMap<String, Vec<Waker>>> = use_context(ctx);
 				event_wakers
 					.modify()
-					.insert(props.id.clone(), poll_context.waker().clone());
+					.entry(props.id.clone())
+					.or_default()
+					.push(poll_context.waker().clone());
 				Poll::Pending
 			}
 		}

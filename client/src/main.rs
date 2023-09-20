@@ -31,6 +31,7 @@ use pages::admin::manage_info_pages::AdminInfoPagesView;
 use pages::admin::manage_sections::AdminManageEventLogSectionsView;
 use pages::admin::manage_users::AdminManageUsersView;
 use pages::event_log::entry_types::EventLogEntryTypesView;
+use pages::event_log::info_page::EventLogInfoPageView;
 use pages::event_log::log::EventLogView;
 use pages::event_log::tags::EventLogTagsView;
 use pages::event_selection::EventSelectionView;
@@ -175,7 +176,7 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 	provide_context(ctx, client_data);
 	let subscription_manager = Mutex::new(SubscriptionManager::default());
 	provide_context(ctx, subscription_manager);
-	let event_wakers: HashMap<String, Waker> = HashMap::new();
+	let event_wakers: HashMap<String, Vec<Waker>> = HashMap::new();
 	provide_context_ref(ctx, create_signal(ctx, event_wakers));
 
 	spawn_local_scoped(ctx, process_messages(ctx, ws_read));
@@ -205,7 +206,7 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 							AppRoutes::EventLog(id) => view! { ctx, EventLogView(id=id.clone()) },
 							AppRoutes::EventLogTags(id) => view! { ctx, EventLogTagsView(id=id.clone()) },
 							AppRoutes::EventLogEntryTypes(id) => view! { ctx, EventLogEntryTypesView(id=id.clone()) },
-							AppRoutes::EventLogInfoPage(event_id, page_id) => todo!(),
+							AppRoutes::EventLogInfoPage(event_id, page_id) => view! { ctx, EventLogInfoPageView(event_id=event_id.clone(),page_id=page_id.clone()) },
 							AppRoutes::AdminEventManager => view! { ctx, AdminManageEventsView },
 							AppRoutes::AdminUserManager => view! { ctx, AdminManageUsersView },
 							AppRoutes::AdminPermissionGroupManager => view! { ctx, AdminManageGroupsView },

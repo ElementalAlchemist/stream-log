@@ -1,6 +1,11 @@
+use crate::subscriptions::DataSignals;
+use futures::future::poll_fn;
+use futures::task::{Context, Poll, Waker};
+use std::collections::HashMap;
 use std::fmt;
 use stream_log_shared::messages::user::UserData;
 use sycamore::prelude::*;
+use sycamore::suspense::Suspense;
 
 pub struct EventId(String);
 
@@ -71,6 +76,9 @@ pub fn UserInfoBar<G: Html>(ctx: Scope) -> View<G> {
 										a(href=entry_types_link) {
 											"Entry Types"
 										}
+									}
+									Suspense(fallback=view! { ctx, }) {
+										EventInfoPagesView
 									}
 								}
 							}
@@ -145,5 +153,57 @@ pub fn UserInfoBar<G: Html>(ctx: Scope) -> View<G> {
 		} else {
 			view! { ctx, }
 		})
+	}
+}
+
+#[component]
+async fn EventInfoPagesView<G: Html>(ctx: Scope<'_>) -> View<G> {
+	let event_id_signal: &Signal<Option<EventId>> = use_context(ctx);
+	let event_id = (*event_id_signal.get())
+		.as_ref()
+		.map(|id| id.to_string())
+		.unwrap_or_default();
+
+	let event_subscription_data = poll_fn(|poll_context: &mut Context<'_>| {
+		log::debug!(
+			"[User Info Bar] Checking whether event {} is present yet in the subscription manager",
+			event_id
+		);
+
+		let data: &DataSignals = use_context(ctx);
+		match data.events.get().get(&event_id) {
+			Some(event_data) => Poll::Ready(event_data.clone()),
+			None => {
+				let event_wakers: &Signal<HashMap<String, Vec<Waker>>> = use_context(ctx);
+				event_wakers
+					.modify()
+					.entry(event_id.clone())
+					.or_default()
+					.push(poll_context.waker().clone());
+				Poll::Pending
+			}
+		}
+	})
+	.await;
+
+	log::info!("Found info pages: {:?}", event_subscription_data.info_pages.get());
+
+	let info_page_signal = create_memo(ctx, move || (*event_subscription_data.info_pages.get()).clone());
+
+	view! {
+		ctx,
+		Keyed(
+			iterable=info_page_signal,
+			key=|page| page.id.clone(),
+			view=move |ctx, page| {
+				let url = format!("/log/{}/page/{}", event_id, page.id);
+				view! {
+					ctx,
+					li {
+						a(href=url) { (page.title) }
+					}
+				}
+			}
+		)
 	}
 }

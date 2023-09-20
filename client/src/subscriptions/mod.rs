@@ -172,12 +172,16 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 							}
 						}
 						subscription_manager
-							.subscription_confirmation_received(SubscriptionType::EventLogData(event_id));
+							.subscription_confirmation_received(SubscriptionType::EventLogData(event_id.clone()));
 
-						let event_wakers: &Signal<HashMap<String, Waker>> = use_context(ctx);
-						let event_wakers = event_wakers.take();
-						for waker in event_wakers.values() {
-							waker.wake_by_ref();
+						log::debug!("Running subscription wakers for event {}", event_id);
+
+						let event_wakers: &Signal<HashMap<String, Vec<Waker>>> = use_context(ctx);
+						let event_wakers = event_wakers.modify().remove(&event_id);
+						if let Some(wakers) = event_wakers {
+							for waker in wakers.iter() {
+								waker.wake_by_ref();
+							}
 						}
 					}
 					InitialSubscriptionLoadData::AdminUsers(users) => {
