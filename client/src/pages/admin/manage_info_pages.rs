@@ -120,7 +120,7 @@ async fn AdminInfoPagesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				};
 
 				let page_title = (*title_entry.get()).clone();
-				if page_title.is_empty() || event_info_pages.get().iter().any(|page| page.title == page_title) {
+				if page_title.is_empty() || event_info_pages.get().iter().any(|page| page.title == page_title && page.id != page_id) {
 					return; // Validation should've already caught these cases
 				}
 
