@@ -188,7 +188,11 @@ async fn EventInfoPagesView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 	log::info!("Found info pages: {:?}", event_subscription_data.info_pages.get());
 
-	let info_page_signal = create_memo(ctx, move || (*event_subscription_data.info_pages.get()).clone());
+	let info_page_signal = create_memo(ctx, move || {
+		let mut pages = (*event_subscription_data.info_pages.get()).clone();
+		pages.sort_by(|a, b| a.title.cmp(&b.title));
+		pages
+	});
 
 	view! {
 		ctx,
