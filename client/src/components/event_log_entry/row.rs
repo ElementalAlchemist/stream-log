@@ -248,7 +248,9 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 						let link = link.clone();
 						view! {
 							ctx,
-							a(href=link) { "Video" }
+							a(href=link) {
+								img(src="/images/youtube.png", alt="Video")
+							}
 						}
 					} else {
 						view! { ctx, }

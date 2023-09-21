@@ -71,7 +71,7 @@ $event_log_column_count: 16;
 		max-content
 		max-content
 		25px
-		25px
+		20px
 		max-content
 		minmax(min-content, 200px)
 		max-content
@@ -251,6 +251,10 @@ $event_log_column_count: 16;
 			background: #050;
 		}
 	}
+}
+
+.log_entry_video_link img {
+	width: 16px;
 }
 
 .event_log_entry_typing_header {
