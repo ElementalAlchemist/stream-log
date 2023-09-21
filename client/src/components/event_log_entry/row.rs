@@ -234,8 +234,8 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 						let link = link.clone();
 						view! {
 							ctx,
-							a(href=link) {
-								img(src="/images/edit.png", alt="Edit")
+							a(href=link, target="_blank", rel="noopener") {
+								img(src="/images/edit.png", alt="Edit", title="Open editor")
 							}
 						}
 					} else {
@@ -250,8 +250,8 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 						let link = link.clone();
 						view! {
 							ctx,
-							a(href=link) {
-								img(src="/images/youtube.png", alt="Video")
+							a(href=link, target="_blank", rel="noopener") {
+								img(src="/images/youtube.png", alt="Video", title="Open video")
 							}
 						}
 					} else {
