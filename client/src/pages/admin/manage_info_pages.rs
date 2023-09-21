@@ -63,6 +63,34 @@ async fn AdminInfoPagesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	});
 
 	let selected_page: &Signal<Option<SelectedInfoPage>> = create_signal(ctx, None);
+	let selected_page_title = create_memo(ctx, || match (*selected_page.get()).as_ref() {
+		Some(SelectedInfoPage::ExistingPage(page)) => event_info_pages
+			.get()
+			.iter()
+			.find(|p| p.id == page.id)
+			.map(|page| page.title.clone())
+			.unwrap_or_default(),
+		Some(SelectedInfoPage::NewPage) => String::new(),
+		None => String::new(),
+	});
+	let selected_page_header = create_memo(ctx, || match (*selected_page.get()).as_ref() {
+		Some(SelectedInfoPage::ExistingPage(page)) => format!("Editing: {}", page.title),
+		_ => String::from("Editing new page"),
+	});
+	let selected_page_contents = create_memo(ctx, || match (*selected_page.get()).as_ref() {
+		Some(SelectedInfoPage::ExistingPage(page)) => event_info_pages
+			.get()
+			.iter()
+			.find(|p| p.id == page.id)
+			.map(|page| page.contents.clone())
+			.unwrap_or_default(),
+		Some(SelectedInfoPage::NewPage) => String::new(),
+		None => String::new(),
+	});
+	let selected_page_id = create_memo(ctx, || match (*selected_page.get()).as_ref() {
+		Some(SelectedInfoPage::ExistingPage(page)) => page.id.clone(),
+		_ => String::new(),
+	});
 
 	let create_new_page_handler = |_event: WebEvent| {
 		selected_page.set(Some(SelectedInfoPage::NewPage));
@@ -71,34 +99,15 @@ async fn AdminInfoPagesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	view! {
 		ctx,
 		(if let Some(info_page) = selected_page.get().as_ref() {
-			let page_header = match info_page {
-				SelectedInfoPage::ExistingPage(page) => format!("Editing: {}", page.title),
-				SelectedInfoPage::NewPage => String::from("Editing new page")
-			};
-
-			let initial_page_title = match info_page {
-				SelectedInfoPage::ExistingPage(page) => page.title.clone(),
-				SelectedInfoPage::NewPage => String::new()
-			};
-			let initial_page_contents = match info_page {
-				SelectedInfoPage::ExistingPage(page) => page.contents.clone(),
-				SelectedInfoPage::NewPage => String::new()
-			};
-			let page_id = match info_page {
-				SelectedInfoPage::ExistingPage(page) => page.id.clone(),
-				SelectedInfoPage::NewPage => String::new()
-			};
-
 			let info_page = info_page.clone();
 
-			let title_entry = create_signal(ctx, initial_page_title);
+			let title_entry = create_signal(ctx, (*selected_page_title.get()).clone());
 			let title_error = create_memo(ctx, {
-				let page_id = page_id.clone();
 				move || {
 					let title = title_entry.get();
 					if title.is_empty() {
 						String::from("Title cannot be empty.")
-					} else if event_info_pages.get().iter().any(|page| page.title == *title && page.id != page_id) {
+					} else if event_info_pages.get().iter().any(|page| page.title == *title && page.id != *selected_page_id.get()) {
 						String::from("Another page already has this title.")
 					} else {
 						String::new()
@@ -106,7 +115,7 @@ async fn AdminInfoPagesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				}
 			});
 
-			let contents_entry = create_signal(ctx, initial_page_contents);
+			let contents_entry = create_signal(ctx, (*selected_page_contents.get()).clone());
 
 			let preview = create_memo(ctx, || (*contents_entry.get()).clone());
 
@@ -120,13 +129,13 @@ async fn AdminInfoPagesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				};
 
 				let page_title = (*title_entry.get()).clone();
-				if page_title.is_empty() || event_info_pages.get().iter().any(|page| page.title == page_title && page.id != page_id) {
+				if page_title.is_empty() || event_info_pages.get().iter().any(|page| page.title == page_title && page.id != *selected_page_id.get()) {
 					return; // Validation should've already caught these cases
 				}
 
 				let page_contents = (*contents_entry.get()).clone();
 
-				let updated_info_page = InfoPage { id: page_id.clone(), event: selected_event, title: page_title, contents: page_contents };
+				let updated_info_page = InfoPage { id: (*selected_page_id.get()).clone(), event: selected_event, title: page_title, contents: page_contents };
 
 				spawn_local_scoped(ctx, async move {
 					let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
@@ -158,7 +167,7 @@ async fn AdminInfoPagesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 			view! {
 				ctx,
-				h1 { (page_header) }
+				h1 { (selected_page_header.get()) }
 				form(id="admin_info_pages_page_edit") {
 					label {
 						"Title:"
@@ -245,7 +254,11 @@ async fn AdminInfoPagesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 						iterable=event_info_pages,
 						key=|page| page.id.clone(),
 						view=move |ctx, page| {
-							let page_title = page.title.clone();
+							let page_id = page.id.clone();
+							let page_title = create_memo(ctx, move || {
+								let event_info_pages = event_info_pages.get();
+								event_info_pages.iter().find(|page| page.id == page_id).map(|page| page.title.clone()).unwrap_or_default()
+							});
 							let edit_button_handler = move |_event: WebEvent| {
 								selected_page.set(Some(SelectedInfoPage::ExistingPage(page.clone())));
 							};
@@ -253,7 +266,7 @@ async fn AdminInfoPagesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 							view! {
 								ctx,
 								div(class="admin_info_pages_page_selection_title") {
-									(page_title)
+									(page_title.get())
 								}
 								div(class="admin_info_pages_page_selection_edit_page") {
 									button(on:click=edit_button_handler) {
