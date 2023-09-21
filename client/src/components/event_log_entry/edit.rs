@@ -1023,6 +1023,37 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 	let cancel_handler = move |event: WebEvent| {
 		event.prevent_default();
 
+		let event = (*props.event.get()).clone();
+		let editing_log_entry = (*props.editing_log_entry.get()).clone();
+		spawn_local_scoped(ctx, async move {
+			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+			let mut ws = ws_context.lock().await;
+
+			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
+				event,
+				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::Clear(editing_log_entry))),
+			)));
+			let message_json = match serde_json::to_string(&message) {
+				Ok(msg) => msg,
+				Err(error) => {
+					let data: &DataSignals = use_context(ctx);
+					data.errors.modify().push(ErrorData::new_with_error(
+						"Failed to serialize typing clear message.",
+						error,
+					));
+					return;
+				}
+			};
+
+			let send_result = ws.send(Message::Text(message_json)).await;
+			if let Err(error) = send_result {
+				let data: &DataSignals = use_context(ctx);
+				data.errors
+					.modify()
+					.push(ErrorData::new_with_error("Failed to send typing clear message.", error));
+			}
+		});
+
 		reset_data();
 	};
 
@@ -1072,6 +1103,37 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 	};
 
 	let reset_handler = move |_event: WebEvent| {
+		let event = (*props.event.get()).clone();
+		let editing_log_entry = (*props.editing_log_entry.get()).clone();
+		spawn_local_scoped(ctx, async move {
+			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+			let mut ws = ws_context.lock().await;
+
+			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
+				event,
+				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::Clear(editing_log_entry))),
+			)));
+			let message_json = match serde_json::to_string(&message) {
+				Ok(msg) => msg,
+				Err(error) => {
+					let data: &DataSignals = use_context(ctx);
+					data.errors.modify().push(ErrorData::new_with_error(
+						"Failed to serialize typing clear message.",
+						error,
+					));
+					return;
+				}
+			};
+
+			let send_result = ws.send(Message::Text(message_json)).await;
+			if let Err(error) = send_result {
+				let data: &DataSignals = use_context(ctx);
+				data.errors
+					.modify()
+					.push(ErrorData::new_with_error("Failed to send typing clear message.", error));
+			}
+		});
+
 		reset_data();
 	};
 

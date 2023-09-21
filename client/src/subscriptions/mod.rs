@@ -411,6 +411,12 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 										);
 									}
 								}
+								TypingData::Clear(event_log_entry, typing_user) => {
+									event_data.typing_events.modify().retain(|typing_event| {
+										typing_event.user != typing_user
+											|| typing_event.event_log_entry != event_log_entry
+									})
+								}
 							}
 						}
 						EventSubscriptionData::AddEntryType(new_entry_type) => {

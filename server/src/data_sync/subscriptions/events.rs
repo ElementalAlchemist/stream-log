@@ -1167,6 +1167,7 @@ pub async fn handle_event_update(
 				NewTypingData::NotesToEditor(log_entry, notes_to_editor) => {
 					TypingData::NotesToEditor(log_entry, notes_to_editor, user_data)
 				}
+				NewTypingData::Clear(log_entry) => TypingData::Clear(log_entry, user_data),
 			};
 			vec![EventSubscriptionData::Typing(typing_data)]
 		}

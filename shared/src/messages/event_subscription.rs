@@ -40,6 +40,7 @@ pub enum TypingData {
 	MediaLink(Option<EventLogEntry>, String, UserData),
 	SubmitterWinner(Option<EventLogEntry>, String, UserData),
 	NotesToEditor(Option<EventLogEntry>, String, UserData),
+	Clear(Option<EventLogEntry>, UserData),
 }
 
 /// Event subscription update sent by the client to the server.
@@ -79,4 +80,5 @@ pub enum NewTypingData {
 	MediaLink(Option<EventLogEntry>, String),
 	SubmitterWinner(Option<EventLogEntry>, String),
 	NotesToEditor(Option<EventLogEntry>, String),
+	Clear(Option<EventLogEntry>),
 }
