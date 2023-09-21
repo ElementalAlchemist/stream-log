@@ -117,7 +117,7 @@ async fn AdminInfoPagesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 			let contents_entry = create_signal(ctx, (*selected_page_contents.get()).clone());
 
-			let preview = create_memo(ctx, || (*contents_entry.get()).clone());
+			let preview = create_memo(ctx, || markdown::to_html(&contents_entry.get()));
 
 			let save_disabled = create_memo(ctx, || !title_error.get().is_empty());
 
@@ -176,9 +176,7 @@ async fn AdminInfoPagesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 					}
 					textarea(bind:value=contents_entry)
 					h2 { "Preview" }
-					div(id="admin_info_pages_page_edit_preview") {
-						(preview.get())
-					}
+					div(id="admin_info_pages_page_edit_preview", dangerously_set_inner_html=&preview.get())
 					div(id="admin_info_pages_page_edit_done_controls") {
 						div(id="admin_info_pages_page_edit_save") {
 							button(on:click=update_page_handler, disabled=*save_disabled.get()) {
