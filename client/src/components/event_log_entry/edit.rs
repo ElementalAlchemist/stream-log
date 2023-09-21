@@ -409,7 +409,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			.unwrap_or_default(),
 	);
 	create_effect(ctx, || {
-		media_link.modify();
+		media_link.track();
 		modified_entry_data
 			.modify()
 			.insert(ModifiedEventLogEntryParts::MediaLink);
