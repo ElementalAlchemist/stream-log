@@ -164,7 +164,7 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 						let media_link_link = media_link.clone();
 						view! {
 							ctx,
-							a(href=media_link_link) {
+							a(href=media_link_link, target="_blank", rel="noopener") {
 								(media_link)
 							}
 						}
