@@ -297,7 +297,6 @@ pub struct EventLogEntry {
 	pub end_time: Option<DateTime<Utc>>,
 	pub entry_type: String,
 	pub description: String,
-	pub media_link: String,
 	pub submitter_or_winner: String,
 	pub notes_to_editor: String,
 	pub editor_link: Option<String>,
@@ -312,6 +311,7 @@ pub struct EventLogEntry {
 	pub poster_moment: bool,
 	pub video_edit_state: VideoEditState,
 	pub marked_incomplete: bool,
+	pub media_links: Vec<Option<String>>,
 }
 
 #[derive(Insertable, Queryable)]
@@ -367,7 +367,6 @@ pub struct EventLogHistoryEntry {
 	pub end_time: Option<DateTime<Utc>>,
 	pub entry_type: String,
 	pub description: String,
-	pub media_link: String,
 	pub submitter_or_winner: String,
 	pub notes_to_editor: String,
 	pub editor_link: Option<String>,
@@ -382,6 +381,7 @@ pub struct EventLogHistoryEntry {
 	pub poster_moment: bool,
 	pub video_edit_state: VideoEditState,
 	pub marked_incomplete: bool,
+	pub media_links: Vec<Option<String>>,
 }
 
 pub enum EditSource {
@@ -406,7 +406,7 @@ impl EventLogHistoryEntry {
 			end_time: entry.end_time,
 			entry_type: entry.entry_type.clone(),
 			description: entry.description.clone(),
-			media_link: entry.media_link.clone(),
+			media_links: entry.media_links.clone(),
 			submitter_or_winner: entry.submitter_or_winner.clone(),
 			notes_to_editor: entry.notes_to_editor.clone(),
 			editor_link: entry.editor_link.clone(),

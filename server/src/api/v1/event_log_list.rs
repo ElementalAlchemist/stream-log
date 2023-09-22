@@ -236,7 +236,7 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 			end_time: entry.end_time,
 			entry_type: (*entry_types.get(&entry.entry_type).unwrap()).clone(),
 			description: entry.description.clone(),
-			media_link: entry.media_link.clone(),
+			media_links: entry.media_links.iter().filter_map(|link| link.clone()).collect(),
 			submitter_or_winner: entry.submitter_or_winner.clone(),
 			tags: entry_tag_map.get(&entry.id).cloned().unwrap_or_default(),
 			notes_to_editor: entry.notes_to_editor.clone(),

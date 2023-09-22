@@ -460,7 +460,7 @@ pub async fn subscribe_to_event(
 			end_time: log_entry.end_time,
 			entry_type: log_entry.entry_type.clone(),
 			description: log_entry.description.clone(),
-			media_link: log_entry.media_link.clone(),
+			media_links: log_entry.media_links.iter().filter_map(|link| link.clone()).collect(),
 			submitter_or_winner: log_entry.submitter_or_winner.clone(),
 			tags,
 			notes_to_editor: log_entry.notes_to_editor.clone(),
@@ -545,7 +545,11 @@ pub async fn handle_event_update(
 					end_time,
 					entry_type: log_entry_data.entry_type.clone(),
 					description: log_entry_data.description.clone(),
-					media_link: log_entry_data.media_link.clone(),
+					media_links: log_entry_data
+						.media_links
+						.iter()
+						.map(|link| Some(link.clone()))
+						.collect(),
 					submitter_or_winner: log_entry_data.submitter_or_winner.clone(),
 					notes_to_editor: log_entry_data.notes_to_editor.clone(),
 					editor_link: None,
@@ -641,7 +645,7 @@ pub async fn handle_event_update(
 							end_time: entry.end_time,
 							entry_type: entry.entry_type,
 							description: entry.description,
-							media_link: entry.media_link,
+							media_links: entry.media_links.into_iter().flatten().collect(),
 							submitter_or_winner: entry.submitter_or_winner,
 							tags,
 							video_edit_state: entry.video_edit_state.into(),
@@ -814,12 +818,12 @@ pub async fn handle_event_update(
 			};
 			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
 		}
-		EventSubscriptionUpdate::ChangeMediaLink(log_entry, new_media_link) => {
+		EventSubscriptionUpdate::ChangeMediaLinks(log_entry, new_media_links) => {
 			let mut db_connection = db_connection.lock().await;
 			let update_func = |db_connection: &mut PgConnection| {
 				diesel::update(event_log::table)
 					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
-					.set(event_log::media_link.eq(&new_media_link))
+					.set(event_log::media_links.eq(&new_media_links))
 					.get_result(db_connection)
 			};
 			let update_result = log_entry_change(&mut db_connection, update_func, user.id.clone());
@@ -959,7 +963,7 @@ pub async fn handle_event_update(
 					end_time: log_entry.end_time,
 					entry_type: log_entry.entry_type,
 					description: log_entry.description,
-					media_link: log_entry.media_link,
+					media_links: log_entry.media_links.into_iter().flatten().collect(),
 					submitter_or_winner: log_entry.submitter_or_winner,
 					tags,
 					notes_to_editor: log_entry.notes_to_editor,
@@ -1158,8 +1162,8 @@ pub async fn handle_event_update(
 				NewTypingData::Description(log_entry, description) => {
 					TypingData::Description(log_entry, description, user_data)
 				}
-				NewTypingData::MediaLink(log_entry, media_link) => {
-					TypingData::MediaLink(log_entry, media_link, user_data)
+				NewTypingData::MediaLinks(log_entry, media_links) => {
+					TypingData::MediaLinks(log_entry, media_links, user_data)
 				}
 				NewTypingData::SubmitterWinner(log_entry, submitter_or_winner) => {
 					TypingData::SubmitterWinner(log_entry, submitter_or_winner, user_data)
@@ -1312,7 +1316,7 @@ pub async fn handle_event_update(
 						end_time: log_entry.end_time,
 						entry_type: log_entry.entry_type.clone(),
 						description: log_entry.description.clone(),
-						media_link: log_entry.media_link.clone(),
+						media_links: log_entry.media_links.iter().filter_map(|link| link.clone()).collect(),
 						submitter_or_winner: log_entry.submitter_or_winner.clone(),
 						tags,
 						notes_to_editor: log_entry.notes_to_editor.clone(),
@@ -1464,7 +1468,7 @@ fn log_entry_change(
 			end_time: log_entry.end_time,
 			entry_type: log_entry.entry_type,
 			description: log_entry.description,
-			media_link: log_entry.media_link,
+			media_links: log_entry.media_links.into_iter().flatten().collect(),
 			submitter_or_winner: log_entry.submitter_or_winner,
 			tags,
 			notes_to_editor: log_entry.notes_to_editor,

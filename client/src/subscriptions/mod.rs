@@ -378,7 +378,7 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 										);
 									}
 								}
-								TypingData::MediaLink(event_log_entry, typed_link, typing_user) => {
+								TypingData::MediaLinks(event_log_entry, typed_link, typing_user) => {
 									if user.id != typing_user.id {
 										handle_typing_data(
 											event_data,

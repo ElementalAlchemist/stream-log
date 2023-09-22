@@ -10,7 +10,7 @@ pub struct EventLogEntry {
 	pub end_time: Option<DateTime<Utc>>,
 	pub entry_type: String,
 	pub description: String,
-	pub media_link: String,
+	pub media_links: Vec<String>,
 	pub submitter_or_winner: String,
 	pub tags: Vec<Tag>,
 	pub notes_to_editor: String,

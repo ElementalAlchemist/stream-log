@@ -83,6 +83,13 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 			.unwrap_or_default()
 	});
 
+	let media_links = create_memo(ctx, || {
+		(*props.entry.get())
+			.as_ref()
+			.map(|entry| entry.media_links.clone())
+			.unwrap_or_default()
+	});
+
 	let tags_signal = create_signal(
 		ctx,
 		(*props.entry.get())
@@ -158,20 +165,19 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 			div(class="log_entry_description") { ((*props.entry.get()).as_ref().map(|entry| entry.description.clone()).unwrap_or_default()) }
 			div(class="log_entry_submitter_winner") { ((*props.entry.get()).as_ref().map(|entry| entry.submitter_or_winner.clone()).unwrap_or_default()) }
 			div(class="log_entry_media_link") {
-				({
-					let media_link = (*props.entry.get()).as_ref().map(|entry| entry.media_link.clone()).unwrap_or_default();
-					if !media_link.is_empty() {
-						let media_link_link = media_link.clone();
+				Keyed(
+					iterable=media_links,
+					key=|link| link.clone(),
+					view=|ctx, link| {
+						let link_link = link.clone();
 						view! {
 							ctx,
-							a(href=media_link_link, target="_blank", rel="noopener") {
-								(media_link)
+							a(href=link_link, target="_blank", rel="noopener") {
+								(link)
 							}
 						}
-					} else {
-						view! { ctx, }
 					}
-				})
+				)
 			}
 			div(class="log_entry_tags") {
 				Keyed(

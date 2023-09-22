@@ -19,7 +19,7 @@ pub struct EventLogEntry {
 	/// The entry description
 	pub description: String,
 	/// The media link associated with the entry
-	pub media_link: String,
+	pub media_links: Vec<String>,
 	/// The submitter or winner related to the entry
 	pub submitter_or_winner: String,
 	/// The tags associated with the entry

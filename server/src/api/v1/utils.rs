@@ -61,7 +61,7 @@ pub fn update_history(db_connection: &mut PgConnection, entry: EventLogEntry, ap
 		end_time: entry.end_time,
 		entry_type: entry.entry_type,
 		description: entry.description,
-		media_link: entry.media_link,
+		media_links: entry.media_links,
 		submitter_or_winner: entry.submitter_or_winner,
 		notes_to_editor: entry.notes_to_editor,
 		editor_link: entry.editor_link,

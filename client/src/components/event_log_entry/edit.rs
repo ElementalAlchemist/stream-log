@@ -27,7 +27,7 @@ enum ModifiedEventLogEntryParts {
 	EndTime,
 	EntryType,
 	Description,
-	MediaLink,
+	MediaLinks,
 	SubmitterOrWinner,
 	Tags,
 	VideoEditState,
@@ -401,21 +401,21 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		});
 	});
 
-	let media_link = create_signal(
+	let media_links = create_signal(
 		ctx,
 		(*props.editing_log_entry.get())
 			.as_ref()
-			.map(|entry| entry.media_link.clone())
+			.map(|entry| entry.media_links.clone())
 			.unwrap_or_default(),
 	);
 	create_effect(ctx, || {
-		media_link.track();
+		media_links.track();
 		modified_entry_data
 			.modify()
-			.insert(ModifiedEventLogEntryParts::MediaLink);
+			.insert(ModifiedEventLogEntryParts::MediaLinks);
 	});
 	create_effect(ctx, move || {
-		media_link.track();
+		let media_links = media_links.get().join("\n");
 		if *suppress_typing_notifications.get_untracked() {
 			return;
 		}
@@ -425,9 +425,9 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
 				(*props.event.get()).clone(),
-				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::MediaLink(
+				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::MediaLinks(
 					(*props.editing_log_entry.get()).clone(),
-					(*media_link.get()).clone(),
+					media_links,
 				))),
 			)));
 			let message_json = match serde_json::to_string(&message) {
@@ -812,7 +812,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			end_time_input.set(end_duration);
 			entry_type_name.set(entry_type);
 			description.set(entry.description.clone());
-			media_link.set(entry.media_link.clone());
+			media_links.set(entry.media_links.clone());
 			submitter_or_winner.set(entry.submitter_or_winner.clone());
 			entered_tags.set(Vec::new());
 			for tag in entry.tags.iter() {
@@ -835,7 +835,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			end_time_input.set(String::new());
 			entry_type_name.set(String::new());
 			description.set(String::new());
-			media_link.set(String::new());
+			media_links.set(Vec::new());
 			submitter_or_winner.set(String::new());
 			entered_tags.set(Vec::new());
 			video_edit_state.set(VideoEditState::default());
@@ -858,7 +858,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		end_time_input.set(String::new());
 		entry_type_name.set(String::new());
 		description.set(String::new());
-		media_link.set(String::new());
+		media_links.set(Vec::new());
 		submitter_or_winner.set(String::new());
 		entered_tags.set(Vec::new());
 		video_edit_state.set(VideoEditState::default());
@@ -894,9 +894,14 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 					ModifiedEventLogEntryParts::Description => {
 						EventSubscriptionUpdate::ChangeDescription(entry.clone(), (*description.get()).clone())
 					}
-					ModifiedEventLogEntryParts::MediaLink => {
-						EventSubscriptionUpdate::ChangeMediaLink(entry.clone(), (*media_link.get()).clone())
-					}
+					ModifiedEventLogEntryParts::MediaLinks => EventSubscriptionUpdate::ChangeMediaLinks(
+						entry.clone(),
+						(*media_links.get())
+							.iter()
+							.filter(|link| !link.is_empty())
+							.cloned()
+							.collect(),
+					),
 					ModifiedEventLogEntryParts::SubmitterOrWinner => EventSubscriptionUpdate::ChangeSubmitterWinner(
 						entry.clone(),
 						(*submitter_or_winner.get()).clone(),
@@ -967,7 +972,11 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 				end_time: *end_time_value.get(),
 				entry_type: (*entry_type_id.get()).clone(),
 				description: (*description.get()).clone(),
-				media_link: (*media_link.get()).clone(),
+				media_links: (*media_links.get())
+					.iter()
+					.filter(|link| !link.is_empty())
+					.cloned()
+					.collect(),
 				submitter_or_winner: (*submitter_or_winner.get()).clone(),
 				tags: (*tags.get()).clone(),
 				notes_to_editor: (*notes_to_editor.get()).clone(),
@@ -1281,9 +1290,9 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 				div(class="event_log_entry_edit_submitter_or_winner") {
 					input(bind:value=submitter_or_winner, placeholder="Submitter/winner")
 				}
-				div(class="event_log_entry_edit_media_link") {
-					input(bind:value=media_link, placeholder="Media link")
-				}
+			}
+			div(class="event_log_entry_edit_media_links") {
+				//input(bind:value=media_link, placeholder="Media link")
 			}
 			div(class="event_log_entry_edit_tags") {
 				label { "Tags:" }

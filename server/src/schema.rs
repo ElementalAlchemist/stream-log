@@ -62,7 +62,6 @@ diesel::table! {
 		end_time -> Nullable<Timestamptz>,
 		entry_type -> Text,
 		description -> Text,
-		media_link -> Text,
 		submitter_or_winner -> Text,
 		notes_to_editor -> Text,
 		editor_link -> Nullable<Text>,
@@ -77,6 +76,7 @@ diesel::table! {
 		poster_moment -> Bool,
 		video_edit_state -> VideoEditState,
 		marked_incomplete -> Bool,
+		media_links -> Array<Nullable<Text>>,
 	}
 }
 
@@ -95,7 +95,6 @@ diesel::table! {
 		end_time -> Nullable<Timestamptz>,
 		entry_type -> Text,
 		description -> Text,
-		media_link -> Text,
 		submitter_or_winner -> Text,
 		notes_to_editor -> Text,
 		editor_link -> Nullable<Text>,
@@ -110,6 +109,7 @@ diesel::table! {
 		poster_moment -> Bool,
 		video_edit_state -> VideoEditState,
 		marked_incomplete -> Bool,
+		media_links -> Array<Nullable<Text>>,
 	}
 }
 
