@@ -499,6 +499,22 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		});
 	});
 
+	let media_links = create_signal(
+		ctx,
+		(*props.editing_log_entry.get())
+			.as_ref()
+			.map(|entry| entry.media_links.clone())
+			.unwrap_or_default(),
+	);
+	let media_links_with_index: &ReadSignal<Vec<(usize, String)>> =
+		create_memo(ctx, || media_links.get().iter().cloned().enumerate().collect());
+	create_effect(ctx, || {
+		media_links.track();
+		modified_entry_data
+			.modify()
+			.insert(ModifiedEventLogEntryParts::MediaLinks);
+	});
+
 	let tags = create_signal(
 		ctx,
 		(*props.editing_log_entry.get())
@@ -761,6 +777,10 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		if let Some(name) = found_name {
 			entry_type_name.set(name.clone());
 		}
+	};
+
+	let add_media_link_handler = |_event: WebEvent| {
+		media_links.modify().push(String::new());
 	};
 
 	let add_tag_handler = |_event: WebEvent| {
@@ -1279,7 +1299,32 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 				}
 			}
 			div(class="event_log_entry_edit_media_links") {
-				//input(bind:value=media_link, placeholder="Media link")
+				label { "Media links:" }
+				div(class="event_log_entry_edit_media_links_fields") {
+					Keyed(
+						iterable=media_links_with_index,
+						key=|(index, _)| *index,
+						view=move |ctx, (link_index, link)| {
+							let link_entry = create_signal(ctx, link);
+							create_effect(ctx, move || {
+								let entered_link = link_entry.get();
+								media_links.modify()[link_index] = (*entered_link).clone();
+							});
+
+							view! {
+								ctx,
+								div {
+									input(bind:value=link_entry)
+								}
+							}
+						}
+					)
+					div {
+						button(type="button", on:click=add_media_link_handler) {
+							"Add Link"
+						}
+					}
+				}
 			}
 			div(class="event_log_entry_edit_tags") {
 				label { "Tags:" }

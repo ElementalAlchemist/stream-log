@@ -319,8 +319,21 @@ $event_log_column_count: 16;
 	}
 }
 
-.event_log_entry_edit_media_link, .event_log_entry_edit_submitter_or_winner {
+.event_log_entry_edit_submitter_or_winner {
 	flex-basis: 150px;
+}
+
+.event_log_entry_edit_media_links_fields {
+	display: inline-flex;
+
+	> div {
+		flex-basis: 200px;
+		width: 200px;
+
+		> input {
+			width: calc(100% - 10px);
+		}
+	}
 }
 
 .event_log_entry_edit_tags_fields {
