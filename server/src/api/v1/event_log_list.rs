@@ -1,21 +1,24 @@
 use super::structures::entry_type::EntryType as EntryTypeApi;
 use super::structures::event_log_entry::EventLogEntry as EventLogEntryApi;
 use super::structures::event_log_response::EventLogResponse;
+use super::structures::event_log_section::EventLogSection;
 use super::structures::tag::Tag as TagApi;
 use super::structures::user::User as UserApi;
 use super::utils::check_application;
 use crate::models::{
-	EntryType as EntryTypeDb, Event as EventDb, EventLogEntry as EventLogEntryDb, EventLogTag, Tag as TagDb,
-	User as UserDb,
+	EntryType as EntryTypeDb, Event as EventDb, EventLogEntry as EventLogEntryDb, EventLogSection as EventLogSectionDb,
+	EventLogTag, Tag as TagDb, User as UserDb,
 };
-use crate::schema::{entry_types, event_log, event_log_history, event_log_tags, events, tags, users};
+use crate::schema::{
+	entry_types, event_log, event_log_history, event_log_sections, event_log_tags, events, tags, users,
+};
 use async_std::sync::{Arc, Mutex};
 use chrono::{DateTime, Utc};
 use diesel::dsl::max;
 use diesel::prelude::*;
 use http_types::mime;
 use serde::Deserialize;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use tide::{Request, Response, StatusCode};
 
 #[derive(Deserialize)]
@@ -94,6 +97,24 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 			));
 		}
 	};
+
+	let event_log_sections: QueryResult<Vec<EventLogSectionDb>> = event_log_sections::table
+		.filter(event_log_sections::event.eq(&event_id))
+		.load(&mut *db_connection);
+	let event_log_sections = match event_log_sections {
+		Ok(sections) => sections,
+		Err(error) => {
+			tide::log::error!("API error loading event log sections: {}", error);
+			return Err(tide::Error::new(
+				StatusCode::InternalServerError,
+				anyhow::Error::msg("Database error"),
+			));
+		}
+	};
+	let event_log_sections_by_start_time: BTreeMap<DateTime<Utc>, EventLogSection> = event_log_sections
+		.iter()
+		.map(|section| (section.start_time, (*section).clone().into()))
+		.collect();
 
 	let entry_type_ids: HashSet<String> = event_log.iter().map(|log_entry| log_entry.entry_type.clone()).collect();
 	let entry_type_ids: Vec<String> = entry_type_ids.into_iter().collect();
@@ -253,6 +274,10 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 			video_errors: entry.video_errors.clone(),
 			poster_moment: entry.poster_moment,
 			marked_incomplete: entry.marked_incomplete,
+			section: event_log_sections_by_start_time
+				.range(..=entry.start_time)
+				.last()
+				.map(|(_, section)| section.clone()),
 		})
 		.collect();
 

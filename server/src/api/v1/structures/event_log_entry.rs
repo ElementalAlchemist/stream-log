@@ -1,4 +1,5 @@
 use super::entry_type::EntryType;
+use super::event_log_section::EventLogSection;
 use super::tag::Tag;
 use super::user::User;
 use super::video_edit_state::VideoEditState;
@@ -47,4 +48,7 @@ pub struct EventLogEntry {
 	pub poster_moment: bool,
 	/// Whether this entry is marked as incomplete
 	pub marked_incomplete: bool,
+	/// The section this entry is in, if any. Note that, for endpoints for which it's relevant when an entry changed,
+	/// changes to section data do not count as changes to the individual affected entries.
+	pub section: Option<EventLogSection>,
 }

@@ -326,7 +326,7 @@ pub struct EventEditor {
 	pub editor: String,
 }
 
-#[derive(Insertable, Queryable)]
+#[derive(Clone, Insertable, Queryable)]
 pub struct EventLogSection {
 	pub id: String,
 	pub event: String,
