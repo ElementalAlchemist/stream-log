@@ -353,6 +353,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 				h1(id="event_log_title") { (visible_event_signal.get().name) }
 				div(id="event_log_view_settings") {
 					div(id="event_log_view_settings_section_control") {
+						"Sections:"
 						a(id="event_log_expand_all", class="click", on:click=expand_all_handler) {
 							"Expand All"
 						}
