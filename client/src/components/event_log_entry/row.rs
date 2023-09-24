@@ -112,6 +112,10 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 		}
 	};
 
+	let prevent_row_click_handler = |event: WebEvent| {
+		event.stop_propagation();
+	};
+
 	let parent_select_handler = move |event: WebEvent| {
 		event.stop_propagation();
 		props.editing_entry_parent.set((*props.entry.get()).clone());
@@ -233,7 +237,7 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 					}
 				})
 			}
-			div(class="log_entry_editor_link") {
+			div(class="log_entry_editor_link", on:click=prevent_row_click_handler) {
 				({
 					if let Some(entry) = (*props.entry.get()).as_ref() {
 						let editor_link = props.event.editor_link_format.replace("{id}", &entry.id);
@@ -252,7 +256,7 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 					}
 				})
 			}
-			div(class="log_entry_video_link") {
+			div(class="log_entry_video_link", on:click=prevent_row_click_handler) {
 				({
 					let video_link = (*props.entry.get()).as_ref().and_then(|entry| entry.video_link.clone());
 					if let Some(link) = video_link.as_ref() {
