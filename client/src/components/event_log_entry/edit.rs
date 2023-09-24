@@ -1229,15 +1229,21 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 
 					view! {
 						ctx,
-						img(class="event_log_entry_edit_parent_child_indicator", src="images/child-indicator.png")
-						(start_time)
-						" / "
-						(end_time)
-						" / "
-						(entry_type_name)
-						" / "
-						(description)
-						img(class="event_log_entry_edit_parent_remove click", src="images/remove.png", on:click=remove_parent_handler)
+						div {
+							img(class="event_log_entry_edit_parent_child_indicator", src="images/child-indicator.png")
+						}
+						div {
+							(start_time)
+							" / "
+							(end_time)
+							" / "
+							(entry_type_name)
+							" / "
+							(description)
+						}
+						div {
+							img(class="event_log_entry_edit_parent_remove click", src="images/remove.png", on:click=remove_parent_handler)
+						}
 					}
 				} else {
 					view! { ctx, }

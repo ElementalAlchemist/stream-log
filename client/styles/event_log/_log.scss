@@ -289,6 +289,16 @@ $event_log_column_count: 16;
 	padding: 2px;
 }
 
+.event_log_entry_edit_editing_info {
+	font-size: 110%;
+	font-weight: 700;
+}
+
+.event_log_entry_edit_parent_info {
+	display: flex;
+	align-items: flex-start;
+}
+
 .event_log_entry_edit_parent_child_indicator {
 	width: 16px;
 }
