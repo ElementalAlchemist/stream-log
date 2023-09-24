@@ -261,6 +261,16 @@ $event_log_column_count: 16;
 	width: 16px;
 }
 
+.log_entry_video_errors:not(:empty) {
+	background: #f33;
+}
+
+@media (prefers-color-scheme: dark) {
+	.log_entry_video_errors:not(:empty) {
+		background: #c00;
+	}
+}
+
 .event_log_entry_typing_header {
 	grid-column: 1 / span $event_log_column_count;
 	display: flex;
