@@ -15,8 +15,11 @@ use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use stream_log_shared::messages::event_log::{EventLogEntry, EventLogSection, VideoState};
 use stream_log_shared::messages::subscriptions::SubscriptionType;
+use stream_log_shared::messages::user::UserData;
+use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use sycamore::suspense::Suspense;
+use sycamore_router::navigate;
 use web_sys::{window, Event as WebEvent, ScrollIntoViewOptions, ScrollLogicalPosition};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -605,6 +608,14 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 
 #[component]
 pub fn EventLogView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> View<G> {
+	// At a minimum, you need to have a user account to see this page, so we'll verify that exists
+	let user_signal: &Signal<Option<UserData>> = use_context(ctx);
+	if user_signal.get().is_none() {
+		spawn_local_scoped(ctx, async {
+			navigate("/");
+		});
+		return view! { ctx, };
+	}
 	view! {
 		ctx,
 		Suspense(fallback=view! { ctx, "Loading event log data..." }) {
