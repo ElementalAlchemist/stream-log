@@ -38,8 +38,17 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 	let event = event_signal.get();
 	let click_handler = if *can_edit.get() {
 		let entry = entry.clone();
+		let log_entries = log_entries.clone();
 		Some(move || {
-			props.editing_log_entry.set(Some(entry.clone()));
+			let Some(current_entry) = log_entries
+				.get()
+				.iter()
+				.find(|log_entry| log_entry.id == entry.id)
+				.cloned()
+			else {
+				return;
+			};
+			props.editing_log_entry.set(Some(current_entry));
 			props.jump_highlight_row_id.set(String::new());
 		})
 	} else {
