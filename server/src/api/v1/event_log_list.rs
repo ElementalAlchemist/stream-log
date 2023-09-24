@@ -28,9 +28,10 @@ struct QueryParams {
 
 /// GET /api/v1/event/:id/log
 ///
-/// Gets all events in the event log for the specified event. Pass an event using the ID. Responds with a list of
-/// [EventLogEntry](EventLogEntryApi) objects. If the `since` query argument is passed with an ISO 8601 timestamp, only
-/// entries last updated on or after that timestamp are included in the list.
+/// Gets all events in the event log for the specified event. Pass an event using the ID. Responds with an
+/// [EventLogResponse] object. If the `since` query argument is passed with an ISO 8601 timestamp, only
+/// entries last updated on or after that timestamp are included in the list. The timestamp provided in the response
+/// may be used in subsequent queries to get exactly all of the changes made since the response was generated.
 pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgConnection>>) -> tide::Result {
 	let query_params: QueryParams = request.query()?;
 
