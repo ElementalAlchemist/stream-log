@@ -1,6 +1,7 @@
 use super::entry_type::EntryType;
 use super::tag::Tag;
 use super::user::User;
+use super::video_edit_state::VideoEditState;
 use super::video_state::VideoState;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
@@ -36,6 +37,8 @@ pub struct EventLogEntry {
 	pub parent: Option<String>,
 	/// The entered manual sort key for the entry
 	pub manual_sort_key: Option<i32>,
+	/// The currently selected edit state for the video. This state is determined by user entry.
+	pub video_edit_state: VideoEditState,
 	/// The current state of the video for the entry, if set
 	pub video_state: Option<VideoState>,
 	/// Video errors for this entry; if empty, no video errors are set for this entry

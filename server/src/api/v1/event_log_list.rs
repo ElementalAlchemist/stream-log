@@ -248,6 +248,7 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 			video_link: entry.video_link.clone(),
 			parent: entry.parent.clone(),
 			manual_sort_key: entry.manual_sort_key,
+			video_edit_state: entry.video_edit_state.into(),
 			video_state: entry.video_state.map(|state| state.into()),
 			video_errors: entry.video_errors.clone(),
 			poster_moment: entry.poster_moment,
