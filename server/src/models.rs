@@ -169,14 +169,16 @@ pub struct Event {
 	pub id: String,
 	pub name: String,
 	pub start_time: DateTime<Utc>,
+	pub editor_link_format: String,
 }
 
 impl From<Event> for EventWs {
-	fn from(value: Event) -> Self {
+	fn from(event: Event) -> Self {
 		EventWs {
-			id: value.id,
-			name: value.name,
-			start_time: value.start_time,
+			id: event.id,
+			name: event.name,
+			start_time: event.start_time,
+			editor_link_format: event.editor_link_format,
 		}
 	}
 }
@@ -299,7 +301,6 @@ pub struct EventLogEntry {
 	pub description: String,
 	pub submitter_or_winner: String,
 	pub notes_to_editor: String,
-	pub editor_link: Option<String>,
 	pub editor: Option<String>,
 	pub video_link: Option<String>,
 	pub parent: Option<String>,
@@ -369,7 +370,6 @@ pub struct EventLogHistoryEntry {
 	pub description: String,
 	pub submitter_or_winner: String,
 	pub notes_to_editor: String,
-	pub editor_link: Option<String>,
 	pub editor: Option<String>,
 	pub video_link: Option<String>,
 	pub parent: Option<String>,
@@ -409,7 +409,6 @@ impl EventLogHistoryEntry {
 			media_links: entry.media_links.clone(),
 			submitter_or_winner: entry.submitter_or_winner.clone(),
 			notes_to_editor: entry.notes_to_editor.clone(),
-			editor_link: entry.editor_link.clone(),
 			editor: entry.editor.clone(),
 			video_link: entry.video_link.clone(),
 			parent: entry.parent.clone(),

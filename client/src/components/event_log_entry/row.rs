@@ -235,13 +235,16 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 			}
 			div(class="log_entry_editor_link") {
 				({
-					let editor_link = (*props.entry.get()).as_ref().and_then(|entry| entry.editor_link.clone());
-					if let Some(link) = editor_link.as_ref() {
-						let link = link.clone();
-						view! {
-							ctx,
-							a(href=link, target="_blank", rel="noopener") {
-								img(src="/images/edit.png", alt="Edit", title="Open editor")
+					if let Some(entry) = (*props.entry.get()).as_ref() {
+						let editor_link = props.event.editor_link_format.replace("{id}", &entry.id);
+						if editor_link.is_empty() {
+							view! { ctx, }
+						} else {
+							view! {
+								ctx,
+								a(href=editor_link, target="_blank", rel="noopener") {
+									img(src="/images/edit.png", alt="Edit", title="Open editor")
+								}
 							}
 						}
 					} else {

@@ -1,6 +1,6 @@
 #admin_manage_events {
 	display: grid;
-	grid-template-columns: max-content max-content max-content;
+	grid-template-columns: max-content max-content 200px max-content;
 	gap: 5px;
 	align-items: baseline;
 
@@ -10,6 +10,6 @@
 
 	.admin_manage_events_full_header {
 		display: block;
-		grid-column: 1 / span 3;
+		grid-column: 1 / span 4;
 	}
 }

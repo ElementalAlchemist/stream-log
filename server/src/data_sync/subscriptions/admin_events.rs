@@ -89,6 +89,7 @@ pub async fn handle_admin_event_message(
 						id: event.id.clone(),
 						name: event.name.clone(),
 						start_time: event.start_time,
+						editor_link_format: event.editor_link_format.clone(),
 					};
 					diesel::insert_into(events::table)
 						.values(event_db)
@@ -96,7 +97,11 @@ pub async fn handle_admin_event_message(
 				} else {
 					diesel::update(events::table)
 						.filter(events::id.eq(&event.id))
-						.set((events::name.eq(&event.name), events::start_time.eq(event.start_time)))
+						.set((
+							events::name.eq(&event.name),
+							events::start_time.eq(event.start_time),
+							events::editor_link_format.eq(&event.editor_link_format),
+						))
 						.execute(&mut *db_connection)
 				}
 			};

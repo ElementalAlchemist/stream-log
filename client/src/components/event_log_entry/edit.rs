@@ -987,7 +987,6 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 				submitter_or_winner: (*submitter_or_winner.get()).clone(),
 				tags: (*tags.get()).clone(),
 				notes_to_editor: (*notes_to_editor.get()).clone(),
-				editor_link: None,
 				editor: (*editor_value.get()).clone(),
 				video_link: None,
 				parent: (*props.edit_parent_log_entry.get())

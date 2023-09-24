@@ -6,4 +6,5 @@ pub struct Event {
 	pub id: String,
 	pub name: String,
 	pub start_time: DateTime<Utc>,
+	pub editor_link_format: String,
 }

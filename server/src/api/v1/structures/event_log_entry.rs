@@ -28,8 +28,6 @@ pub struct EventLogEntry {
 	pub tags: Vec<Tag>,
 	/// The notes about this entry to the editor
 	pub notes_to_editor: String,
-	/// The link to the video editor page for this entry
-	pub editor_link: Option<String>,
 	/// The editor assigned to this entry
 	pub editor: Option<User>,
 	/// The link to the uploaded video for this entry

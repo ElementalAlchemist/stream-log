@@ -64,7 +64,6 @@ diesel::table! {
 		description -> Text,
 		submitter_or_winner -> Text,
 		notes_to_editor -> Text,
-		editor_link -> Nullable<Text>,
 		editor -> Nullable<Text>,
 		video_link -> Nullable<Text>,
 		parent -> Nullable<Text>,
@@ -97,7 +96,6 @@ diesel::table! {
 		description -> Text,
 		submitter_or_winner -> Text,
 		notes_to_editor -> Text,
-		editor_link -> Nullable<Text>,
 		editor -> Nullable<Text>,
 		video_link -> Nullable<Text>,
 		parent -> Nullable<Text>,
@@ -141,6 +139,7 @@ diesel::table! {
 		id -> Text,
 		name -> Text,
 		start_time -> Timestamptz,
+		editor_link_format -> Text,
 	}
 }
 

@@ -51,6 +51,7 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	let new_event_name_error_signal = create_signal(ctx, String::new());
 	let new_event_time_signal = create_signal(ctx, format!("{}", Utc::now().format(ISO_DATETIME_FORMAT_STRING)));
 	let new_event_time_error_signal = create_signal(ctx, String::new());
+	let new_event_editor_link_format_signal = create_signal(ctx, String::new());
 
 	let new_event_submit_handler = move |event: WebEvent| {
 		event.prevent_default();
@@ -76,12 +77,15 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		};
 		new_event_time_error_signal.modify().clear();
 
+		let editor_link_format = (*new_event_editor_link_format_signal.get()).clone();
+
 		new_event_name_signal.modify().clear();
 		new_event_time_signal.set(format!("{}", Utc::now().format(ISO_DATETIME_FORMAT_STRING)));
 		let new_event = Event {
 			id: String::new(),
 			name,
 			start_time,
+			editor_link_format,
 		};
 
 		let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminEventsUpdate(
@@ -119,6 +123,7 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			div(class="admin_manage_events_row admin_manage_events_headers") {
 				div { "Name" }
 				div { "Start Time (UTC)" }
+				div { "Editor Link Format" }
 				div { }
 			}
 			Keyed(
@@ -129,6 +134,7 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 					let name_error_signal = create_signal(ctx, String::new());
 					let time_signal = create_signal(ctx, format!("{}", event.start_time.format(ISO_DATETIME_FORMAT_STRING)));
 					let time_error_signal = create_signal(ctx, String::new());
+					let editor_link_format_signal = create_signal(ctx, event.editor_link_format.clone());
 
 					let submit_handler = move |web_event: WebEvent| {
 						web_event.prevent_default();
@@ -156,7 +162,9 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 						};
 						time_error_signal.modify().clear();
 
-						let updated_event = Event { id: event.id.clone(), name, start_time };
+						let editor_link_format = (*editor_link_format_signal.get()).clone();
+
+						let updated_event = Event { id: event.id.clone(), name, start_time, editor_link_format };
 						let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminEventsUpdate(AdminEventUpdate::UpdateEvent(updated_event))));
 						let message_json = match serde_json::to_string(&message) {
 							Ok(msg) => msg,
@@ -187,6 +195,9 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 								input(type="datetime-local", step=1, bind:value=time_signal, class=if time_error_signal.get().is_empty() { "" } else { "error" }, title=*time_error_signal.get())
 							}
 							div {
+								input(bind:value=editor_link_format_signal)
+							}
+							div {
 								button(type="submit") { "Update" }
 							}
 						}
@@ -202,6 +213,9 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				}
 				div {
 					input(type="datetime-local", step=1, bind:value=new_event_time_signal, class=if new_event_time_error_signal.get().is_empty() { "" } else { "error" }, title=*new_event_time_error_signal.get())
+				}
+				div {
+					input(bind:value=new_event_editor_link_format_signal)
 				}
 				div {
 					button(type="submit") { "Add event" }
