@@ -46,18 +46,21 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 
 	let event_id = request.param("id")?;
 	let event: QueryResult<EventDb> = events::table.find(event_id).first(&mut *db_connection);
-	if let Err(error) = event {
-		if let diesel::result::Error::NotFound = error {
+	let event: EventDb = match event {
+		Ok(event) => event,
+		Err(error) => {
+			if let diesel::result::Error::NotFound = error {
+				return Err(tide::Error::new(
+					StatusCode::NotFound,
+					anyhow::Error::msg("No such event"),
+				));
+			}
+			tide::log::error!("API error loading event: {}", error);
 			return Err(tide::Error::new(
-				StatusCode::NotFound,
-				anyhow::Error::msg("No such event"),
+				StatusCode::InternalServerError,
+				anyhow::Error::msg("Database error"),
 			));
 		}
-		tide::log::error!("API error loading event: {}", error);
-		return Err(tide::Error::new(
-			StatusCode::InternalServerError,
-			anyhow::Error::msg("Database error"),
-		));
 	};
 
 	let retrieved_time = Utc::now();
@@ -252,32 +255,42 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 
 	let event_log: Vec<EventLogEntryApi> = event_log
 		.into_iter()
-		.map(|entry| EventLogEntryApi {
-			id: entry.id.clone(),
-			start_time: entry.start_time,
-			end_time: entry.end_time,
-			entry_type: (*entry_types.get(&entry.entry_type).unwrap()).clone(),
-			description: entry.description.clone(),
-			media_links: entry.media_links.iter().filter_map(|link| link.clone()).collect(),
-			submitter_or_winner: entry.submitter_or_winner.clone(),
-			tags: entry_tag_map.get(&entry.id).cloned().unwrap_or_default(),
-			notes_to_editor: entry.notes_to_editor.clone(),
-			editor: entry
-				.editor
-				.as_ref()
-				.map(|editor_id| editors.get(editor_id).unwrap().clone()),
-			video_link: entry.video_link.clone(),
-			parent: entry.parent.clone(),
-			manual_sort_key: entry.manual_sort_key,
-			video_edit_state: entry.video_edit_state.into(),
-			video_state: entry.video_state.map(|state| state.into()),
-			video_errors: entry.video_errors.clone(),
-			poster_moment: entry.poster_moment,
-			marked_incomplete: entry.marked_incomplete,
-			section: event_log_sections_by_start_time
-				.range(..=entry.start_time)
-				.last()
-				.map(|(_, section)| section.clone()),
+		.map(|entry| {
+			let editor_link = event.editor_link_format.replace("{id}", &entry.id);
+			let editor_link = if editor_link.is_empty() {
+				None
+			} else {
+				Some(editor_link)
+			};
+
+			EventLogEntryApi {
+				id: entry.id.clone(),
+				start_time: entry.start_time,
+				end_time: entry.end_time,
+				entry_type: (*entry_types.get(&entry.entry_type).unwrap()).clone(),
+				description: entry.description.clone(),
+				media_links: entry.media_links.iter().filter_map(|link| link.clone()).collect(),
+				submitter_or_winner: entry.submitter_or_winner.clone(),
+				tags: entry_tag_map.get(&entry.id).cloned().unwrap_or_default(),
+				notes_to_editor: entry.notes_to_editor.clone(),
+				editor_link,
+				editor: entry
+					.editor
+					.as_ref()
+					.map(|editor_id| editors.get(editor_id).unwrap().clone()),
+				video_link: entry.video_link.clone(),
+				parent: entry.parent.clone(),
+				manual_sort_key: entry.manual_sort_key,
+				video_edit_state: entry.video_edit_state.into(),
+				video_state: entry.video_state.map(|state| state.into()),
+				video_errors: entry.video_errors.clone(),
+				poster_moment: entry.poster_moment,
+				marked_incomplete: entry.marked_incomplete,
+				section: event_log_sections_by_start_time
+					.range(..=entry.start_time)
+					.last()
+					.map(|(_, section)| section.clone()),
+			}
 		})
 		.collect();
 
