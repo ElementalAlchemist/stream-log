@@ -290,7 +290,7 @@ impl From<Tag> for TagWs {
 	}
 }
 
-#[derive(Insertable, Queryable)]
+#[derive(Clone, Insertable, Queryable)]
 #[diesel(table_name = event_log)]
 pub struct EventLogEntry {
 	pub id: String,

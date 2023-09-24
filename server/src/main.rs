@@ -72,7 +72,7 @@ async fn main() -> miette::Result<()> {
 	};
 	app.with(OpenIdConnectMiddleware::new(&openid_config).await);
 
-	api::add_routes(&mut app, Arc::clone(&db_connection))?;
+	api::add_routes(&mut app, Arc::clone(&db_connection), Arc::clone(&subscription_manager))?;
 
 	app.at("/ws").authenticated().get(WebSocket::new({
 		let subscription_manager = Arc::clone(&subscription_manager);

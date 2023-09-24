@@ -1,4 +1,5 @@
 use super::utils::{check_application, update_history};
+use crate::data_sync::SubscriptionManager;
 use crate::models::EventLogEntry;
 use crate::schema::event_log;
 use async_std::sync::{Arc, Mutex};
@@ -9,7 +10,7 @@ use tide::{Request, Response, StatusCode};
 ///
 /// Sets the editor link for an event log entry. The body of the request is the link that's associated with the log
 /// entry.
-pub async fn set_editor_link(mut request: Request<()>, db_connection: Arc<Mutex<PgConnection>>) -> tide::Result {
+pub async fn set_editor_link(mut request: Request<()>, db_connection: Arc<Mutex<PgConnection>>, subscription_manager: Arc<Mutex<SubscriptionManager>>) -> tide::Result {
 	let mut db_connection = db_connection.lock().await;
 	let application = check_application(&request, &mut db_connection).await?;
 	if !application.write_links {
