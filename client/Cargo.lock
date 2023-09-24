@@ -631,7 +631,7 @@ checksum = "942b4a808e05215192e39f4ab80813e599068285906cc91aa64f923db842bd5a"
 
 [[package]]
 name = "stream-log-client"
-version = "0.1.0"
+version = "1.0.0-alpha.1"
 dependencies = [
  "chrono",
  "console_error_panic_hook",
@@ -654,7 +654,7 @@ dependencies = [
 
 [[package]]
 name = "stream-log-shared"
-version = "0.1.0"
+version = "1.0.0-alpha.1"
 dependencies = [
  "chrono",
  "rgb",
