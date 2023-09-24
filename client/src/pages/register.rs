@@ -214,6 +214,9 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			button(ref=submit_button_ref) {
 				"Register"
 			}
+			a(id="register_switch_accounts", href="/logout", rel="external") {
+				"Switch Accounts (Log Out)"
+			}
 		}
 	}
 }
