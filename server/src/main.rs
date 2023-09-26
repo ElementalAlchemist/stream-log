@@ -3,7 +3,7 @@ use async_std::sync::{Arc, Mutex};
 use clap::Parser;
 use miette::IntoDiagnostic;
 use tide::http::cookies::SameSite;
-use tide::sessions::{MemoryStore, SessionMiddleware};
+use tide::sessions::SessionMiddleware;
 use tide::{Body, Server};
 use tide_openidconnect::{
 	ClientId, ClientSecret, IssuerUrl, OpenIdConnectMiddleware, OpenIdConnectRouteExt, RedirectUrl,
@@ -24,6 +24,9 @@ use data_sync::SubscriptionManager;
 
 mod database;
 use database::{connect_db, run_embedded_migrations};
+
+mod session;
+use session::DatabaseSessionStore;
 
 mod websocket_msg;
 
@@ -59,7 +62,8 @@ async fn main() -> miette::Result<()> {
 
 	let session_middleware = {
 		let session_secret = fs::read(&config.session_secret_key_file).await.into_diagnostic()?;
-		SessionMiddleware::new(MemoryStore::new(), &session_secret).with_same_site_policy(SameSite::Lax)
+		SessionMiddleware::new(DatabaseSessionStore::new(Arc::clone(&db_connection)), &session_secret)
+			.with_same_site_policy(SameSite::Lax)
 	};
 	app.with(session_middleware);
 

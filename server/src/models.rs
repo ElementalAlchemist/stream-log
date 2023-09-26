@@ -1,7 +1,7 @@
 use crate::schema::{
 	applications, available_entry_types_for_event, entry_types, event_editors, event_log, event_log_history,
 	event_log_history_tags, event_log_sections, event_log_tags, events, info_pages, permission_events,
-	permission_groups, tags, user_permissions, users,
+	permission_groups, sessions, tags, user_permissions, users,
 };
 use chrono::prelude::*;
 use diesel::{AsChangeset, Insertable, Queryable};
@@ -447,4 +447,10 @@ impl From<InfoPageWs> for InfoPage {
 			contents: page.contents,
 		}
 	}
+}
+
+#[derive(Insertable, Queryable)]
+pub struct Session {
+	pub id: String,
+	pub data: String,
 }

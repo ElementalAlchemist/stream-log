@@ -171,6 +171,13 @@ diesel::table! {
 }
 
 diesel::table! {
+	sessions (id) {
+		id -> Text,
+		data -> Text,
+	}
+}
+
+diesel::table! {
 	tags (id) {
 		id -> Text,
 		tag -> Text,
@@ -235,6 +242,7 @@ diesel::allow_tables_to_appear_in_same_query!(
 	info_pages,
 	permission_events,
 	permission_groups,
+	sessions,
 	tags,
 	user_permissions,
 	users,
