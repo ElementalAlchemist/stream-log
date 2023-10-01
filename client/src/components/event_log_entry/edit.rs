@@ -236,6 +236,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		if end_time_input.is_empty() {
 			end_time_error.set(None);
 			end_time_value.set(None);
+			modified_entry_data.modify().insert(ModifiedEventLogEntryParts::EndTime);
 		} else {
 			let end_time_result = get_duration_from_formatted(end_time_input);
 			match end_time_result {
