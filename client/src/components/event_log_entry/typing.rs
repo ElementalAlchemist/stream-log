@@ -20,7 +20,7 @@ pub struct EventLogEntryTypingProps<'a> {
 #[component]
 pub fn EventLogEntryTyping<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryTypingProps<'a>) -> View<G> {
 	let user_typing_data = create_memo(ctx, || {
-		let typing_data: Vec<(UserData, [String; 8])> = props
+		let mut typing_data: Vec<(UserData, [String; 8])> = props
 			.typing_data
 			.get()
 			.values()
@@ -51,6 +51,7 @@ pub fn EventLogEntryTyping<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryTypi
 				(user.clone(), typing_values)
 			})
 			.collect();
+		typing_data.sort_unstable_by_key(|(user, _)| user.username.clone());
 		typing_data
 	});
 
