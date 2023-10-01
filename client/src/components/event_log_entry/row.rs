@@ -20,8 +20,15 @@ pub struct EventLogEntryRowProps<'a, THandler: Fn()> {
 
 #[component]
 pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventLogEntryRowProps<'a, T>) -> View<G> {
-	let indent_pixels = 20 * props.child_depth;
-	let select_parent_style = format!("margin-left: {}px", indent_pixels);
+	let mut child_indicators = Vec::new();
+	let extend_width = props.child_depth.saturating_sub(1);
+	for _ in 0..extend_width {
+		child_indicators.push(view! { ctx, img(src="images/child-extension.png") });
+	}
+	if props.child_depth > 0 {
+		child_indicators.push(view! { ctx, img(src="images/child-indicator.png") });
+	}
+	let child_indicators = View::new_fragment(child_indicators);
 
 	let start_time = create_memo(ctx, {
 		let event_start = props.event.start_time;
@@ -160,7 +167,8 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 			},
 			on:click=row_click_handler
 		) {
-			div(class="log_entry_select_parent", style=select_parent_style) {
+			div(class="log_entry_select_parent") {
+				(child_indicators)
 				img(src="images/add.png", class="click", alt="Add child entry", title="Add child entry", on:click=parent_select_handler)
 			}
 			div(class="log_entry_start_time") { (start_time.get()) }
