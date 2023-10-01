@@ -1210,7 +1210,10 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 					let start_duration = format_duration(&start_duration);
 					let end_duration = entry.end_time.map(|end_time| end_time - props.event.get().start_time);
 					let end_duration = end_duration.map(|d| format_duration(&d)).unwrap_or_default();
-					format!("Editing entry: {} / {} / {} / {}", start_duration, end_duration, entry.entry_type, entry.description)
+					let entry_type_id_index = event_entry_types_id_index.get();
+					let entry_type = entry_type_id_index.get(&entry.entry_type);
+					let entry_type_name = entry_type.map(|entry_type| entry_type.name.clone()).unwrap_or_default();
+					format!("Editing entry: {} / {} / {} / {}", start_duration, end_duration, entry_type_name, entry.description)
 				} else {
 					String::from("Creating new entry")
 				})
