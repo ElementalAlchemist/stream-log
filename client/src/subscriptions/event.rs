@@ -84,7 +84,7 @@ pub enum TypingTarget {
 	NotesToEditor,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TypingEvent {
 	pub event_log_entry: Option<EventLogEntry>,
 	pub user: UserData,

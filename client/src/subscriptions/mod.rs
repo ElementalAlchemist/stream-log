@@ -247,16 +247,14 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 								Some(last_entry) => {
 									if log_entry.start_time >= last_entry.start_time {
 										event_log_entries.push(log_entry);
-										continue;
+									} else {
+										let insert_index = entry_insertion_index(&event_log_entries, &log_entry);
+										event_log_entries.insert(insert_index, log_entry);
 									}
 								}
-								None => {
-									event_log_entries.push(log_entry);
-									continue;
-								}
+								None => event_log_entries.push(log_entry),
 							};
-							let insert_index = entry_insertion_index(&event_log_entries, &log_entry);
-							event_log_entries.insert(insert_index, log_entry);
+
 							let mut typing_events = event_data.typing_events.modify();
 							*typing_events = typing_events
 								.iter()
