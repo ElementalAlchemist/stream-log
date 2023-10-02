@@ -152,6 +152,10 @@ $event_log_column_count: 16;
 	&.event_log_entry_jump_highlight {
 		background: #cfc;
 	}
+
+	&.event_log_entry_edit_highlight {
+		background: #fc6;
+	}
 }
 
 @media (prefers-color-scheme: dark) {
@@ -159,8 +163,14 @@ $event_log_column_count: 16;
 		background: #222;
 	}
 
-	.event_log_entry.event_log_entry_jump_highlight {
-		background: #141;
+	.event_log_entry {
+		&.event_log_entry_jump_highlight {
+			background: #141;
+		}
+
+		&.event_log_entry_edit_highlight {
+			background: #850;
+		}
 	}
 }
 

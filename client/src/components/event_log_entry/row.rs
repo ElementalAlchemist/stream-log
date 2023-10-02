@@ -14,12 +14,20 @@ pub struct EventLogEntryRowProps<'a, THandler: Fn()> {
 	entry_type: &'a ReadSignal<Option<EntryType>>,
 	click_handler: Option<THandler>,
 	jump_highlight_row_id: &'a Signal<String>,
+	editing_log_entry: &'a Signal<Option<EventLogEntry>>,
 	editing_entry_parent: &'a Signal<Option<EventLogEntry>>,
 	child_depth: u32,
 }
 
 #[component]
 pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventLogEntryRowProps<'a, T>) -> View<G> {
+	let row_is_being_edited = create_memo(ctx, || {
+		match ((*props.entry.get()).as_ref(), (*props.editing_log_entry.get()).as_ref()) {
+			(Some(row_entry), Some(edit_entry)) => row_entry.id == edit_entry.id,
+			_ => false,
+		}
+	});
+
 	let mut child_indicators = Vec::new();
 	let extend_width = props.child_depth.saturating_sub(1);
 	for _ in 0..extend_width {
@@ -161,6 +169,10 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 					.unwrap_or(false)
 				{
 					row_class = format!("{} event_log_entry_jump_highlight", row_class);
+				}
+
+				if *row_is_being_edited.get() {
+					row_class = format!("{} event_log_entry_edit_highlight", row_class);
 				}
 
 				row_class

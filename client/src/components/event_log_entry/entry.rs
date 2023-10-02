@@ -112,6 +112,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 			entry_type=entry_type,
 			click_handler=click_handler,
 			jump_highlight_row_id=props.jump_highlight_row_id,
+			editing_log_entry=props.editing_log_entry,
 			editing_entry_parent=props.editing_entry_parent,
 			child_depth=props.child_depth
 		)
