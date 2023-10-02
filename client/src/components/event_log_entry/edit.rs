@@ -1279,16 +1279,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 						class=if end_time_error.get().is_some() { "error" } else { "" },
 						title=(*end_time_error.get()).as_ref().unwrap_or(&String::new())
 					)
-					(
-						if props.editing_log_entry.get().is_none() {
-							view! {
-								ctx,
-								button(type="button", tabindex=-1, on:click=end_now_handler) { "Now" }
-							}
-						} else {
-							view! { ctx, }
-						}
-					)
+					button(type="button", tabindex=-1, on:click=end_now_handler) { "Now" }
 				}
 				div(class="event_log_entry_edit_type") {
 					input(
