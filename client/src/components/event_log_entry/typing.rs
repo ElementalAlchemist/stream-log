@@ -111,6 +111,7 @@ pub fn EventLogEntryTyping<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryTypi
 					}
 					div(class="event_log_entry_typing_data") {
 						div {}
+						div {}
 						div { (typed_start_time) }
 						div { (typed_end_time) }
 						div { (typed_entry_type) }

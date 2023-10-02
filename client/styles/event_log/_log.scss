@@ -82,10 +82,6 @@ $event_log_column_count: 16;
 		margin-bottom: 10px;
 		border-bottom: 1px solid var(--base-border-color);
 	}
-
-	.event_log_entry_typing_username {
-		grid-column: 1 / span $event_log_column_count;
-	}
 }
 
 .event_log_header {
@@ -465,8 +461,12 @@ $event_log_column_count: 16;
 
 #event_log_new_entry_typing {
 	display: grid;
-	grid-template-columns: max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content;
+	grid-template-columns: max-content max-content max-content max-content max-content 1fr max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content;
 	gap: 8px;
+}
+
+.event_log_entry_typing_username {
+	grid-column: 1 / span $event_log_column_count;
 }
 
 @media (prefers-color-scheme: dark) {
