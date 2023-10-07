@@ -239,7 +239,6 @@ $event_log_column_count: 17;
 }
 
 .log_entry_video_edit_state {
-	text-align: center;
 	align-self: stretch;
 	display: flex;
 	align-items: center;
@@ -250,6 +249,11 @@ $event_log_column_count: 17;
 
 	&.log_entry_video_edit_state_edited {
 		background: #cfc;
+	}
+
+	> span {
+		text-align: center;
+		width: 100%;
 	}
 }
 
