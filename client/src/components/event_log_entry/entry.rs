@@ -24,6 +24,7 @@ pub struct EventLogEntryProps<'a> {
 	editing_entry_parent: &'a Signal<Option<EventLogEntry>>,
 	entries_by_parent: &'a ReadSignal<HashMap<String, Vec<EventLogEntry>>>,
 	child_depth: u32,
+	entry_numbers: &'a ReadSignal<HashMap<String, usize>>,
 }
 
 #[component]
@@ -114,7 +115,8 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 			jump_highlight_row_id=props.jump_highlight_row_id,
 			editing_log_entry=props.editing_log_entry,
 			editing_entry_parent=props.editing_entry_parent,
-			child_depth=props.child_depth
+			child_depth=props.child_depth,
+			entry_numbers=props.entry_numbers
 		)
 		EventLogEntryTyping(event=typing_event_signal, event_entry_types=props.read_entry_types_signal, event_log=props.all_log_entries, typing_data=typing_data)
 		div(class="event_log_entry_children") {
@@ -146,7 +148,8 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 								read_entry_types_signal=props.read_entry_types_signal,
 								editing_entry_parent=props.editing_entry_parent,
 								entries_by_parent=props.entries_by_parent,
-								child_depth=props.child_depth + 1
+								child_depth=props.child_depth + 1,
+								entry_numbers=props.entry_numbers
 							)
 						}
 					}

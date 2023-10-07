@@ -37,6 +37,22 @@ impl LogLineData {
 	}
 }
 
+fn add_entries_for_parent(
+	entries_by_parent: &HashMap<String, Vec<EventLogEntry>>,
+	entry_numbers: &mut HashMap<String, usize>,
+	current_number: &mut usize,
+	parent: &str,
+) {
+	let Some(entries) = entries_by_parent.get(parent) else {
+		return;
+	};
+	for entry in entries.iter() {
+		*current_number += 1;
+		entry_numbers.insert(entry.id.clone(), *current_number);
+		add_entries_for_parent(entries_by_parent, entry_numbers, current_number, &entry.id);
+	}
+}
+
 #[derive(Prop)]
 pub struct EventLogProps {
 	id: String,
@@ -92,9 +108,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		move || {
 			let mut entries_by_parent: HashMap<String, Vec<EventLogEntry>> = HashMap::new();
 			for event_log_entry in event_log_entries.get().iter() {
-				let Some(parent) = event_log_entry.parent.clone() else {
-					continue;
-				};
+				let parent = event_log_entry.parent.clone().unwrap_or_default();
 				entries_by_parent
 					.entry(parent)
 					.or_default()
@@ -102,6 +116,16 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 			}
 			entries_by_parent
 		}
+	});
+
+	let entry_numbers_signal = create_memo(ctx, || {
+		let entries_by_parent = entries_by_parent_signal.get();
+		let mut current_number: usize = 0;
+		let mut entry_numbers: HashMap<String, usize> = HashMap::new();
+
+		add_entries_for_parent(&entries_by_parent, &mut entry_numbers, &mut current_number, "");
+
+		entry_numbers
 	});
 
 	let event_signal = event_subscription_data.event.clone();
@@ -141,15 +165,18 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 	let active_state_filters: &Signal<HashSet<Option<VideoState>>> = create_signal(ctx, HashSet::new());
 
 	let log_lines = create_memo(ctx, move || {
-		let entries: Vec<EventLogEntry> = event_subscription_data
-			.event_log_entries
-			.get()
+		let entries_by_parent = entries_by_parent_signal.get();
+		let sections = event_subscription_data.event_log_sections.get();
+		let state_filters = active_state_filters.get();
+
+		let Some(top_level_entries) = entries_by_parent.get("") else {
+			return Vec::new();
+		};
+		let entries: Vec<EventLogEntry> = top_level_entries
 			.iter()
 			.filter(|entry| entry.parent.is_none())
 			.cloned()
 			.collect();
-		let sections = event_subscription_data.event_log_sections.get();
-		let state_filters = active_state_filters.get();
 
 		let mut entries_iter = entries.iter();
 		let mut sections_iter = sections.iter();
@@ -498,7 +525,8 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 														read_entry_types_signal=read_entry_types_signal,
 														editing_entry_parent=editing_entry_parent,
 														entries_by_parent=entries_by_parent_signal,
-														child_depth=0
+														child_depth=0,
+														entry_numbers=entry_numbers_signal
 													)
 												}
 											} else {

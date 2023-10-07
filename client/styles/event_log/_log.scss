@@ -1,5 +1,5 @@
 @use "../colors";
-$event_log_column_count: 16;
+$event_log_column_count: 17;
 
 #event_log_layout {
 	display: flex;
@@ -59,7 +59,8 @@ $event_log_column_count: 16;
 #event_log_data {
 	display: grid;
 	// Update $event_log_column_count to match the number of columns here
-	grid-template-columns: 
+	grid-template-columns:
+		max-content
 		max-content
 		max-content
 		max-content
@@ -462,7 +463,24 @@ $event_log_column_count: 16;
 
 #event_log_new_entry_typing {
 	display: grid;
-	grid-template-columns: max-content max-content max-content max-content max-content 1fr max-content max-content max-content max-content max-content max-content max-content max-content max-content max-content;
+	grid-template-columns:
+		max-content
+		max-content
+		max-content
+		max-content
+		max-content
+		1fr
+		max-content
+		max-content
+		max-content
+		max-content
+		max-content
+		max-content
+		max-content
+		max-content
+		max-content
+		max-content
+		max-content;
 	gap: 8px;
 }
 

@@ -1,6 +1,7 @@
 use super::utils::format_duration;
 use crate::color_utils::rgb_str_from_color;
 use crate::entry_type_colors::use_white_foreground;
+use std::collections::HashMap;
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_log::{EventLogEntry, VideoEditState};
 use stream_log_shared::messages::events::Event;
@@ -17,6 +18,7 @@ pub struct EventLogEntryRowProps<'a, THandler: Fn()> {
 	editing_log_entry: &'a Signal<Option<EventLogEntry>>,
 	editing_entry_parent: &'a Signal<Option<EventLogEntry>>,
 	child_depth: u32,
+	entry_numbers: &'a ReadSignal<HashMap<String, usize>>,
 }
 
 #[component]
@@ -179,6 +181,21 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 			},
 			on:click=row_click_handler
 		) {
+			div(class="log_entry_number") {
+				({
+					let entry_numbers = props.entry_numbers.get();
+					let entry = props.entry.get();
+					let entry = (*entry).as_ref();
+
+					match entry {
+						Some(entry) => match entry_numbers.get(&entry.id) {
+							Some(num) => num.to_string(),
+							None => String::new()
+						}
+						None => String::new()
+					}
+				})
+			}
 			div(class="log_entry_select_parent") {
 				(child_indicators)
 				img(src="images/add.png", class="click", alt="Add child entry", title="Add child entry", on:click=parent_select_handler)
