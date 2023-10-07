@@ -114,47 +114,44 @@ async fn AdminManageEntryTypesForEventsLoadedView<G: Html>(ctx: Scope<'_>) -> Vi
 						view={
 							let event = event.clone();
 							move |ctx, entry_type| {
-								let default_checked = data.entry_type_event_associations.get().iter().any(|association| association.event.id == event.id && association.entry_type.id == entry_type.id);
-								let entry_type_active = create_signal(ctx, default_checked);
-								let initial_entry_type_active_change_run = create_signal(ctx, true);
-
-								create_effect(ctx, {
-									let event = event.clone();
+								let is_checked = create_memo(ctx, {
+									let entry_type_event_associations = data.entry_type_event_associations.clone();
 									let entry_type = entry_type.clone();
-									move || {
-										let event = event.clone();
-										let entry_type = entry_type.clone();
-										let use_entry_type = *entry_type_active.get();
-										if *initial_entry_type_active_change_run.get_untracked() {
-											initial_entry_type_active_change_run.set(false);
-											return;
-										}
+									let event = event.clone();
+									move || entry_type_event_associations.get().iter().any(|association| association.event.id == event.id && association.entry_type.id == entry_type.id)
+								});
+
+								let button_handler = {
+									let entry_type = entry_type.clone();
+									let event = event.clone();
+									move |_event: WebEvent| {
+										let association = EntryTypeEventAssociation { entry_type: entry_type.clone(), event: event.clone() };
+										let message = if *is_checked.get() {
+											FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminEntryTypesEventsUpdate(AdminEntryTypeEventUpdate::RemoveTypeFromEvent(association))))
+										} else {
+											FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminEntryTypesEventsUpdate(AdminEntryTypeEventUpdate::AddTypeToEvent(association))))
+										};
+										let message_json = match serde_json::to_string(&message) {
+											Ok(msg) => msg,
+											Err(error) => {
+												let data: &DataSignals = use_context(ctx);
+												data.errors.modify().push(ErrorData::new_with_error("Failed to serialize entry type/event association update.", error));
+												return;
+											}
+										};
+
 										spawn_local_scoped(ctx, async move {
 											let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 											let mut ws = ws_context.lock().await;
 
-											let association = EntryTypeEventAssociation { entry_type: entry_type.clone(), event: event.clone() };
-											let message = if use_entry_type {
-												AdminEntryTypeEventUpdate::AddTypeToEvent(association)
-											} else {
-												AdminEntryTypeEventUpdate::RemoveTypeFromEvent(association)
-											};
-											let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminEntryTypesEventsUpdate(message)));
-											let message_json = match serde_json::to_string(&message) {
-												Ok(msg) => msg,
-												Err(error) => {
-													let data: &DataSignals = use_context(ctx);
-													data.errors.modify().push(ErrorData::new_with_error("Failed to serialize event entry type update message.", error));
-													return;
-												}
-											};
-											if let Err(error) = ws.send(Message::Text(message_json)).await {
+											let send_result = ws.send(Message::Text(message_json)).await;
+											if let Err(error) = send_result {
 												let data: &DataSignals = use_context(ctx);
-												data.errors.modify().push(ErrorData::new_with_error("Failed to send event entry type update message.", error));
+												data.errors.modify().push(ErrorData::new_with_error("Failed to send entry type/event association update.", error));
 											}
 										});
 									}
-								});
+								};
 
 								let background_color = rgb_str_from_color(entry_type.color);
 								let foreground_color = if use_white_foreground(&entry_type.color) { "#fff" } else { "#000" };
@@ -164,7 +161,16 @@ async fn AdminManageEntryTypesForEventsLoadedView<G: Html>(ctx: Scope<'_>) -> Vi
 									ctx,
 									div(class="admin_event_type_assignment_name", style=name_style) { (entry_type.name) }
 									div(class="admin_event_type_assignment_available") {
-										input(type="checkbox", bind:checked=entry_type_active)
+										(if *is_checked.get() { "✔️" } else { "" })
+									}
+									div(class="admin_event_type_assignment_modify") {
+										button(on:click=button_handler) {
+											(if *is_checked.get() {
+												"Remove"
+											} else {
+												"Add"
+											})
+										}
 									}
 								}
 							}

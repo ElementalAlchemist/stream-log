@@ -15,8 +15,16 @@
 
 #admin_event_type_assignment_grid {
 	display: grid;
-	grid-template-columns: max-content 50px;
+	grid-template-columns: max-content 25px max-content;
 	margin-bottom: 10px;
+}
+
+.admin_event_type_assignment_name {
+	padding: 5px;
+}
+
+.admin_event_type_assignment_available {
+	text-align: center;
 }
 
 .admin_entry_type_description_field {
