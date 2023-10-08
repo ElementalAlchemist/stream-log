@@ -19,6 +19,7 @@ pub struct EventLogEntryRowProps<'a, THandler: Fn()> {
 	editing_entry_parent: &'a Signal<Option<EventLogEntry>>,
 	child_depth: u32,
 	entry_numbers: &'a ReadSignal<HashMap<String, usize>>,
+	use_editor_view: &'a ReadSignal<bool>,
 }
 
 #[component]
@@ -274,25 +275,33 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 					}
 				})
 			}
-			div(class="log_entry_editor_link", on:click=prevent_row_click_handler) {
-				({
-					if let Some(entry) = (*props.entry.get()).as_ref() {
-						let editor_link = props.event.editor_link_format.replace("{id}", &entry.id);
-						if editor_link.is_empty() {
-							view! { ctx, }
-						} else {
-							view! {
-								ctx,
-								a(href=editor_link, target="_blank", rel="noopener") {
-									img(src="/images/edit.png", alt="Edit", title="Open editor")
+			(if *props.use_editor_view.get() {
+				let editor_link_format = props.event.editor_link_format.clone();
+				view! {
+					ctx,
+					div(class="log_entry_editor_link", on:click=prevent_row_click_handler) {
+						({
+							if let Some(entry) = (*props.entry.get()).as_ref() {
+								let editor_link = editor_link_format.replace("{id}", &entry.id);
+								if editor_link.is_empty() {
+									view! { ctx, }
+								} else {
+									view! {
+										ctx,
+										a(href=editor_link, target="_blank", rel="noopener") {
+											img(src="/images/edit.png", alt="Edit", title="Open editor")
+										}
+									}
 								}
+							} else {
+								view! { ctx, }
 							}
-						}
-					} else {
-						view! { ctx, }
+						})
 					}
-				})
-			}
+				}
+			} else {
+				view! { ctx, }
+			})
 			div(class="log_entry_video_link", on:click=prevent_row_click_handler) {
 				({
 					let video_link = (*props.entry.get()).as_ref().and_then(|entry| entry.video_link.clone());
@@ -309,43 +318,57 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 					}
 				})
 			}
-			div(class="log_entry_editor_user") {
-				({
-					let editor = (*props.entry.get()).as_ref().and_then(|entry| entry.editor.clone());
-					if let Some(editor) = editor.as_ref() {
-						let name_color = rgb_str_from_color(editor.color);
-						let name_style = format!("color: {}", name_color);
-						let username = editor.username.clone();
-						view! {
-							ctx,
-							span(style=name_style) { (username) }
-						}
-					} else {
-						view! { ctx, }
+			(if *props.use_editor_view.get() {
+				view! {
+					ctx,
+					div(class="log_entry_editor_user") {
+						({
+							let editor = (*props.entry.get()).as_ref().and_then(|entry| entry.editor.clone());
+							if let Some(editor) = editor.as_ref() {
+								let name_color = rgb_str_from_color(editor.color);
+								let name_style = format!("color: {}", name_color);
+								let username = editor.username.clone();
+								view! {
+									ctx,
+									span(style=name_style) { (username) }
+								}
+							} else {
+								view! { ctx, }
+							}
+						})
 					}
-				})
-			}
+				}
+			} else {
+				view! { ctx, }
+			})
 			div(class="log_entry_notes_to_editor") {
 				((*props.entry.get()).as_ref().map(|entry| entry.notes_to_editor.clone()).unwrap_or_default())
 			}
-			div(class="log_entry_video_state") {
-				({
-					let video_state = (*props.entry.get()).as_ref().and_then(|entry| entry.video_state);
-					match video_state {
-						Some(state) => format!("{}", state),
-						None => String::new()
+			(if *props.use_editor_view.get() {
+				view! {
+					ctx,
+					div(class="log_entry_video_state") {
+						({
+							let video_state = (*props.entry.get()).as_ref().and_then(|entry| entry.video_state);
+							match video_state {
+								Some(state) => format!("{}", state),
+								None => String::new()
+							}
+						})
 					}
-				})
-			}
-			div(class="log_entry_video_errors") {
-				({
-					let video_errors = (*props.entry.get()).as_ref().map(|entry| entry.video_errors.clone());
-					match video_errors {
-						Some(errors) => errors,
-						None => String::new()
+					div(class="log_entry_video_errors") {
+						({
+							let video_errors = (*props.entry.get()).as_ref().map(|entry| entry.video_errors.clone());
+							match video_errors {
+								Some(errors) => errors,
+								None => String::new()
+							}
+						})
 					}
-				})
-			}
+				}
+			} else {
+				view! { ctx, }
+			})
 		}
 	}
 }

@@ -14,6 +14,7 @@ use gloo_net::websocket::Message;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use stream_log_shared::messages::event_log::{EventLogEntry, EventLogSection, VideoState};
+use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::subscriptions::SubscriptionType;
 use stream_log_shared::messages::user::UserData;
 use sycamore::futures::spawn_local_scoped;
@@ -158,6 +159,24 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 	let read_available_editors = create_memo(ctx, {
 		let available_editors = available_editors.clone();
 		move || (*available_editors.get()).clone()
+	});
+
+	let use_editor_view = create_memo(ctx, {
+		let permission_signal = permission_signal.clone();
+		let available_editors = available_editors.clone();
+		move || {
+			let user: &Signal<Option<UserData>> = use_context(ctx);
+			let user = user.get();
+			let permission = permission_signal.get();
+			let editors = available_editors.get();
+
+			match (*user).as_ref() {
+				Some(user) => {
+					*permission == PermissionLevel::Supervisor || editors.iter().any(|editor| editor.id == user.id)
+				}
+				None => *permission == PermissionLevel::Supervisor,
+			}
+		}
 	});
 
 	let editing_log_entry: &Signal<Option<EventLogEntry>> = create_signal(ctx, None);
@@ -420,7 +439,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 				}
 			}
 			div(id="event_log") {
-				div(id="event_log_data") {
+				div(id="event_log_data", class=if *use_editor_view.get() { "event_log_data_editor" } else { "" }) {
 					div(class="event_log_header") { }
 					div(class="event_log_header") { }
 					div(class="event_log_header") { "Start" }
@@ -432,12 +451,33 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 					div(class="event_log_header") { "Tags" }
 					div(class="event_log_header") { "Poster?" }
 					div(class="event_log_header") { }
+					(if *use_editor_view.get() {
+						view! {
+							ctx,
+							div(class="event_log_header") { }
+						}
+					} else {
+						view! { ctx, }
+					})
 					div(class="event_log_header") { }
-					div(class="event_log_header") { }
-					div(class="event_log_header") { "Editor" }
+					(if *use_editor_view.get() {
+						view! {
+							ctx,
+							div(class="event_log_header") { "Editor" }
+						}
+					} else {
+						view! { ctx, }
+					})
 					div(class="event_log_header") { "Notes to editor" }
-					div(class="event_log_header") { "State" }
-					div(class="event_log_header") { "Video Errors" }
+					(if *use_editor_view.get() {
+						view! {
+							ctx,
+							div(class="event_log_header") { "State" }
+							div(class="event_log_header") { "Video Errors" }
+						}
+					} else {
+						view! { ctx, }
+					})
 					Keyed(
 						iterable=log_lines,
 						key=|line| line.id(),
@@ -527,7 +567,8 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 														editing_entry_parent=editing_entry_parent,
 														entries_by_parent=entries_by_parent_signal,
 														child_depth=0,
-														entry_numbers=entry_numbers_signal
+														entry_numbers=entry_numbers_signal,
+														use_editor_view=use_editor_view
 													)
 												}
 											} else {
@@ -555,7 +596,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 								let typing_event_log = typing_event_log.clone();
 								view! {
 									ctx,
-									div(id="event_log_new_entry_typing") {
+									div(id="event_log_new_entry_typing", class=if *use_editor_view.get() { "event_log_new_entry_typing_editor" } else { "" }) {
 										div(class="event_log_header") {}
 										div(class="event_log_header") {}
 										div(class="event_log_header") { "Start" }
@@ -573,7 +614,13 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 										div(class="event_log_header") { "Notes to editor" }
 										div(class="event_log_header") {}
 										div(class="event_log_header") {}
-										EventLogEntryTyping(event=typing_event, event_entry_types=read_entry_types_signal, event_log=typing_event_log, typing_data=editing_typing_data)
+										EventLogEntryTyping(
+											event=typing_event,
+											event_entry_types=read_entry_types_signal,
+											event_log=typing_event_log,
+											typing_data=editing_typing_data,
+											use_editor_view=use_editor_view
+										)
 									}
 								}
 							}

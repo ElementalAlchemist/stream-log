@@ -25,6 +25,7 @@ pub struct EventLogEntryProps<'a> {
 	entries_by_parent: &'a ReadSignal<HashMap<String, Vec<EventLogEntry>>>,
 	child_depth: u32,
 	entry_numbers: &'a ReadSignal<HashMap<String, usize>>,
+	use_editor_view: &'a ReadSignal<bool>,
 }
 
 #[component]
@@ -116,9 +117,16 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 			editing_log_entry=props.editing_log_entry,
 			editing_entry_parent=props.editing_entry_parent,
 			child_depth=props.child_depth,
-			entry_numbers=props.entry_numbers
+			entry_numbers=props.entry_numbers,
+			use_editor_view=props.use_editor_view
 		)
-		EventLogEntryTyping(event=typing_event_signal, event_entry_types=props.read_entry_types_signal, event_log=props.all_log_entries, typing_data=typing_data)
+		EventLogEntryTyping(
+			event=typing_event_signal,
+			event_entry_types=props.read_entry_types_signal,
+			event_log=props.all_log_entries,
+			typing_data=typing_data,
+			use_editor_view=props.use_editor_view
+		)
 		div(class="event_log_entry_children") {
 			Keyed(
 				iterable=child_log_entries,
@@ -149,7 +157,8 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 								editing_entry_parent=props.editing_entry_parent,
 								entries_by_parent=props.entries_by_parent,
 								child_depth=props.child_depth + 1,
-								entry_numbers=props.entry_numbers
+								entry_numbers=props.entry_numbers,
+								use_editor_view=props.use_editor_view
 							)
 						}
 					}

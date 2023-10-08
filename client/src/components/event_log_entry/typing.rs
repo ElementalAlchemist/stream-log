@@ -15,6 +15,7 @@ pub struct EventLogEntryTypingProps<'a> {
 	event_entry_types: &'a ReadSignal<Vec<EntryType>>,
 	event_log: RcSignal<Vec<EventLogEntry>>,
 	typing_data: &'a ReadSignal<HashMap<String, UserTypingData>>,
+	use_editor_view: &'a ReadSignal<bool>,
 }
 
 #[component]
@@ -121,12 +122,33 @@ pub fn EventLogEntryTyping<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryTypi
 						div {}
 						div {}
 						div {}
+						(if *props.use_editor_view.get() {
+							view! {
+								ctx,
+								div {}
+							}
+						} else {
+							view! { ctx, }
+						})
 						div {}
-						div {}
-						div {}
+						(if *props.use_editor_view.get() {
+							view ! {
+								ctx,
+								div {}
+							}
+						} else {
+							view! { ctx, }
+						})
 						div { (typed_notes_to_editor) }
-						div {}
-						div {}
+						(if *props.use_editor_view.get() {
+							view! {
+								ctx,
+								div {}
+								div {}
+							}
+						} else {
+							view! { ctx, }
+						})
 					}
 				}
 			}

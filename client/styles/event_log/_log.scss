@@ -1,5 +1,14 @@
 @use "../colors";
-$event_log_column_count: 17;
+$event_log_column_count: 13;
+$event_log_editor_column_count: 17;
+
+@mixin span-whole-width {
+	grid-column: 1 / span $event_log_column_count;
+
+	.event_log_data_editor & {
+		grid-column: 1 / span $event_log_editor_column_count;
+	}
+}
 
 #event_log_layout {
 	display: flex;
@@ -72,13 +81,30 @@ $event_log_column_count: 17;
 		max-content
 		max-content
 		20px
-		20px
-		max-content
-		minmax(min-content, 200px)
-		max-content
-		150px;
+		minmax(min-content, 200px);
 	font-size: 12px;
 	margin-bottom: 800px;
+
+	&.event_log_data_editor {
+		grid-template-columns:
+			max-content
+			max-content
+			max-content
+			max-content
+			max-content
+			minmax(150px, 1fr)
+			minmax(min-content, 150px)
+			minmax(min-content, 100px)
+			minmax(min-content, 150px)
+			max-content
+			max-content
+			20px
+			20px
+			max-content
+			minmax(min-content, 200px)
+			max-content
+			150px;
+	}
 	
 	.event_log_entry_edit {
 		margin-bottom: 10px;
@@ -109,7 +135,7 @@ $event_log_column_count: 17;
 }
 
 .event_log_section_header {
-	grid-column: 1 / span $event_log_column_count;
+	@include span-whole-width;
 	display: flex;
 	align-items: center;
 }
@@ -128,7 +154,7 @@ $event_log_column_count: 17;
 
 .event_log_entry_top_border {
 	border-top: 1px solid var(--base-border-color);
-	grid-column: 1 / span $event_log_column_count;
+	@include span-whole-width;
 }
 
 .event_log_entry {
@@ -288,7 +314,7 @@ $event_log_column_count: 17;
 }
 
 .event_log_entry_typing_header {
-	grid-column: 1 / span $event_log_column_count;
+	@include span-whole-width;
 	display: flex;
 	gap: 4px;
 }
@@ -298,7 +324,7 @@ $event_log_column_count: 17;
 }
 
 .event_log_entry_edit {
-	grid-column: 1 / span $event_log_column_count;
+	@include span-whole-width;
 }
 
 .event_log_entry_edit > div > div {
@@ -485,6 +511,12 @@ $event_log_column_count: 17;
 	font-size: 14px;
 }
 
+@media (prefers-color-scheme: dark) {
+	#event_log_new_entry {
+		border-top: 1px #aaa solid;
+	}
+}
+
 #event_log_new_entry_typing {
 	display: grid;
 	grid-template-columns:
@@ -494,26 +526,21 @@ $event_log_column_count: 17;
 		max-content
 		max-content
 		1fr
-		max-content
-		max-content
-		max-content
-		max-content
-		max-content
-		max-content
-		max-content
-		max-content
-		max-content
-		max-content
-		max-content;
+		repeat($event_log_column_count - 6, max-content);
 	gap: 8px;
+
+	&.event_log_new_entry_typing_editor {
+		grid-template-columns:
+			max-content
+			max-content
+			max-content
+			max-content
+			max-content
+			1fr
+			repeat($event_log_editor_column_count - 6, max-content);
+	}
 }
 
 .event_log_entry_typing_username {
-	grid-column: 1 / span $event_log_column_count;
-}
-
-@media (prefers-color-scheme: dark) {
-	#event_log_new_entry {
-		border-top: 1px #aaa solid;
-	}
+	@include span-whole-width;
 }
