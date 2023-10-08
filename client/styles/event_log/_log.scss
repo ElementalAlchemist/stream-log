@@ -308,6 +308,26 @@ $event_log_column_count: 17;
 .event_log_entry_edit_editing_info {
 	font-size: 125%;
 	font-weight: 700;
+
+	&.event_log_entry_edit_editing_info_existing {
+		background: #fc6;
+	}
+
+	&.event_log_entry_edit_editing_info_new {
+		background: #9f9;
+	}
+}
+
+@media (prefers-color-scheme: dark) {
+	.event_log_entry_edit_editing_info {
+		&.event_log_entry_edit_editing_info_existing {
+			background: #850;
+		}
+
+		&.event_log_entry_edit_editing_info_new {
+			background: #060;
+		}
+	}
 }
 
 .event_log_entry_edit_parent_info {

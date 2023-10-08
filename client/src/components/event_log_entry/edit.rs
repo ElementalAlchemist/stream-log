@@ -1205,20 +1205,30 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			)
 		}
 		form(class="event_log_entry_edit", on:submit=save_handler) {
-			div(class="event_log_entry_edit_editing_info") {
-				(if let Some(entry) = (*props.editing_log_entry.get()).as_ref() {
-					let start_duration = entry.start_time - props.event.get().start_time;
-					let start_duration = format_duration(&start_duration);
-					let end_duration = entry.end_time.map(|end_time| end_time - props.event.get().start_time);
-					let end_duration = end_duration.map(|d| format_duration(&d)).unwrap_or_default();
-					let entry_type_id_index = event_entry_types_id_index.get();
-					let entry_type = entry_type_id_index.get(&entry.entry_type);
-					let entry_type_name = entry_type.map(|entry_type| entry_type.name.clone()).unwrap_or_default();
-					format!("Editing entry: {} / {} / {} / {}", start_duration, end_duration, entry_type_name, entry.description)
-				} else {
-					String::from("Creating new entry")
-				})
-			}
+			(if let Some(entry) = (*props.editing_log_entry.get()).as_ref() {
+				let start_duration = entry.start_time - props.event.get().start_time;
+				let start_duration = format_duration(&start_duration);
+				let end_duration = entry.end_time.map(|end_time| end_time - props.event.get().start_time);
+				let end_duration = end_duration.map(|d| format_duration(&d)).unwrap_or_default();
+				let entry_type_id_index = event_entry_types_id_index.get();
+				let entry_type = entry_type_id_index.get(&entry.entry_type);
+				let entry_type_name = entry_type.map(|entry_type| entry_type.name.clone()).unwrap_or_default();
+				let header_text = format!("Editing entry: {} / {} / {} / {}", start_duration, end_duration, entry_type_name, entry.description);
+
+				view! {
+					ctx,
+					div(class="event_log_entry_edit_editing_info event_log_entry_edit_editing_info_existing") {
+						(header_text)
+					}
+				}
+			} else {
+				view! {
+					ctx,
+					div(class="event_log_entry_edit_editing_info event_log_entry_edit_editing_info_new") {
+						"Creating new entry"
+					}
+				}
+			})
 			div(class="event_log_entry_edit_parent_info") {
 				(if let Some(parent) = props.edit_parent_log_entry.get().as_ref() {
 					let start_time_duration = parent.start_time - props.event.get().start_time;
