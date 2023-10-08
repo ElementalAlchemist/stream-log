@@ -608,12 +608,33 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 										div(class="event_log_header") {}
 										div(class="event_log_header") {}
 										div(class="event_log_header") {}
+										(if *use_editor_view.get() {
+											view! {
+												ctx,
+												div(class="event_log_header") {}
+											}
+										} else {
+											view! { ctx, }
+										})
 										div(class="event_log_header") {}
-										div(class="event_log_header") {}
-										div(class="event_log_header") {}
+										(if *use_editor_view.get() {
+											view! {
+												ctx,
+												div(class="event_log_header") {}
+											}
+										} else {
+											view! { ctx, }
+										})
 										div(class="event_log_header") { "Notes to editor" }
-										div(class="event_log_header") {}
-										div(class="event_log_header") {}
+										(if *use_editor_view.get() {
+											view! {
+												ctx,
+												div(class="event_log_header") {}
+												div(class="event_log_header") {}
+											}
+										} else {
+											view! { ctx, }
+										})
 										EventLogEntryTyping(
 											event=typing_event,
 											event_entry_types=read_entry_types_signal,
