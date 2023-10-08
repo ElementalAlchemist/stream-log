@@ -422,6 +422,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 			div(id="event_log") {
 				div(id="event_log_data") {
 					div(class="event_log_header") { }
+					div(class="event_log_header") { }
 					div(class="event_log_header") { "Start" }
 					div(class="event_log_header") { "End" }
 					div(class="event_log_header") { "Type" }
