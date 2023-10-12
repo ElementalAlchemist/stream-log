@@ -8,6 +8,7 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 
 #[derive(Serialize)]
+#[serde(tag = "type", content = "time")]
 pub enum EndTimeData {
 	Time(DateTime<Utc>),
 	NotEntered,
