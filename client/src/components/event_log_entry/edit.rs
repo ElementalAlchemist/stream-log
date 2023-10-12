@@ -9,7 +9,7 @@ use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use stream_log_shared::messages::entry_types::EntryType;
-use stream_log_shared::messages::event_log::{EventLogEntry, VideoEditState};
+use stream_log_shared::messages::event_log::{EndTimeData, EventLogEntry, VideoEditState};
 use stream_log_shared::messages::event_subscription::{EventSubscriptionUpdate, NewTypingData};
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::permissions::PermissionLevel;
@@ -215,8 +215,12 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 
 	let initial_end_time = (*props.editing_log_entry.get())
 		.as_ref()
-		.and_then(|entry| entry.end_time);
-	let initial_end_time_duration = initial_end_time.map(|end_time| end_time - props.event.get().start_time);
+		.map(|entry| entry.end_time)
+		.unwrap_or(EndTimeData::NotEntered);
+	let initial_end_time_duration = match initial_end_time {
+		EndTimeData::Time(end_time) => Some(end_time - props.event.get().start_time),
+		_ => None,
+	};
 	let initial_end_time_input = if let Some(duration) = initial_end_time_duration.as_ref() {
 		format_duration(duration)
 	} else {
@@ -226,7 +230,8 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		ctx,
 		(*props.editing_log_entry.get())
 			.as_ref()
-			.and_then(|entry| entry.end_time),
+			.map(|entry| entry.end_time)
+			.unwrap_or(EndTimeData::NotEntered),
 	);
 	let end_time_input = create_signal(ctx, initial_end_time_input);
 	let end_time_error: &Signal<Option<String>> = create_signal(ctx, None);
@@ -235,7 +240,11 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		let event_start = props.event.get().start_time;
 		if end_time_input.is_empty() {
 			end_time_error.set(None);
-			end_time_value.set(None);
+			end_time_value.set(EndTimeData::NotEntered);
+			modified_entry_data.modify().insert(ModifiedEventLogEntryParts::EndTime);
+		} else if end_time_input.chars().all(|c| c == '-') {
+			end_time_error.set(None);
+			end_time_value.set(EndTimeData::NoTime);
 			modified_entry_data.modify().insert(ModifiedEventLogEntryParts::EndTime);
 		} else {
 			let end_time_result = get_duration_from_formatted(end_time_input);
@@ -243,7 +252,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 				Ok(duration) => {
 					end_time_error.set(None);
 					let new_end_time = event_start + duration;
-					end_time_value.set(Some(new_end_time));
+					end_time_value.set(EndTimeData::Time(new_end_time));
 
 					modified_entry_data.modify().insert(ModifiedEventLogEntryParts::EndTime);
 				}
@@ -801,8 +810,14 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			let event_start_time = props.event.get_untracked().start_time;
 			let start_duration = entry.start_time - event_start_time;
 			let start_duration = format_duration(&start_duration);
-			let end_duration = entry.end_time.map(|end_time| end_time - event_start_time);
-			let end_duration = end_duration.map(|d| format_duration(&d)).unwrap_or_default();
+			let end_duration = match entry.end_time {
+				EndTimeData::Time(time) => {
+					let duration = time - event_start_time;
+					format_duration(&duration)
+				}
+				EndTimeData::NotEntered => String::new(),
+				EndTimeData::NoTime => String::from("-"),
+			};
 			let entry_type = event_entry_types_id_index
 				.get()
 				.get(&entry.entry_type)
@@ -1208,8 +1223,14 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			(if let Some(entry) = (*props.editing_log_entry.get()).as_ref() {
 				let start_duration = entry.start_time - props.event.get().start_time;
 				let start_duration = format_duration(&start_duration);
-				let end_duration = entry.end_time.map(|end_time| end_time - props.event.get().start_time);
-				let end_duration = end_duration.map(|d| format_duration(&d)).unwrap_or_default();
+				let end_duration = match entry.end_time {
+					EndTimeData::Time(time) => {
+						let duration = time - props.event.get().start_time;
+						format_duration(&duration)
+					}
+					EndTimeData::NotEntered => String::new(),
+					EndTimeData::NoTime => String::from("—")
+				};
 				let entry_type_id_index = event_entry_types_id_index.get();
 				let entry_type = entry_type_id_index.get(&entry.entry_type);
 				let entry_type_name = entry_type.map(|entry_type| entry_type.name.clone()).unwrap_or_default();
@@ -1232,14 +1253,20 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			div(class="event_log_entry_edit_parent_info") {
 				(if let Some(parent) = props.edit_parent_log_entry.get().as_ref() {
 					let start_time_duration = parent.start_time - props.event.get().start_time;
-					let end_time_duration = parent.end_time.map(|end_time| end_time - props.event.get().start_time);
 					let event_entry_types = props.event_entry_types.get();
 					let Some(entry_type) = event_entry_types.iter().find(|entry_type| entry_type.id == parent.entry_type) else { return view! { ctx, }};
 					let entry_type_name = entry_type.name.clone();
 					let description = parent.description.clone();
 
 					let start_time = format_duration(&start_time_duration);
-					let end_time = end_time_duration.map(|d| format_duration(&d)).unwrap_or_default();
+					let end_time = match parent.end_time {
+						EndTimeData::Time(time) => {
+							let duration = time - props.event.get().start_time;
+							format_duration(&duration)
+						}
+						EndTimeData::NotEntered => String::new(),
+						EndTimeData::NoTime => String::from("—")
+					};
 
 					view! {
 						ctx,

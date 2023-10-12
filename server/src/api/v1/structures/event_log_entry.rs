@@ -7,6 +7,13 @@ use super::video_state::VideoState;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
+#[derive(Serialize)]
+pub enum EndTimeData {
+	Time(DateTime<Utc>),
+	NotEntered,
+	NoTime,
+}
+
 /// The event log entry object representing an entry in the event log.
 #[derive(Serialize)]
 pub struct EventLogEntry {
@@ -15,7 +22,7 @@ pub struct EventLogEntry {
 	/// The start time of the entry
 	pub start_time: DateTime<Utc>,
 	/// The end time of the entry, if entered
-	pub end_time: Option<DateTime<Utc>>,
+	pub end_time: EndTimeData,
 	/// The entry type this entry has
 	pub entry_type: EntryType,
 	/// The entry description

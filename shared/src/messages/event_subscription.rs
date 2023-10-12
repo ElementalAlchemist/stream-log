@@ -1,5 +1,5 @@
 use super::entry_types::EntryType;
-use super::event_log::{EventLogEntry, EventLogSection, VideoEditState};
+use super::event_log::{EndTimeData, EventLogEntry, EventLogSection, VideoEditState};
 use super::events::Event;
 use super::info_pages::InfoPage;
 use super::tags::Tag;
@@ -49,7 +49,7 @@ pub enum EventSubscriptionUpdate {
 	NewLogEntry(EventLogEntry, u8),
 	DeleteLogEntry(EventLogEntry),
 	ChangeStartTime(EventLogEntry, DateTime<Utc>),
-	ChangeEndTime(EventLogEntry, Option<DateTime<Utc>>),
+	ChangeEndTime(EventLogEntry, EndTimeData),
 	/// Updates the entry type for the given [`EventLogEntry`]. Accepts a string ID.
 	ChangeEntryType(EventLogEntry, String),
 	ChangeDescription(EventLogEntry, String),

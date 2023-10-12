@@ -11,7 +11,9 @@ use stream_log_shared::messages::admin::{
 	Application as ApplicationWs, PermissionGroup as PermissionGroupWs, PermissionGroupEventAssociation,
 };
 use stream_log_shared::messages::entry_types::EntryType as EntryTypeWs;
-use stream_log_shared::messages::event_log::{VideoEditState as VideoEditStateWs, VideoState as VideoStateWs};
+use stream_log_shared::messages::event_log::{
+	EndTimeData, VideoEditState as VideoEditStateWs, VideoState as VideoStateWs,
+};
 use stream_log_shared::messages::events::Event as EventWs;
 use stream_log_shared::messages::info_pages::InfoPage as InfoPageWs;
 use stream_log_shared::messages::permissions::PermissionLevel;
@@ -313,6 +315,17 @@ pub struct EventLogEntry {
 	pub video_edit_state: VideoEditState,
 	pub marked_incomplete: bool,
 	pub media_links: Vec<Option<String>>,
+	pub end_time_incomplete: bool,
+}
+
+impl EventLogEntry {
+	pub fn end_time_data(&self) -> EndTimeData {
+		match (self.end_time, self.end_time_incomplete) {
+			(Some(time), _) => EndTimeData::Time(time),
+			(None, true) => EndTimeData::NotEntered,
+			(None, false) => EndTimeData::NoTime,
+		}
+	}
 }
 
 #[derive(Insertable, Queryable)]
@@ -382,6 +395,7 @@ pub struct EventLogHistoryEntry {
 	pub video_edit_state: VideoEditState,
 	pub marked_incomplete: bool,
 	pub media_links: Vec<Option<String>>,
+	pub end_time_incomplete: bool,
 }
 
 pub enum EditSource {
@@ -420,6 +434,7 @@ impl EventLogHistoryEntry {
 			poster_moment: entry.poster_moment,
 			video_edit_state: entry.video_edit_state,
 			marked_incomplete: entry.marked_incomplete,
+			end_time_incomplete: entry.end_time_incomplete,
 		}
 	}
 }

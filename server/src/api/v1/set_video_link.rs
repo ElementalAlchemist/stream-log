@@ -77,6 +77,8 @@ async fn update_video_link(
 			.get_result(db_connection)?;
 		update_history(db_connection, entry.clone(), application_id)?;
 
+		let end_time = entry.end_time_data();
+
 		let tags: Vec<TagDb> = tags::table
 			.filter(
 				tags::id.eq_any(
@@ -98,7 +100,7 @@ async fn update_video_link(
 		let entry = EventLogEntry {
 			id: entry.id,
 			start_time: entry.start_time,
-			end_time: entry.end_time,
+			end_time,
 			entry_type: entry.entry_type,
 			description: entry.description,
 			media_links: entry.media_links.into_iter().flatten().collect(),

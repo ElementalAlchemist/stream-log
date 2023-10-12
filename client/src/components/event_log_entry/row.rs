@@ -3,7 +3,7 @@ use crate::color_utils::rgb_str_from_color;
 use crate::entry_type_colors::use_white_foreground;
 use std::collections::HashMap;
 use stream_log_shared::messages::entry_types::EntryType;
-use stream_log_shared::messages::event_log::{EventLogEntry, VideoEditState};
+use stream_log_shared::messages::event_log::{EndTimeData, EventLogEntry, VideoEditState};
 use stream_log_shared::messages::events::Event;
 use sycamore::prelude::*;
 use web_sys::Event as WebEvent;
@@ -58,16 +58,14 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 			let Some(entry) = (*props.entry.get()).clone() else {
 				return String::new();
 			};
-			let Some(entry_end_time) = entry.end_time else {
-				let display_string = if entry.marked_incomplete {
-					String::new()
-				} else {
-					String::from("—")
-				};
-				return display_string;
-			};
-			let end_time_duration = entry_end_time - event_start;
-			format_duration(&end_time_duration)
+			match entry.end_time {
+				EndTimeData::Time(time) => {
+					let end_time_duration = time - event_start;
+					format_duration(&end_time_duration)
+				}
+				EndTimeData::NotEntered => String::new(),
+				EndTimeData::NoTime => String::from("—"),
+			}
 		}
 	});
 

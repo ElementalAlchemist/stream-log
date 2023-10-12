@@ -4,7 +4,7 @@ use crate::color_utils::rgb_str_from_color;
 use crate::subscriptions::event::TypingTarget;
 use std::collections::HashMap;
 use stream_log_shared::messages::entry_types::EntryType;
-use stream_log_shared::messages::event_log::EventLogEntry;
+use stream_log_shared::messages::event_log::{EndTimeData, EventLogEntry};
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::user::UserData;
 use sycamore::prelude::*;
@@ -87,13 +87,19 @@ pub fn EventLogEntryTyping<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryTypi
 							(if let Some(parent) = parent_entry.as_ref() {
 								let event = event.clone();
 								let start_time_duration = parent.start_time - event.start_time;
-								let end_time_duration = parent.end_time.map(|time| time - event.start_time);
 								let Some(entry_type) = event_entry_types.iter().find(|entry_type| entry_type.id == parent.entry_type) else { return view! { ctx, } };
 								let entry_type_name = entry_type.name.clone();
 								let description = parent.description.clone();
 
 								let start_time = format_duration(&start_time_duration);
-								let end_time = end_time_duration.map(|duration| format_duration(&duration)).unwrap_or_default();
+								let end_time = match parent.end_time {
+									EndTimeData::Time(time) => {
+										let duration = time - event.start_time;
+										format_duration(&duration)
+									}
+									EndTimeData::NotEntered => String::new(),
+									EndTimeData::NoTime => String::from("—")
+								};
 								view! {
 									ctx,
 									img(class="event_log_entry_edit_parent_child_indicator", src="images/child-indicator.png")

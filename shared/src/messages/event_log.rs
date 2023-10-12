@@ -3,11 +3,21 @@ use super::user::UserData;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub enum EndTimeData {
+	/// Indicates an entered time with the specified accompanying value
+	Time(DateTime<Utc>),
+	/// Indicates that a time has not yet been entered but will be
+	NotEntered,
+	/// Indicates that no time is to be entered
+	NoTime
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct EventLogEntry {
 	pub id: String,
 	pub start_time: DateTime<Utc>,
-	pub end_time: Option<DateTime<Utc>>,
+	pub end_time: EndTimeData,
 	pub entry_type: String,
 	pub description: String,
 	pub media_links: Vec<String>,

@@ -37,6 +37,8 @@ pub async fn set_video_errors(
 			.get_result(db_connection)?;
 		update_history(db_connection, entry.clone(), &application.id)?;
 
+		let end_time = entry.end_time_data();
+
 		let entry_tags: Vec<TagDb> = tags::table
 			.filter(
 				tags::id.eq_any(
@@ -58,7 +60,7 @@ pub async fn set_video_errors(
 		let entry = EventLogEntry {
 			id: entry.id,
 			start_time: entry.start_time,
-			end_time: entry.end_time,
+			end_time,
 			entry_type: entry.entry_type,
 			description: entry.description,
 			media_links: entry.media_links.into_iter().flatten().collect(),

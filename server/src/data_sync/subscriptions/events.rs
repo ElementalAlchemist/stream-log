@@ -16,7 +16,7 @@ use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use std::collections::{HashMap, HashSet};
 use stream_log_shared::messages::entry_types::EntryType;
-use stream_log_shared::messages::event_log::{EventLogEntry, EventLogSection};
+use stream_log_shared::messages::event_log::{EndTimeData, EventLogEntry, EventLogSection};
 use stream_log_shared::messages::event_subscription::{
 	EventSubscriptionData, EventSubscriptionUpdate, NewTypingData, TypingData,
 };
@@ -420,6 +420,7 @@ pub async fn subscribe_to_event(
 		.collect();
 	let mut event_log_entries: Vec<EventLogEntry> = Vec::with_capacity(log_entries.len());
 	for log_entry in log_entries.iter() {
+		let end_time = log_entry.end_time_data();
 		let tags = match tags_by_log_entry.remove(&log_entry.id) {
 			Some(tags) => tags,
 			None => Vec::new(),
@@ -458,7 +459,7 @@ pub async fn subscribe_to_event(
 		let send_entry = EventLogEntry {
 			id: log_entry.id.clone(),
 			start_time: log_entry.start_time,
-			end_time: log_entry.end_time,
+			end_time,
 			entry_type: log_entry.entry_type.clone(),
 			description: log_entry.description.clone(),
 			media_links: log_entry.media_links.iter().filter_map(|link| link.clone()).collect(),
@@ -525,16 +526,18 @@ pub async fn handle_event_update(
 
 				// Store times with minute granularity
 				let mut start_time = log_entry_data.start_time;
-				let mut end_time = log_entry_data.end_time;
 
 				start_time = start_time.with_second(0).unwrap();
 				start_time = start_time.with_nanosecond(0).unwrap();
-				if let Some(end) = end_time {
-					end_time = end.with_second(0);
-					if let Some(end) = end_time {
-						end_time = end.with_nanosecond(0);
+				let (end_time, end_time_incomplete) = match log_entry_data.end_time {
+					EndTimeData::Time(mut end) => {
+						end = end.with_second(0).unwrap();
+						end = end.with_nanosecond(0).unwrap();
+						(Some(end), false)
 					}
-				}
+					EndTimeData::NotEntered => (None, true),
+					EndTimeData::NoTime => (None, false),
+				};
 
 				let create_time = Utc::now();
 
@@ -563,6 +566,7 @@ pub async fn handle_event_update(
 					poster_moment: false,
 					video_edit_state: log_entry_data.video_edit_state.into(),
 					marked_incomplete: log_entry_data.marked_incomplete,
+					end_time_incomplete,
 				};
 
 				let history_entry = EventLogHistoryEntry::new_from_event_log_entry(
@@ -629,6 +633,7 @@ pub async fn handle_event_update(
 					});
 				let new_log_entry = match insert_result {
 					Ok((entry, entry_tags, editor)) => {
+						let end_time = entry.end_time_data();
 						let tags: Vec<Tag> = entry_tags
 							.iter()
 							.map(|tag| Tag {
@@ -641,7 +646,7 @@ pub async fn handle_event_update(
 						EventLogEntry {
 							id: entry.id,
 							start_time: entry.start_time,
-							end_time: entry.end_time,
+							end_time,
 							entry_type: entry.entry_type,
 							description: entry.description,
 							media_links: entry.media_links.into_iter().flatten().collect(),
@@ -737,10 +742,18 @@ pub async fn handle_event_update(
 		}
 		EventSubscriptionUpdate::ChangeEndTime(log_entry, new_end_time) => {
 			let mut db_connection = db_connection.lock().await;
+			let (new_end_time, new_end_time_incomplete) = match new_end_time {
+				EndTimeData::Time(time) => (Some(time), false),
+				EndTimeData::NotEntered => (None, true),
+				EndTimeData::NoTime => (None, false),
+			};
 			let update_func = |db_connection: &mut PgConnection| -> QueryResult<EventLogEntryDb> {
 				let mut updated_entry: EventLogEntryDb = diesel::update(event_log::table)
 					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
-					.set(event_log::end_time.eq(new_end_time))
+					.set((
+						event_log::end_time.eq(new_end_time),
+						event_log::end_time_incomplete.eq(new_end_time_incomplete),
+					))
 					.get_result(db_connection)?;
 				if updated_entry.marked_incomplete
 					&& updated_entry.end_time.is_some()
@@ -948,6 +961,7 @@ pub async fn handle_event_update(
 					.values(history_entry_tags)
 					.execute(db_connection)?;
 
+				let end_time = log_entry.end_time_data();
 				let tags: Vec<Tag> = tags.into_iter().map(|tag| tag.into()).collect();
 				let editor: Option<User> = match log_entry.editor {
 					Some(editor) => Some(users::table.find(editor).first(db_connection)?),
@@ -958,7 +972,7 @@ pub async fn handle_event_update(
 				let log_entry = EventLogEntry {
 					id: log_entry.id,
 					start_time: log_entry.start_time,
-					end_time: log_entry.end_time,
+					end_time,
 					entry_type: log_entry.entry_type,
 					description: log_entry.description,
 					media_links: log_entry.media_links.into_iter().flatten().collect(),
@@ -1290,6 +1304,8 @@ pub async fn handle_event_update(
 
 				let mut output_log_entries: Vec<EventLogEntry> = Vec::with_capacity(affected_log_entries.len());
 				for log_entry in affected_log_entries.iter() {
+					let end_time = log_entry.end_time_data();
+
 					let tag_ids: Vec<String> = entry_tags
 						.iter()
 						.filter(|entry_tag| entry_tag.log_entry == log_entry.id)
@@ -1310,7 +1326,7 @@ pub async fn handle_event_update(
 					let updated_entry = EventLogEntry {
 						id: log_entry.id.clone(),
 						start_time: log_entry.start_time,
-						end_time: log_entry.end_time,
+						end_time,
 						entry_type: log_entry.entry_type.clone(),
 						description: log_entry.description.clone(),
 						media_links: log_entry.media_links.iter().filter_map(|link| link.clone()).collect(),
@@ -1421,6 +1437,9 @@ fn log_entry_change(
 ) -> QueryResult<EventLogEntry> {
 	db_connection.transaction(|db_connection| {
 		let log_entry = record_update(db_connection)?;
+
+		let end_time = log_entry.end_time_data();
+
 		let tags: Vec<TagDb> = tags::table
 			.filter(
 				event_log_tags::table
@@ -1461,7 +1480,7 @@ fn log_entry_change(
 		let log_entry = EventLogEntry {
 			id: log_entry.id,
 			start_time: log_entry.start_time,
-			end_time: log_entry.end_time,
+			end_time,
 			entry_type: log_entry.entry_type,
 			description: log_entry.description,
 			media_links: log_entry.media_links.into_iter().flatten().collect(),

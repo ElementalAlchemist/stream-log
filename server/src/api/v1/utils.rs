@@ -75,6 +75,7 @@ pub fn update_history(db_connection: &mut PgConnection, entry: EventLogEntry, ap
 		poster_moment: entry.poster_moment,
 		video_edit_state: entry.video_edit_state,
 		marked_incomplete: entry.marked_incomplete,
+		end_time_incomplete: entry.end_time_incomplete,
 	};
 	let history_tags: Vec<EventLogHistoryTag> = tags
 		.iter()

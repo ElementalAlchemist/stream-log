@@ -76,6 +76,7 @@ diesel::table! {
 		video_edit_state -> VideoEditState,
 		marked_incomplete -> Bool,
 		media_links -> Array<Nullable<Text>>,
+		end_time_incomplete -> Bool,
 	}
 }
 
@@ -108,6 +109,7 @@ diesel::table! {
 		video_edit_state -> VideoEditState,
 		marked_incomplete -> Bool,
 		media_links -> Array<Nullable<Text>>,
+		end_time_incomplete -> Bool,
 	}
 }
 

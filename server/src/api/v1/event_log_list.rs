@@ -1,5 +1,5 @@
 use super::structures::entry_type::EntryType as EntryTypeApi;
-use super::structures::event_log_entry::EventLogEntry as EventLogEntryApi;
+use super::structures::event_log_entry::{EndTimeData, EventLogEntry as EventLogEntryApi};
 use super::structures::event_log_response::EventLogResponse;
 use super::structures::event_log_section::EventLogSection;
 use super::structures::tag::Tag as TagApi;
@@ -256,6 +256,12 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 	let event_log: Vec<EventLogEntryApi> = event_log
 		.into_iter()
 		.map(|entry| {
+			let end_time = match (entry.end_time, entry.end_time_incomplete) {
+				(Some(time), _) => EndTimeData::Time(time),
+				(None, true) => EndTimeData::NotEntered,
+				(None, false) => EndTimeData::NoTime,
+			};
+
 			let editor_link = event.editor_link_format.replace("{id}", &entry.id);
 			let editor_link = if editor_link.is_empty() {
 				None
@@ -266,7 +272,7 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 			EventLogEntryApi {
 				id: entry.id.clone(),
 				start_time: entry.start_time,
-				end_time: entry.end_time,
+				end_time,
 				entry_type: (*entry_types.get(&entry.entry_type).unwrap()).clone(),
 				description: entry.description.clone(),
 				media_links: entry.media_links.iter().filter_map(|link| link.clone()).collect(),
