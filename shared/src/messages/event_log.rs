@@ -10,7 +10,7 @@ pub enum EndTimeData {
 	/// Indicates that a time has not yet been entered but will be
 	NotEntered,
 	/// Indicates that no time is to be entered
-	NoTime
+	NoTime,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
