@@ -105,6 +105,9 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 
 	create_effect(ctx, move || {
 		let parent_entry = props.edit_parent_log_entry.get();
+		if *suppress_typing_notifications.get_untracked() {
+			return;
+		}
 		let parent_entry_id = (*parent_entry)
 			.as_ref()
 			.map(|entry| entry.id.clone())

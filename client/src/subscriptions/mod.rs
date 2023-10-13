@@ -795,7 +795,7 @@ fn handle_typing_data(
 	target_field: TypingTarget,
 ) {
 	let mut typing_events = event_data.typing_events.modify();
-	if typed_data.is_empty() {
+	if typed_data.is_empty() && target_field != TypingTarget::Parent {
 		let event_index = typing_events
 			.iter()
 			.enumerate()
