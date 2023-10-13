@@ -19,7 +19,8 @@ use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::FromClientMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
-use web_sys::Event as WebEvent;
+use wasm_bindgen::JsCast;
+use web_sys::{Event as WebEvent, KeyboardEvent};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 enum ModifiedEventLogEntryParts {
@@ -742,16 +743,24 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 	modified_entry_data.modify().clear();
 	suppress_typing_notifications.set(false);
 
-	let start_now_handler = move |_event: WebEvent| {
+	let start_now = || {
 		let start_time_duration = Utc::now() - props.event.get().start_time;
 		let start_time_duration = format_duration(&start_time_duration);
 		start_time_input.set(start_time_duration);
 	};
 
-	let end_now_handler = move |_event: WebEvent| {
+	let start_now_handler = move |_event: WebEvent| {
+		start_now();
+	};
+
+	let end_now = || {
 		let end_time_duration = Utc::now() - props.event.get().start_time;
 		let end_time_duration = format_duration(&end_time_duration);
 		end_time_input.set(end_time_duration);
+	};
+
+	let end_now_handler = move |_event: WebEvent| {
+		end_now();
 	};
 
 	let start_time_warning_confirmation = move |_event: WebEvent| {
@@ -1181,6 +1190,29 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		props.edit_parent_log_entry.set(None);
 	};
 
+	let key_handler = move |event: WebEvent| {
+		let key_event: KeyboardEvent = event.unchecked_into();
+
+		if !key_event.alt_key() || key_event.shift_key() || key_event.ctrl_key() || key_event.meta_key() {
+			return;
+		}
+
+		match key_event.key().as_str() {
+			"s" => {
+				if props.editing_log_entry.get().is_none() {
+					start_now();
+				}
+			}
+			"e" => end_now(),
+			"i" => {
+				if !*disable_marked_incomplete.get() {
+					marked_incomplete.set(!*marked_incomplete.get());
+				}
+			}
+			_ => (),
+		}
+	};
+
 	view! {
 		ctx,
 		datalist(id="event_log_entry_edit_type_list") {
@@ -1219,7 +1251,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 				}
 			)
 		}
-		form(class="event_log_entry_edit", on:submit=save_handler) {
+		form(class="event_log_entry_edit", on:submit=save_handler, on:keydown=key_handler) {
 			(if let Some(entry) = (*props.editing_log_entry.get()).as_ref() {
 				let start_duration = entry.start_time - props.event.get().start_time;
 				let start_duration = format_duration(&start_duration);

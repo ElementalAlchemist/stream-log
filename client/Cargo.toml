@@ -33,6 +33,7 @@ features = [
 	"HtmlButtonElement",
 	"HtmlInputElement",
 	"HtmlSpanElement",
+	"KeyboardEvent",
 	"Node",
 	"ScrollIntoViewOptions",
 	"ScrollLogicalPosition",
