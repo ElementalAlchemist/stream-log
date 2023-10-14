@@ -2,8 +2,8 @@ use crate::data_sync::connection::ConnectionUpdate;
 use crate::data_sync::{HandleConnectionError, SubscriptionManager};
 use crate::models::{
 	AvailableEntryType, EditSource, EntryType as EntryTypeDb, Event as EventDb, EventLogEntry as EventLogEntryDb,
-	EventLogHistoryEntry, EventLogHistoryTag, EventLogSection as EventLogSectionDb, EventLogTag,
-	InfoPage as InfoPageDb, Permission, PermissionEvent, Tag as TagDb, User, VideoEditState as VideoEditStateDb,
+	EventLogEntryChanges, EventLogHistoryEntry, EventLogHistoryTag, EventLogSection as EventLogSectionDb, EventLogTag,
+	InfoPage as InfoPageDb, Permission, PermissionEvent, Tag as TagDb, User,
 };
 use crate::schema::{
 	available_entry_types_for_event, entry_types, event_editors, event_log, event_log_history, event_log_history_tags,
@@ -18,7 +18,7 @@ use std::collections::{HashMap, HashSet};
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_log::{EndTimeData, EventLogEntry, EventLogSection};
 use stream_log_shared::messages::event_subscription::{
-	EventSubscriptionData, EventSubscriptionUpdate, NewTypingData, TypingData,
+	EventSubscriptionData, EventSubscriptionUpdate, ModifiedEventLogEntryParts, NewTypingData, TypingData,
 };
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::info_pages::InfoPage;
@@ -721,424 +721,80 @@ pub async fn handle_event_update(
 
 			vec![EventSubscriptionData::DeleteLogEntry(deleted_log_entry)]
 		}
-		EventSubscriptionUpdate::ChangeStartTime(log_entry, new_start_time) => {
+		EventSubscriptionUpdate::UpdateLogEntry(log_entry, modified_parts) => {
 			let mut db_connection = db_connection.lock().await;
 			let update_func = |db_connection: &mut PgConnection| {
-				diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
-					.set(event_log::start_time.eq(new_start_time))
-					.get_result(db_connection)
-			};
-			let update_result = log_entry_change(&mut db_connection, update_func, user.id.clone());
-
-			let log_entry = match update_result {
-				Ok(entry) => entry,
-				Err(error) => {
-					tide::log::error!("Database error updating log entry start time: {}", error);
-					return Ok(());
-				}
-			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
-		}
-		EventSubscriptionUpdate::ChangeEndTime(log_entry, new_end_time) => {
-			let mut db_connection = db_connection.lock().await;
-			let (new_end_time, new_end_time_incomplete) = match new_end_time {
-				EndTimeData::Time(time) => (Some(time), false),
-				EndTimeData::NotEntered => (None, true),
-				EndTimeData::NoTime => (None, false),
-			};
-			let update_func = |db_connection: &mut PgConnection| -> QueryResult<EventLogEntryDb> {
-				let mut updated_entry: EventLogEntryDb = diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
-					.set((
-						event_log::end_time.eq(new_end_time),
-						event_log::end_time_incomplete.eq(new_end_time_incomplete),
-					))
-					.get_result(db_connection)?;
-				if updated_entry.marked_incomplete
-					&& updated_entry.end_time.is_some()
-					&& !updated_entry.submitter_or_winner.is_empty()
-				{
-					updated_entry = diesel::update(event_log::table)
-						.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
-						.set(event_log::marked_incomplete.eq(false))
-						.get_result(db_connection)?;
-				}
-				Ok(updated_entry)
-			};
-			let update_result = log_entry_change(&mut db_connection, update_func, user.id.clone());
-
-			let log_entry = match update_result {
-				Ok(entry) => entry,
-				Err(error) => {
-					tide::log::error!("Database error updating log entry end time; {}", error);
-					return Ok(());
-				}
-			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
-		}
-		EventSubscriptionUpdate::ChangeEntryType(log_entry, new_entry_type) => {
-			let mut db_connection = db_connection.lock().await;
-			let update_func = |db_connection: &mut PgConnection| {
-				let entry: EventLogEntryDb = diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
-					.set(event_log::entry_type.eq(&new_entry_type))
-					.get_result(db_connection)?;
-
-				let matching_entry_types: Vec<AvailableEntryType> = available_entry_types_for_event::table
-					.filter(
-						available_entry_types_for_event::event_id
-							.eq(&entry.event)
-							.and(available_entry_types_for_event::entry_type.eq(&entry.entry_type)),
-					)
-					.limit(1)
-					.load(db_connection)?;
-				if matching_entry_types.is_empty() {
-					return Err(diesel::result::Error::RollbackTransaction);
-				}
-
-				Ok(entry)
-			};
-			let update_result = log_entry_change(&mut db_connection, update_func, user.id.clone());
-
-			let log_entry = match update_result {
-				Ok(entry) => entry,
-				Err(error) => {
-					tide::log::error!("Database error updating log entry type: {}", error);
-					return Ok(());
-				}
-			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
-		}
-		EventSubscriptionUpdate::ChangeDescription(log_entry, new_description) => {
-			let mut db_connection = db_connection.lock().await;
-			let update_func = |db_connection: &mut PgConnection| {
-				diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
-					.set(event_log::description.eq(&new_description))
-					.get_result(db_connection)
-			};
-			let update_result = log_entry_change(&mut db_connection, update_func, user.id.clone());
-
-			let log_entry = match update_result {
-				Ok(entry) => entry,
-				Err(error) => {
-					tide::log::error!("Database error updating log entry description: {}", error);
-					return Ok(());
-				}
-			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
-		}
-		EventSubscriptionUpdate::ChangeMediaLinks(log_entry, new_media_links) => {
-			let mut db_connection = db_connection.lock().await;
-			let update_func = |db_connection: &mut PgConnection| {
-				diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
-					.set(event_log::media_links.eq(&new_media_links))
-					.get_result(db_connection)
-			};
-			let update_result = log_entry_change(&mut db_connection, update_func, user.id.clone());
-
-			let log_entry = match update_result {
-				Ok(entry) => entry,
-				Err(error) => {
-					tide::log::error!("Database error updating log entry media link: {}", error);
-					return Ok(());
-				}
-			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
-		}
-		EventSubscriptionUpdate::ChangeSubmitterWinner(log_entry, new_submitter_or_winner) => {
-			let mut db_connection = db_connection.lock().await;
-			let update_func = |db_connection: &mut PgConnection| -> QueryResult<EventLogEntryDb> {
-				let mut updated_entry: EventLogEntryDb = diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
-					.set(event_log::submitter_or_winner.eq(&new_submitter_or_winner))
-					.get_result(db_connection)?;
-				if updated_entry.marked_incomplete
-					&& updated_entry.end_time.is_some()
-					&& !updated_entry.submitter_or_winner.is_empty()
-				{
-					updated_entry = diesel::update(event_log::table)
-						.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
-						.set(event_log::marked_incomplete.eq(false))
-						.get_result(db_connection)?;
-				}
-				Ok(updated_entry)
-			};
-			let update_result = log_entry_change(&mut db_connection, update_func, user.id.clone());
-
-			let log_entry = match update_result {
-				Ok(entry) => entry,
-				Err(error) => {
-					tide::log::error!("Database error updating log entry submitter/winner: {}", error);
-					return Ok(());
-				}
-			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
-		}
-		EventSubscriptionUpdate::ChangePosterMoment(log_entry, poster_moment) => {
-			let mut db_connection = db_connection.lock().await;
-			let update_func = |db_connection: &mut PgConnection| {
-				diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
-					.set(event_log::poster_moment.eq(poster_moment))
-					.get_result(db_connection)
-			};
-			let update_result = log_entry_change(&mut db_connection, update_func, user.id.clone());
-
-			let log_entry = match update_result {
-				Ok(entry) => entry,
-				Err(error) => {
-					tide::log::error!("Database error updating log entry poster moment: {}", error);
-					return Ok(());
-				}
-			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
-		}
-		EventSubscriptionUpdate::ChangeTags(log_entry, new_tags) => {
-			let mut db_connection = db_connection.lock().await;
-			let update_result: QueryResult<EventLogEntry> = db_connection.transaction(|db_connection| {
-				let new_tag_ids: HashSet<String> = new_tags.iter().map(|tag| tag.id.clone()).collect();
-				diesel::delete(event_log_tags::table)
-					.filter(
-						event_log_tags::log_entry
-							.eq(&log_entry.id)
-							.and(event_log_tags::tag.ne_all(&new_tag_ids)),
-					)
-					.execute(db_connection)?;
-				let existing_tags: Vec<String> = event_log_tags::table
-					.filter(
-						event_log_tags::log_entry
-							.eq(&log_entry.id)
-							.and(event_log_tags::tag.eq_any(&new_tag_ids)),
-					)
-					.select(event_log_tags::tag)
-					.load(&mut *db_connection)?;
-				let insert_tag_ids: Vec<EventLogTag> = new_tag_ids
-					.iter()
-					.filter(|id| !existing_tags.contains(*id))
-					.map(|id| EventLogTag {
-						tag: id.clone(),
-						log_entry: log_entry.id.clone(),
-					})
-					.collect();
-				diesel::insert_into(event_log_tags::table)
-					.values(insert_tag_ids)
-					.execute(db_connection)?;
-
-				let log_entry: EventLogEntryDb = event_log::table.find(&log_entry.id).first(db_connection)?;
-				let tags: Vec<TagDb> = tags::table
-					.filter(
-						event_log_tags::table
-							.filter(
-								event_log_tags::tag
-									.eq(tags::id)
-									.and(event_log_tags::log_entry.eq(&log_entry.id)),
-							)
-							.count()
-							.single_value()
-							.gt(0),
-					)
-					.load(db_connection)?;
-
-				let history_entry = EventLogHistoryEntry::new_from_event_log_entry(
-					&log_entry,
-					Utc::now(),
-					EditSource::User(user.id.clone()),
-				);
-				let history_entry_tags: Vec<EventLogHistoryTag> = tags
-					.iter()
-					.map(|tag| EventLogHistoryTag {
-						tag: tag.id.clone(),
-						history_log_entry: history_entry.id.clone(),
-					})
-					.collect();
-				diesel::insert_into(event_log_history::table)
-					.values(history_entry)
-					.execute(db_connection)?;
-				diesel::insert_into(event_log_history_tags::table)
-					.values(history_entry_tags)
-					.execute(db_connection)?;
-
-				let end_time = log_entry.end_time_data();
-				let tags: Vec<Tag> = tags.into_iter().map(|tag| tag.into()).collect();
-				let editor: Option<User> = match log_entry.editor {
-					Some(editor) => Some(users::table.find(editor).first(db_connection)?),
-					None => None,
-				};
-				let editor: Option<UserData> = editor.map(|editor| editor.into());
-
-				let log_entry = EventLogEntry {
-					id: log_entry.id,
-					start_time: log_entry.start_time,
-					end_time,
-					entry_type: log_entry.entry_type,
-					description: log_entry.description,
-					media_links: log_entry.media_links.into_iter().flatten().collect(),
-					submitter_or_winner: log_entry.submitter_or_winner,
-					tags,
-					notes_to_editor: log_entry.notes_to_editor,
-					editor,
-					video_link: log_entry.video_link,
-					parent: log_entry.parent,
-					created_at: log_entry.created_at,
-					manual_sort_key: log_entry.manual_sort_key,
-					video_state: log_entry.video_state.map(|state| state.into()),
-					video_errors: log_entry.video_errors,
-					poster_moment: log_entry.poster_moment,
-					video_edit_state: log_entry.video_edit_state.into(),
-					marked_incomplete: log_entry.marked_incomplete,
-				};
-				Ok(log_entry)
-			});
-
-			let log_entry = match update_result {
-				Ok(entry) => entry,
-				Err(error) => {
-					tide::log::error!("Database error updating log entry tags: {}", error);
-					return Ok(());
-				}
-			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
-		}
-		EventSubscriptionUpdate::ChangeVideoEditState(log_entry, new_video_edit_state) => {
-			let new_video_edit_state: VideoEditStateDb = new_video_edit_state.into();
-			let mut db_connection = db_connection.lock().await;
-			let update_func = |db_connection: &mut PgConnection| {
-				diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
-					.set(event_log::video_edit_state.eq(new_video_edit_state))
-					.get_result(db_connection)
-			};
-			let update_result = log_entry_change(&mut db_connection, update_func, user.id.clone());
-
-			let log_entry = match update_result {
-				Ok(entry) => entry,
-				Err(error) => {
-					tide::log::error!("Database error updating log entry make video flag: {}", error);
-					return Ok(());
-				}
-			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
-		}
-		EventSubscriptionUpdate::ChangeNotesToEditor(log_entry, new_notes_to_editor) => {
-			let mut db_connection = db_connection.lock().await;
-			let update_func = |db_connection: &mut PgConnection| {
-				diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
-					.set(event_log::notes_to_editor.eq(&new_notes_to_editor))
-					.get_result(db_connection)
-			};
-			let update_result = log_entry_change(&mut db_connection, update_func, user.id.clone());
-
-			let log_entry = match update_result {
-				Ok(entry) => entry,
-				Err(error) => {
-					tide::log::error!("Database error updating log entry notes to editor: {}", error);
-					return Ok(());
-				}
-			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
-		}
-		EventSubscriptionUpdate::ChangeEditor(log_entry, new_editor) => {
-			let mut db_connection = db_connection.lock().await;
-			let update_func = |db_connection: &mut PgConnection| {
-				diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
-					.set(event_log::editor.eq(new_editor.as_ref().map(|user| &user.id)))
-					.get_result(db_connection)
-			};
-			let update_result = log_entry_change(&mut db_connection, update_func, user.id.clone());
-
-			let log_entry = match update_result {
-				Ok(entry) => entry,
-				Err(error) => {
-					tide::log::error!("Database error updating log entry editor: {}", error);
-					return Ok(());
-				}
-			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
-		}
-		EventSubscriptionUpdate::ChangeIsIncomplete(log_entry, new_is_incomplete_value) => {
-			// While setting this value can be done by any editor, removing it manually more strictly requires supervisor attention.
-			if !new_is_incomplete_value && *permission_level != Some(Permission::Supervisor) {
-				return Ok(());
-			}
-			let mut db_connection = db_connection.lock().await;
-			let update_func = |db_connection: &mut PgConnection| {
-				if new_is_incomplete_value {
-					diesel::update(event_log::table)
-						.filter(
-							event_log::id
-								.eq(&log_entry.id)
-								.and(event_log::deleted_by.is_null())
-								.and(event_log::end_time.is_null().or(event_log::submitter_or_winner.eq(""))),
-						)
-						.set(event_log::marked_incomplete.eq(true))
-						.get_result(db_connection)
-				} else {
-					diesel::update(event_log::table)
-						.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
-						.set(event_log::marked_incomplete.eq(new_is_incomplete_value))
-						.get_result(db_connection)
-				}
-			};
-			let update_result = log_entry_change(&mut db_connection, update_func, user.id.clone());
-
-			let log_entry = match update_result {
-				Ok(entry) => entry,
-				Err(error) => {
-					tide::log::error!("Database error updating incomplete entry flag: {}", error);
-					return Ok(());
-				}
-			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
-		}
-		EventSubscriptionUpdate::ChangeManualSortKey(log_entry, manual_sort_key) => {
-			let mut db_connection = db_connection.lock().await;
-			let update_func = |db_connection: &mut PgConnection| {
-				diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
-					.set(event_log::manual_sort_key.eq(manual_sort_key))
-					.get_result(db_connection)
-			};
-			let update_result = log_entry_change(&mut db_connection, update_func, user.id.clone());
-
-			let log_entry = match update_result {
-				Ok(entry) => entry,
-				Err(error) => {
-					tide::log::error!("Database error updating log entry manual sort key: {}", error);
-					return Ok(());
-				}
-			};
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
-		}
-		EventSubscriptionUpdate::ChangeParent(log_entry, new_parent) => {
-			if let Some(parent) = new_parent.as_ref() {
-				if log_entry.id == parent.id {
-					return Ok(());
-				}
-			}
-			let mut db_connection = db_connection.lock().await;
-			let update_func = |db_connection: &mut PgConnection| {
-				if let Some(parent) = new_parent.as_ref() {
-					let log_entry_event_id: String = event_log::table
-						.find(&log_entry.id)
-						.select(event_log::event)
-						.first(db_connection)?;
-					let parent_event_id: String = event_log::table
-						.find(&parent.id)
-						.select(event_log::event)
-						.first(db_connection)?;
-					if log_entry_event_id != parent_event_id {
-						return Err(diesel::result::Error::RollbackTransaction);
+				let mut changes = EventLogEntryChanges::default();
+				for part in modified_parts.iter() {
+					match part {
+						ModifiedEventLogEntryParts::StartTime => changes.start_time = Some(log_entry.start_time),
+						ModifiedEventLogEntryParts::EndTime => match log_entry.end_time {
+							EndTimeData::Time(time) => {
+								changes.end_time = Some(Some(time));
+								changes.end_time_incomplete = Some(false);
+							}
+							EndTimeData::NotEntered => {
+								changes.end_time = Some(None);
+								changes.end_time_incomplete = Some(true);
+							}
+							EndTimeData::NoTime => {
+								changes.end_time = Some(None);
+								changes.end_time_incomplete = Some(false);
+							}
+						},
+						ModifiedEventLogEntryParts::EntryType => {
+							changes.entry_type = Some(log_entry.entry_type.clone())
+						}
+						ModifiedEventLogEntryParts::Description => {
+							changes.description = Some(log_entry.description.clone())
+						}
+						ModifiedEventLogEntryParts::MediaLinks => {
+							changes.media_links =
+								Some(log_entry.media_links.iter().map(|link| Some(link.clone())).collect())
+						}
+						ModifiedEventLogEntryParts::SubmitterOrWinner => {
+							changes.submitter_or_winner = Some(log_entry.submitter_or_winner.clone())
+						}
+						ModifiedEventLogEntryParts::Tags => {
+							let updated_tags: Vec<EventLogTag> = log_entry
+								.tags
+								.iter()
+								.map(|tag| EventLogTag {
+									tag: tag.id.clone(),
+									log_entry: log_entry.id.clone(),
+								})
+								.collect();
+							diesel::delete(event_log_tags::table)
+								.filter(event_log_tags::log_entry.eq(&log_entry.id))
+								.execute(db_connection)?;
+							diesel::insert_into(event_log_tags::table)
+								.values(updated_tags)
+								.execute(db_connection)?;
+						}
+						ModifiedEventLogEntryParts::VideoEditState => {
+							changes.video_edit_state = Some(log_entry.video_edit_state.into())
+						}
+						ModifiedEventLogEntryParts::PosterMoment => {
+							changes.poster_moment = Some(log_entry.poster_moment)
+						}
+						ModifiedEventLogEntryParts::NotesToEditor => {
+							changes.notes_to_editor = Some(log_entry.notes_to_editor.clone())
+						}
+						ModifiedEventLogEntryParts::Editor => {
+							changes.editor = Some(log_entry.editor.as_ref().map(|user| user.id.clone()))
+						}
+						ModifiedEventLogEntryParts::MarkedIncomplete => {
+							changes.marked_incomplete = Some(log_entry.marked_incomplete)
+						}
+						ModifiedEventLogEntryParts::SortKey => {
+							changes.manual_sort_key = Some(log_entry.manual_sort_key)
+						}
+						ModifiedEventLogEntryParts::Parent => changes.parent = Some(log_entry.parent.clone()),
 					}
 				}
-				let new_parent_id = new_parent.as_ref().map(|parent| parent.id.clone());
 				diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id).and(event_log::deleted_by.is_null()))
-					.set(event_log::parent.eq(&new_parent_id))
+					.filter(event_log::id.eq(&log_entry.id))
+					.set(changes)
 					.get_result(db_connection)
 			};
 			let update_result = log_entry_change(&mut db_connection, update_func, user.id.clone());
@@ -1146,10 +802,11 @@ pub async fn handle_event_update(
 			let log_entry = match update_result {
 				Ok(entry) => entry,
 				Err(error) => {
-					tide::log::error!("Database error updating log entry parent: {}", error);
+					tide::log::error!("Database error updating log entry: {}", error);
 					return Ok(());
 				}
 			};
+
 			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
 		}
 		EventSubscriptionUpdate::Typing(typing_data) => {

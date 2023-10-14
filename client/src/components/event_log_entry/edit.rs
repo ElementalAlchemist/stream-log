@@ -10,7 +10,9 @@ use gloo_net::websocket::Message;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_log::{EndTimeData, EventLogEntry, VideoEditState};
-use stream_log_shared::messages::event_subscription::{EventSubscriptionUpdate, NewTypingData};
+use stream_log_shared::messages::event_subscription::{
+	EventSubscriptionUpdate, ModifiedEventLogEntryParts, NewTypingData,
+};
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::subscriptions::SubscriptionTargetUpdate;
@@ -21,24 +23,6 @@ use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{Event as WebEvent, KeyboardEvent};
-
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-enum ModifiedEventLogEntryParts {
-	StartTime,
-	EndTime,
-	EntryType,
-	Description,
-	MediaLinks,
-	SubmitterOrWinner,
-	Tags,
-	VideoEditState,
-	PosterMoment,
-	NotesToEditor,
-	Editor,
-	MarkedIncomplete,
-	SortKey,
-	Parent,
-}
 
 #[derive(Prop)]
 pub struct EventLogEntryEditProps<'a> {
@@ -915,92 +899,73 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		event.prevent_default();
 
 		if let Some(entry) = (*props.editing_log_entry.get()).as_ref() {
-			let mut messages: Vec<FromClientMessage> = Vec::new();
+			let mut entry = entry.clone();
 			for modification in modified_entry_data.get().iter() {
-				let change_message = match *modification {
-					ModifiedEventLogEntryParts::StartTime => {
-						EventSubscriptionUpdate::ChangeStartTime(entry.clone(), *start_time_value.get())
-					}
-					ModifiedEventLogEntryParts::EndTime => {
-						EventSubscriptionUpdate::ChangeEndTime(entry.clone(), *end_time_value.get())
-					}
-					ModifiedEventLogEntryParts::EntryType => {
-						EventSubscriptionUpdate::ChangeEntryType(entry.clone(), (*entry_type_id.get()).clone())
-					}
-					ModifiedEventLogEntryParts::Description => {
-						EventSubscriptionUpdate::ChangeDescription(entry.clone(), (*description.get()).clone())
-					}
-					ModifiedEventLogEntryParts::MediaLinks => EventSubscriptionUpdate::ChangeMediaLinks(
-						entry.clone(),
-						(*media_links.get())
+				match *modification {
+					ModifiedEventLogEntryParts::StartTime => entry.start_time = *start_time_value.get(),
+					ModifiedEventLogEntryParts::EndTime => entry.end_time = *end_time_value.get(),
+					ModifiedEventLogEntryParts::EntryType => entry.entry_type = (*entry_type_id.get()).clone(),
+					ModifiedEventLogEntryParts::Description => entry.description = (*description.get()).clone(),
+					ModifiedEventLogEntryParts::MediaLinks => {
+						entry.media_links = (*media_links.get())
 							.iter()
 							.filter(|link| !link.is_empty())
 							.cloned()
-							.collect(),
-					),
-					ModifiedEventLogEntryParts::SubmitterOrWinner => EventSubscriptionUpdate::ChangeSubmitterWinner(
-						entry.clone(),
-						(*submitter_or_winner.get()).clone(),
-					),
+							.collect()
+					}
+					ModifiedEventLogEntryParts::SubmitterOrWinner => {
+						entry.submitter_or_winner = (*submitter_or_winner.get()).clone()
+					}
 					ModifiedEventLogEntryParts::Tags => {
-						let current_tag_list: Vec<Tag> =
-							tags.get().iter().filter(|tag| !tag.name.is_empty()).cloned().collect();
-						EventSubscriptionUpdate::ChangeTags(entry.clone(), current_tag_list)
+						entry.tags = tags.get().iter().filter(|tag| !tag.name.is_empty()).cloned().collect()
 					}
-					ModifiedEventLogEntryParts::VideoEditState => {
-						EventSubscriptionUpdate::ChangeVideoEditState(entry.clone(), *video_edit_state.get())
-					}
-					ModifiedEventLogEntryParts::PosterMoment => {
-						EventSubscriptionUpdate::ChangePosterMoment(entry.clone(), *poster_moment.get())
-					}
+					ModifiedEventLogEntryParts::VideoEditState => entry.video_edit_state = *video_edit_state.get(),
+					ModifiedEventLogEntryParts::PosterMoment => entry.poster_moment = *poster_moment.get(),
 					ModifiedEventLogEntryParts::NotesToEditor => {
-						EventSubscriptionUpdate::ChangeNotesToEditor(entry.clone(), (*notes_to_editor.get()).clone())
+						entry.notes_to_editor = (*notes_to_editor.get()).clone()
 					}
-					ModifiedEventLogEntryParts::Editor => {
-						EventSubscriptionUpdate::ChangeEditor(entry.clone(), (*editor_value.get()).clone())
-					}
-					ModifiedEventLogEntryParts::MarkedIncomplete => {
-						EventSubscriptionUpdate::ChangeIsIncomplete(entry.clone(), *marked_incomplete.get())
-					}
-					ModifiedEventLogEntryParts::SortKey => {
-						EventSubscriptionUpdate::ChangeManualSortKey(entry.clone(), *manual_sort_key.get())
-					}
-					ModifiedEventLogEntryParts::Parent => EventSubscriptionUpdate::ChangeParent(
-						entry.clone(),
-						(*props.edit_parent_log_entry.get())
+					ModifiedEventLogEntryParts::Editor => entry.editor = (*editor_value.get()).clone(),
+					ModifiedEventLogEntryParts::MarkedIncomplete => entry.marked_incomplete = *marked_incomplete.get(),
+					ModifiedEventLogEntryParts::SortKey => entry.manual_sort_key = *manual_sort_key.get(),
+					ModifiedEventLogEntryParts::Parent => {
+						entry.parent = (*props.edit_parent_log_entry.get())
 							.as_ref()
-							.map(|parent_entry| Box::new(parent_entry.clone())),
-					),
-				};
-				messages.push(FromClientMessage::SubscriptionMessage(Box::new(
-					SubscriptionTargetUpdate::EventUpdate((*props.event.get()).clone(), Box::new(change_message)),
-				)));
+							.map(|parent_entry| parent_entry.id.clone())
+					}
+				}
 			}
+
+			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
+				(*props.event.get()).clone(),
+				Box::new(EventSubscriptionUpdate::UpdateLogEntry(
+					entry.clone(),
+					modified_entry_data.get().iter().copied().collect(),
+				)),
+			)));
+
 			spawn_local_scoped(ctx, async move {
 				let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
 				let mut ws = ws_context.lock().await;
 
-				for message in messages.iter() {
-					let message_json = match serde_json::to_string(message) {
-						Ok(msg) => msg,
-						Err(error) => {
-							let data: &DataSignals = use_context(ctx);
-							data.errors.modify().push(ErrorData::new_with_error(
-								"Failed to serialize event log entry update.",
-								error,
-							));
-							continue;
-						}
-					};
-
-					let send_result = ws.send(Message::Text(message_json)).await;
-					if let Err(error) = send_result {
+				let message_json = match serde_json::to_string(&message) {
+					Ok(msg) => msg,
+					Err(error) => {
 						let data: &DataSignals = use_context(ctx);
 						data.errors.modify().push(ErrorData::new_with_error(
-							"Failed to send event log entry update.",
+							"Failed to serialize event log entry update.",
 							error,
 						));
+						return;
 					}
+				};
+
+				let send_result = ws.send(Message::Text(message_json)).await;
+				if let Err(error) = send_result {
+					let data: &DataSignals = use_context(ctx);
+					data.errors.modify().push(ErrorData::new_with_error(
+						"Failed to send event log entry update.",
+						error,
+					));
 				}
 			});
 		} else {

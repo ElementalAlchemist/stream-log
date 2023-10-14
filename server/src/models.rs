@@ -334,6 +334,25 @@ pub struct EventLogTag {
 	pub log_entry: String,
 }
 
+#[derive(AsChangeset, Default)]
+#[diesel(table_name = event_log)]
+pub struct EventLogEntryChanges {
+	pub start_time: Option<DateTime<Utc>>,
+	pub end_time: Option<Option<DateTime<Utc>>>,
+	pub entry_type: Option<String>,
+	pub description: Option<String>,
+	pub submitter_or_winner: Option<String>,
+	pub notes_to_editor: Option<String>,
+	pub editor: Option<Option<String>>,
+	pub parent: Option<Option<String>>,
+	pub manual_sort_key: Option<Option<i32>>,
+	pub poster_moment: Option<bool>,
+	pub video_edit_state: Option<VideoEditState>,
+	pub marked_incomplete: Option<bool>,
+	pub media_links: Option<Vec<Option<String>>>,
+	pub end_time_incomplete: Option<bool>,
+}
+
 #[derive(Insertable, Queryable)]
 pub struct EventEditor {
 	pub event: String,

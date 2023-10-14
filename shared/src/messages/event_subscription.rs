@@ -1,10 +1,9 @@
 use super::entry_types::EntryType;
-use super::event_log::{EndTimeData, EventLogEntry, EventLogSection, VideoEditState};
+use super::event_log::{EventLogEntry, EventLogSection};
 use super::events::Event;
 use super::info_pages::InfoPage;
 use super::tags::Tag;
 use super::user::UserData;
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 /// Event subscription data sent by the server to subscribed clients with information about what changes were made.
@@ -48,21 +47,7 @@ pub enum TypingData {
 pub enum EventSubscriptionUpdate {
 	NewLogEntry(EventLogEntry, u8),
 	DeleteLogEntry(EventLogEntry),
-	ChangeStartTime(EventLogEntry, DateTime<Utc>),
-	ChangeEndTime(EventLogEntry, EndTimeData),
-	/// Updates the entry type for the given [`EventLogEntry`]. Accepts a string ID.
-	ChangeEntryType(EventLogEntry, String),
-	ChangeDescription(EventLogEntry, String),
-	ChangeMediaLinks(EventLogEntry, Vec<String>),
-	ChangeSubmitterWinner(EventLogEntry, String),
-	ChangePosterMoment(EventLogEntry, bool),
-	ChangeTags(EventLogEntry, Vec<Tag>),
-	ChangeVideoEditState(EventLogEntry, VideoEditState),
-	ChangeNotesToEditor(EventLogEntry, String),
-	ChangeEditor(EventLogEntry, Option<UserData>),
-	ChangeIsIncomplete(EventLogEntry, bool),
-	ChangeManualSortKey(EventLogEntry, Option<i32>),
-	ChangeParent(EventLogEntry, Option<Box<EventLogEntry>>),
+	UpdateLogEntry(EventLogEntry, Vec<ModifiedEventLogEntryParts>),
 	Typing(NewTypingData),
 	UpdateTag(Tag),
 	RemoveTag(Tag),
@@ -81,4 +66,22 @@ pub enum NewTypingData {
 	SubmitterWinner(Option<EventLogEntry>, String),
 	NotesToEditor(Option<EventLogEntry>, String),
 	Clear(Option<EventLogEntry>),
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+pub enum ModifiedEventLogEntryParts {
+	StartTime,
+	EndTime,
+	EntryType,
+	Description,
+	MediaLinks,
+	SubmitterOrWinner,
+	Tags,
+	VideoEditState,
+	PosterMoment,
+	NotesToEditor,
+	Editor,
+	MarkedIncomplete,
+	SortKey,
+	Parent,
 }
