@@ -704,7 +704,10 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		let entry_marked_incomplete = marked_incomplete.get();
 		let editing_existing_entry = props.editing_log_entry.get().is_some();
 
-		if !entered_end_time.is_empty() && !entered_submitter_or_winner.is_empty() {
+		if !entered_end_time.is_empty()
+			&& !entered_end_time.chars().all(|c| c == '-')
+			&& !entered_submitter_or_winner.is_empty()
+		{
 			marked_incomplete.set(false);
 			disable_marked_incomplete.set(true);
 		} else if editing_existing_entry && *entry_marked_incomplete && *permission_level != PermissionLevel::Supervisor
