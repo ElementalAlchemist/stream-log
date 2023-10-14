@@ -195,7 +195,7 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 					}
 				})
 			}
-			div(class="log_entry_select_parent") {
+			div(class="log_entry_select_parent", on:click=prevent_row_click_handler) {
 				(child_indicators)
 				img(src="images/add.png", class="click", alt="Add child entry", title="Add child entry", on:click=parent_select_handler)
 			}
