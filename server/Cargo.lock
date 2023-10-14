@@ -2418,7 +2418,7 @@ checksum = "213701ba3370744dcd1a12960caa4843b3d68b4d1c0a5d575e0d65b2ee9d16c0"
 
 [[package]]
 name = "stream-log-server"
-version = "1.0.0-alpha.2"
+version = "1.0.0-alpha.3"
 dependencies = [
  "anyhow",
  "async-std",
@@ -2446,7 +2446,7 @@ dependencies = [
 
 [[package]]
 name = "stream-log-shared"
-version = "1.0.0-alpha.2"
+version = "1.0.0-alpha.3"
 dependencies = [
  "chrono",
  "rgb",
