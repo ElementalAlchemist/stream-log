@@ -15,7 +15,7 @@ gloo-timers = "0.3.0"
 log = "0.4.20"
 markdown = "0.3.0"
 rgb = "0.8.36"
-serde = "1.0.188"
+serde = "1.0.189"
 serde_json = "1.0.107"
 stream-log-shared = { path = "../shared" }
 sycamore = { version = "0.8.2", features = ["suspense"] }

@@ -8,4 +8,4 @@ license = "MPL-2.0"
 [dependencies]
 chrono = { version = "0.4.31", features = ["serde"] }
 rgb = { version = "0.8.36", features = ["serde"] }
-serde = { version = "1.0.188", features = ["derive"] }
+serde = { version = "1.0.189", features = ["derive"] }
