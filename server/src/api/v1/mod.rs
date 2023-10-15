@@ -15,6 +15,9 @@ use event_log_list::event_log_list;
 mod list_events;
 use list_events::list_events;
 
+mod list_tags;
+use list_tags::list_tags;
+
 mod set_video_errors;
 use set_video_errors::set_video_errors;
 
@@ -40,6 +43,10 @@ pub fn add_routes(
 	app.at("/api/v1/event/:id/log").get({
 		let db_connection = Arc::clone(&db_connection);
 		move |request| event_log_list(request, Arc::clone(&db_connection))
+	});
+	app.at("/api/v1/event/:id/tags").get({
+		let db_connection = Arc::clone(&db_connection);
+		move |request| list_tags(request, Arc::clone(&db_connection))
 	});
 	app.at("/api/v1/entry/:id/video")
 		.post({
