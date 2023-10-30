@@ -44,7 +44,7 @@ fn establish_alternate_route(app: &mut Server<()>, path: &str) -> miette::Result
 async fn main() -> miette::Result<()> {
 	let args = CliArgs::parse();
 
-	let config = Arc::new(parse_config(&args.config)?);
+	let config = Arc::new(parse_config(&args.config).await?);
 
 	let mut db_connection = connect_db(&config)?;
 	run_embedded_migrations(&mut db_connection)?;

@@ -1,9 +1,9 @@
+use async_std::fs;
 use knuffel::Decode;
 use miette::{IntoDiagnostic, Result};
-use std::fs;
 
-pub fn parse_config(config_path: &str) -> Result<ConfigDocument> {
-	let config_file_contents = fs::read_to_string(config_path).into_diagnostic()?;
+pub async fn parse_config(config_path: &str) -> Result<ConfigDocument> {
+	let config_file_contents = fs::read_to_string(config_path).await.into_diagnostic()?;
 	let config = knuffel::parse(config_path, &config_file_contents)?;
 	Ok(config)
 }
