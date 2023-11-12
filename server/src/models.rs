@@ -172,6 +172,7 @@ pub struct Event {
 	pub name: String,
 	pub start_time: DateTime<Utc>,
 	pub editor_link_format: String,
+	pub default_first_tab_name: String,
 }
 
 impl From<Event> for EventWs {
@@ -181,6 +182,7 @@ impl From<Event> for EventWs {
 			name: event.name,
 			start_time: event.start_time,
 			editor_link_format: event.editor_link_format,
+			default_first_tab_name: event.default_first_tab_name,
 		}
 	}
 }

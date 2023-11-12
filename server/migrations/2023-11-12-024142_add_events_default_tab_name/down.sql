@@ -1,0 +1,1 @@
+ALTER TABLE events DROP COLUMN default_first_tab_name;
