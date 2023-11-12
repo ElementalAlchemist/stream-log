@@ -44,6 +44,26 @@ pub enum SubscriptionType {
 	AdminInfoPages,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct InitialEventSubscriptionLoadData {
+	/// The event data
+	pub event: Event,
+	/// The user's permission level for the event
+	pub permission: PermissionLevel,
+	/// The event entry types that can be used for the event
+	pub entry_types: Vec<EntryType>,
+	/// The tags that can be used for the event
+	pub tags: Vec<Tag>,
+	/// The list of users that can be entered as editors
+	pub editors: Vec<UserData>,
+	/// The list of info pages that can be read for this event
+	pub info_pages: Vec<InfoPage>,
+	/// The event log section headers
+	pub sections: Vec<EventLogSection>,
+	/// The event log entries that have already been created
+	pub entries: Vec<EventLogEntry>,
+}
+
 /// Sent to the client when a new subscription is created.
 #[derive(Debug, Deserialize, Serialize)]
 pub enum InitialSubscriptionLoadData {
@@ -56,16 +76,7 @@ pub enum InitialSubscriptionLoadData {
 	/// - The list of info pages that can be read for this event
 	/// - The event log section headers
 	/// - The event log entries that have already been created
-	Event(
-		Event,
-		PermissionLevel,
-		Vec<EntryType>,
-		Vec<Tag>,
-		Vec<UserData>,
-		Vec<InfoPage>,
-		Vec<EventLogSection>,
-		Vec<EventLogEntry>,
-	),
+	Event(Box<InitialEventSubscriptionLoadData>),
 	AdminUsers(Vec<UserData>),
 	AdminEvents(Vec<Event>),
 	AdminPermissionGroups(Vec<PermissionGroup>, Vec<PermissionGroupEventAssociation>),

@@ -133,40 +133,31 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 			FromServerMessage::InitialSubscriptionLoad(subscription_load_data) => {
 				let mut subscription_manager = subscription_manager.lock().await;
 				match *subscription_load_data {
-					InitialSubscriptionLoadData::Event(
-						event,
-						permission_level,
-						entry_types,
-						tags,
-						editors,
-						info_pages,
-						event_log_sections,
-						event_log_entries,
-					) => {
+					InitialSubscriptionLoadData::Event(event_load_data) => {
 						let mut event_signals = data_signals.events.modify();
-						let event_id = event.id.clone();
+						let event_id = event_load_data.event.id.clone();
 						match event_signals.entry(event_id.clone()) {
 							Entry::Occupied(mut event_entry) => {
 								let event_data = event_entry.get_mut();
-								event_data.event.set(event);
-								event_data.permission.set(permission_level);
-								event_data.entry_types.set(entry_types);
-								event_data.tags.set(tags);
-								event_data.editors.set(editors);
-								event_data.info_pages.set(info_pages);
-								event_data.event_log_sections.set(event_log_sections);
-								event_data.event_log_entries.set(event_log_entries);
+								event_data.event.set(event_load_data.event);
+								event_data.permission.set(event_load_data.permission);
+								event_data.entry_types.set(event_load_data.entry_types);
+								event_data.tags.set(event_load_data.tags);
+								event_data.editors.set(event_load_data.editors);
+								event_data.info_pages.set(event_load_data.info_pages);
+								event_data.event_log_sections.set(event_load_data.sections);
+								event_data.event_log_entries.set(event_load_data.entries);
 							}
 							Entry::Vacant(event_entry) => {
 								let signal_data = EventSubscriptionSignalsInitData {
-									event,
-									permission: permission_level,
-									entry_types,
-									tags,
-									editors,
-									info_pages,
-									event_log_sections,
-									event_log_entries,
+									event: event_load_data.event,
+									permission: event_load_data.permission,
+									entry_types: event_load_data.entry_types,
+									tags: event_load_data.tags,
+									editors: event_load_data.editors,
+									info_pages: event_load_data.info_pages,
+									event_log_sections: event_load_data.sections,
+									event_log_entries: event_load_data.entries,
 								};
 								event_entry.insert(EventSubscriptionSignals::new(signal_data));
 							}

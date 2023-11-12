@@ -24,7 +24,8 @@ use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::info_pages::InfoPage;
 use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::subscriptions::{
-	InitialSubscriptionLoadData, SubscriptionData, SubscriptionFailureInfo, SubscriptionType,
+	InitialEventSubscriptionLoadData, InitialSubscriptionLoadData, SubscriptionData, SubscriptionFailureInfo,
+	SubscriptionType,
 };
 use stream_log_shared::messages::tags::Tag;
 use stream_log_shared::messages::user::UserData;
@@ -481,16 +482,18 @@ pub async fn subscribe_to_event(
 		event_log_entries.push(send_entry);
 	}
 
-	let message = FromServerMessage::InitialSubscriptionLoad(Box::new(InitialSubscriptionLoadData::Event(
-		event,
-		permission_level,
-		entry_types,
-		tags,
-		available_editors_list,
-		info_pages,
-		event_log_sections,
-		event_log_entries,
-	)));
+	let message = FromServerMessage::InitialSubscriptionLoad(Box::new(InitialSubscriptionLoadData::Event(Box::new(
+		InitialEventSubscriptionLoadData {
+			event,
+			permission: permission_level,
+			entry_types,
+			tags,
+			editors: available_editors_list,
+			info_pages,
+			sections: event_log_sections,
+			entries: event_log_entries,
+		},
+	))));
 	conn_update_tx
 		.send(ConnectionUpdate::SendData(Box::new(message)))
 		.await?;
