@@ -5,15 +5,15 @@ use crate::components::event_log_entry::UserTypingData;
 use crate::subscriptions::errors::ErrorData;
 use crate::subscriptions::manager::SubscriptionManager;
 use crate::subscriptions::DataSignals;
+use chrono::Utc;
 use futures::future::poll_fn;
 use futures::lock::Mutex;
 use futures::stream::SplitSink;
 use futures::task::{Context, Poll, Waker};
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
-use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
-use stream_log_shared::messages::event_log::{EventLogEntry, EventLogSection, VideoState};
+use stream_log_shared::messages::event_log::{EventLogEntry, EventLogTab, VideoState};
 use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::subscriptions::SubscriptionType;
 use stream_log_shared::messages::user::UserData;
@@ -22,21 +22,6 @@ use sycamore::prelude::*;
 use sycamore::suspense::Suspense;
 use sycamore_router::navigate;
 use web_sys::{window, Event as WebEvent, ScrollIntoViewOptions, ScrollLogicalPosition};
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-enum LogLineData {
-	Section(EventLogSection),
-	Entry(Box<EventLogEntry>),
-}
-
-impl LogLineData {
-	fn id(&self) -> String {
-		match self {
-			Self::Section(section) => section.id.clone(),
-			Self::Entry(entry) => entry.id.clone(),
-		}
-	}
-}
 
 fn add_entries_for_parent(
 	entries_by_parent: &HashMap<String, Vec<EventLogEntry>>,
@@ -86,7 +71,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 
 	let event_subscription_data = poll_fn(|poll_context: &mut Context<'_>| {
 		log::debug!(
-			"[Log] Checking whether event {} is present yet in the subscription manager",
+			"Checking whether event {} is present yet in the subscription manager",
 			props.id
 		);
 		match data.events.get().get(&props.id) {
@@ -129,6 +114,11 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		entry_numbers
 	});
 
+	let read_event_tabs_signal = create_memo(ctx, {
+		let event_log_tabs = event_subscription_data.event_log_tabs.clone();
+		move || (*event_log_tabs.get()).clone()
+	});
+
 	let event_signal = event_subscription_data.event.clone();
 	let permission_signal = event_subscription_data.permission.clone();
 	let entry_types_signal = event_subscription_data.entry_types.clone();
@@ -140,6 +130,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		let event_signal = event_signal.clone();
 		move || (*event_signal.get()).clone()
 	});
+	let first_tab_name_signal = create_memo(ctx, || read_event_signal.get().default_first_tab_name.clone());
 	let read_permission_signal = create_memo(ctx, {
 		let permission_signal = permission_signal.clone();
 		move || *permission_signal.get()
@@ -183,61 +174,86 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 
 	let active_state_filters: &Signal<HashSet<Option<VideoState>>> = create_signal(ctx, HashSet::new());
 
-	let log_lines = create_memo(ctx, move || {
-		let entries_by_parent = entries_by_parent_signal.get();
-		let sections = event_subscription_data.event_log_sections.get();
-		let state_filters = active_state_filters.get();
+	let current_time = Utc::now();
+	let mut current_tab: Option<&EventLogTab> = None;
+	let event_log_tabs = event_subscription_data.event_log_tabs.get();
+	for next_tab in event_log_tabs.iter() {
+		if next_tab.start_time <= current_time {
+			current_tab = Some(next_tab);
+		} else {
+			break;
+		}
+	}
+	let current_tab = current_tab.cloned();
+	let selected_tab = create_signal(ctx, current_tab);
 
-		let Some(top_level_entries) = entries_by_parent.get("") else {
-			return Vec::new();
-		};
-		let entries: Vec<EventLogEntry> = top_level_entries
-			.iter()
-			.filter(|entry| entry.parent.is_none())
-			.cloned()
-			.collect();
+	let log_entries_by_tab = create_memo(ctx, {
+		let event_log_tabs = event_subscription_data.event_log_tabs.clone();
+		move || {
+			let entries_by_parent = entries_by_parent_signal.get();
+			let tabs = event_log_tabs.get();
+			let state_filters = active_state_filters.get();
 
-		let mut entries_iter = entries.iter();
-		let mut sections_iter = sections.iter();
+			let Some(entries) = entries_by_parent.get("") else {
+				return HashMap::new();
+			};
 
-		let mut next_entry = entries_iter.next();
-		let mut next_section = sections_iter.next();
+			let mut entries_iter = entries.iter();
+			let mut tabs_iter = tabs.iter();
 
-		let mut log_lines: Vec<LogLineData> = Vec::new();
+			let mut next_entry = entries_iter.next();
+			let mut next_tab = tabs_iter.next();
 
-		loop {
-			match (next_entry, next_section) {
-				(Some(entry), Some(section)) => {
-					if entry.start_time < section.start_time {
+			let mut entries_by_tab: HashMap<String, Vec<EventLogEntry>> = HashMap::new();
+			let mut current_tab: Option<&EventLogTab> = None;
+
+			loop {
+				match (next_entry, next_tab) {
+					(Some(entry), Some(tab)) => {
+						if entry.start_time < tab.start_time {
+							if state_filters.is_empty() || state_filters.contains(&entry.video_state) {
+								let tab_id = current_tab.as_ref().map(|tab| tab.id.clone()).unwrap_or_default();
+								entries_by_tab.entry(tab_id).or_default().push(entry.clone());
+							}
+							next_entry = entries_iter.next();
+						} else {
+							current_tab = next_tab;
+							next_tab = tabs_iter.next();
+						}
+					}
+					(Some(entry), None) => {
 						if state_filters.is_empty() || state_filters.contains(&entry.video_state) {
-							log_lines.push(LogLineData::Entry(Box::new(entry.clone())));
+							let tab_id = current_tab.as_ref().map(|tab| tab.id.clone()).unwrap_or_default();
+							entries_by_tab.entry(tab_id).or_default().push(entry.clone());
 						}
 						next_entry = entries_iter.next();
-					} else {
-						if let Some(LogLineData::Section(existing_section)) = log_lines.last_mut() {
-							*existing_section = section.clone();
-						} else {
-							log_lines.push(LogLineData::Section(section.clone()));
-						}
-						next_section = sections_iter.next();
 					}
+					(None, _) => break,
 				}
-				(Some(entry), None) => {
-					if state_filters.is_empty() || state_filters.contains(&entry.video_state) {
-						log_lines.push(LogLineData::Entry(Box::new(entry.clone())));
-					}
-					next_entry = entries_iter.next();
-				}
-				(None, _) => break,
+			}
+
+			entries_by_tab
+		}
+	});
+
+	let active_log_entries = create_memo(ctx, move || {
+		let selected_tab = selected_tab.get();
+		let tab_id = (*selected_tab).as_ref().map(|tab| tab.id.as_str()).unwrap_or("");
+		let entries = log_entries_by_tab.get().get(tab_id).cloned().unwrap_or_default();
+		entries
+	});
+
+	let tabs_by_entry_id = create_memo(ctx, move || {
+		let entries_by_tab = log_entries_by_tab.get();
+		let mut tabs_by_entry_id: HashMap<String, String> = HashMap::new();
+		for (tab_id, entries) in entries_by_tab.iter() {
+			for entry in entries.iter() {
+				tabs_by_entry_id.insert(entry.id.clone(), tab_id.clone());
 			}
 		}
-
-		while let Some(LogLineData::Section(_)) = log_lines.last() {
-			log_lines.pop();
-		}
-
-		log_lines
+		tabs_by_entry_id
 	});
+
 	let can_edit = create_memo(ctx, move || permission_signal.get().can_edit());
 
 	log::debug!("Set up loaded data signals for event {}", props.id);
@@ -288,47 +304,6 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		}
 	});
 
-	let expanded_sections: &Signal<HashMap<String, RcSignal<bool>>> = create_signal(ctx, HashMap::new());
-
-	let sections_by_row_id = create_memo(ctx, || {
-		let mut row_sections: HashMap<String, String> = HashMap::new();
-		let mut current_section_id = String::new();
-		for line_data in log_lines.get().iter() {
-			match line_data {
-				LogLineData::Section(section) => current_section_id = section.id.clone(),
-				LogLineData::Entry(entry) => {
-					row_sections.insert(entry.id.clone(), current_section_id.clone());
-				}
-			}
-		}
-		row_sections
-	});
-
-	let expand_all_handler = |_event: WebEvent| {
-		for line_data in log_lines.get().iter() {
-			if let LogLineData::Section(section) = line_data {
-				match expanded_sections.modify().entry(section.id.clone()) {
-					Entry::Occupied(entry) => entry.get().set(true),
-					Entry::Vacant(entry) => {
-						entry.insert(create_rc_signal(true));
-					}
-				}
-			}
-		}
-	};
-	let collapse_all_handler = |_event: WebEvent| {
-		for line_data in log_lines.get().iter() {
-			if let LogLineData::Section(section) = line_data {
-				match expanded_sections.modify().entry(section.id.clone()) {
-					Entry::Occupied(entry) => entry.get().set(false),
-					Entry::Vacant(entry) => {
-						entry.insert(create_rc_signal(false));
-					}
-				}
-			}
-		}
-	};
-
 	let mut all_video_states = vec![None];
 	for video_state in VideoState::all_states() {
 		all_video_states.push(Some(video_state));
@@ -358,40 +333,47 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 
 	let jump_highlight_row_id = create_signal(ctx, String::new());
 	let jump_id_entry = create_signal(ctx, String::new());
-	let jump_handler = |event: WebEvent| {
-		event.prevent_default();
+	let jump_handler = {
+		let event_log_tabs = event_subscription_data.event_log_tabs.clone();
+		move |event: WebEvent| {
+			event.prevent_default();
 
-		let jump_id = (*jump_id_entry.get()).clone();
-		jump_id_entry.set(String::new());
+			let jump_id = (*jump_id_entry.get()).clone();
+			jump_id_entry.set(String::new());
 
-		let section_index = sections_by_row_id.get();
-		let Some(section_id) = section_index.get(&jump_id) else {
-			return;
-		};
-		if !section_id.is_empty() {
-			if let Some(section_expand_signal) = expanded_sections.get().get(section_id) {
-				section_expand_signal.set(true);
+			let tab_index = tabs_by_entry_id.get();
+			let Some(tab_id) = tab_index.get(&jump_id) else {
+				return;
+			};
+			if tab_id.is_empty() {
+				selected_tab.set(None);
+			} else if let Some(tab) = event_log_tabs.get().iter().find(|tab| tab.id == *tab_id) {
+				selected_tab.set(Some(tab.clone()));
 			}
+			let jump_to_id = format!("event_log_entry_{}", jump_id);
+			let Some(window) = window() else {
+				return;
+			};
+			let Some(document) = window.document() else {
+				return;
+			};
+			let Some(row_top_element) = document.get_element_by_id(&jump_to_id) else {
+				return;
+			};
+			let mut scroll_into_view_options = ScrollIntoViewOptions::new();
+			scroll_into_view_options.block(ScrollLogicalPosition::Center);
+			row_top_element.scroll_into_view_with_scroll_into_view_options(&scroll_into_view_options);
+			jump_highlight_row_id.set(jump_id);
 		}
-		let jump_to_id = format!("event_log_entry_{}", jump_id);
-		let Some(window) = window() else {
-			return;
-		};
-		let Some(document) = window.document() else {
-			return;
-		};
-		let Some(row_top_element) = document.get_element_by_id(&jump_to_id) else {
-			return;
-		};
-		let mut scroll_into_view_options = ScrollIntoViewOptions::new();
-		scroll_into_view_options.block(ScrollLogicalPosition::Center);
-		row_top_element.scroll_into_view_with_scroll_into_view_options(&scroll_into_view_options);
-		jump_highlight_row_id.set(jump_id);
 	};
 
 	let visible_event_signal = event_signal.clone();
 	let typing_event = event_signal.clone();
 	let typing_event_log = log_entries.clone();
+
+	let first_tab_click_handler = |_event: WebEvent| {
+		selected_tab.set(None);
+	};
 
 	log::debug!("Created signals and handlers for event {}", props.id);
 
@@ -401,15 +383,6 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 			div(id="event_log_header") {
 				h1(id="event_log_title") { (visible_event_signal.get().name) }
 				div(id="event_log_view_settings") {
-					div(id="event_log_view_settings_section_control") {
-						"Sections:"
-						a(id="event_log_expand_all", class="click", on:click=expand_all_handler) {
-							"Expand All"
-						}
-						a(id="event_log_collapse_all", class="click", on:click=collapse_all_handler) {
-							"Collapse All"
-						}
-					}
 					div(id="event_log_view_settings_filter") {
 						div(id="event_log_view_settings_filter_video_state") {
 							"Video State Filter"
@@ -437,6 +410,41 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 						button(type="submit") { "Jump" }
 					}
 				}
+			}
+			div(id="event_log_tabs") {
+				div(
+					class=if selected_tab.get().is_none() { "event_log_tab_active click" } else { "click" },
+					on:click=first_tab_click_handler
+				) {
+					(first_tab_name_signal.get())
+				}
+				Keyed(
+					iterable=read_event_tabs_signal,
+					key=|tab| tab.id.clone(),
+					view=move |ctx, tab| {
+						let selected_tab_value = selected_tab.get();
+						let selected_tab_id = (*selected_tab_value).as_ref().map(|tab| tab.id.as_str()).unwrap_or("");
+						let tab_class = if *selected_tab_id == tab.id {
+							"event_log_tab_active click"
+						} else {
+							"click"
+						};
+
+						let tab_click_handler = {
+							let tab = tab.clone();
+							move |_event: WebEvent| {
+								selected_tab.set(Some(tab.clone()));
+							}
+						};
+
+						view! {
+							ctx,
+							div(class=tab_class, on:click=tab_click_handler) {
+								(tab.name)
+							}
+						}
+					}
+				)
 			}
 			div(id="event_log") {
 				div(id="event_log_data", class=if *use_editor_view.get() { "event_log_data_editor" } else { "" }) {
@@ -479,103 +487,38 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 						view! { ctx, }
 					})
 					Keyed(
-						iterable=log_lines,
-						key=|line| line.id(),
+						iterable=active_log_entries,
+						key=|entry| entry.id.clone(),
 						view={
 							let event_signal = event_signal.clone();
 							let entry_types_signal = entry_types_signal.clone();
 							let log_entries = log_entries.clone();
 							let typing_events = event_subscription_data.typing_events.clone();
-							move |ctx, line| {
+							move |ctx, entry| {
 								let event_signal = event_signal.clone();
 								let entry_types_signal = entry_types_signal.clone();
 								let log_entries = log_entries.clone();
 								let typing_events = typing_events.clone();
 
-								match line {
-									LogLineData::Section(section) => {
-										let expanded_signal = match expanded_sections.get().get(&section.id) {
-											Some(expanded_signal) => expanded_signal.clone(),
-											None => {
-												let signal = create_rc_signal(true);
-												expanded_sections.modify().insert(section.id.clone(), signal.clone());
-												signal
-											}
-										};
-										let expand_click_handler = {
-											let expanded_signal = expanded_signal.clone();
-											move |_event: WebEvent| {
-												expanded_signal.set(!*expanded_signal.get());
-											}
-										};
-										let section_name = section.name.clone();
-										view! {
-											ctx,
-											div(class="event_log_section_header") {
-												div(class="event_log_section_header_name") {
-													h2 {
-														(section_name)
-													}
-												}
-												div(class="event_log_section_collapse") {
-													a(class="click", on:click=expand_click_handler) {
-														(if *expanded_signal.get() {
-															"[-]"
-														} else {
-															"[+]"
-														})
-													}
-												}
-											}
-										}
-									}
-									LogLineData::Entry(entry) => {
-										let section_id = sections_by_row_id.get().get(&entry.id).cloned().unwrap_or_default();
-										let expanded_signal = if section_id.is_empty() {
-											create_rc_signal(true)
-										} else {
-											match expanded_sections.get().get(&section_id) {
-												Some(expanded_signal) => expanded_signal.clone(),
-												None => {
-													let signal = create_rc_signal(true);
-													expanded_sections.modify().insert(section_id.clone(), signal.clone());
-													signal
-												}
-											}
-										};
-										view! {
-											ctx,
-											(if *expanded_signal.get() {
-												let entry = (*entry).clone();
-												let event_signal = event_signal.clone();
-												let entry_types_signal = entry_types_signal.clone();
-												let log_entries = log_entries.clone();
-												let typing_events = typing_events.clone();
-												view! {
-													ctx,
-													EventLogEntryView(
-														entry=entry,
-														jump_highlight_row_id=jump_highlight_row_id,
-														event_signal=event_signal,
-														permission_level=read_permission_signal,
-														entry_types_signal=entry_types_signal,
-														all_log_entries=log_entries,
-														event_typing_events_signal=typing_events,
-														can_edit=can_edit,
-														editing_log_entry=editing_log_entry,
-														read_entry_types_signal=read_entry_types_signal,
-														editing_entry_parent=editing_entry_parent,
-														entries_by_parent=entries_by_parent_signal,
-														child_depth=0,
-														entry_numbers=entry_numbers_signal,
-														use_editor_view=use_editor_view
-													)
-												}
-											} else {
-												view! { ctx, }
-											})
-										}
-									}
+								view! {
+									ctx,
+									EventLogEntryView(
+										entry=entry,
+										jump_highlight_row_id=jump_highlight_row_id,
+										event_signal=event_signal,
+										permission_level=read_permission_signal,
+										entry_types_signal=entry_types_signal,
+										all_log_entries=log_entries,
+										event_typing_events_signal=typing_events,
+										can_edit=can_edit,
+										editing_log_entry=editing_log_entry,
+										read_entry_types_signal=read_entry_types_signal,
+										editing_entry_parent=editing_entry_parent,
+										entries_by_parent=entries_by_parent_signal,
+										child_depth=0,
+										entry_numbers=entry_numbers_signal,
+										use_editor_view=use_editor_view
+									)
 								}
 							}
 						}

@@ -1,5 +1,5 @@
 use super::entry_types::EntryType;
-use super::event_log::{EventLogEntry, EventLogSection};
+use super::event_log::{EventLogEntry, EventLogTab};
 use super::events::Event;
 use super::info_pages::InfoPage;
 use super::tags::Tag;
@@ -21,8 +21,8 @@ pub enum EventSubscriptionData {
 	RemoveEditor(UserData),
 	UpdateInfoPage(InfoPage),
 	DeleteInfoPage(InfoPage),
-	UpdateSection(EventLogSection),
-	DeleteSection(EventLogSection),
+	UpdateTab(EventLogTab),
+	DeleteTab(EventLogTab),
 	UpdateTag(Tag),
 	RemoveTag(Tag),
 }

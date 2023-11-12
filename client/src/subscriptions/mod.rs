@@ -9,12 +9,12 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use stream_log_shared::messages::admin::{
 	AdminApplicationData, AdminEntryTypeData, AdminEntryTypeEventData, AdminEventData, AdminEventEditorData,
-	AdminEventLogSectionsData, AdminInfoPageData, AdminPermissionGroupData, AdminUserPermissionGroupData, Application,
+	AdminEventLogTabsData, AdminInfoPageData, AdminPermissionGroupData, AdminUserPermissionGroupData, Application,
 	EditorEventAssociation, EntryTypeEventAssociation, PermissionGroup, PermissionGroupEventAssociation,
 	UserPermissionGroupAssociation,
 };
 use stream_log_shared::messages::entry_types::EntryType;
-use stream_log_shared::messages::event_log::{EventLogEntry, EventLogSection};
+use stream_log_shared::messages::event_log::{EventLogEntry, EventLogTab};
 use stream_log_shared::messages::event_subscription::{EventSubscriptionData, TypingData};
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::info_pages::InfoPage;
@@ -77,8 +77,8 @@ pub struct DataSignals {
 	/// List of all pairings of entry types and events
 	pub entry_type_event_associations: RcSignal<Vec<EntryTypeEventAssociation>>,
 
-	/// List of all event log sections with their associated events
-	pub all_event_log_sections: RcSignal<Vec<(Event, EventLogSection)>>,
+	/// List of all event log tabs with their associated events
+	pub all_event_log_tabs: RcSignal<Vec<(Event, EventLogTab)>>,
 
 	/// List of all applications
 	pub all_applications: RcSignal<Vec<Application>>,
@@ -105,7 +105,7 @@ impl DataSignals {
 			event_editors: create_rc_signal(Vec::new()),
 			user_permission_groups: create_rc_signal(Vec::new()),
 			entry_type_event_associations: create_rc_signal(Vec::new()),
-			all_event_log_sections: create_rc_signal(Vec::new()),
+			all_event_log_tabs: create_rc_signal(Vec::new()),
 			all_applications: create_rc_signal(Vec::new()),
 			all_info_pages: create_rc_signal(Vec::new()),
 			show_application_auth_keys: create_rc_signal(Vec::new()),
@@ -145,7 +145,7 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 								event_data.tags.set(event_load_data.tags);
 								event_data.editors.set(event_load_data.editors);
 								event_data.info_pages.set(event_load_data.info_pages);
-								event_data.event_log_sections.set(event_load_data.sections);
+								event_data.event_log_tabs.set(event_load_data.tabs);
 								event_data.event_log_entries.set(event_load_data.entries);
 							}
 							Entry::Vacant(event_entry) => {
@@ -156,7 +156,7 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 									tags: event_load_data.tags,
 									editors: event_load_data.editors,
 									info_pages: event_load_data.info_pages,
-									event_log_sections: event_load_data.sections,
+									event_log_tabs: event_load_data.tabs,
 									event_log_entries: event_load_data.entries,
 								};
 								event_entry.insert(EventSubscriptionSignals::new(signal_data));
@@ -209,10 +209,9 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 						data_signals.event_editors.set(event_editors);
 						subscription_manager.subscription_confirmation_received(SubscriptionType::AdminEventEditors);
 					}
-					InitialSubscriptionLoadData::AdminEventLogSections(sections) => {
-						data_signals.all_event_log_sections.set(sections);
-						subscription_manager
-							.subscription_confirmation_received(SubscriptionType::AdminEventLogSections);
+					InitialSubscriptionLoadData::AdminEventLogTabs(tabs) => {
+						data_signals.all_event_log_tabs.set(tabs);
+						subscription_manager.subscription_confirmation_received(SubscriptionType::AdminEventLogTabs);
 					}
 					InitialSubscriptionLoadData::AdminApplications(applications) => {
 						data_signals.all_applications.set(applications);
@@ -462,25 +461,23 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 								info_pages.remove(index);
 							}
 						}
-						EventSubscriptionData::UpdateSection(section) => {
-							let mut sections = event_data.event_log_sections.modify();
-							let section_entry = sections.iter_mut().find(|sec| section.id == sec.id);
-							match section_entry {
-								Some(entry) => *entry = section,
+						EventSubscriptionData::UpdateTab(tab) => {
+							let mut tabs = event_data.event_log_tabs.modify();
+							let tab_entry = tabs.iter_mut().find(|t| tab.id == t.id);
+							match tab_entry {
+								Some(entry) => *entry = tab,
 								None => {
-									match sections
-										.binary_search_by_key(&section.start_time, |section| section.start_time)
-									{
-										Ok(index) => sections.insert(index, section),
-										Err(index) => sections.insert(index, section),
+									match tabs.binary_search_by_key(&tab.start_time, |section| section.start_time) {
+										Ok(index) => tabs.insert(index, tab),
+										Err(index) => tabs.insert(index, tab),
 									}
 								}
 							}
 						}
-						EventSubscriptionData::DeleteSection(section) => event_data
-							.event_log_sections
+						EventSubscriptionData::DeleteTab(tab) => event_data
+							.event_log_tabs
 							.modify()
-							.retain(|section_entry| section_entry.id != section.id),
+							.retain(|tab_entry| tab_entry.id != tab.id),
 						EventSubscriptionData::UpdateTag(tag) => {
 							let mut tags = event_data.tags.modify();
 							let tag_entry = tags.iter_mut().find(|t| t.id == tag.id);
@@ -652,26 +649,22 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 						}
 					}
 				}
-				SubscriptionData::AdminEventLogSectionsUpdate(event_log_sections_update) => {
-					match event_log_sections_update {
-						AdminEventLogSectionsData::AddSection(event, new_section) => {
-							data_signals.all_event_log_sections.modify().push((event, new_section))
-						}
-						AdminEventLogSectionsData::UpdateSection(new_section_data) => {
-							let mut event_log_sections = data_signals.all_event_log_sections.modify();
-							let section_entry = event_log_sections
-								.iter_mut()
-								.find(|entry| entry.1.id == new_section_data.id);
-							if let Some(entry) = section_entry {
-								entry.1 = new_section_data;
-							}
-						}
-						AdminEventLogSectionsData::DeleteSection(section) => data_signals
-							.all_event_log_sections
-							.modify()
-							.retain(|entry| entry.1.id != section.id),
+				SubscriptionData::AdminEventLogTabsUpdate(event_log_tabs_update) => match event_log_tabs_update {
+					AdminEventLogTabsData::AddTab(event, new_tab) => {
+						data_signals.all_event_log_tabs.modify().push((event, new_tab))
 					}
-				}
+					AdminEventLogTabsData::UpdateTab(new_tab_data) => {
+						let mut event_log_tabs = data_signals.all_event_log_tabs.modify();
+						let tab_entry = event_log_tabs.iter_mut().find(|entry| entry.1.id == new_tab_data.id);
+						if let Some(entry) = tab_entry {
+							entry.1 = new_tab_data;
+						}
+					}
+					AdminEventLogTabsData::DeleteTab(tab) => data_signals
+						.all_event_log_tabs
+						.modify()
+						.retain(|entry| entry.1.id != tab.id),
+				},
 				SubscriptionData::AdminApplicationsUpdate(application_update) => match application_update {
 					AdminApplicationData::UpdateApplication(application) => {
 						let mut all_applications = data_signals.all_applications.modify();

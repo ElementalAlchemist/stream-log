@@ -1,7 +1,7 @@
 use crate::schema::{
 	applications, available_entry_types_for_event, entry_types, event_editors, event_log, event_log_history,
-	event_log_history_tags, event_log_sections, event_log_tags, events, info_pages, permission_events,
-	permission_groups, sessions, tags, user_permissions, users,
+	event_log_history_tags, event_log_tabs, event_log_tags, events, info_pages, permission_events, permission_groups,
+	sessions, tags, user_permissions, users,
 };
 use chrono::prelude::*;
 use diesel::{AsChangeset, Insertable, Queryable};
@@ -362,7 +362,7 @@ pub struct EventEditor {
 }
 
 #[derive(Clone, Insertable, Queryable)]
-pub struct EventLogSection {
+pub struct EventLogTab {
 	pub id: String,
 	pub event: String,
 	pub name: String,

@@ -37,7 +37,7 @@ pub struct EventLogEntry {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct EventLogSection {
+pub struct EventLogTab {
 	pub id: String,
 	pub name: String,
 	pub start_time: DateTime<Utc>,

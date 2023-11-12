@@ -2,12 +2,12 @@ use crate::data_sync::connection::ConnectionUpdate;
 use crate::data_sync::{HandleConnectionError, SubscriptionManager};
 use crate::models::{
 	AvailableEntryType, EditSource, EntryType as EntryTypeDb, Event as EventDb, EventLogEntry as EventLogEntryDb,
-	EventLogEntryChanges, EventLogHistoryEntry, EventLogHistoryTag, EventLogSection as EventLogSectionDb, EventLogTag,
+	EventLogEntryChanges, EventLogHistoryEntry, EventLogHistoryTag, EventLogTab as EventLogTabDb, EventLogTag,
 	InfoPage as InfoPageDb, Permission, PermissionEvent, Tag as TagDb, User,
 };
 use crate::schema::{
 	available_entry_types_for_event, entry_types, event_editors, event_log, event_log_history, event_log_history_tags,
-	event_log_sections, event_log_tags, events, info_pages, permission_events, tags, user_permissions, users,
+	event_log_tabs, event_log_tags, events, info_pages, permission_events, tags, user_permissions, users,
 };
 use async_std::channel::Sender;
 use async_std::sync::{Arc, Mutex};
@@ -16,7 +16,7 @@ use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use std::collections::{HashMap, HashSet};
 use stream_log_shared::messages::entry_types::EntryType;
-use stream_log_shared::messages::event_log::{EndTimeData, EventLogEntry, EventLogSection};
+use stream_log_shared::messages::event_log::{EndTimeData, EventLogEntry, EventLogTab};
 use stream_log_shared::messages::event_subscription::{
 	EventSubscriptionData, EventSubscriptionUpdate, ModifiedEventLogEntryParts, NewTypingData, TypingData,
 };
@@ -195,9 +195,9 @@ pub async fn subscribe_to_event(
 		}
 	};
 
-	let log_sections: Vec<EventLogSectionDb> = match event_log_sections::table
-		.filter(event_log_sections::event.eq(event_id))
-		.order(event_log_sections::start_time.asc())
+	let log_tabs: Vec<EventLogTabDb> = match event_log_tabs::table
+		.filter(event_log_tabs::event.eq(event_id))
+		.order(event_log_tabs::start_time.asc())
 		.load(&mut *db_connection)
 	{
 		Ok(sections) => sections,
@@ -412,9 +412,9 @@ pub async fn subscribe_to_event(
 			contents: page.contents,
 		})
 		.collect();
-	let event_log_sections: Vec<EventLogSection> = log_sections
+	let event_log_tabs: Vec<EventLogTab> = log_tabs
 		.into_iter()
-		.map(|section| EventLogSection {
+		.map(|section| EventLogTab {
 			id: section.id,
 			name: section.name,
 			start_time: section.start_time,
@@ -490,7 +490,7 @@ pub async fn subscribe_to_event(
 			tags,
 			editors: available_editors_list,
 			info_pages,
-			sections: event_log_sections,
+			tabs: event_log_tabs,
 			entries: event_log_entries,
 		},
 	))));

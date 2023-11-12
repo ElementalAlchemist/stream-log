@@ -2,7 +2,7 @@ use chrono::{DateTime, Duration, Utc};
 use gloo_timers::callback::Interval;
 use std::rc::Rc;
 use stream_log_shared::messages::entry_types::EntryType;
-use stream_log_shared::messages::event_log::{EventLogEntry, EventLogSection};
+use stream_log_shared::messages::event_log::{EventLogEntry, EventLogTab};
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::info_pages::InfoPage;
 use stream_log_shared::messages::permissions::PermissionLevel;
@@ -17,7 +17,7 @@ pub struct EventSubscriptionSignalsInitData {
 	pub tags: Vec<Tag>,
 	pub editors: Vec<UserData>,
 	pub info_pages: Vec<InfoPage>,
-	pub event_log_sections: Vec<EventLogSection>,
+	pub event_log_tabs: Vec<EventLogTab>,
 	pub event_log_entries: Vec<EventLogEntry>,
 }
 
@@ -29,7 +29,7 @@ pub struct EventSubscriptionSignals {
 	pub tags: RcSignal<Vec<Tag>>,
 	pub editors: RcSignal<Vec<UserData>>,
 	pub info_pages: RcSignal<Vec<InfoPage>>,
-	pub event_log_sections: RcSignal<Vec<EventLogSection>>,
+	pub event_log_tabs: RcSignal<Vec<EventLogTab>>,
 	pub event_log_entries: RcSignal<Vec<EventLogEntry>>,
 	pub typing_events: RcSignal<Vec<TypingEvent>>,
 	_typing_expire_interval: Rc<Interval>,
@@ -54,7 +54,7 @@ impl EventSubscriptionSignals {
 		let tags = create_rc_signal(init_data.tags);
 		let editors = create_rc_signal(init_data.editors);
 		let info_pages = create_rc_signal(init_data.info_pages);
-		let event_log_sections = create_rc_signal(init_data.event_log_sections);
+		let event_log_tabs = create_rc_signal(init_data.event_log_tabs);
 		let event_log_entries = create_rc_signal(init_data.event_log_entries);
 
 		Self {
@@ -64,7 +64,7 @@ impl EventSubscriptionSignals {
 			tags,
 			editors,
 			info_pages,
-			event_log_sections,
+			event_log_tabs,
 			event_log_entries,
 			typing_events,
 			_typing_expire_interval,

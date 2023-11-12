@@ -128,8 +128,8 @@ pub fn UserInfoBar<G: Html>(ctx: Scope) -> View<G> {
 										}
 									}
 									li {
-										a(href="/admin/sections") {
-											"Manage Event Log Sections"
+										a(href="/admin/tabs") {
+											"Manage Event Log Tabs"
 										}
 									}
 									li {

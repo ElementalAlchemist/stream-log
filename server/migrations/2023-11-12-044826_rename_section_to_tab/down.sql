@@ -1,0 +1,1 @@
+ALTER TABLE event_log_tabs RENAME TO event_log_sections;

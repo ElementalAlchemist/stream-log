@@ -102,6 +102,7 @@ pub async fn handle_admin_event_message(
 							events::name.eq(&event.name),
 							events::start_time.eq(event.start_time),
 							events::editor_link_format.eq(&event.editor_link_format),
+							events::default_first_tab_name.eq(&event.default_first_tab_name),
 						))
 						.execute(&mut *db_connection)
 				}

@@ -1,5 +1,5 @@
 use super::entry_types::EntryType;
-use super::event_log::EventLogSection;
+use super::event_log::EventLogTab;
 use super::events::Event;
 use super::info_pages::InfoPage;
 use super::permissions::PermissionLevel;
@@ -113,17 +113,17 @@ pub struct EntryTypeEventAssociation {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub enum AdminEventLogSectionsData {
-	AddSection(Event, EventLogSection),
-	UpdateSection(EventLogSection),
-	DeleteSection(EventLogSection),
+pub enum AdminEventLogTabsData {
+	AddTab(Event, EventLogTab),
+	UpdateTab(EventLogTab),
+	DeleteTab(EventLogTab),
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub enum AdminEventLogSectionsUpdate {
-	AddSection(Event, EventLogSection),
-	UpdateSection(EventLogSection),
-	DeleteSection(EventLogSection),
+pub enum AdminEventLogTabsUpdate {
+	AddTab(Event, EventLogTab),
+	UpdateTab(EventLogTab),
+	DeleteTab(EventLogTab),
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]

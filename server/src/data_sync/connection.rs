@@ -11,9 +11,7 @@ use super::subscriptions::admin_permission_groups::{
 	handle_admin_permission_group_users_message, handle_admin_permission_groups_message,
 	subscribe_to_admin_permission_groups, subscribe_to_admin_permission_groups_users,
 };
-use super::subscriptions::admin_sections::{
-	handle_admin_event_log_sections_message, subscribe_to_admin_event_log_sections,
-};
+use super::subscriptions::admin_tabs::{handle_admin_event_log_tabs_message, subscribe_to_admin_event_log_tabs};
 use super::subscriptions::admin_users::{handle_admin_users_message, subscribe_to_admin_users};
 use super::subscriptions::events::{handle_event_update, subscribe_to_event};
 use super::user_profile::handle_profile_update;
@@ -409,8 +407,8 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 					)
 					.await?
 				}
-				SubscriptionType::AdminEventLogSections => {
-					subscribe_to_admin_event_log_sections(
+				SubscriptionType::AdminEventLogTabs => {
+					subscribe_to_admin_event_log_tabs(
 						Arc::clone(args.db_connection),
 						args.conn_update_tx,
 						args.connection_id,
@@ -484,9 +482,9 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 						.remove_admin_editors_subscription(args.connection_id)
 						.await?
 				}
-				SubscriptionType::AdminEventLogSections => {
+				SubscriptionType::AdminEventLogTabs => {
 					subscription_manager
-						.remove_admin_event_log_sections_subscription(args.connection_id)
+						.remove_admin_event_log_tabs_subscription(args.connection_id)
 						.await?
 				}
 				SubscriptionType::AdminApplications => {
@@ -587,8 +585,8 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 					)
 					.await
 				}
-				SubscriptionTargetUpdate::AdminEventLogSectionsUpdate(update_data) => {
-					handle_admin_event_log_sections_message(
+				SubscriptionTargetUpdate::AdminEventLogTabsUpdate(update_data) => {
+					handle_admin_event_log_tabs_message(
 						Arc::clone(args.db_connection),
 						args.connection_id,
 						user,

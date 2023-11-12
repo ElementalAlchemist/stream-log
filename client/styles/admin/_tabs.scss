@@ -1,4 +1,4 @@
-#admin_sections_list {
+#admin_tabs_list {
 	margin: 10px 0;
 	display: grid;
 	grid-template-columns: max-content max-content max-content max-content;
@@ -6,11 +6,11 @@
 	gap: 2px;
 }
 
-.admin_sections_section {
+.admin_tabs_tab {
 	display: contents;
 }
 
-#admin_sections_add_section {
+#admin_tabs_add_tab {
 	display: grid;
 	grid-template-columns: max-content max-content max-content;
 	gap: 2px;

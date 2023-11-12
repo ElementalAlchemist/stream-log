@@ -28,7 +28,7 @@ use pages::admin::manage_entry_types::AdminManageEntryTypesView;
 use pages::admin::manage_events::AdminManageEventsView;
 use pages::admin::manage_groups::AdminManageGroupsView;
 use pages::admin::manage_info_pages::AdminInfoPagesView;
-use pages::admin::manage_sections::AdminManageEventLogSectionsView;
+use pages::admin::manage_tabs::AdminManageEventLogTabsView;
 use pages::admin::manage_users::AdminManageUsersView;
 use pages::event_log::entry_types::EventLogEntryTypesView;
 use pages::event_log::info_page::EventLogInfoPageView;
@@ -73,8 +73,8 @@ enum AppRoutes {
 	AdminEntryTypesForEventManager,
 	#[to("/admin/editors")]
 	AdminEditorsManager,
-	#[to("/admin/sections")]
-	AdminEventLogSectionsManager,
+	#[to("/admin/tabs")]
+	AdminEventLogTabsManager,
 	#[to("/admin/applications")]
 	AdminApplicationsManager,
 	#[to("/admin/info_pages")]
@@ -214,7 +214,7 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 							AppRoutes::AdminEntryTypeManager => view! { ctx, AdminManageEntryTypesView },
 							AppRoutes::AdminEntryTypesForEventManager => view! { ctx, AdminManageEntryTypesForEventsView },
 							AppRoutes::AdminEditorsManager => view! { ctx, AdminManageEditorsView },
-							AppRoutes::AdminEventLogSectionsManager => view! { ctx, AdminManageEventLogSectionsView },
+							AppRoutes::AdminEventLogTabsManager => view! { ctx, AdminManageEventLogTabsView },
 							AppRoutes::AdminApplicationsManager => view! { ctx, AdminApplicationsView },
 							AppRoutes::AdminInfoPagesManager => view! { ctx, AdminInfoPagesView },
 							AppRoutes::UserProfile => view! { ctx, UserProfileView },

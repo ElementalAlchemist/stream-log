@@ -1,17 +1,15 @@
 use super::structures::entry_type::EntryType as EntryTypeApi;
 use super::structures::event_log_entry::{EndTimeData, EventLogEntry as EventLogEntryApi};
 use super::structures::event_log_response::EventLogResponse;
-use super::structures::event_log_section::EventLogSection;
+use super::structures::event_log_tab::EventLogTab;
 use super::structures::tag::Tag as TagApi;
 use super::structures::user::User as UserApi;
 use super::utils::check_application;
 use crate::models::{
-	EntryType as EntryTypeDb, Event as EventDb, EventLogEntry as EventLogEntryDb, EventLogSection as EventLogSectionDb,
+	EntryType as EntryTypeDb, Event as EventDb, EventLogEntry as EventLogEntryDb, EventLogTab as EventLogTabDb,
 	EventLogTag, Tag as TagDb, User as UserDb,
 };
-use crate::schema::{
-	entry_types, event_log, event_log_history, event_log_sections, event_log_tags, events, tags, users,
-};
+use crate::schema::{entry_types, event_log, event_log_history, event_log_tabs, event_log_tags, events, tags, users};
 use async_std::sync::{Arc, Mutex};
 use chrono::{DateTime, Utc};
 use diesel::dsl::max;
@@ -102,22 +100,22 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 		}
 	};
 
-	let event_log_sections: QueryResult<Vec<EventLogSectionDb>> = event_log_sections::table
-		.filter(event_log_sections::event.eq(&event_id))
+	let event_log_tabs: QueryResult<Vec<EventLogTabDb>> = event_log_tabs::table
+		.filter(event_log_tabs::event.eq(&event_id))
 		.load(&mut *db_connection);
-	let event_log_sections = match event_log_sections {
-		Ok(sections) => sections,
+	let event_log_tabs = match event_log_tabs {
+		Ok(tabs) => tabs,
 		Err(error) => {
-			tide::log::error!("API error loading event log sections: {}", error);
+			tide::log::error!("API error loading event log tabs: {}", error);
 			return Err(tide::Error::new(
 				StatusCode::InternalServerError,
 				anyhow::Error::msg("Database error"),
 			));
 		}
 	};
-	let event_log_sections_by_start_time: BTreeMap<DateTime<Utc>, EventLogSection> = event_log_sections
+	let event_log_tabs_by_start_time: BTreeMap<DateTime<Utc>, EventLogTab> = event_log_tabs
 		.iter()
-		.map(|section| (section.start_time, (*section).clone().into()))
+		.map(|tab| (tab.start_time, (*tab).clone().into()))
 		.collect();
 
 	let entry_type_ids: HashSet<String> = event_log.iter().map(|log_entry| log_entry.entry_type.clone()).collect();
@@ -292,10 +290,10 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 				video_errors: entry.video_errors.clone(),
 				poster_moment: entry.poster_moment,
 				marked_incomplete: entry.marked_incomplete,
-				section: event_log_sections_by_start_time
+				tab: event_log_tabs_by_start_time
 					.range(..=entry.start_time)
 					.last()
-					.map(|(_, section)| section.clone()),
+					.map(|(_, tab)| tab.clone()),
 			}
 		})
 		.collect();

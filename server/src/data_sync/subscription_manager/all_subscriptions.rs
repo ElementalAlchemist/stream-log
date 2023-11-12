@@ -19,7 +19,7 @@ pub struct SubscriptionManager {
 	admin_entry_type_subscriptions: SingleSubscriptionManager,
 	admin_entry_type_event_subscriptions: SingleSubscriptionManager,
 	admin_event_editor_subscriptions: SingleSubscriptionManager,
-	admin_event_log_sections_subscriptions: SingleSubscriptionManager,
+	admin_event_log_tabs_subscriptions: SingleSubscriptionManager,
 	admin_applications_subscriptions: SingleSubscriptionManager,
 	admin_info_pages_subscriptions: SingleSubscriptionManager,
 }
@@ -42,9 +42,7 @@ impl SubscriptionManager {
 				SubscriptionType::AdminEntryTypesEvents,
 			),
 			admin_event_editor_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AdminEventEditors),
-			admin_event_log_sections_subscriptions: SingleSubscriptionManager::new(
-				SubscriptionType::AdminEventLogSections,
-			),
+			admin_event_log_tabs_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AdminEventLogTabs),
 			admin_applications_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AdminApplications),
 			admin_info_pages_subscriptions: SingleSubscriptionManager::new(SubscriptionType::AdminInfoPages),
 		}
@@ -394,40 +392,36 @@ impl SubscriptionManager {
 		self.admin_event_editor_subscriptions.is_subscribed(connection_id).await
 	}
 
-	/// Adds to the admin event log sections subscription
-	pub async fn add_admin_event_log_sections_subscription(
+	/// Adds to the admin event log tabs subscription
+	pub async fn add_admin_event_log_tabs_subscription(
 		&self,
 		connection_id: &str,
 		update_channel: Sender<ConnectionUpdate>,
 	) {
-		self.admin_event_log_sections_subscriptions
+		self.admin_event_log_tabs_subscriptions
 			.subscribe(connection_id, update_channel)
 			.await;
 	}
 
-	/// Removes from the admin event log sections subscription
-	pub async fn remove_admin_event_log_sections_subscription(
+	/// Removes from the admin event log tabs subscription
+	pub async fn remove_admin_event_log_tabs_subscription(
 		&self,
 		connection_id: &str,
 	) -> Result<(), SendError<ConnectionUpdate>> {
-		self.admin_event_log_sections_subscriptions
-			.unsubscribe(connection_id)
-			.await
+		self.admin_event_log_tabs_subscriptions.unsubscribe(connection_id).await
 	}
 
-	/// Sends the given message to all subscribed connections for admin event log sections
-	pub async fn broadcast_admin_event_log_sections_message(
+	/// Sends the given message to all subscribed connections for admin event log tabs
+	pub async fn broadcast_admin_event_log_tabs_message(
 		&self,
 		message: SubscriptionData,
 	) -> Result<(), SendError<SubscriptionData>> {
-		self.admin_event_log_sections_subscriptions
-			.broadcast_message(message)
-			.await
+		self.admin_event_log_tabs_subscriptions.broadcast_message(message).await
 	}
 
-	/// Checks whether a connection is subscribed to admin event log sections
-	pub async fn is_subscribed_to_admin_event_log_sections(&self, connection_id: &str) -> bool {
-		self.admin_event_log_sections_subscriptions
+	/// Checks whether a connection is subscribed to admin event log tabs
+	pub async fn is_subscribed_to_admin_event_log_tabs(&self, connection_id: &str) -> bool {
+		self.admin_event_log_tabs_subscriptions
 			.is_subscribed(connection_id)
 			.await
 	}

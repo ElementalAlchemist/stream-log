@@ -1,13 +1,13 @@
 use crate::messages::admin::{
 	AdminApplicationData, AdminApplicationUpdate, AdminEntryTypeData, AdminEntryTypeEventData,
 	AdminEntryTypeEventUpdate, AdminEntryTypeUpdate, AdminEventData, AdminEventEditorData, AdminEventEditorUpdate,
-	AdminEventLogSectionsData, AdminEventLogSectionsUpdate, AdminEventUpdate, AdminInfoPageData, AdminInfoPageUpdate,
+	AdminEventLogTabsData, AdminEventLogTabsUpdate, AdminEventUpdate, AdminInfoPageData, AdminInfoPageUpdate,
 	AdminPermissionGroupData, AdminPermissionGroupUpdate, AdminUserPermissionGroupData, AdminUserPermissionGroupUpdate,
 	Application, EditorEventAssociation, EntryTypeEventAssociation, PermissionGroup, PermissionGroupEventAssociation,
 	UserPermissionGroupAssociation,
 };
 use crate::messages::entry_types::EntryType;
-use crate::messages::event_log::{EventLogEntry, EventLogSection};
+use crate::messages::event_log::{EventLogEntry, EventLogTab};
 use crate::messages::event_subscription::{EventSubscriptionData, EventSubscriptionUpdate};
 use crate::messages::events::Event;
 use crate::messages::info_pages::InfoPage;
@@ -36,8 +36,8 @@ pub enum SubscriptionType {
 	AdminEntryTypesEvents,
 	/// A subscription to relationships between users (as video editors) and events.
 	AdminEventEditors,
-	/// A subscription to event log sections.
-	AdminEventLogSections,
+	/// A subscription to event log tabs.
+	AdminEventLogTabs,
 	/// A subscription to all applications.
 	AdminApplications,
 	/// A subscription to all info pages.
@@ -58,8 +58,8 @@ pub struct InitialEventSubscriptionLoadData {
 	pub editors: Vec<UserData>,
 	/// The list of info pages that can be read for this event
 	pub info_pages: Vec<InfoPage>,
-	/// The event log section headers
-	pub sections: Vec<EventLogSection>,
+	/// The event log tabs
+	pub tabs: Vec<EventLogTab>,
 	/// The event log entries that have already been created
 	pub entries: Vec<EventLogEntry>,
 }
@@ -84,7 +84,7 @@ pub enum InitialSubscriptionLoadData {
 	AdminEntryTypes(Vec<EntryType>),
 	AdminEntryTypesEvents(Vec<EntryTypeEventAssociation>),
 	AdminEventEditors(Vec<EditorEventAssociation>),
-	AdminEventLogSections(Vec<(Event, EventLogSection)>),
+	AdminEventLogTabs(Vec<(Event, EventLogTab)>),
 	AdminApplications(Vec<Application>),
 	AdminInfoPages(Vec<InfoPage>),
 }
@@ -101,7 +101,7 @@ pub enum SubscriptionData {
 	AdminUsersUpdate(UserData),
 	AdminEventEditorsUpdate(AdminEventEditorData),
 	AdminUserPermissionGroupsUpdate(AdminUserPermissionGroupData),
-	AdminEventLogSectionsUpdate(AdminEventLogSectionsData),
+	AdminEventLogTabsUpdate(AdminEventLogTabsData),
 	AdminApplicationsUpdate(AdminApplicationData),
 	AdminInfoPagesUpdate(AdminInfoPageData),
 }
@@ -124,7 +124,7 @@ pub enum SubscriptionTargetUpdate {
 	AdminUserUpdate(UserData),
 	AdminEventEditorsUpdate(AdminEventEditorUpdate),
 	AdminUserPermissionGroupsUpdate(AdminUserPermissionGroupUpdate),
-	AdminEventLogSectionsUpdate(AdminEventLogSectionsUpdate),
+	AdminEventLogTabsUpdate(AdminEventLogTabsUpdate),
 	AdminApplicationsUpdate(AdminApplicationUpdate),
 	AdminInfoPagesUpdate(AdminInfoPageUpdate),
 }
