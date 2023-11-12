@@ -595,6 +595,8 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 							event_entry_types=read_entry_types_signal,
 							event_tags=read_tags_signal,
 							event_editors=read_available_editors,
+							event_log_tabs=read_event_tabs_signal,
+							current_tab=selected_tab,
 							event_log_entries=read_log_entries,
 							editing_log_entry=editing_log_entry,
 							edit_parent_log_entry=editing_entry_parent

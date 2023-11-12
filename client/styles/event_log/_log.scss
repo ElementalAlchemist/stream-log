@@ -498,6 +498,16 @@ $event_log_editor_column_count: 17;
 	width: max-content;
 }
 
+.event_log_entry_edit_tab_warning {
+	background: #ff3;
+}
+
+@media (prefers-color-scheme: dark) {
+	.event_log_entry_edit_tab_warning {
+		background: #660;
+	}
+}
+
 .event_log_entry_edit_delete {
 	flex-basis: max-content;
 	flex-grow: 1;

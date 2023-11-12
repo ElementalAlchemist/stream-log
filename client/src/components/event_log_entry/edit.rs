@@ -9,7 +9,7 @@ use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use stream_log_shared::messages::entry_types::EntryType;
-use stream_log_shared::messages::event_log::{EndTimeData, EventLogEntry, VideoEditState};
+use stream_log_shared::messages::event_log::{EndTimeData, EventLogEntry, EventLogTab, VideoEditState};
 use stream_log_shared::messages::event_subscription::{
 	EventSubscriptionUpdate, ModifiedEventLogEntryParts, NewTypingData,
 };
@@ -31,6 +31,8 @@ pub struct EventLogEntryEditProps<'a> {
 	event_entry_types: &'a ReadSignal<Vec<EntryType>>,
 	event_tags: &'a ReadSignal<Vec<Tag>>,
 	event_editors: &'a ReadSignal<Vec<UserData>>,
+	event_log_tabs: &'a ReadSignal<Vec<EventLogTab>>,
+	current_tab: &'a ReadSignal<Option<EventLogTab>>,
 	event_log_entries: &'a ReadSignal<Vec<EventLogEntry>>,
 	editing_log_entry: &'a Signal<Option<EventLogEntry>>,
 	edit_parent_log_entry: &'a Signal<Option<EventLogEntry>>,
@@ -733,6 +735,48 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 	modified_entry_data.modify().clear();
 	suppress_typing_notifications.set(false);
 
+	let insert_position_time = create_memo(ctx, || {
+		let log_entries = props.event_log_entries.get();
+		let editing_log_entry = props.editing_log_entry.get();
+		let entered_start_time = start_time_value.get();
+		let mut top_level_parent = if let Some(entry) = (*editing_log_entry).clone() {
+			entry
+		} else {
+			return *entered_start_time;
+		};
+
+		if top_level_parent.parent.is_none() {
+			// Because the top-level parent entry is the current entry, we want to use the updated start time
+			return *entered_start_time;
+		}
+
+		while let Some(parent) = top_level_parent.parent.as_ref() {
+			let parent_entry = log_entries.iter().find(|entry| entry.id == *parent);
+			if let Some(entry) = parent_entry {
+				top_level_parent = entry.clone();
+			} else {
+				break;
+			}
+		}
+
+		top_level_parent.start_time
+	});
+
+	let insert_to_tab = create_memo(ctx, || {
+		let tabs = props.event_log_tabs.get();
+		let insert_time = insert_position_time.get();
+		let mut insert_tab: Option<EventLogTab> = None;
+		for tab in tabs.iter() {
+			if *insert_time >= tab.start_time {
+				insert_tab = Some(tab.clone());
+			} else {
+				break;
+			}
+		}
+
+		insert_tab
+	});
+
 	let start_now = || {
 		let start_time_duration = Utc::now() - props.event.get().start_time;
 		let start_time_duration = format_duration(&start_time_duration);
@@ -875,6 +919,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 	let reset_data = move || {
 		suppress_typing_notifications.set(true);
 		start_time_input.set(String::new());
+		start_time_value.set(Utc::now());
 		end_time_input.set(String::new());
 		entry_type_name.set(String::new());
 		description.set(String::new());
@@ -1530,7 +1575,19 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 						}
 					}
 				} else {
-					view! { ctx, }
+					let insert_tab = insert_to_tab.get();
+					if insert_tab != props.current_tab.get() {
+						let insert_tab_name = (*insert_tab).as_ref().map(|tab| tab.name.clone()).unwrap_or_else(|| props.event.get().default_first_tab_name.clone());
+						let display_error = format!("This entry will be added to a different tab: {}", insert_tab_name);
+						view! {
+							ctx,
+							div(class="event_log_entry_edit_tab_warning") {
+								(display_error)
+							}
+						}
+					} else {
+						view! { ctx, }
+					}
 				})
 				(if let Some(entry) = (*props.editing_log_entry.get()).clone() {
 					view! {
