@@ -142,7 +142,7 @@ diesel::table! {
 		name -> Text,
 		start_time -> Timestamptz,
 		editor_link_format -> Text,
-		default_first_tab_name -> Text,
+		first_tab_name -> Text,
 	}
 }
 

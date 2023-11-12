@@ -7,5 +7,5 @@ pub struct Event {
 	pub name: String,
 	pub start_time: DateTime<Utc>,
 	pub editor_link_format: String,
-	pub default_first_tab_name: String,
+	pub first_tab_name: String,
 }

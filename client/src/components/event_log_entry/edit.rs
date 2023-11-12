@@ -1577,7 +1577,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 				} else {
 					let insert_tab = insert_to_tab.get();
 					if insert_tab != props.current_tab.get() {
-						let insert_tab_name = (*insert_tab).as_ref().map(|tab| tab.name.clone()).unwrap_or_else(|| props.event.get().default_first_tab_name.clone());
+						let insert_tab_name = (*insert_tab).as_ref().map(|tab| tab.name.clone()).unwrap_or_else(|| props.event.get().first_tab_name.clone());
 						let display_error = format!("This entry will be added to a different tab: {}", insert_tab_name);
 						view! {
 							ctx,

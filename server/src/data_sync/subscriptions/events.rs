@@ -398,7 +398,7 @@ pub async fn subscribe_to_event(
 		name: event.name.clone(),
 		start_time: event.start_time,
 		editor_link_format: event.editor_link_format,
-		default_first_tab_name: event.default_first_tab_name,
+		first_tab_name: event.first_tab_name,
 	};
 	let permission_level: PermissionLevel = permission_level.into();
 	let entry_types: Vec<EntryType> = entry_types.iter().map(|et| (*et).clone().into()).collect();

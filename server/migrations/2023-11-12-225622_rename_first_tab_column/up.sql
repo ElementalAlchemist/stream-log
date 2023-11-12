@@ -1,0 +1,1 @@
+ALTER TABLE events RENAME COLUMN default_first_tab_name TO first_tab_name;

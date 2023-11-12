@@ -90,7 +90,7 @@ pub async fn handle_admin_event_message(
 						name: event.name.clone(),
 						start_time: event.start_time,
 						editor_link_format: event.editor_link_format.clone(),
-						default_first_tab_name: event.default_first_tab_name.clone(),
+						first_tab_name: event.first_tab_name.clone(),
 					};
 					diesel::insert_into(events::table)
 						.values(event_db)
@@ -102,7 +102,7 @@ pub async fn handle_admin_event_message(
 							events::name.eq(&event.name),
 							events::start_time.eq(event.start_time),
 							events::editor_link_format.eq(&event.editor_link_format),
-							events::default_first_tab_name.eq(&event.default_first_tab_name),
+							events::first_tab_name.eq(&event.first_tab_name),
 						))
 						.execute(&mut *db_connection)
 				}

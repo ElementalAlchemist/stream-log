@@ -130,7 +130,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		let event_signal = event_signal.clone();
 		move || (*event_signal.get()).clone()
 	});
-	let first_tab_name_signal = create_memo(ctx, || read_event_signal.get().default_first_tab_name.clone());
+	let first_tab_name_signal = create_memo(ctx, || read_event_signal.get().first_tab_name.clone());
 	let read_permission_signal = create_memo(ctx, {
 		let permission_signal = permission_signal.clone();
 		move || *permission_signal.get()
