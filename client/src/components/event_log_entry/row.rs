@@ -345,10 +345,10 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 			(if *props.use_editor_view.get() {
 				view! {
 					ctx,
-					div(class="log_entry_video_state") {
+					div(class="log_entry_video_processing_state") {
 						({
-							let video_state = (*props.entry.get()).as_ref().and_then(|entry| entry.video_state);
-							match video_state {
+							let video_processing_state = (*props.entry.get()).as_ref().and_then(|entry| entry.video_processing_state);
+							match video_processing_state {
 								Some(state) => format!("{}", state),
 								None => String::new()
 							}

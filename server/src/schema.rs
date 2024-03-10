@@ -10,8 +10,8 @@ pub mod sql_types {
 	pub struct VideoEditState;
 
 	#[derive(diesel::sql_types::SqlType)]
-	#[diesel(postgres_type(name = "video_state"))]
-	pub struct VideoState;
+	#[diesel(postgres_type(name = "video_processing_state"))]
+	pub struct VideoProcessingState;
 }
 
 diesel::table! {
@@ -52,7 +52,7 @@ diesel::table! {
 
 diesel::table! {
 	use diesel::sql_types::*;
-	use super::sql_types::VideoState;
+	use super::sql_types::VideoProcessingState;
 	use super::sql_types::VideoEditState;
 
 	event_log (id) {
@@ -70,7 +70,7 @@ diesel::table! {
 		deleted_by -> Nullable<Text>,
 		created_at -> Timestamptz,
 		manual_sort_key -> Nullable<Int4>,
-		video_state -> Nullable<VideoState>,
+		video_processing_state -> Nullable<VideoProcessingState>,
 		video_errors -> Text,
 		poster_moment -> Bool,
 		video_edit_state -> VideoEditState,
@@ -82,7 +82,7 @@ diesel::table! {
 
 diesel::table! {
 	use diesel::sql_types::*;
-	use super::sql_types::VideoState;
+	use super::sql_types::VideoProcessingState;
 	use super::sql_types::VideoEditState;
 
 	event_log_history (id) {
@@ -103,7 +103,7 @@ diesel::table! {
 		deleted_by -> Nullable<Text>,
 		created_at -> Timestamptz,
 		manual_sort_key -> Nullable<Int4>,
-		video_state -> Nullable<VideoState>,
+		video_processing_state -> Nullable<VideoProcessingState>,
 		video_errors -> Text,
 		poster_moment -> Bool,
 		video_edit_state -> VideoEditState,

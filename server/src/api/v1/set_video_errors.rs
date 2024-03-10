@@ -72,7 +72,7 @@ pub async fn set_video_errors(
 			parent: entry.parent,
 			created_at: entry.created_at,
 			manual_sort_key: entry.manual_sort_key,
-			video_state: entry.video_state.map(|state| state.into()),
+			video_processing_state: entry.video_processing_state.map(|state| state.into()),
 			video_errors: entry.video_errors,
 			poster_moment: entry.poster_moment,
 			video_edit_state: entry.video_edit_state.into(),

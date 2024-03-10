@@ -12,7 +12,7 @@ use stream_log_shared::messages::admin::{
 };
 use stream_log_shared::messages::entry_types::EntryType as EntryTypeWs;
 use stream_log_shared::messages::event_log::{
-	EndTimeData, VideoEditState as VideoEditStateWs, VideoState as VideoStateWs,
+	EndTimeData, VideoEditState as VideoEditStateWs, VideoProcessingState as VideoProcessingStateWs,
 };
 use stream_log_shared::messages::events::Event as EventWs;
 use stream_log_shared::messages::info_pages::InfoPage as InfoPageWs;
@@ -83,8 +83,8 @@ impl From<VideoEditState> for VideoEditStateWs {
 }
 
 #[derive(Clone, Copy, DbEnum, Debug, Eq, PartialEq)]
-#[ExistingTypePath = "crate::schema::sql_types::VideoState"]
-pub enum VideoState {
+#[ExistingTypePath = "crate::schema::sql_types::VideoProcessingState"]
+pub enum VideoProcessingState {
 	Unedited,
 	Edited,
 	Claimed,
@@ -95,32 +95,32 @@ pub enum VideoState {
 	Unlisted,
 }
 
-impl From<VideoStateWs> for VideoState {
-	fn from(value: VideoStateWs) -> Self {
+impl From<VideoProcessingStateWs> for VideoProcessingState {
+	fn from(value: VideoProcessingStateWs) -> Self {
 		match value {
-			VideoStateWs::Unedited => Self::Unedited,
-			VideoStateWs::Edited => Self::Edited,
-			VideoStateWs::Claimed => Self::Claimed,
-			VideoStateWs::Finalizing => Self::Finalizing,
-			VideoStateWs::Transcoding => Self::Transcoding,
-			VideoStateWs::Done => Self::Done,
-			VideoStateWs::Modified => Self::Modified,
-			VideoStateWs::Unlisted => Self::Unlisted,
+			VideoProcessingStateWs::Unedited => Self::Unedited,
+			VideoProcessingStateWs::Edited => Self::Edited,
+			VideoProcessingStateWs::Claimed => Self::Claimed,
+			VideoProcessingStateWs::Finalizing => Self::Finalizing,
+			VideoProcessingStateWs::Transcoding => Self::Transcoding,
+			VideoProcessingStateWs::Done => Self::Done,
+			VideoProcessingStateWs::Modified => Self::Modified,
+			VideoProcessingStateWs::Unlisted => Self::Unlisted,
 		}
 	}
 }
 
-impl From<VideoState> for VideoStateWs {
-	fn from(value: VideoState) -> Self {
+impl From<VideoProcessingState> for VideoProcessingStateWs {
+	fn from(value: VideoProcessingState) -> Self {
 		match value {
-			VideoState::Unedited => Self::Unedited,
-			VideoState::Edited => Self::Edited,
-			VideoState::Claimed => Self::Claimed,
-			VideoState::Finalizing => Self::Finalizing,
-			VideoState::Transcoding => Self::Transcoding,
-			VideoState::Done => Self::Done,
-			VideoState::Modified => Self::Modified,
-			VideoState::Unlisted => Self::Unlisted,
+			VideoProcessingState::Unedited => Self::Unedited,
+			VideoProcessingState::Edited => Self::Edited,
+			VideoProcessingState::Claimed => Self::Claimed,
+			VideoProcessingState::Finalizing => Self::Finalizing,
+			VideoProcessingState::Transcoding => Self::Transcoding,
+			VideoProcessingState::Done => Self::Done,
+			VideoProcessingState::Modified => Self::Modified,
+			VideoProcessingState::Unlisted => Self::Unlisted,
 		}
 	}
 }
@@ -311,7 +311,7 @@ pub struct EventLogEntry {
 	pub deleted_by: Option<String>,
 	pub created_at: DateTime<Utc>,
 	pub manual_sort_key: Option<i32>,
-	pub video_state: Option<VideoState>,
+	pub video_processing_state: Option<VideoProcessingState>,
 	pub video_errors: String,
 	pub poster_moment: bool,
 	pub video_edit_state: VideoEditState,
@@ -410,7 +410,7 @@ pub struct EventLogHistoryEntry {
 	pub deleted_by: Option<String>,
 	pub created_at: DateTime<Utc>,
 	pub manual_sort_key: Option<i32>,
-	pub video_state: Option<VideoState>,
+	pub video_processing_state: Option<VideoProcessingState>,
 	pub video_errors: String,
 	pub poster_moment: bool,
 	pub video_edit_state: VideoEditState,
@@ -450,7 +450,7 @@ impl EventLogHistoryEntry {
 			deleted_by: entry.deleted_by.clone(),
 			created_at: entry.created_at,
 			manual_sort_key: entry.manual_sort_key,
-			video_state: entry.video_state,
+			video_processing_state: entry.video_processing_state,
 			video_errors: entry.video_errors.clone(),
 			poster_moment: entry.poster_moment,
 			video_edit_state: entry.video_edit_state,

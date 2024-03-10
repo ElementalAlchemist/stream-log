@@ -13,7 +13,7 @@ use futures::task::{Context, Poll, Waker};
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
 use std::collections::{HashMap, HashSet};
-use stream_log_shared::messages::event_log::{EventLogEntry, EventLogTab, VideoState};
+use stream_log_shared::messages::event_log::{EventLogEntry, EventLogTab, VideoProcessingState};
 use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::subscriptions::SubscriptionType;
 use stream_log_shared::messages::user::UserData;
@@ -172,7 +172,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 
 	let editing_log_entry: &Signal<Option<EventLogEntry>> = create_signal(ctx, None);
 
-	let active_state_filters: &Signal<HashSet<Option<VideoState>>> = create_signal(ctx, HashSet::new());
+	let active_state_filters: &Signal<HashSet<Option<VideoProcessingState>>> = create_signal(ctx, HashSet::new());
 
 	let current_time = Utc::now();
 	let mut current_tab: Option<&EventLogTab> = None;
@@ -211,7 +211,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 				match (next_entry, next_tab) {
 					(Some(entry), Some(tab)) => {
 						if entry.start_time < tab.start_time {
-							if state_filters.is_empty() || state_filters.contains(&entry.video_state) {
+							if state_filters.is_empty() || state_filters.contains(&entry.video_processing_state) {
 								let tab_id = current_tab.as_ref().map(|tab| tab.id.clone()).unwrap_or_default();
 								entries_by_tab.entry(tab_id).or_default().push(entry.clone());
 							}
@@ -222,7 +222,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 						}
 					}
 					(Some(entry), None) => {
-						if state_filters.is_empty() || state_filters.contains(&entry.video_state) {
+						if state_filters.is_empty() || state_filters.contains(&entry.video_processing_state) {
 							let tab_id = current_tab.as_ref().map(|tab| tab.id.clone()).unwrap_or_default();
 							entries_by_tab.entry(tab_id).or_default().push(entry.clone());
 						}
@@ -304,20 +304,20 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		}
 	});
 
-	let mut all_video_states = vec![None];
-	for video_state in VideoState::all_states() {
-		all_video_states.push(Some(video_state));
+	let mut all_video_processing_states = vec![None];
+	for video_processing_state in VideoProcessingState::all_states() {
+		all_video_processing_states.push(Some(video_processing_state));
 	}
-	let all_video_state_filters: Vec<(String, &Signal<bool>)> = all_video_states
+	let all_video_processing_state_filters: Vec<(String, &Signal<bool>)> = all_video_processing_states
 		.iter()
-		.map(|state| {
-			let state_name = match state {
+		.map(|processing_state| {
+			let state_name = match processing_state {
 				Some(state) => format!("{}", state),
 				None => String::from("(empty)"),
 			};
-			let active_signal = create_signal(ctx, active_state_filters.get().contains(state));
+			let active_signal = create_signal(ctx, active_state_filters.get().contains(processing_state));
 
-			let state = *state;
+			let state = *processing_state;
 			create_effect(ctx, move || {
 				if *active_signal.get() {
 					active_state_filters.modify().insert(state);
@@ -329,7 +329,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 			(state_name, active_signal)
 		})
 		.collect();
-	let all_video_state_filters = create_signal(ctx, all_video_state_filters);
+	let all_video_processing_state_filters = create_signal(ctx, all_video_processing_state_filters);
 
 	let jump_highlight_row_id = create_signal(ctx, String::new());
 	let jump_id_entry = create_signal(ctx, String::new());
@@ -384,11 +384,11 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 				h1(id="event_log_title") { (visible_event_signal.get().name) }
 				div(id="event_log_view_settings") {
 					div(id="event_log_view_settings_filter") {
-						div(id="event_log_view_settings_filter_video_state") {
-							"Video State Filter"
+						div(id="event_log_view_settings_filter_video_processing_state") {
+							"Video Processing State Filter"
 							ul(class="event_log_view_settings_filter_dropdown") {
 								Keyed(
-									iterable=all_video_state_filters,
+									iterable=all_video_processing_state_filters,
 									key=|(state_name, _)| state_name.clone(),
 									view=|ctx, (state_name, filter_active)| {
 										view! {

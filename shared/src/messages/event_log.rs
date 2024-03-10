@@ -29,7 +29,7 @@ pub struct EventLogEntry {
 	pub parent: Option<String>,
 	pub created_at: DateTime<Utc>,
 	pub manual_sort_key: Option<i32>,
-	pub video_state: Option<VideoState>,
+	pub video_processing_state: Option<VideoProcessingState>,
 	pub video_errors: String,
 	pub poster_moment: bool,
 	pub video_edit_state: VideoEditState,
@@ -44,7 +44,7 @@ pub struct EventLogTab {
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
-pub enum VideoState {
+pub enum VideoProcessingState {
 	Unedited,
 	Edited,
 	Claimed,
@@ -55,7 +55,7 @@ pub enum VideoState {
 	Unlisted,
 }
 
-impl VideoState {
+impl VideoProcessingState {
 	pub fn all_states() -> Vec<Self> {
 		vec![
 			Self::Unedited,
@@ -70,7 +70,7 @@ impl VideoState {
 	}
 }
 
-impl std::fmt::Display for VideoState {
+impl std::fmt::Display for VideoProcessingState {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		let str_value = match self {
 			Self::Unedited => "UNEDITED",

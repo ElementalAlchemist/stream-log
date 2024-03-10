@@ -1035,7 +1035,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 					.map(|entry| entry.id.clone()),
 				created_at: Utc::now(),
 				manual_sort_key: *manual_sort_key.get(),
-				video_state: None,
+				video_processing_state: None,
 				video_errors: String::new(),
 				poster_moment: *poster_moment.get(),
 				video_edit_state: *video_edit_state.get(),

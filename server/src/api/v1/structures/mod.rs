@@ -6,4 +6,4 @@ pub mod event_log_tab;
 pub mod tag;
 pub mod user;
 pub mod video_edit_state;
-pub mod video_state;
+pub mod video_processing_state;

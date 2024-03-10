@@ -1,8 +1,9 @@
-use super::structures::video_state::VideoState as VideoStateApi;
+use super::structures::video_processing_state::VideoProcessingState as VideoProcessingStateApi;
 use super::utils::{check_application, update_history};
 use crate::data_sync::SubscriptionManager;
 use crate::models::{
-	Event as EventDb, EventLogEntry as EventLogEntryDb, Tag as TagDb, User, VideoState as VideoStateDb,
+	Event as EventDb, EventLogEntry as EventLogEntryDb, Tag as TagDb, User,
+	VideoProcessingState as VideoProcessingStateDb,
 };
 use crate::schema::{event_log, event_log_tags, events, tags, users};
 use async_std::sync::{Arc, Mutex, MutexGuard};
@@ -13,10 +14,10 @@ use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::subscriptions::SubscriptionData;
 use tide::{Request, Response, StatusCode};
 
-/// POST /api/v1/entry/:id/video_state
+/// POST /api/v1/entry/:id/video_processing_state
 ///
 /// Sets the video state for the specified entry. The body of the request must be a valid video state.
-pub async fn set_video_state(
+pub async fn set_video_processing_state(
 	mut request: Request<()>,
 	db_connection: Arc<Mutex<PgConnection>>,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
@@ -30,8 +31,8 @@ pub async fn set_video_state(
 		));
 	}
 
-	let video_state = request.body_string().await?;
-	let video_state: VideoStateApi = match video_state.parse() {
+	let video_processing_state = request.body_string().await?;
+	let video_processing_state: VideoProcessingStateApi = match video_processing_state.parse() {
 		Ok(state) => state,
 		Err(_) => {
 			return Err(tide::Error::new(
@@ -41,20 +42,20 @@ pub async fn set_video_state(
 		}
 	};
 
-	update_video_state(
+	update_video_processing_state(
 		&request,
 		db_connection,
 		subscription_manager,
 		&application.id,
-		Some(video_state),
+		Some(video_processing_state),
 	)
 	.await
 }
 
-/// DELETE /api/v1/entry/:id/video_state
+/// DELETE /api/v1/entry/:id/video_processing_state
 ///
 /// Removes the video state for the specified entry.
-pub async fn delete_video_state(
+pub async fn delete_video_processing_state(
 	request: Request<()>,
 	db_connection: Arc<Mutex<PgConnection>>,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
@@ -68,22 +69,22 @@ pub async fn delete_video_state(
 		));
 	}
 
-	update_video_state(&request, db_connection, subscription_manager, &application.id, None).await
+	update_video_processing_state(&request, db_connection, subscription_manager, &application.id, None).await
 }
 
-async fn update_video_state(
+async fn update_video_processing_state(
 	request: &Request<()>,
 	mut db_connection: MutexGuard<'_, PgConnection>,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	application_id: &str,
-	video_state: Option<VideoStateApi>,
+	video_processing_state: Option<VideoProcessingStateApi>,
 ) -> tide::Result {
 	let event_id = request.param("id")?;
 	let update_result: QueryResult<(Event, EventLogEntry)> = db_connection.transaction(|db_connection| {
-		let video_state: Option<VideoStateDb> = video_state.map(|state| state.into());
+		let video_processing_state: Option<VideoProcessingStateDb> = video_processing_state.map(|state| state.into());
 		let entry: EventLogEntryDb = diesel::update(event_log::table)
 			.filter(event_log::id.eq(event_id).and(event_log::deleted_by.is_null()))
-			.set(event_log::video_state.eq(video_state))
+			.set(event_log::video_processing_state.eq(video_processing_state))
 			.get_result(db_connection)?;
 		update_history(db_connection, entry.clone(), application_id)?;
 
@@ -122,7 +123,7 @@ async fn update_video_state(
 			parent: entry.parent,
 			created_at: entry.created_at,
 			manual_sort_key: entry.manual_sort_key,
-			video_state: entry.video_state.map(|state| state.into()),
+			video_processing_state: entry.video_processing_state.map(|state| state.into()),
 			video_errors: entry.video_errors,
 			poster_moment: entry.poster_moment,
 			video_edit_state: entry.video_edit_state.into(),

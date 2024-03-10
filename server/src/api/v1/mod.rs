@@ -24,8 +24,8 @@ use set_video_errors::set_video_errors;
 mod set_video_link;
 use set_video_link::{delete_video_link, set_video_link};
 
-mod set_video_state;
-use set_video_state::{delete_video_state, set_video_state};
+mod set_video_processing_state;
+use set_video_processing_state::{delete_video_processing_state, set_video_processing_state};
 
 pub fn add_routes(
 	app: &mut Server<()>,
@@ -59,16 +59,20 @@ pub fn add_routes(
 			let subscription_manager = Arc::clone(&subscription_manager);
 			move |request| delete_video_link(request, Arc::clone(&db_connection), Arc::clone(&subscription_manager))
 		});
-	app.at("/api/v1/entry/:id/video_state")
+	app.at("/api/v1/entry/:id/video_processing_state")
 		.post({
 			let db_connection = Arc::clone(&db_connection);
 			let subscription_manager = Arc::clone(&subscription_manager);
-			move |request| set_video_state(request, Arc::clone(&db_connection), Arc::clone(&subscription_manager))
+			move |request| {
+				set_video_processing_state(request, Arc::clone(&db_connection), Arc::clone(&subscription_manager))
+			}
 		})
 		.delete({
 			let db_connection = Arc::clone(&db_connection);
 			let subscription_manager = Arc::clone(&subscription_manager);
-			move |request| delete_video_state(request, Arc::clone(&db_connection), Arc::clone(&subscription_manager))
+			move |request| {
+				delete_video_processing_state(request, Arc::clone(&db_connection), Arc::clone(&subscription_manager))
+			}
 		});
 	app.at("/api/v1/entry/:id/video_errors").post({
 		let db_connection = Arc::clone(&db_connection);

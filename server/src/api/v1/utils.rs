@@ -70,7 +70,7 @@ pub fn update_history(db_connection: &mut PgConnection, entry: EventLogEntry, ap
 		deleted_by: entry.deleted_by,
 		created_at: entry.created_at,
 		manual_sort_key: entry.manual_sort_key,
-		video_state: entry.video_state,
+		video_processing_state: entry.video_processing_state,
 		video_errors: entry.video_errors,
 		poster_moment: entry.poster_moment,
 		video_edit_state: entry.video_edit_state,
