@@ -14,7 +14,7 @@ use user::UserDataUpdate;
 pub enum HandleConnectionError {
 	ConnectionClosed,
 	SendError(tide::Error),
-	ChannelError(SendError<ConnectionUpdate>),
+	ChannelError,
 }
 
 impl From<tide::Error> for HandleConnectionError {
@@ -24,7 +24,7 @@ impl From<tide::Error> for HandleConnectionError {
 }
 
 impl From<SendError<ConnectionUpdate>> for HandleConnectionError {
-	fn from(error: SendError<ConnectionUpdate>) -> Self {
-		Self::ChannelError(error)
+	fn from(_: SendError<ConnectionUpdate>) -> Self {
+		Self::ChannelError
 	}
 }
