@@ -949,8 +949,8 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 				match *modification {
 					ModifiedEventLogEntryParts::StartTime => entry.start_time = *start_time_value.get(),
 					ModifiedEventLogEntryParts::EndTime => entry.end_time = *end_time_value.get(),
-					ModifiedEventLogEntryParts::EntryType => entry.entry_type = (*entry_type_id.get()).clone(),
-					ModifiedEventLogEntryParts::Description => entry.description = (*description.get()).clone(),
+					ModifiedEventLogEntryParts::EntryType => entry.entry_type.clone_from(&(*entry_type_id.get())),
+					ModifiedEventLogEntryParts::Description => entry.description.clone_from(&(*description.get())),
 					ModifiedEventLogEntryParts::MediaLinks => {
 						entry.media_links = (*media_links.get())
 							.iter()
@@ -959,7 +959,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 							.collect()
 					}
 					ModifiedEventLogEntryParts::SubmitterOrWinner => {
-						entry.submitter_or_winner = (*submitter_or_winner.get()).clone()
+						entry.submitter_or_winner.clone_from(&(*submitter_or_winner.get()))
 					}
 					ModifiedEventLogEntryParts::Tags => {
 						entry.tags = tags.get().iter().filter(|tag| !tag.name.is_empty()).cloned().collect()
@@ -967,9 +967,9 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 					ModifiedEventLogEntryParts::VideoEditState => entry.video_edit_state = *video_edit_state.get(),
 					ModifiedEventLogEntryParts::PosterMoment => entry.poster_moment = *poster_moment.get(),
 					ModifiedEventLogEntryParts::NotesToEditor => {
-						entry.notes_to_editor = (*notes_to_editor.get()).clone()
+						entry.notes_to_editor.clone_from(&(*notes_to_editor.get()))
 					}
-					ModifiedEventLogEntryParts::Editor => entry.editor = (*editor_value.get()).clone(),
+					ModifiedEventLogEntryParts::Editor => entry.editor.clone_from(&(*editor_value.get())),
 					ModifiedEventLogEntryParts::MarkedIncomplete => entry.marked_incomplete = *marked_incomplete.get(),
 					ModifiedEventLogEntryParts::SortKey => entry.manual_sort_key = *manual_sort_key.get(),
 					ModifiedEventLogEntryParts::Parent => {
@@ -1393,7 +1393,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 							let link_entry = create_signal(ctx, link);
 							create_effect(ctx, move || {
 								let entered_link = link_entry.get();
-								media_links.modify()[link_index] = (*entered_link).clone();
+								media_links.modify()[link_index].clone_from(&(*entered_link));
 							});
 
 							view! {

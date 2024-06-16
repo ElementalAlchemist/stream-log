@@ -803,7 +803,7 @@ fn handle_typing_data(
 				typing_event.time_received = Utc::now();
 
 				if typing_event.target_field == target_field {
-					typing_event.data = typed_data.clone();
+					typing_event.data.clone_from(&typed_data);
 					found_exact_event = true;
 				}
 			}

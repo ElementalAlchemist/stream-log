@@ -41,13 +41,13 @@ pub fn EventLogEntryTyping<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryTypi
 				for (target, value) in typing_data.iter() {
 					match *target {
 						TypingTarget::Parent => typing_values.0 = Some(value.clone()),
-						TypingTarget::StartTime => typing_values.1 = value.clone(),
-						TypingTarget::EndTime => typing_values.2 = value.clone(),
-						TypingTarget::EntryType => typing_values.3 = value.clone(),
-						TypingTarget::Description => typing_values.4 = value.clone(),
-						TypingTarget::SubmitterWinner => typing_values.5 = value.clone(),
-						TypingTarget::MediaLink => typing_values.6 = value.clone(),
-						TypingTarget::NotesToEditor => typing_values.7 = value.clone(),
+						TypingTarget::StartTime => typing_values.1.clone_from(value),
+						TypingTarget::EndTime => typing_values.2.clone_from(value),
+						TypingTarget::EntryType => typing_values.3.clone_from(value),
+						TypingTarget::Description => typing_values.4.clone_from(value),
+						TypingTarget::SubmitterWinner => typing_values.5.clone_from(value),
+						TypingTarget::MediaLink => typing_values.6.clone_from(value),
+						TypingTarget::NotesToEditor => typing_values.7.clone_from(value),
 					};
 				}
 				(user.clone(), typing_values)

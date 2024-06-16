@@ -204,7 +204,7 @@ async fn EventLogTagsLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogTagsProp
 											entered_description_error.modify().clear();
 
 											let mut tag = tag.clone();
-											tag.description = (*description).clone();
+											tag.description.clone_from(&(*description));
 
 											spawn_local_scoped(ctx, async move {
 												let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
