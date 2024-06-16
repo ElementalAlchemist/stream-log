@@ -14,8 +14,6 @@ pub struct ConfigDocument {
 	pub openid: OpenIdConfig,
 	#[knuffel(child, unwrap(argument))]
 	pub session_secret_key_file: String,
-	#[knuffel(child, unwrap(argument))]
-	pub web_root_path: Option<String>,
 	#[knuffel(child)]
 	pub listen: ListenAddr,
 	#[knuffel(child)]
