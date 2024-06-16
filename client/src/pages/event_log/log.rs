@@ -422,14 +422,6 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 					iterable=read_event_tabs_signal,
 					key=|tab| tab.id.clone(),
 					view=move |ctx, tab| {
-						let selected_tab_value = selected_tab.get();
-						let selected_tab_id = (*selected_tab_value).as_ref().map(|tab| tab.id.as_str()).unwrap_or("");
-						let tab_class = if *selected_tab_id == tab.id {
-							"event_log_tab_active click"
-						} else {
-							"click"
-						};
-
 						let tab_click_handler = {
 							let tab = tab.clone();
 							move |_event: WebEvent| {
@@ -439,7 +431,15 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 
 						view! {
 							ctx,
-							div(class=tab_class, on:click=tab_click_handler) {
+							div(class={
+								let selected_tab_value = selected_tab.get();
+								let selected_tab_id = (*selected_tab_value).as_ref().map(|tab| tab.id.as_str()).unwrap_or("");
+								if *selected_tab_id == tab.id {
+									"event_log_tab_active click"
+								} else {
+									"click"
+								}
+							}, on:click=tab_click_handler) {
 								(tab.name)
 							}
 						}
