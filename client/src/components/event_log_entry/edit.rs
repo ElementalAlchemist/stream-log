@@ -148,6 +148,185 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		},
 	);
 	let start_time_error: &Signal<Option<String>> = create_signal(ctx, None);
+
+	let initial_end_time = (*props.editing_log_entry.get())
+		.as_ref()
+		.map(|entry| entry.end_time)
+		.unwrap_or(EndTimeData::NotEntered);
+	let initial_end_time_duration = match initial_end_time {
+		EndTimeData::Time(end_time) => Some(end_time - props.event.get().start_time),
+		_ => None,
+	};
+	let initial_end_time_input = if let Some(duration) = initial_end_time_duration.as_ref() {
+		format_duration(duration)
+	} else {
+		String::new()
+	};
+	let end_time_value = create_signal(
+		ctx,
+		(*props.editing_log_entry.get())
+			.as_ref()
+			.map(|entry| entry.end_time)
+			.unwrap_or(EndTimeData::NotEntered),
+	);
+	let end_time_input = create_signal(ctx, initial_end_time_input);
+	let end_time_error: &Signal<Option<String>> = create_signal(ctx, None);
+
+	let initial_entry_type_id = (*props.editing_log_entry.get())
+		.as_ref()
+		.map(|entry| entry.entry_type.clone());
+	let initial_entry_type_name = if let Some(entry_type_id) = initial_entry_type_id.as_ref() {
+		if let Some(entry_type) = event_entry_types_id_index.get().get(entry_type_id) {
+			entry_type.name.clone()
+		} else {
+			String::new()
+		}
+	} else {
+		String::new()
+	};
+	let entry_type_id = create_signal(ctx, initial_entry_type_id.unwrap_or_default());
+	let entry_type_name = create_signal(ctx, initial_entry_type_name);
+	let entry_type_error: &Signal<Option<String>> = create_signal(ctx, None);
+
+	let description = create_signal(
+		ctx,
+		(*props.editing_log_entry.get())
+			.as_ref()
+			.map(|entry| entry.description.clone())
+			.unwrap_or_default(),
+	);
+
+	let submitter_or_winner = create_signal(
+		ctx,
+		(*props.editing_log_entry.get())
+			.as_ref()
+			.map(|entry| entry.submitter_or_winner.clone())
+			.unwrap_or_default(),
+	);
+
+	let media_links = create_signal(
+		ctx,
+		(*props.editing_log_entry.get())
+			.as_ref()
+			.map(|entry| entry.media_links.clone())
+			.unwrap_or_default(),
+	);
+	let media_links_with_index: &ReadSignal<Vec<(usize, String)>> =
+		create_memo(ctx, || media_links.get().iter().cloned().enumerate().collect());
+
+	let tags = create_signal(
+		ctx,
+		(*props.editing_log_entry.get())
+			.as_ref()
+			.map(|entry| entry.tags.clone())
+			.unwrap_or_default(),
+	);
+	let tag_names = create_memo(ctx, || {
+		let tag_names: Vec<String> = tags.get().iter().map(|tag| tag.name.clone()).collect();
+		tag_names
+	});
+	let tag_names_with_index = create_memo(ctx, || {
+		let tag_names_with_index: Vec<(usize, String)> = tag_names.get().iter().cloned().enumerate().collect();
+		tag_names_with_index
+	});
+
+	let new_tag_names = create_memo(ctx, || {
+		let mut names_with_index: Vec<String> = Vec::new();
+		event_tags_name_index.track();
+		for tag_name in tag_names.get().iter() {
+			if !tag_name.is_empty() && !event_tags_name_index.get().contains_key(tag_name) {
+				names_with_index.push(tag_name.clone());
+			}
+		}
+		names_with_index
+	});
+
+	let video_edit_state = create_signal(
+		ctx,
+		(*props.editing_log_entry.get())
+			.as_ref()
+			.map(|entry| entry.video_edit_state)
+			.unwrap_or_default(),
+	);
+	let video_edit_state_no_video = create_memo(ctx, || *video_edit_state.get() == VideoEditState::NoVideo);
+	let video_edit_state_marked = create_memo(ctx, || *video_edit_state.get() == VideoEditState::MarkedForEditing);
+	let video_edit_state_done = create_memo(ctx, || *video_edit_state.get() == VideoEditState::DoneEditing);
+	let video_edit_state_set_no_video = |_event: WebEvent| {
+		video_edit_state.set(VideoEditState::NoVideo);
+		modified_entry_data
+			.modify()
+			.insert(ModifiedEventLogEntryParts::VideoEditState);
+	};
+	let video_edit_state_set_marked = |_event: WebEvent| {
+		video_edit_state.set(VideoEditState::MarkedForEditing);
+		modified_entry_data
+			.modify()
+			.insert(ModifiedEventLogEntryParts::VideoEditState);
+	};
+	let video_edit_state_set_done = |_event: WebEvent| {
+		video_edit_state.set(VideoEditState::DoneEditing);
+		modified_entry_data
+			.modify()
+			.insert(ModifiedEventLogEntryParts::VideoEditState);
+	};
+
+	let notes_to_editor = create_signal(
+		ctx,
+		(*props.editing_log_entry.get())
+			.as_ref()
+			.map(|entry| entry.notes_to_editor.clone())
+			.unwrap_or_default(),
+	);
+
+	let editor_value = create_signal(
+		ctx,
+		(*props.editing_log_entry.get())
+			.as_ref()
+			.and_then(|entry| entry.editor.clone()),
+	);
+	let editor_entry = if let Some(editor) = (*editor_value.get()).as_ref() {
+		editor.username.clone()
+	} else {
+		String::new()
+	};
+	let editor_entry = create_signal(ctx, editor_entry);
+	let editor_error: &Signal<Option<String>> = create_signal(ctx, None);
+
+	let poster_moment = create_signal(
+		ctx,
+		(*props.editing_log_entry.get())
+			.as_ref()
+			.map(|entry| entry.poster_moment)
+			.unwrap_or_default(),
+	);
+
+	let marked_incomplete = create_signal(
+		ctx,
+		(*props.editing_log_entry.get())
+			.as_ref()
+			.map(|entry| entry.marked_incomplete)
+			.unwrap_or_default(),
+	);
+
+	let disable_marked_incomplete = create_signal(ctx, false);
+
+	let manual_sort_key = create_signal(
+		ctx,
+		(*props.editing_log_entry.get())
+			.as_ref()
+			.and_then(|entry| entry.manual_sort_key),
+	);
+	let sort_key_entry = create_signal(
+		ctx,
+		manual_sort_key.get().map(|key| key.to_string()).unwrap_or_default(),
+	);
+
+	let add_count_entry_signal = create_signal(ctx, String::from("1"));
+	let add_count_signal = create_memo(ctx, || {
+		let count: u8 = add_count_entry_signal.get().parse().unwrap_or(1);
+		count
+	});
+
 	create_effect(ctx, move || {
 		let start_time_result = get_duration_from_formatted(&start_time_input.get());
 		let event_start = props.event.get().start_time;
@@ -203,28 +382,6 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		});
 	});
 
-	let initial_end_time = (*props.editing_log_entry.get())
-		.as_ref()
-		.map(|entry| entry.end_time)
-		.unwrap_or(EndTimeData::NotEntered);
-	let initial_end_time_duration = match initial_end_time {
-		EndTimeData::Time(end_time) => Some(end_time - props.event.get().start_time),
-		_ => None,
-	};
-	let initial_end_time_input = if let Some(duration) = initial_end_time_duration.as_ref() {
-		format_duration(duration)
-	} else {
-		String::new()
-	};
-	let end_time_value = create_signal(
-		ctx,
-		(*props.editing_log_entry.get())
-			.as_ref()
-			.map(|entry| entry.end_time)
-			.unwrap_or(EndTimeData::NotEntered),
-	);
-	let end_time_input = create_signal(ctx, initial_end_time_input);
-	let end_time_error: &Signal<Option<String>> = create_signal(ctx, None);
 	create_effect(ctx, move || {
 		let end_time_input = &*end_time_input.get();
 		let event_start = props.event.get().start_time;
@@ -286,21 +443,6 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		});
 	});
 
-	let initial_entry_type_id = (*props.editing_log_entry.get())
-		.as_ref()
-		.map(|entry| entry.entry_type.clone());
-	let initial_entry_type_name = if let Some(entry_type_id) = initial_entry_type_id.as_ref() {
-		if let Some(entry_type) = event_entry_types_id_index.get().get(entry_type_id) {
-			entry_type.name.clone()
-		} else {
-			String::new()
-		}
-	} else {
-		String::new()
-	};
-	let entry_type_id = create_signal(ctx, initial_entry_type_id.unwrap_or_default());
-	let entry_type_name = create_signal(ctx, initial_entry_type_name);
-	let entry_type_error: &Signal<Option<String>> = create_signal(ctx, None);
 	create_effect(ctx, || {
 		let name = entry_type_name.get();
 		if name.is_empty() {
@@ -352,13 +494,6 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		});
 	});
 
-	let description = create_signal(
-		ctx,
-		(*props.editing_log_entry.get())
-			.as_ref()
-			.map(|entry| entry.description.clone())
-			.unwrap_or_default(),
-	);
 	create_effect(ctx, || {
 		description.track();
 		modified_entry_data
@@ -401,13 +536,6 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		});
 	});
 
-	let media_links = create_signal(
-		ctx,
-		(*props.editing_log_entry.get())
-			.as_ref()
-			.map(|entry| entry.media_links.clone())
-			.unwrap_or_default(),
-	);
 	create_effect(ctx, || {
 		media_links.track();
 		modified_entry_data
@@ -450,13 +578,6 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		});
 	});
 
-	let submitter_or_winner = create_signal(
-		ctx,
-		(*props.editing_log_entry.get())
-			.as_ref()
-			.map(|entry| entry.submitter_or_winner.clone())
-			.unwrap_or_default(),
-	);
 	create_effect(ctx, || {
 		submitter_or_winner.track();
 		modified_entry_data
@@ -499,15 +620,6 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		});
 	});
 
-	let media_links = create_signal(
-		ctx,
-		(*props.editing_log_entry.get())
-			.as_ref()
-			.map(|entry| entry.media_links.clone())
-			.unwrap_or_default(),
-	);
-	let media_links_with_index: &ReadSignal<Vec<(usize, String)>> =
-		create_memo(ctx, || media_links.get().iter().cloned().enumerate().collect());
 	create_effect(ctx, || {
 		media_links.track();
 		modified_entry_data
@@ -515,74 +627,11 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			.insert(ModifiedEventLogEntryParts::MediaLinks);
 	});
 
-	let tags = create_signal(
-		ctx,
-		(*props.editing_log_entry.get())
-			.as_ref()
-			.map(|entry| entry.tags.clone())
-			.unwrap_or_default(),
-	);
-	let tag_names = create_memo(ctx, || {
-		let tag_names: Vec<String> = tags.get().iter().map(|tag| tag.name.clone()).collect();
-		tag_names
-	});
-	let tag_names_with_index = create_memo(ctx, || {
-		let tag_names_with_index: Vec<(usize, String)> = tag_names.get().iter().cloned().enumerate().collect();
-		tag_names_with_index
-	});
-
-	let new_tag_names = create_memo(ctx, || {
-		let mut names_with_index: Vec<String> = Vec::new();
-		event_tags_name_index.track();
-		for tag_name in tag_names.get().iter() {
-			if !tag_name.is_empty() && !event_tags_name_index.get().contains_key(tag_name) {
-				names_with_index.push(tag_name.clone());
-			}
-		}
-		names_with_index
-	});
-
 	create_effect(ctx, || {
 		tags.track();
 		modified_entry_data.modify().insert(ModifiedEventLogEntryParts::Tags);
 	});
 
-	let video_edit_state = create_signal(
-		ctx,
-		(*props.editing_log_entry.get())
-			.as_ref()
-			.map(|entry| entry.video_edit_state)
-			.unwrap_or_default(),
-	);
-	let video_edit_state_no_video = create_memo(ctx, || *video_edit_state.get() == VideoEditState::NoVideo);
-	let video_edit_state_marked = create_memo(ctx, || *video_edit_state.get() == VideoEditState::MarkedForEditing);
-	let video_edit_state_done = create_memo(ctx, || *video_edit_state.get() == VideoEditState::DoneEditing);
-	let video_edit_state_set_no_video = |_event: WebEvent| {
-		video_edit_state.set(VideoEditState::NoVideo);
-		modified_entry_data
-			.modify()
-			.insert(ModifiedEventLogEntryParts::VideoEditState);
-	};
-	let video_edit_state_set_marked = |_event: WebEvent| {
-		video_edit_state.set(VideoEditState::MarkedForEditing);
-		modified_entry_data
-			.modify()
-			.insert(ModifiedEventLogEntryParts::VideoEditState);
-	};
-	let video_edit_state_set_done = |_event: WebEvent| {
-		video_edit_state.set(VideoEditState::DoneEditing);
-		modified_entry_data
-			.modify()
-			.insert(ModifiedEventLogEntryParts::VideoEditState);
-	};
-
-	let notes_to_editor = create_signal(
-		ctx,
-		(*props.editing_log_entry.get())
-			.as_ref()
-			.map(|entry| entry.notes_to_editor.clone())
-			.unwrap_or_default(),
-	);
 	create_effect(ctx, || {
 		notes_to_editor.track();
 		modified_entry_data
@@ -625,19 +674,6 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		});
 	});
 
-	let editor_value = create_signal(
-		ctx,
-		(*props.editing_log_entry.get())
-			.as_ref()
-			.and_then(|entry| entry.editor.clone()),
-	);
-	let editor_entry = if let Some(editor) = (*editor_value.get()).as_ref() {
-		editor.username.clone()
-	} else {
-		String::new()
-	};
-	let editor_entry = create_signal(ctx, editor_entry);
-	let editor_error: &Signal<Option<String>> = create_signal(ctx, None);
 	create_effect(ctx, || {
 		let editor_name = editor_entry.get();
 		if editor_name.is_empty() {
@@ -655,13 +691,6 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		}
 	});
 
-	let poster_moment = create_signal(
-		ctx,
-		(*props.editing_log_entry.get())
-			.as_ref()
-			.map(|entry| entry.poster_moment)
-			.unwrap_or_default(),
-	);
 	create_effect(ctx, || {
 		poster_moment.track();
 		modified_entry_data
@@ -669,20 +698,13 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			.insert(ModifiedEventLogEntryParts::PosterMoment);
 	});
 
-	let marked_incomplete = create_signal(
-		ctx,
-		(*props.editing_log_entry.get())
-			.as_ref()
-			.map(|entry| entry.marked_incomplete)
-			.unwrap_or_default(),
-	);
 	create_effect(ctx, || {
 		marked_incomplete.track();
 		modified_entry_data
 			.modify()
 			.insert(ModifiedEventLogEntryParts::MarkedIncomplete);
 	});
-	let disable_marked_incomplete = create_signal(ctx, false);
+
 	create_effect(ctx, || {
 		let entered_end_time = end_time_input.get();
 		let entered_submitter_or_winner = submitter_or_winner.get();
@@ -704,26 +726,10 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		}
 	});
 
-	let manual_sort_key = create_signal(
-		ctx,
-		(*props.editing_log_entry.get())
-			.as_ref()
-			.and_then(|entry| entry.manual_sort_key),
-	);
-	let sort_key_entry = create_signal(
-		ctx,
-		manual_sort_key.get().map(|key| key.to_string()).unwrap_or_default(),
-	);
 	create_effect(ctx, || {
 		let sort_key: Option<i32> = sort_key_entry.get().parse().ok();
 		manual_sort_key.set(sort_key);
 		modified_entry_data.modify().insert(ModifiedEventLogEntryParts::SortKey);
-	});
-
-	let add_count_entry_signal = create_signal(ctx, String::from("1"));
-	let add_count_signal = create_memo(ctx, || {
-		let count: u8 = add_count_entry_signal.get().parse().unwrap_or(1);
-		count
 	});
 
 	create_effect(ctx, || {
