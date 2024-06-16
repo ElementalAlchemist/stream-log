@@ -423,10 +423,7 @@ pub async fn subscribe_to_event(
 	let mut event_log_entries: Vec<EventLogEntry> = Vec::with_capacity(log_entries.len());
 	for log_entry in log_entries.iter() {
 		let end_time = log_entry.end_time_data();
-		let tags = match tags_by_log_entry.remove(&log_entry.id) {
-			Some(tags) => tags,
-			None => Vec::new(),
-		};
+		let tags = tags_by_log_entry.remove(&log_entry.id).unwrap_or_default();
 		let editor: Option<UserData> = match &log_entry.editor {
 			Some(editor) => match editors.get(editor) {
 				Some(editor) => Some(UserData {

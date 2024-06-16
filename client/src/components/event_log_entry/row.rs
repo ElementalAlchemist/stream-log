@@ -357,10 +357,7 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 					div(class="log_entry_video_errors") {
 						({
 							let video_errors = (*props.entry.get()).as_ref().map(|entry| entry.video_errors.clone());
-							match video_errors {
-								Some(errors) => errors,
-								None => String::new()
-							}
+							video_errors.unwrap_or_default()
 						})
 					}
 				}
