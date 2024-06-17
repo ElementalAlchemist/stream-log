@@ -7,4 +7,5 @@ pub struct EntryType {
 	pub name: String,
 	pub description: String,
 	pub color: RGB8,
+	pub require_end_time: bool,
 }

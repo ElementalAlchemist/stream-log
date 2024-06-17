@@ -384,15 +384,25 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 
 	create_effect(ctx, move || {
 		let end_time_input = &*end_time_input.get();
+		let entry_type_id = entry_type_id.get();
+		let event_entry_types_id_index = event_entry_types_id_index.get();
 		let event_start = props.event.get().start_time;
 		if end_time_input.is_empty() {
 			end_time_error.set(None);
 			end_time_value.set(EndTimeData::NotEntered);
 			modified_entry_data.modify().insert(ModifiedEventLogEntryParts::EndTime);
 		} else if end_time_input.chars().all(|c| c == '-') {
-			end_time_error.set(None);
-			end_time_value.set(EndTimeData::NoTime);
-			modified_entry_data.modify().insert(ModifiedEventLogEntryParts::EndTime);
+			let entry_type = event_entry_types_id_index.get(&*entry_type_id);
+			if entry_type
+				.map(|entry_type| entry_type.require_end_time)
+				.unwrap_or(false)
+			{
+				end_time_error.set(Some(String::from("The selected entry type requires an end time")));
+			} else {
+				end_time_error.set(None);
+				end_time_value.set(EndTimeData::NoTime);
+				modified_entry_data.modify().insert(ModifiedEventLogEntryParts::EndTime);
+			}
 		} else {
 			let end_time_result = get_duration_from_formatted(end_time_input);
 			match end_time_result {

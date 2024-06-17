@@ -40,6 +40,7 @@ diesel::table! {
 		color_green -> Int4,
 		color_blue -> Int4,
 		description -> Text,
+		require_end_time -> Bool,
 	}
 }
 

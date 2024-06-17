@@ -1,0 +1,1 @@
+ALTER TABLE entry_types DROP COLUMN require_end_time;

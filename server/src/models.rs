@@ -279,6 +279,9 @@ pub struct EntryType {
 	pub color_blue: i32,
 	/// Description for the event type
 	pub description: String,
+	/// Whether log entries with this type must have an end time specified
+	/// If true, the end time may be not entered yet but may not be "has no end time"
+	pub require_end_time: bool,
 }
 
 impl EntryType {
@@ -298,11 +301,13 @@ impl From<EntryType> for EntryTypeWs {
 		let id = value.id;
 		let name = value.name;
 		let description = value.description;
+		let require_end_time = value.require_end_time;
 		Self {
 			id,
 			name,
 			description,
 			color,
+			require_end_time,
 		}
 	}
 }

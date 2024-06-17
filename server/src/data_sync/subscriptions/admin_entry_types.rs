@@ -103,6 +103,7 @@ pub async fn handle_admin_entry_type_message(
 						color_red: entry_type.color.r.into(),
 						color_green: entry_type.color.g.into(),
 						color_blue: entry_type.color.b.into(),
+						require_end_time: entry_type.require_end_time,
 					};
 					diesel::insert_into(entry_types::table)
 						.values(db_entry_type)
@@ -119,6 +120,7 @@ pub async fn handle_admin_entry_type_message(
 							entry_types::color_red.eq(red),
 							entry_types::color_green.eq(green),
 							entry_types::color_blue.eq(blue),
+							entry_types::require_end_time.eq(entry_type.require_end_time),
 						))
 						.execute(&mut *db_connection)
 				};

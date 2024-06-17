@@ -74,6 +74,11 @@ async fn AdminManageEntryTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		let foreground = rgb_str_from_color(foreground);
 		format!("font-weight: 700, background: {}, color: {}", background, foreground)
 	});
+	let new_type_require_end_time = create_signal(ctx, false);
+	let new_type_require_end_time_toggle_handler = |_: WebEvent| {
+		let require_end_time = !*new_type_require_end_time.get();
+		new_type_require_end_time.set(require_end_time);
+	};
 
 	let new_type_submit_handler = move |event: WebEvent| {
 		event.prevent_default();
@@ -100,6 +105,8 @@ async fn AdminManageEntryTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		};
 		new_type_color_error_signal.modify().clear();
 
+		let require_end_time = *new_type_require_end_time.get();
+
 		new_type_name_signal.modify().clear();
 		new_type_color_signal.set(String::from(DEFAULT_COLOR));
 
@@ -108,6 +115,7 @@ async fn AdminManageEntryTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			name,
 			description,
 			color,
+			require_end_time,
 		};
 		let message = FromClientMessage::SubscriptionMessage(Box::new(
 			SubscriptionTargetUpdate::AdminEntryTypesUpdate(AdminEntryTypeUpdate::UpdateEntryType(new_type)),
@@ -150,6 +158,7 @@ async fn AdminManageEntryTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 					let description_signal = create_signal(ctx, entry_type.description.clone());
 					let color_signal = create_signal(ctx, rgb_str_from_color(entry_type.color));
 					let color_error_signal = create_signal(ctx, String::new());
+					let require_end_time_signal = create_signal(ctx, entry_type.require_end_time);
 
 					let display_style_signal = create_memo(ctx, || {
 						let background = color_signal.get();
@@ -166,6 +175,11 @@ async fn AdminManageEntryTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 						let foreground = rgb_str_from_color(foreground);
 						format!("font-weight: 700; background: {}, color: {}", background, foreground)
 					});
+
+					let require_end_time_toggle_handler = |_: WebEvent| {
+						let require_end_time = !*require_end_time_signal.get();
+						require_end_time_signal.set(require_end_time);
+					};
 
 					let entry_type_id = entry_type.id.clone();
 					let update_type_handler = move |event: WebEvent| {
@@ -198,7 +212,9 @@ async fn AdminManageEntryTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 						};
 						color_error_signal.modify().clear();
 
-						let updated_type = EntryType { id: entry_type.id.clone(), name, description, color };
+						let require_end_time = *require_end_time_signal.get();
+
+						let updated_type = EntryType { id: entry_type.id.clone(), name, description, color, require_end_time };
 						let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminEntryTypesUpdate(AdminEntryTypeUpdate::UpdateEntryType(updated_type))));
 						let message_json = match serde_json::to_string(&message) {
 							Ok(msg) => msg,
@@ -236,6 +252,15 @@ async fn AdminManageEntryTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 								input(bind:value=description_signal, placeholder="Description", class="admin_entry_type_description_field")
 							}
 							div {
+								button(on:click=require_end_time_toggle_handler) {
+									(if *require_end_time_signal.get() {
+										"End Time Required [Toggle]"
+									} else {
+										"End Time Optional [Toggle]"
+									})
+								}
+							}
+							div {
 								button(type="submit") { "Update" }
 							}
 						}
@@ -254,6 +279,15 @@ async fn AdminManageEntryTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				}
 				div {
 					input(bind:value=new_type_description_signal, placeholder="Description", class="admin_entry_type_description_field")
+				}
+				div {
+					button(on:click=new_type_require_end_time_toggle_handler) {
+						(if *new_type_require_end_time.get() {
+							"End Time Required [Toggle]"
+						} else {
+							"End Time Optional [Toggle]"
+						})
+					}
 				}
 				div {
 					button(type="submit") { "Add New" }
