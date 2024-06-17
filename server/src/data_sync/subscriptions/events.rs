@@ -401,8 +401,8 @@ pub async fn subscribe_to_event(
 		first_tab_name: event.first_tab_name,
 	};
 	let permission_level: PermissionLevel = permission_level.into();
-	let entry_types: Vec<EntryType> = entry_types.iter().map(|et| (*et).clone().into()).collect();
-	let tags: Vec<Tag> = tags.iter().map(|tag| (*tag).clone().into()).collect();
+	let entry_types: Vec<EntryType> = entry_types.into_iter().map(|et| et.into()).collect();
+	let tags: Vec<Tag> = tags.into_iter().map(|tag| tag.into()).collect();
 	let info_pages: Vec<InfoPage> = info_pages
 		.into_iter()
 		.map(|page| InfoPage {
