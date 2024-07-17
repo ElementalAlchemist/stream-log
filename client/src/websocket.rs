@@ -1,8 +1,9 @@
-use futures::stream::SplitStream;
-use futures::StreamExt;
+use futures::stream::{SplitSink, SplitStream};
+use futures::{SinkExt, StreamExt};
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::{Message, WebSocketError};
 use serde::de::DeserializeOwned;
+use std::collections::VecDeque;
 use std::fmt::Display;
 use wasm_bindgen::JsCast;
 use web_sys::Url;
@@ -89,4 +90,56 @@ pub async fn read_websocket<T: DeserializeOwned>(
 		return Err(WebSocketReadError::BinaryMessage);
 	};
 	Ok(serde_json::from_str(&msg)?)
+}
+
+/// Represents the send handle for a WebSocket. Handles temporary disconnections.
+pub struct WebSocketSendStream {
+	write_stream: Option<SplitSink<WebSocket, Message>>,
+	disconnected_message_queue: VecDeque<Message>,
+}
+
+impl WebSocketSendStream {
+	pub fn new(write_stream: SplitSink<WebSocket, Message>) -> Self {
+		let write_stream = Some(write_stream);
+		let disconnected_message_queue = VecDeque::new();
+		Self {
+			write_stream,
+			disconnected_message_queue,
+		}
+	}
+
+	pub async fn send(&mut self, message: Message) -> Result<(), WebSocketError> {
+		match &mut self.write_stream {
+			Some(stream) => stream.send(message).await,
+			None => {
+				self.disconnected_message_queue.push_back(message);
+				Ok(())
+			}
+		}
+	}
+
+	pub async fn send_multiple(&mut self, messages: impl IntoIterator<Item = Message>) -> Result<(), WebSocketError> {
+		match &mut self.write_stream {
+			Some(stream) => {
+				for message in messages {
+					stream.feed(message).await?;
+				}
+				stream.flush().await
+			}
+			None => {
+				for message in messages {
+					self.disconnected_message_queue.push_back(message);
+				}
+				Ok(())
+			}
+		}
+	}
+
+	pub fn mark_disconnected(&mut self) {
+		self.write_stream = None;
+	}
+
+	pub fn set_new_connection(&mut self, write_stream: SplitSink<WebSocket, Message>) {
+		self.write_stream = Some(write_stream);
+	}
 }

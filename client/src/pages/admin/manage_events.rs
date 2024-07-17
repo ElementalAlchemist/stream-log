@@ -2,11 +2,9 @@ use crate::entry_utils::{parse_time_field_value, ISO_DATETIME_FORMAT_STRING};
 use crate::subscriptions::errors::ErrorData;
 use crate::subscriptions::manager::SubscriptionManager;
 use crate::subscriptions::DataSignals;
+use crate::websocket::WebSocketSendStream;
 use chrono::prelude::*;
 use futures::lock::Mutex;
-use futures::stream::SplitSink;
-use futures::SinkExt;
-use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
 use std::collections::HashSet;
 use stream_log_shared::messages::admin::AdminEventUpdate;
@@ -22,7 +20,7 @@ use web_sys::Event as WebEvent;
 
 #[component]
 async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
-	let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+	let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 	let mut ws = ws_context.lock().await;
 	let data: &DataSignals = use_context(ctx);
 
@@ -107,7 +105,7 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		};
 
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+			let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			if let Err(error) = ws.send(Message::Text(message_json)).await {
@@ -181,7 +179,7 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 							}
 						};
 						spawn_local_scoped(ctx, async move {
-							let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+							let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 							let mut ws = ws_context.lock().await;
 
 							if let Err(error) = ws.send(Message::Text(message_json)).await {

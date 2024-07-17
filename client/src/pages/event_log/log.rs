@@ -5,13 +5,11 @@ use crate::components::event_log_entry::UserTypingData;
 use crate::subscriptions::errors::ErrorData;
 use crate::subscriptions::manager::SubscriptionManager;
 use crate::subscriptions::DataSignals;
+use crate::websocket::WebSocketSendStream;
 use chrono::Utc;
 use futures::future::poll_fn;
 use futures::lock::Mutex;
-use futures::stream::SplitSink;
 use futures::task::{Context, Poll, Waker};
-use gloo_net::websocket::futures::WebSocket;
-use gloo_net::websocket::Message;
 use std::collections::{HashMap, HashSet};
 use stream_log_shared::messages::event_log::{EventLogEntry, EventLogTab, VideoProcessingState};
 use stream_log_shared::messages::permissions::PermissionLevel;
@@ -48,7 +46,7 @@ pub struct EventLogProps {
 async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> View<G> {
 	log::debug!("Starting event log load for event {}", props.id);
 
-	let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+	let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 	let mut ws = ws_context.lock().await;
 	log::debug!("Got websocket to load event {}", props.id);
 

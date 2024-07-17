@@ -40,8 +40,8 @@ use pages::register::RegistrationView;
 use pages::register_complete::RegistrationCompleteView;
 use pages::user_profile::UserProfileView;
 use subscriptions::manager::SubscriptionManager;
-use subscriptions::{process_messages, DataSignals};
-use websocket::read_websocket;
+use subscriptions::{initial_events_sort, process_messages, DataSignals};
+use websocket::{read_websocket, WebSocketSendStream};
 
 #[derive(Debug, Route)]
 enum AppRoutes {
@@ -156,7 +156,7 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 		}
 	};
 	let (user_data, available_events) = if let Some((user, mut events)) = initial_data {
-		events.sort_unstable_by(|a, b| a.start_time.cmp(&b.start_time).reverse());
+		initial_events_sort(&mut events);
 		(Some(user), Some(events))
 	} else {
 		(None, None)
@@ -166,7 +166,8 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 	// Assuming the WASM client for this might multithread at any point in the future is probably way overkill.
 	// That said, we need to await for any websocket operations anyway, so a locking wrapper doesn't hurt us.
 	// Since contention is unlikely, this shouldn't introduce any significant delay.
-	let ws = Mutex::new(ws_write);
+	let ws = WebSocketSendStream::new(ws_write);
+	let ws = Mutex::new(ws);
 	provide_context(ctx, ws);
 
 	let mut client_data = DataSignals::new();

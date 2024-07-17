@@ -1,3 +1,4 @@
+use crate::websocket::WebSocketSendStream;
 use futures::stream::SplitSink;
 use futures::SinkExt;
 use gloo_net::websocket::futures::WebSocket;
@@ -70,7 +71,7 @@ impl SubscriptionManager {
 	pub async fn set_subscription(
 		&mut self,
 		subscription_type: SubscriptionType,
-		stream: &mut SplitSink<WebSocket, Message>,
+		stream: &mut WebSocketSendStream,
 	) -> Result<(), SubscriptionError> {
 		let mut new_active_subscriptions: HashMap<SubscriptionType, u32> = HashMap::new();
 		let mut new_requested_subscriptions: HashMap<SubscriptionType, u32> = HashMap::new();
@@ -94,10 +95,7 @@ impl SubscriptionManager {
 			}
 		}
 
-		for message in unsubscription_messages {
-			stream.feed(message).await?;
-		}
-		stream.flush().await?;
+		stream.send_multiple(unsubscription_messages).await?;
 
 		self.active_subscriptions = new_active_subscriptions;
 		self.requested_subscriptions = new_requested_subscriptions;
@@ -116,7 +114,7 @@ impl SubscriptionManager {
 	pub async fn set_subscriptions(
 		&mut self,
 		subscription_types: Vec<SubscriptionType>,
-		stream: &mut SplitSink<WebSocket, Message>,
+		stream: &mut WebSocketSendStream,
 	) -> Result<(), SubscriptionError> {
 		let mut subscription_update_messages: Vec<Message> = Vec::new();
 		let mut new_subscriptions: HashMap<SubscriptionType, u32> = HashMap::new();
@@ -153,10 +151,7 @@ impl SubscriptionManager {
 			new_requested_subscriptions.insert(new_subscription, new_count);
 		}
 
-		for message in subscription_update_messages {
-			stream.feed(message).await?;
-		}
-		stream.flush().await?;
+		stream.send_multiple(subscription_update_messages).await?;
 
 		self.active_subscriptions = new_active_subscriptions;
 		self.requested_subscriptions = new_requested_subscriptions;
@@ -178,5 +173,23 @@ impl SubscriptionManager {
 	/// To be called when a subscription failure message is received from the server. Removes requested subscription.
 	pub fn subscription_failure_received(&mut self, subscription_type: SubscriptionType) {
 		self.requested_subscriptions.remove(&subscription_type);
+	}
+
+	pub async fn resend_subscriptions(
+		&mut self,
+		stream: &mut SplitSink<WebSocket, Message>,
+	) -> Result<(), SubscriptionError> {
+		let active_subscriptions = std::mem::take(&mut self.active_subscriptions);
+		for (subscription, count) in active_subscriptions {
+			*self.requested_subscriptions.entry(subscription).or_default() += count;
+		}
+
+		for new_subscription in self.requested_subscriptions.keys() {
+			let subscription_message = FromClientMessage::StartSubscription(new_subscription.clone());
+			let subscription_message_json = serde_json::to_string(&subscription_message)?;
+			stream.feed(Message::Text(subscription_message_json)).await?;
+		}
+		stream.flush().await?;
+		Ok(())
 	}
 }

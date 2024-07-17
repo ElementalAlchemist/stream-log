@@ -2,10 +2,8 @@ use crate::entry_utils::{parse_time_field_value, ISO_DATETIME_FORMAT_STRING};
 use crate::subscriptions::errors::ErrorData;
 use crate::subscriptions::manager::SubscriptionManager;
 use crate::subscriptions::DataSignals;
+use crate::websocket::WebSocketSendStream;
 use futures::lock::Mutex;
-use futures::stream::SplitSink;
-use futures::SinkExt;
-use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
 use std::collections::HashMap;
 use stream_log_shared::messages::admin::AdminEventLogTabsUpdate;
@@ -22,7 +20,7 @@ use web_sys::Event as WebEvent;
 
 #[component]
 async fn AdminManageEventLogTabsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
-	let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+	let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 	let mut ws = ws_context.lock().await;
 	let data: &DataSignals = use_context(ctx);
 
@@ -138,7 +136,7 @@ async fn AdminManageEventLogTabsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		new_tab_time_entry.set(String::new());
 
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+			let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let message =
@@ -206,7 +204,7 @@ async fn AdminManageEventLogTabsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 							let updated_tab = EventLogTab { id: tab.id.clone(), name, start_time };
 
 							spawn_local_scoped(ctx, async move {
-								let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+								let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 								let mut ws = ws_context.lock().await;
 
 								let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminEventLogTabsUpdate(AdminEventLogTabsUpdate::UpdateTab(updated_tab))));
@@ -230,7 +228,7 @@ async fn AdminManageEventLogTabsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 					let tab_delete_handler = move |_event: WebEvent| {
 						let tab = tab.clone();
 						spawn_local_scoped(ctx, async move {
-							let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+							let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 							let mut ws = ws_context.lock().await;
 
 							let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminEventLogTabsUpdate(AdminEventLogTabsUpdate::DeleteTab(tab.clone()))));

@@ -3,10 +3,8 @@ use crate::components::color_input_with_contrast::ColorInputWithContrast;
 use crate::subscriptions::errors::ErrorData;
 use crate::subscriptions::manager::SubscriptionManager;
 use crate::subscriptions::DataSignals;
+use crate::websocket::WebSocketSendStream;
 use futures::lock::Mutex;
-use futures::stream::SplitSink;
-use futures::SinkExt;
-use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
 use stream_log_shared::messages::subscriptions::{SubscriptionTargetUpdate, SubscriptionType};
 use stream_log_shared::messages::user::UserData;
@@ -19,7 +17,7 @@ use web_sys::Event as WebEvent;
 
 #[component]
 async fn AdminManageUsersLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
-	let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+	let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 	let mut ws = ws_context.lock().await;
 	let data: &DataSignals = use_context(ctx);
 
@@ -75,7 +73,7 @@ async fn AdminManageUsersLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 								};
 
 								spawn_local_scoped(ctx, async move {
-									let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+									let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 									let mut ws = ws_context.lock().await;
 
 									let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminUserUpdate(updated_user)));

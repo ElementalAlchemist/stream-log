@@ -1,10 +1,8 @@
 use crate::subscriptions::errors::ErrorData;
 use crate::subscriptions::manager::SubscriptionManager;
 use crate::subscriptions::DataSignals;
+use crate::websocket::WebSocketSendStream;
 use futures::lock::Mutex;
-use futures::stream::SplitSink;
-use futures::SinkExt;
-use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
 use stream_log_shared::messages::admin::{AdminApplicationUpdate, Application};
 use stream_log_shared::messages::subscriptions::{SubscriptionTargetUpdate, SubscriptionType};
@@ -18,7 +16,7 @@ use web_sys::Event as WebEvent;
 
 #[component]
 async fn AdminApplicationsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
-	let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+	let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 	let mut ws = ws_context.lock().await;
 
 	let data: &DataSignals = use_context(ctx);
@@ -63,7 +61,7 @@ async fn AdminApplicationsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		};
 
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+			let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let message =
@@ -122,7 +120,7 @@ async fn AdminApplicationsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 							let updated_application = Application { id: application.id.clone(), name, read_log, write_links };
 							spawn_local_scoped(ctx, async move {
-								let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+								let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 								let mut ws = ws_context.lock().await;
 
 								let message = FromClientMessage::SubscriptionMessage(
@@ -157,7 +155,7 @@ async fn AdminApplicationsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 						move |_event: WebEvent| {
 							let application = application.clone();
 							spawn_local_scoped(ctx, async move {
-								let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+								let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 								let mut ws = ws_context.lock().await;
 
 								let message = FromClientMessage::SubscriptionMessage(
@@ -192,7 +190,7 @@ async fn AdminApplicationsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 						move |_event: WebEvent| {
 							let application = application.clone();
 							spawn_local_scoped(ctx, async move {
-								let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+								let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 								let mut ws = ws_context.lock().await;
 
 								let message = FromClientMessage::SubscriptionMessage(

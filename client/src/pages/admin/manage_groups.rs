@@ -1,10 +1,8 @@
 use crate::subscriptions::errors::ErrorData;
 use crate::subscriptions::manager::SubscriptionManager;
 use crate::subscriptions::DataSignals;
+use crate::websocket::WebSocketSendStream;
 use futures::lock::Mutex;
-use futures::stream::SplitSink;
-use futures::SinkExt;
-use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
 use std::collections::HashMap;
 use stream_log_shared::messages::admin::{
@@ -23,7 +21,7 @@ use web_sys::Event as WebEvent;
 
 #[component]
 async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
-	let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+	let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 	let mut ws = ws_context.lock().await;
 	let data: &DataSignals = use_context(ctx);
 
@@ -79,7 +77,7 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		new_group_name_signal.set(String::new());
 
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+			let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let new_group = PermissionGroup {
@@ -134,7 +132,7 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 							let group = group.clone();
 
 							spawn_local_scoped(ctx, async move {
-								let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+								let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 								let mut ws = ws_context.lock().await;
 
 								let mut new_group = group;
@@ -233,7 +231,7 @@ async fn AdminManageGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 											};
 
 											spawn_local_scoped(ctx, async move {
-												let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+												let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 												let mut ws = ws_context.lock().await;
 
 												let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::AdminPermissionGroupsUpdate(message)));

@@ -1,11 +1,9 @@
 use super::utils::{format_duration, get_duration_from_formatted};
 use crate::subscriptions::errors::ErrorData;
 use crate::subscriptions::DataSignals;
+use crate::websocket::WebSocketSendStream;
 use chrono::Utc;
 use futures::lock::Mutex;
-use futures::stream::SplitSink;
-use futures::SinkExt;
-use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use stream_log_shared::messages::entry_types::EntryType;
@@ -99,7 +97,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			.map(|entry| entry.id.clone())
 			.unwrap_or_default();
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+			let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
@@ -352,7 +350,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			return;
 		}
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+			let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
@@ -423,7 +421,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			return;
 		}
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+			let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
@@ -474,7 +472,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			return;
 		}
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+			let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
@@ -516,7 +514,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			return;
 		}
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+			let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
@@ -558,7 +556,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			return;
 		}
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+			let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
@@ -600,7 +598,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			return;
 		}
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+			let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
@@ -654,7 +652,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			return;
 		}
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+			let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
@@ -1005,7 +1003,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			)));
 
 			spawn_local_scoped(ctx, async move {
-				let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+				let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 				let mut ws = ws_context.lock().await;
 
 				let message_json = match serde_json::to_string(&message) {
@@ -1063,7 +1061,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 				Box::new(EventSubscriptionUpdate::NewLogEntry(new_entry, add_count)),
 			)));
 			spawn_local_scoped(ctx, async move {
-				let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+				let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 				let mut ws = ws_context.lock().await;
 
 				let message_json = match serde_json::to_string(&message) {
@@ -1098,7 +1096,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		let event = (*props.event.get()).clone();
 		let editing_log_entry = (*props.editing_log_entry.get()).clone();
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+			let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
@@ -1141,7 +1139,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		};
 		delete_confirm_signal.set(false);
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+			let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
@@ -1178,7 +1176,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		let event = (*props.event.get()).clone();
 		let editing_log_entry = (*props.editing_log_entry.get()).clone();
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+			let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
@@ -1483,7 +1481,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 											event.prevent_default();
 											let tag_name = tag_name.clone();
 											spawn_local_scoped(ctx, async move {
-												let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+												let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 												let mut ws = ws_context.lock().await;
 												let new_tag = Tag { id: String::new(), name: tag_name.clone(), description: (*description_signal.get()).clone(), playlist: String::new() };
 												let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate((*props.event.get()).clone(), Box::new(EventSubscriptionUpdate::UpdateTag(new_tag)))));

@@ -2,10 +2,8 @@ use crate::color_utils::color_from_rgb_str;
 use crate::components::color_input_with_contrast::ColorInputWithContrast;
 use crate::subscriptions::errors::ErrorData;
 use crate::subscriptions::DataSignals;
+use crate::websocket::WebSocketSendStream;
 use futures::lock::Mutex;
-use futures::stream::SplitSink;
-use futures::SinkExt;
-use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::Message;
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::user_register::{
@@ -97,7 +95,7 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		};
 
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+			let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let message = FromClientMessage::RegistrationRequest(UserRegistration::Finalize(registration_data));
@@ -137,7 +135,7 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		}
 
 		spawn_local_scoped(ctx, async move {
-			let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+			let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
 
 			let message = FromClientMessage::RegistrationRequest(UserRegistration::CheckUsername(username));

@@ -2,13 +2,11 @@ use crate::color_utils::rgb_str_from_color;
 use crate::entry_type_colors::use_white_foreground;
 use crate::subscriptions::errors::ErrorData;
 use crate::subscriptions::manager::SubscriptionManager;
+use crate::websocket::WebSocketSendStream;
 use crate::DataSignals;
 use futures::future::poll_fn;
 use futures::lock::Mutex;
-use futures::stream::SplitSink;
 use futures::task::{Context, Poll, Waker};
-use gloo_net::websocket::futures::WebSocket;
-use gloo_net::websocket::Message;
 use std::collections::HashMap;
 use stream_log_shared::messages::subscriptions::SubscriptionType;
 use sycamore::prelude::*;
@@ -21,7 +19,7 @@ pub struct EventLogEntryTypesProps {
 
 #[component]
 async fn EventLogEntryTypesLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogEntryTypesProps) -> View<G> {
-	let ws_context: &Mutex<SplitSink<WebSocket, Message>> = use_context(ctx);
+	let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 	let mut ws = ws_context.lock().await;
 	let data: &DataSignals = use_context(ctx);
 
