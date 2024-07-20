@@ -158,6 +158,8 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 					.unwrap_or(false)
 				{
 					row_class = format!("{} log_entry_highlight", row_class);
+				} else if (*props.entry.get()).as_ref().map(|entry| entry.end_time == EndTimeData::NotEntered).unwrap_or(false) {
+					row_class = format!("{} log_entry_end_highlight", row_class);
 				}
 
 				if has_click_handler {
