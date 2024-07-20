@@ -7,5 +7,5 @@ license = "MPL-2.0"
 
 [dependencies]
 chrono = { version = "0.4.38", features = ["serde"] }
-rgb = { version = "0.8.37", features = ["serde"] }
-serde = { version = "1.0.203", features = ["derive"] }
+rgb = { version = "0.8.45", features = ["serde"] }
+serde = { version = "1.0.204", features = ["derive"] }

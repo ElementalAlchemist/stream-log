@@ -10,9 +10,9 @@ anyhow = "1.0.86"
 async-std = { version = "1.12.0", features = ["attributes"] }
 base64 = "0.22.1"
 chrono = "0.4.38"
-clap = { version = "4.5.7", features = ["derive"] }
+clap = { version = "4.5.9", features = ["derive"] }
 cuid2 = "0.1.2"
-diesel = { version = "2.2.1", features = ["chrono", "postgres"] }
+diesel = { version = "2.2.2", features = ["chrono", "postgres"] }
 diesel_migrations = "2.2.0"
 diesel-derive-enum = { version = "2.1.0", features = ["postgres"] }
 erased-serde = "0.4.5"
@@ -21,9 +21,9 @@ http-types = "2.12.0"
 knuffel = "3.2.0"
 miette = { version = "5.10.0", features = ["fancy"] }
 rand = "0.8.5"
-rgb = "0.8.37"
-serde = { version = "1.0.203", features = ["derive"] }
-serde_json = "1.0.117"
+rgb = "0.8.45"
+serde = { version = "1.0.204", features = ["derive"] }
+serde_json = "1.0.120"
 stream-log-shared = { path = "../shared" }
 tide = "0.16.0"
 tide-openidconnect = "0.1.0"
