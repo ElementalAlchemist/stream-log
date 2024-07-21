@@ -86,11 +86,17 @@ impl std::fmt::Display for VideoProcessingState {
 	}
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub enum VideoEditState {
 	NoVideo,
 	MarkedForEditing,
 	DoneEditing,
+}
+
+impl VideoEditState {
+	pub fn all_states() -> Vec<Self> {
+		vec![Self::NoVideo, Self::MarkedForEditing, Self::DoneEditing]
+	}
 }
 
 impl Default for VideoEditState {
