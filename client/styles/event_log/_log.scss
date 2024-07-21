@@ -33,11 +33,13 @@ $event_log_editor_column_count: 17;
 
 .event_log_view_settings_filter_menu {
 	position: relative;
-	z-index: 1;
+
+	.event_log_view_settings_filter_dropdown {
+		z-index: 2;
+	}
 
 	&:hover .event_log_view_settings_filter_dropdown {
 		display: block;
-		z-index: 2;
 	}
 }
 
