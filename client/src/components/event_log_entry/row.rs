@@ -7,17 +7,17 @@
 use super::utils::format_duration;
 use crate::color_utils::rgb_str_from_color;
 use crate::entry_type_colors::use_white_foreground;
+use crate::subscriptions::event::EventSubscriptionSignals;
 use std::collections::HashMap;
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_log::{EndTimeData, EventLogEntry, VideoEditState};
-use stream_log_shared::messages::events::Event;
 use sycamore::prelude::*;
 use web_sys::Event as WebEvent;
 
 #[derive(Prop)]
 pub struct EventLogEntryRowProps<'a, THandler: Fn()> {
 	entry: &'a ReadSignal<Option<EventLogEntry>>,
-	event: Event,
+	event_subscription_data: EventSubscriptionSignals,
 	entry_type: &'a ReadSignal<Option<EntryType>>,
 	click_handler: Option<THandler>,
 	jump_highlight_row_id: &'a Signal<String>,
@@ -29,7 +29,7 @@ pub struct EventLogEntryRowProps<'a, THandler: Fn()> {
 }
 
 #[component]
-pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventLogEntryRowProps<'a, T>) -> View<G> {
+pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, mut props: EventLogEntryRowProps<'a, T>) -> View<G> {
 	let row_is_being_edited = create_memo(ctx, || {
 		match ((*props.entry.get()).as_ref(), (*props.editing_log_entry.get()).as_ref()) {
 			(Some(row_entry), Some(edit_entry)) => row_entry.id == edit_entry.id,
@@ -48,7 +48,7 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 	let child_indicators = View::new_fragment(child_indicators);
 
 	let start_time = create_memo(ctx, {
-		let event_start = props.event.start_time;
+		let event_start = props.event_subscription_data.event.get().start_time;
 		move || {
 			let Some(entry) = (*props.entry.get()).clone() else {
 				return String::new();
@@ -59,7 +59,7 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 	});
 
 	let end_time = create_memo(ctx, {
-		let event_start = props.event.start_time;
+		let event_start = props.event_subscription_data.event.get().start_time;
 		move || {
 			let Some(entry) = (*props.entry.get()).clone() else {
 				return String::new();
@@ -126,13 +126,27 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 		}
 	});
 
-	let has_click_handler = props.click_handler.is_some();
+	let row_is_visible = create_memo(ctx, {
+		let video_edit_state_filters = props.event_subscription_data.video_edit_state_filters.clone();
+		let video_processing_state_filters = props.event_subscription_data.video_processing_state_filters.clone();
+		move || {
+			let entry = props.entry.get();
+			let video_edit_state_filters = video_edit_state_filters.get();
+			let video_processing_state_filters = video_processing_state_filters.get();
 
-	let row_click_handler = move |_event: WebEvent| {
-		if let Some(click_handler) = &props.click_handler {
-			(*click_handler)();
+			let entry = if let Some(entry) = entry.as_ref() {
+				entry
+			} else {
+				return false;
+			};
+
+			(video_edit_state_filters.is_empty() || video_edit_state_filters.contains(&entry.video_edit_state))
+				&& (video_processing_state_filters.is_empty()
+					|| video_processing_state_filters.contains(&entry.video_processing_state))
 		}
-	};
+	});
+
+	let has_click_handler = props.click_handler.is_some();
 
 	let prevent_row_click_handler = |event: WebEvent| {
 		event.stop_propagation();
@@ -145,162 +159,193 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 
 	view! {
 		ctx,
-		div(
-			id={
-				if let Some(entry) = props.entry.get().as_ref() {
-					format!("event_log_entry_{}", entry.id)
-				} else {
-					String::new()
+		(if *row_is_visible.get() {
+			let event = props.event_subscription_data.event.clone();
+			let click_handler = props.click_handler.take();
+			let row_click_handler = move |_event: WebEvent| {
+				if let Some(click_handler) = &click_handler {
+					(*click_handler)();
 				}
-			},
-			class="event_log_entry_top_border"
-		)
-		div(
-			class={
-				let mut row_class = String::from("event_log_entry");
-				if (*props.entry.get())
-					.as_ref()
-					.map(|entry| entry.marked_incomplete)
-					.unwrap_or(false)
-				{
-					row_class = format!("{} log_entry_highlight", row_class);
-				} else if (*props.entry.get())
-					.as_ref()
-					.map(|entry| entry.end_time == EndTimeData::NotEntered)
-					.unwrap_or(false)
-				{
-					row_class = format!("{} log_entry_end_highlight", row_class);
-				}
+			};
 
-				if has_click_handler {
-					row_class = format!("{} click", row_class);
-				}
-
-				if (*props.entry.get())
-					.as_ref()
-					.map(|entry| entry.id == *props.jump_highlight_row_id.get())
-					.unwrap_or(false)
-				{
-					row_class = format!("{} event_log_entry_jump_highlight", row_class);
-				}
-
-				if *row_is_being_edited.get() {
-					row_class = format!("{} event_log_entry_edit_highlight", row_class);
-				}
-
-				row_class
-			},
-			on:click=row_click_handler
-		) {
-			div(class="log_entry_number") {
-				({
-					let entry_numbers = props.entry_numbers.get();
-					let entry = props.entry.get();
-					let entry = (*entry).as_ref();
-
-					match entry {
-						Some(entry) => match entry_numbers.get(&entry.id) {
-							Some(num) => num.to_string(),
-							None => String::new()
+			view! {
+				ctx,
+				div(
+					id={
+						if let Some(entry) = props.entry.get().as_ref() {
+							format!("event_log_entry_{}", entry.id)
+						} else {
+							String::new()
 						}
-						None => String::new()
-					}
-				})
-			}
-			div(class="log_entry_select_parent", on:click=prevent_row_click_handler) {
-				(child_indicators)
-				img(src="images/add.png", class="click", alt="Add child entry", title="Add child entry", on:click=parent_select_handler)
-			}
-			div(class="log_entry_start_time") { (start_time.get()) }
-			div(class="log_entry_end_time") { (end_time.get()) }
-			div(class="log_entry_type", style=entry_type_style.get(), title=entry_type_description.get()) { (entry_type_name.get()) }
-			div(class="log_entry_description") { ((*props.entry.get()).as_ref().map(|entry| entry.description.clone()).unwrap_or_default()) }
-			div(class="log_entry_submitter_winner") { ((*props.entry.get()).as_ref().map(|entry| entry.submitter_or_winner.clone()).unwrap_or_default()) }
-			div(class="log_entry_media_link") {
-				Keyed(
-					iterable=media_links,
-					key=|link| link.clone(),
-					view=|ctx, link| {
-						let link_link = link.clone();
-						view! {
-							ctx,
-							a(href=link_link, target="_blank", rel="noopener") {
-								(link)
-							}
-						}
-					}
+					},
+					class="event_log_entry_top_border"
 				)
-			}
-			div(class="log_entry_tags") {
-				Keyed(
-					iterable=tags_signal,
-					key=|tag| tag.id.clone(),
-					view=|ctx, tag| {
-						view! {
-							ctx,
-							span(class="log_entry_tag", title=tag.description) { (tag.name) }
+				div(
+					class={
+						let mut row_class = String::from("event_log_entry");
+						if (*props.entry.get())
+							.as_ref()
+							.map(|entry| entry.marked_incomplete)
+							.unwrap_or(false)
+						{
+							row_class = format!("{} log_entry_highlight", row_class);
+						} else if (*props.entry.get())
+							.as_ref()
+							.map(|entry| entry.end_time == EndTimeData::NotEntered)
+							.unwrap_or(false)
+						{
+							row_class = format!("{} log_entry_end_highlight", row_class);
 						}
-					}
-				)
-			}
-			div(class="log_entry_poster_moment") {
-				(if (*props.entry.get()).as_ref().map(|entry| entry.poster_moment).unwrap_or_default() {
-					"✔️"
-				} else {
-					""
-				})
-			}
-			div(
-				class={
-					let mut classes = vec!["log_entry_video_edit_state"];
-					let video_edit_state = (*props.entry.get()).as_ref().map(|entry| entry.video_edit_state).unwrap_or_default();
-					match video_edit_state {
-						VideoEditState::NoVideo => (),
-						VideoEditState::MarkedForEditing => classes.push("log_entry_video_edit_state_marked"),
-						VideoEditState::DoneEditing => classes.push("log_entry_video_edit_state_edited")
-					}
-					classes.join(" ")
-				}
-			) {
-				({
-					let video_edit_state = (*props.entry.get()).as_ref().map(|entry| entry.video_edit_state).unwrap_or_default();
-					match video_edit_state {
-						VideoEditState::NoVideo => view! { ctx, },
-						VideoEditState::MarkedForEditing => {
-							view! {
-								ctx,
-								span(title="A video should be created for this row") {
-									"[+]"
-								}
-							}
+
+						if has_click_handler {
+							row_class = format!("{} click", row_class);
 						}
-						VideoEditState::DoneEditing => {
-							view! {
-								ctx,
-								span(title="A video has been edited for this row") {
-									"[✔️]"
-								}
-							}
+
+						if (*props.entry.get())
+							.as_ref()
+							.map(|entry| entry.id == *props.jump_highlight_row_id.get())
+							.unwrap_or(false)
+						{
+							row_class = format!("{} event_log_entry_jump_highlight", row_class);
 						}
-					}
-				})
-			}
-			(if *props.use_editor_view.get() {
-				let editor_link_format = props.event.editor_link_format.clone();
-				view! {
-					ctx,
-					div(class="log_entry_editor_link", on:click=prevent_row_click_handler) {
+
+						if *row_is_being_edited.get() {
+							row_class = format!("{} event_log_entry_edit_highlight", row_class);
+						}
+
+						row_class
+					},
+					on:click=row_click_handler
+				) {
+					div(class="log_entry_number") {
 						({
-							if let Some(entry) = (*props.entry.get()).as_ref() {
-								let editor_link = editor_link_format.replace("{id}", &entry.id);
-								if editor_link.is_empty() {
-									view! { ctx, }
-								} else {
+							let entry_numbers = props.entry_numbers.get();
+							let entry = props.entry.get();
+							let entry = (*entry).as_ref();
+
+							match entry {
+								Some(entry) => match entry_numbers.get(&entry.id) {
+									Some(num) => num.to_string(),
+									None => String::new()
+								}
+								None => String::new()
+							}
+						})
+					}
+					div(class="log_entry_select_parent", on:click=prevent_row_click_handler) {
+						(child_indicators)
+						img(src="images/add.png", class="click", alt="Add child entry", title="Add child entry", on:click=parent_select_handler)
+					}
+					div(class="log_entry_start_time") { (start_time.get()) }
+					div(class="log_entry_end_time") { (end_time.get()) }
+					div(class="log_entry_type", style=entry_type_style.get(), title=entry_type_description.get()) { (entry_type_name.get()) }
+					div(class="log_entry_description") { ((*props.entry.get()).as_ref().map(|entry| entry.description.clone()).unwrap_or_default()) }
+					div(class="log_entry_submitter_winner") { ((*props.entry.get()).as_ref().map(|entry| entry.submitter_or_winner.clone()).unwrap_or_default()) }
+					div(class="log_entry_media_link") {
+						Keyed(
+							iterable=media_links,
+							key=|link| link.clone(),
+							view=|ctx, link| {
+								let link_link = link.clone();
+								view! {
+									ctx,
+									a(href=link_link, target="_blank", rel="noopener") {
+										(link)
+									}
+								}
+							}
+						)
+					}
+					div(class="log_entry_tags") {
+						Keyed(
+							iterable=tags_signal,
+							key=|tag| tag.id.clone(),
+							view=|ctx, tag| {
+								view! {
+									ctx,
+									span(class="log_entry_tag", title=tag.description) { (tag.name) }
+								}
+							}
+						)
+					}
+					div(class="log_entry_poster_moment") {
+						(if (*props.entry.get()).as_ref().map(|entry| entry.poster_moment).unwrap_or_default() {
+							"✔️"
+						} else {
+							""
+						})
+					}
+					div(
+						class={
+							let mut classes = vec!["log_entry_video_edit_state"];
+							let video_edit_state = (*props.entry.get()).as_ref().map(|entry| entry.video_edit_state).unwrap_or_default();
+							match video_edit_state {
+								VideoEditState::NoVideo => (),
+								VideoEditState::MarkedForEditing => classes.push("log_entry_video_edit_state_marked"),
+								VideoEditState::DoneEditing => classes.push("log_entry_video_edit_state_edited")
+							}
+							classes.join(" ")
+						}
+					) {
+						({
+							let video_edit_state = (*props.entry.get()).as_ref().map(|entry| entry.video_edit_state).unwrap_or_default();
+							match video_edit_state {
+								VideoEditState::NoVideo => view! { ctx, },
+								VideoEditState::MarkedForEditing => {
 									view! {
 										ctx,
-										a(href=editor_link, target="_blank", rel="noopener") {
-											img(src="/images/edit.png", alt="Edit", title="Open editor")
+										span(title="A video should be created for this row") {
+											"[+]"
 										}
+									}
+								}
+								VideoEditState::DoneEditing => {
+									view! {
+										ctx,
+										span(title="A video has been edited for this row") {
+											"[✔️]"
+										}
+									}
+								}
+							}
+						})
+					}
+					(if *props.use_editor_view.get() {
+						let editor_link_format = event.get().editor_link_format.clone();
+						view! {
+							ctx,
+							div(class="log_entry_editor_link", on:click=prevent_row_click_handler) {
+								({
+									if let Some(entry) = (*props.entry.get()).as_ref() {
+										let editor_link = editor_link_format.replace("{id}", &entry.id);
+										if editor_link.is_empty() {
+											view! { ctx, }
+										} else {
+											view! {
+												ctx,
+												a(href=editor_link, target="_blank", rel="noopener") {
+													img(src="/images/edit.png", alt="Edit", title="Open editor")
+												}
+											}
+										}
+									} else {
+										view! { ctx, }
+									}
+								})
+							}
+						}
+					} else {
+						view! { ctx, }
+					})
+					div(class="log_entry_video_link", on:click=prevent_row_click_handler) {
+						({
+							let video_link = (*props.entry.get()).as_ref().and_then(|entry| entry.video_link.clone());
+							if let Some(link) = video_link.as_ref() {
+								let link = link.clone();
+								view! {
+									ctx,
+									a(href=link, target="_blank", rel="noopener") {
+										img(src="/images/youtube.png", alt="Video", title="Open video")
 									}
 								}
 							} else {
@@ -308,74 +353,58 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, props: EventL
 							}
 						})
 					}
-				}
-			} else {
-				view! { ctx, }
-			})
-			div(class="log_entry_video_link", on:click=prevent_row_click_handler) {
-				({
-					let video_link = (*props.entry.get()).as_ref().and_then(|entry| entry.video_link.clone());
-					if let Some(link) = video_link.as_ref() {
-						let link = link.clone();
+					(if *props.use_editor_view.get() {
 						view! {
 							ctx,
-							a(href=link, target="_blank", rel="noopener") {
-								img(src="/images/youtube.png", alt="Video", title="Open video")
+							div(class="log_entry_editor_user") {
+								({
+									let editor = (*props.entry.get()).as_ref().and_then(|entry| entry.editor.clone());
+									if let Some(editor) = editor.as_ref() {
+										let name_color = rgb_str_from_color(editor.color);
+										let name_style = format!("color: {}", name_color);
+										let username = editor.username.clone();
+										view! {
+											ctx,
+											span(style=name_style) { (username) }
+										}
+									} else {
+										view! { ctx, }
+									}
+								})
 							}
 						}
 					} else {
 						view! { ctx, }
+					})
+					div(class="log_entry_notes_to_editor") {
+						((*props.entry.get()).as_ref().map(|entry| entry.notes_to_editor.clone()).unwrap_or_default())
 					}
-				})
-			}
-			(if *props.use_editor_view.get() {
-				view! {
-					ctx,
-					div(class="log_entry_editor_user") {
-						({
-							let editor = (*props.entry.get()).as_ref().and_then(|entry| entry.editor.clone());
-							if let Some(editor) = editor.as_ref() {
-								let name_color = rgb_str_from_color(editor.color);
-								let name_style = format!("color: {}", name_color);
-								let username = editor.username.clone();
-								view! {
-									ctx,
-									span(style=name_style) { (username) }
-								}
-							} else {
-								view! { ctx, }
+					(if *props.use_editor_view.get() {
+						view! {
+							ctx,
+							div(class="log_entry_video_processing_state") {
+								({
+									let video_processing_state = (*props.entry.get()).as_ref().and_then(|entry| entry.video_processing_state);
+									match video_processing_state {
+										Some(state) => format!("{}", state),
+										None => String::new()
+									}
+								})
 							}
-						})
-					}
-				}
-			} else {
-				view! { ctx, }
-			})
-			div(class="log_entry_notes_to_editor") {
-				((*props.entry.get()).as_ref().map(|entry| entry.notes_to_editor.clone()).unwrap_or_default())
-			}
-			(if *props.use_editor_view.get() {
-				view! {
-					ctx,
-					div(class="log_entry_video_processing_state") {
-						({
-							let video_processing_state = (*props.entry.get()).as_ref().and_then(|entry| entry.video_processing_state);
-							match video_processing_state {
-								Some(state) => format!("{}", state),
-								None => String::new()
+							div(class="log_entry_video_errors") {
+								({
+									let video_errors = (*props.entry.get()).as_ref().map(|entry| entry.video_errors.clone());
+									video_errors.unwrap_or_default()
+								})
 							}
-						})
-					}
-					div(class="log_entry_video_errors") {
-						({
-							let video_errors = (*props.entry.get()).as_ref().map(|entry| entry.video_errors.clone());
-							video_errors.unwrap_or_default()
-						})
-					}
+						}
+					} else {
+						view! { ctx, }
+					})
 				}
-			} else {
-				view! { ctx, }
-			})
-		}
+			}
+		} else {
+			view! { ctx, }
+		})
 	}
 }

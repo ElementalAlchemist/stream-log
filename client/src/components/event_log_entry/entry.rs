@@ -7,23 +7,17 @@
 use super::row::EventLogEntryRow;
 use super::typing::EventLogEntryTyping;
 use super::UserTypingData;
-use crate::subscriptions::event::TypingEvent;
+use crate::subscriptions::event::EventSubscriptionSignals;
 use std::collections::HashMap;
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_log::EventLogEntry;
-use stream_log_shared::messages::events::Event;
-use stream_log_shared::messages::permissions::PermissionLevel;
 use sycamore::prelude::*;
 
 #[derive(Prop)]
 pub struct EventLogEntryProps<'a> {
 	entry: EventLogEntry,
 	jump_highlight_row_id: &'a Signal<String>,
-	event_signal: RcSignal<Event>,
-	permission_level: &'a ReadSignal<PermissionLevel>,
-	entry_types_signal: RcSignal<Vec<EntryType>>,
-	all_log_entries: RcSignal<Vec<EventLogEntry>>,
-	event_typing_events_signal: RcSignal<Vec<TypingEvent>>,
+	event_subscription_data: EventSubscriptionSignals,
 	can_edit: &'a ReadSignal<bool>,
 	editing_log_entry: &'a Signal<Option<EventLogEntry>>,
 	read_entry_types_signal: &'a ReadSignal<Vec<EntryType>>,
@@ -39,11 +33,10 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 	let entry = props.entry;
 	let can_edit = props.can_edit;
 
-	let event_signal = props.event_signal.clone();
-	let entry_types_signal = props.entry_types_signal.clone();
-	let log_entries = props.all_log_entries.clone();
+	let event_signal = props.event_subscription_data.event.clone();
+	let entry_types_signal = props.event_subscription_data.entry_types.clone();
+	let log_entries = props.event_subscription_data.event_log_entries.clone();
 
-	let event = event_signal.get();
 	let click_handler = if *can_edit.get() {
 		let entry = entry.clone();
 		let log_entries = log_entries.clone();
@@ -93,7 +86,7 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 		entries_by_parent.get(log_entry_id).cloned().unwrap_or_default()
 	});
 
-	let typing_events_signal = props.event_typing_events_signal.clone();
+	let typing_events_signal = props.event_subscription_data.typing_events.clone();
 	let typing_data = create_memo(ctx, move || {
 		let mut typing_data: HashMap<String, UserTypingData> = HashMap::new();
 		for typing_value in typing_events_signal.get().iter().filter(|typing_event| {
@@ -107,16 +100,13 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 		typing_data
 	});
 
-	let child_event_signal = props.event_signal.clone();
-	let child_entry_types_signal = props.entry_types_signal.clone();
-	let child_all_log_entries_signal = props.all_log_entries.clone();
-	let typing_event_signal = event_signal.clone();
+	let row_event_subscription_data = props.event_subscription_data.clone();
 
 	view! {
 		ctx,
 		EventLogEntryRow(
 			entry=event_log_entry_signal,
-			event=(*event).clone(),
+			event_subscription_data=row_event_subscription_data,
 			entry_type=entry_type,
 			click_handler=click_handler,
 			jump_highlight_row_id=props.jump_highlight_row_id,
@@ -127,9 +117,9 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 			use_editor_view=props.use_editor_view
 		)
 		EventLogEntryTyping(
-			event=typing_event_signal,
+			event=event_signal,
 			event_entry_types=props.read_entry_types_signal,
-			event_log=props.all_log_entries,
+			event_log=log_entries,
 			typing_data=typing_data,
 			use_editor_view=props.use_editor_view
 		)
@@ -138,25 +128,15 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 				iterable=child_log_entries,
 				key=|entry| entry.id.clone(),
 				view={
-					let event_signal = child_event_signal.clone();
-					let entry_types_signal = child_entry_types_signal.clone();
-					let all_log_entries = child_all_log_entries_signal.clone();
-					let typing_events = props.event_typing_events_signal.clone();
+					let event_subscription_data = props.event_subscription_data.clone();
 					move |ctx, entry| {
-						let event_signal = event_signal.clone();
-						let entry_types_signal = entry_types_signal.clone();
-						let all_log_entries = all_log_entries.clone();
-						let typing_events = typing_events.clone();
+						let event_subscription_data = event_subscription_data.clone();
 						view! {
 							ctx,
 							EventLogEntry(
 								entry=entry,
 								jump_highlight_row_id=props.jump_highlight_row_id,
-								event_signal=event_signal,
-								permission_level=props.permission_level,
-								entry_types_signal=entry_types_signal,
-								all_log_entries=all_log_entries,
-								event_typing_events_signal=typing_events,
+								event_subscription_data=event_subscription_data,
 								can_edit=can_edit,
 								editing_log_entry=props.editing_log_entry,
 								read_entry_types_signal=props.read_entry_types_signal,

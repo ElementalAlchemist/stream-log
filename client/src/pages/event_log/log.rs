@@ -16,7 +16,7 @@ use chrono::Utc;
 use futures::future::poll_fn;
 use futures::lock::Mutex;
 use futures::task::{Context, Poll, Waker};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use stream_log_shared::messages::event_log::{EventLogEntry, EventLogTab, VideoEditState, VideoProcessingState};
 use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::subscriptions::SubscriptionType;
@@ -128,7 +128,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 	let entry_types_signal = event_subscription_data.entry_types.clone();
 	let tags_signal = event_subscription_data.tags.clone();
 	let log_entries = event_subscription_data.event_log_entries.clone();
-	let available_editors = event_subscription_data.editors;
+	let available_editors = event_subscription_data.editors.clone();
 
 	let read_event_signal = create_memo(ctx, {
 		let event_signal = event_signal.clone();
@@ -176,9 +176,8 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 
 	let editing_log_entry: &Signal<Option<EventLogEntry>> = create_signal(ctx, None);
 
-	let video_processing_state_filters: &Signal<HashSet<Option<VideoProcessingState>>> =
-		create_signal(ctx, HashSet::new());
-	let video_edit_state_filters: &Signal<HashSet<VideoEditState>> = create_signal(ctx, HashSet::new());
+	let video_processing_state_filters = event_subscription_data.video_processing_state_filters.clone();
+	let video_edit_state_filters = event_subscription_data.video_edit_state_filters.clone();
 
 	let current_time = Utc::now();
 	let mut current_tab: Option<&EventLogTab> = None;
@@ -198,8 +197,6 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		move || {
 			let entries_by_parent = entries_by_parent_signal.get();
 			let tabs = event_log_tabs.get();
-			let processing_state_filters = video_processing_state_filters.get();
-			let edit_state_filters = video_edit_state_filters.get();
 
 			let Some(entries) = entries_by_parent.get("") else {
 				return HashMap::new();
@@ -218,14 +215,8 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 				match (next_entry, next_tab) {
 					(Some(entry), Some(tab)) => {
 						if entry.start_time < tab.start_time {
-							if (processing_state_filters.is_empty()
-								|| processing_state_filters.contains(&entry.video_processing_state))
-								&& (edit_state_filters.is_empty()
-									|| edit_state_filters.contains(&entry.video_edit_state))
-							{
-								let tab_id = current_tab.as_ref().map(|tab| tab.id.clone()).unwrap_or_default();
-								entries_by_tab.entry(tab_id).or_default().push(entry.clone());
-							}
+							let tab_id = current_tab.as_ref().map(|tab| tab.id.clone()).unwrap_or_default();
+							entries_by_tab.entry(tab_id).or_default().push(entry.clone());
 							next_entry = entries_iter.next();
 						} else {
 							current_tab = next_tab;
@@ -233,13 +224,8 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 						}
 					}
 					(Some(entry), None) => {
-						if (processing_state_filters.is_empty()
-							|| processing_state_filters.contains(&entry.video_processing_state))
-							&& (edit_state_filters.is_empty() || edit_state_filters.contains(&entry.video_edit_state))
-						{
-							let tab_id = current_tab.as_ref().map(|tab| tab.id.clone()).unwrap_or_default();
-							entries_by_tab.entry(tab_id).or_default().push(entry.clone());
-						}
+						let tab_id = current_tab.as_ref().map(|tab| tab.id.clone()).unwrap_or_default();
+						entries_by_tab.entry(tab_id).or_default().push(entry.clone());
 						next_entry = entries_iter.next();
 					}
 					(None, _) => break,
@@ -331,11 +317,14 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 			};
 			let active_signal = create_signal(ctx, video_processing_state_filters.get().contains(&processing_state));
 
-			create_effect(ctx, move || {
-				if *active_signal.get() {
-					video_processing_state_filters.modify().insert(processing_state);
-				} else {
-					video_processing_state_filters.modify().remove(&processing_state);
+			create_effect(ctx, {
+				let video_processing_state_filters = video_processing_state_filters.clone();
+				move || {
+					if *active_signal.get() {
+						video_processing_state_filters.modify().insert(processing_state);
+					} else {
+						video_processing_state_filters.modify().remove(&processing_state);
+					}
 				}
 			});
 
@@ -354,11 +343,14 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 			};
 			let active_signal = create_signal(ctx, video_edit_state_filters.get().contains(&edit_state));
 
-			create_effect(ctx, move || {
-				if *active_signal.get() {
-					video_edit_state_filters.modify().insert(edit_state);
-				} else {
-					video_edit_state_filters.modify().remove(&edit_state);
+			create_effect(ctx, {
+				let video_edit_state_filters = video_edit_state_filters.clone();
+				move || {
+					if *active_signal.get() {
+						video_edit_state_filters.modify().insert(edit_state);
+					} else {
+						video_edit_state_filters.modify().remove(&edit_state);
+					}
 				}
 			});
 
@@ -546,26 +538,16 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 						iterable=active_log_entries,
 						key=|entry| entry.id.clone(),
 						view={
-							let event_signal = event_signal.clone();
-							let entry_types_signal = entry_types_signal.clone();
-							let log_entries = log_entries.clone();
-							let typing_events = event_subscription_data.typing_events.clone();
+							let event_subscription_data = event_subscription_data.clone();
 							move |ctx, entry| {
-								let event_signal = event_signal.clone();
-								let entry_types_signal = entry_types_signal.clone();
-								let log_entries = log_entries.clone();
-								let typing_events = typing_events.clone();
+								let event_subscription_data=event_subscription_data.clone();
 
 								view! {
 									ctx,
 									EventLogEntryView(
 										entry=entry,
 										jump_highlight_row_id=jump_highlight_row_id,
-										event_signal=event_signal,
-										permission_level=read_permission_signal,
-										entry_types_signal=entry_types_signal,
-										all_log_entries=log_entries,
-										event_typing_events_signal=typing_events,
+										event_subscription_data=event_subscription_data,
 										can_edit=can_edit,
 										editing_log_entry=editing_log_entry,
 										read_entry_types_signal=read_entry_types_signal,

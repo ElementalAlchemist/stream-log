@@ -6,9 +6,10 @@
 
 use chrono::{DateTime, Duration, Utc};
 use gloo_timers::callback::Interval;
+use std::collections::HashSet;
 use std::rc::Rc;
 use stream_log_shared::messages::entry_types::EntryType;
-use stream_log_shared::messages::event_log::{EventLogEntry, EventLogTab};
+use stream_log_shared::messages::event_log::{EventLogEntry, EventLogTab, VideoEditState, VideoProcessingState};
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::info_pages::InfoPage;
 use stream_log_shared::messages::permissions::PermissionLevel;
@@ -39,6 +40,8 @@ pub struct EventSubscriptionSignals {
 	pub event_log_entries: RcSignal<Vec<EventLogEntry>>,
 	pub typing_events: RcSignal<Vec<TypingEvent>>,
 	_typing_expire_interval: Rc<Interval>,
+	pub video_edit_state_filters: RcSignal<HashSet<VideoEditState>>,
+	pub video_processing_state_filters: RcSignal<HashSet<Option<VideoProcessingState>>>,
 }
 
 impl EventSubscriptionSignals {
@@ -63,6 +66,9 @@ impl EventSubscriptionSignals {
 		let event_log_tabs = create_rc_signal(init_data.event_log_tabs);
 		let event_log_entries = create_rc_signal(init_data.event_log_entries);
 
+		let video_edit_state_filters = create_rc_signal(HashSet::new());
+		let video_processing_state_filters = create_rc_signal(HashSet::new());
+
 		Self {
 			event,
 			permission,
@@ -74,6 +80,8 @@ impl EventSubscriptionSignals {
 			event_log_entries,
 			typing_events,
 			_typing_expire_interval,
+			video_edit_state_filters,
+			video_processing_state_filters,
 		}
 	}
 }
