@@ -1,3 +1,9 @@
+// © 2022-2024 Jacob Riddle (ElementalAlchemist)
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 use crate::schema::{
 	applications, available_entry_types_for_event, entry_types, event_editors, event_log, event_log_history,
 	event_log_history_tags, event_log_tabs, event_log_tags, events, info_pages, permission_events, permission_groups,

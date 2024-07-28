@@ -1,3 +1,9 @@
+// © 2022-2024 Jacob Riddle (ElementalAlchemist)
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 use super::register::{check_username, register_user};
 use super::subscriptions::admin_applications::{handle_admin_applications_message, subscribe_to_admin_applications};
 use super::subscriptions::admin_editors::{handle_admin_editors_message, subscribe_to_admin_editors};

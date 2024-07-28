@@ -1,3 +1,9 @@
+-- © 2022-2024 Jacob Riddle (ElementalAlchemist)
+--
+-- This Source Code Form is subject to the terms of the Mozilla Public
+-- License, v. 2.0. If a copy of the MPL was not distributed with this
+-- file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 -- Because there's not a good way to update this without destroying the tags database and because this is prior to the
 -- initial full release of this program, we'll just destroy all the tags for now.
 
