@@ -372,7 +372,7 @@ pub struct EventLogEntry {
 	/// Start time for the entry
 	pub start_time: DateTime<Utc>,
 	/// End time for the entry. None if the entry has no end time or the end time was not entered yet; to distinguish
-	/// between those, see [end_time_incomplete].
+	/// between those, see [Self::end_time_incomplete].
 	pub end_time: Option<DateTime<Utc>>,
 	/// ID of the entry type
 	pub entry_type: String,
