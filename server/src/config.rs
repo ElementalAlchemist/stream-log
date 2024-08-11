@@ -24,6 +24,8 @@ pub struct ConfigDocument {
 	pub listen: ListenAddr,
 	#[knuffel(child)]
 	pub database: DatabaseArgs,
+	#[knuffel(child, unwrap(argument))]
+	pub favicon_file: Option<String>,
 }
 
 #[derive(Debug, Decode)]

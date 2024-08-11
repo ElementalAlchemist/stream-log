@@ -81,3 +81,9 @@ openid {
 // On Linux systems, /dev/urandom is cryptographically secure and therefore useful for this purpose. You can grab 128
 // bytes using this command: `dd if=/dev/urandom of=session-secret bs=128 count=1`
 session-secret-key-file "session-secret"
+
+// favicon-file
+// Optionally, if you're hosting your site at the root of your domain/subdomain, you can use this option to serve a
+// favicon from Stream Log. Specify a file path to a file that will be served when favicon.ico is requested.
+// Uncomment this option if you need it.
+// favicon-file "/home/user/favicon.ico"

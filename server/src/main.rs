@@ -93,6 +93,10 @@ async fn main() -> miette::Result<()> {
 		}
 	}));
 
+	if let Some(favicon_file_path) = config.favicon_file.as_ref() {
+		app.at("/favicon.ico").serve_file(favicon_file_path).into_diagnostic()?;
+	}
+
 	app.at("/")
 		.authenticated()
 		.get(|_| async { Ok(Body::from_file("static/index.html").await?) })
