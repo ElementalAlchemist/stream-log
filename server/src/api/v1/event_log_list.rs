@@ -67,6 +67,11 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 		}
 	};
 
+	let default_event_tab = EventLogTab {
+		id: String::new(),
+		name: event.first_tab_name,
+	};
+
 	let retrieved_time = Utc::now();
 	let event_log: QueryResult<Vec<EventLogEntryDb>> = if let Some(edited_since) = query_params.since {
 		event_log::table
@@ -308,7 +313,8 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 				tab: event_log_tabs_by_start_time
 					.range(..=entry.start_time)
 					.last()
-					.map(|(_, tab)| tab.clone()),
+					.map(|(_, tab)| tab.clone())
+					.unwrap_or_else(|| default_event_tab.clone()),
 			}
 		})
 		.collect();

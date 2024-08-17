@@ -7,10 +7,14 @@
 use crate::models::EventLogTab as EventLogTabDb;
 use serde::Serialize;
 
+/// The event log tab object representing a tab in which entries exist.
 #[derive(Clone, Serialize)]
 pub struct EventLogTab {
-	id: String,
-	name: String,
+	/// The ID of the tab. Empty string represents the default tab for an event (for entries occurring before the start
+	/// time of any configured tab).
+	pub id: String,
+	/// The name of the tab.
+	pub name: String,
 }
 
 impl From<EventLogTabDb> for EventLogTab {

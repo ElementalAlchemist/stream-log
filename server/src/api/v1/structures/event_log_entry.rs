@@ -64,5 +64,5 @@ pub struct EventLogEntry {
 	pub marked_incomplete: bool,
 	/// The tab this entry is in, if any. Note that, for endpoints for which it's relevant when an entry changed,
 	/// changes to tab data do not count as changes to the individual affected entries.
-	pub tab: Option<EventLogTab>,
+	pub tab: EventLogTab,
 }
