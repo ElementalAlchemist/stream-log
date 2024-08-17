@@ -388,8 +388,8 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 			let Some(row_top_element) = document.get_element_by_id(&jump_to_id) else {
 				return;
 			};
-			let mut scroll_into_view_options = ScrollIntoViewOptions::new();
-			scroll_into_view_options.block(ScrollLogicalPosition::Center);
+			let scroll_into_view_options = ScrollIntoViewOptions::new();
+			scroll_into_view_options.set_block(ScrollLogicalPosition::Center);
 			row_top_element.scroll_into_view_with_scroll_into_view_options(&scroll_into_view_options);
 			jump_highlight_row_id.set(jump_id);
 		}
