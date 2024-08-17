@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use super::structures::tag::Tag as TagApi;
+use super::structures::tag::{Tag as TagApi, TagPlaylist};
 use super::utils::check_application;
 use crate::models::{Event as EventDb, Tag as TagDb};
 use crate::schema::{events, tags};
@@ -51,15 +51,26 @@ pub async fn list_tags(request: Request<()>, db_connection: Arc<Mutex<PgConnecti
 	let tags: Vec<TagApi> = match tags {
 		Ok(tags) => tags
 			.into_iter()
-			.map(|tag| TagApi {
-				id: tag.id,
-				tag: tag.tag,
-				description: tag.description,
-				playlist: if tag.playlist.is_empty() {
-					None
+			.map(|tag| {
+				let playlist = if let (Some(id), Some(title), Some(shows_in_video_descriptions)) = (
+					tag.playlist,
+					tag.playlist_title,
+					tag.playlist_shows_in_video_descriptions,
+				) {
+					Some(TagPlaylist {
+						id,
+						title,
+						shows_in_video_descriptions,
+					})
 				} else {
-					Some(tag.playlist)
-				},
+					None
+				};
+				TagApi {
+					id: tag.id,
+					tag: tag.tag,
+					description: tag.description,
+					playlist,
+				}
 			})
 			.collect(),
 		Err(error) => {

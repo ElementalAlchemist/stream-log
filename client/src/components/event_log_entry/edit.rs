@@ -861,7 +861,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			id: String::new(),
 			name: String::new(),
 			description: String::new(),
-			playlist: String::new(),
+			playlist: None,
 		});
 	};
 
@@ -1449,7 +1449,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 									let existing_tag = event_tags_name_index.get().get(&*tag_name).cloned();
 									let updated_tag = match existing_tag {
 										Some(tag) => tag,
-										None => Tag { id: String::new(), name: (*tag_name).clone(), description: String::new(), playlist: String::new() }
+										None => Tag { id: String::new(), name: (*tag_name).clone(), description: String::new(), playlist: None }
 									};
 									*tag = updated_tag;
 								}
@@ -1489,7 +1489,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 											spawn_local_scoped(ctx, async move {
 												let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 												let mut ws = ws_context.lock().await;
-												let new_tag = Tag { id: String::new(), name: tag_name.clone(), description: (*description_signal.get()).clone(), playlist: String::new() };
+												let new_tag = Tag { id: String::new(), name: tag_name.clone(), description: (*description_signal.get()).clone(), playlist: None };
 												let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate((*props.event.get()).clone(), Box::new(EventSubscriptionUpdate::UpdateTag(new_tag)))));
 												let message_json = match serde_json::to_string(&message) {
 													Ok(msg) => msg,

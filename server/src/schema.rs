@@ -186,9 +186,11 @@ diesel::table! {
 		id -> Text,
 		tag -> Text,
 		description -> Text,
-		playlist -> Text,
 		for_event -> Text,
 		deleted -> Bool,
+		playlist -> Nullable<Text>,
+		playlist_title -> Nullable<Text>,
+		playlist_shows_in_video_descriptions -> Nullable<Bool>,
 	}
 }
 

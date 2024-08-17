@@ -17,7 +17,7 @@ use stream_log_shared::messages::event_subscription::EventSubscriptionUpdate;
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::subscriptions::{SubscriptionTargetUpdate, SubscriptionType};
-use stream_log_shared::messages::tags::Tag;
+use stream_log_shared::messages::tags::{Tag, TagPlaylist};
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::FromClientMessage;
 use sycamore::futures::spawn_local_scoped;
@@ -162,7 +162,9 @@ async fn EventLogTagsLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogTagsProp
 					let entered_description = create_signal(ctx, tag.description.clone());
 					let entered_description_error = create_signal(ctx, String::new());
 
-					let entered_playlist = create_signal(ctx, tag.playlist.clone());
+					let entered_playlist_id = create_signal(ctx, tag.playlist.as_ref().map(|playlist| playlist.id.clone()).unwrap_or_default());
+					let entered_playlist_title = create_signal(ctx, tag.playlist.as_ref().map(|playlist| playlist.title.clone()).unwrap_or_default());
+					let entered_playlist_shows_in_video_descriptions = create_signal(ctx, tag.playlist.as_ref().map(|playlist| playlist.shows_in_video_descriptions).unwrap_or_default());
 
 					let confirming_delete = create_signal(ctx, false);
 
@@ -281,9 +283,16 @@ async fn EventLogTagsLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogTagsProp
 
 										let event_signal = event_signal.clone();
 
-										let playlist_id = (*entered_playlist.get()).clone();
+										let playlist_id = (*entered_playlist_id.get()).clone();
+										let playlist_title = (*entered_playlist_title.get()).clone();
+										let playlist_shows_in_video_descriptions = *entered_playlist_shows_in_video_descriptions.get();
 										let mut tag = tag.clone();
-										tag.playlist = playlist_id;
+										if playlist_id.is_empty() {
+											tag.playlist = None;
+										} else {
+											let tag_playlist = TagPlaylist { id: playlist_id, title: playlist_title, shows_in_video_descriptions: playlist_shows_in_video_descriptions };
+											tag.playlist = Some(tag_playlist);
+										}
 
 										spawn_local_scoped(ctx, async move {
 											let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
@@ -377,10 +386,24 @@ async fn EventLogTagsLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogTagsProp
 									ctx,
 									td {
 										form(on:submit=set_playlist_handler) {
-											input(
-												bind:value=entered_playlist,
-												placeholder="Playlist ID"
-											)
+											div {
+												input(
+													bind:value=entered_playlist_id,
+													placeholder="Playlist ID"
+												)
+											}
+											div {
+												input(
+													bind:value=entered_playlist_title,
+													placeholder="Playlist Title"
+												)
+											}
+											div {
+												label {
+													input(type="checkbox", bind:checked=entered_playlist_shows_in_video_descriptions)
+													"Shows in video descriptions"
+												}
+											}
 											button(type="submit") { "Set Playlist" }
 										}
 									}
@@ -458,10 +481,11 @@ async fn EventLogTagsLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogTagsProp
 									}
 								}
 							} else {
+								let playlist_name = tag_playlist.as_ref().map(|playlist| playlist.title.clone()).unwrap_or_default();
 								view! {
 									ctx,
 									td {
-										(tag_playlist)
+										(playlist_name)
 									}
 								}
 							})
@@ -508,7 +532,7 @@ async fn EventLogTagsLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogTagsProp
 						id: String::new(),
 						name,
 						description,
-						playlist: String::new()
+						playlist: None
 					};
 
 					spawn_local_scoped(ctx, async move {

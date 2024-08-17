@@ -15,6 +15,16 @@ pub struct Tag {
 	pub tag: String,
 	/// A description of what the tag is and how it's meant to be used
 	pub description: String,
-	/// Playlist ID, if the tag is for a playlist
-	pub playlist: Option<String>,
+	/// Playlist metadata, if the tag is for a playlist
+	pub playlist: Option<TagPlaylist>,
+}
+
+#[derive(Clone, Serialize)]
+pub struct TagPlaylist {
+	/// The ID of the playlist at the video host
+	pub id: String,
+	/// The title of the playlist
+	pub title: String,
+	/// Whether this playlist should be shown in video descriptions
+	pub shows_in_video_descriptions: bool,
 }

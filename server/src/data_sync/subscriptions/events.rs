@@ -33,7 +33,7 @@ use stream_log_shared::messages::subscriptions::{
 	InitialEventSubscriptionLoadData, InitialSubscriptionLoadData, SubscriptionData, SubscriptionFailureInfo,
 	SubscriptionType,
 };
-use stream_log_shared::messages::tags::Tag;
+use stream_log_shared::messages::tags::{Tag, TagPlaylist};
 use stream_log_shared::messages::user::UserData;
 use stream_log_shared::messages::{DataError, FromServerMessage};
 
@@ -283,12 +283,27 @@ pub async fn subscribe_to_event(
 	let mut tags_by_log_entry: HashMap<String, Vec<Tag>> = HashMap::new();
 	for log_entry_tag in log_entry_tags.iter() {
 		let tag = match tags_by_id.get(&log_entry_tag.tag) {
-			Some(tag) => Tag {
-				id: tag.id.clone(),
-				name: tag.tag.clone(),
-				description: tag.description.clone(),
-				playlist: tag.playlist.clone(),
-			},
+			Some(tag) => {
+				let playlist = if let (Some(id), Some(title), Some(shows_in_video_descriptions)) = (
+					tag.playlist.clone(),
+					tag.playlist_title.clone(),
+					tag.playlist_shows_in_video_descriptions,
+				) {
+					Some(TagPlaylist {
+						id,
+						title,
+						shows_in_video_descriptions,
+					})
+				} else {
+					None
+				};
+				Tag {
+					id: tag.id.clone(),
+					name: tag.tag.clone(),
+					description: tag.description.clone(),
+					playlist,
+				}
+			}
 			None => {
 				let message = FromServerMessage::SubscriptionFailure(
 					SubscriptionType::EventLogData(event_id.to_string()),
@@ -643,11 +658,26 @@ pub async fn handle_event_update(
 						let end_time = entry.end_time_data();
 						let tags: Vec<Tag> = entry_tags
 							.iter()
-							.map(|tag| Tag {
-								id: tag.id.clone(),
-								name: tag.tag.clone(),
-								description: tag.description.clone(),
-								playlist: tag.playlist.clone(),
+							.map(|tag| {
+								let playlist = if let (Some(id), Some(title), Some(shows_in_video_descriptions)) = (
+									tag.playlist.clone(),
+									tag.playlist_title.clone(),
+									tag.playlist_shows_in_video_descriptions,
+								) {
+									Some(TagPlaylist {
+										id,
+										title,
+										shows_in_video_descriptions,
+									})
+								} else {
+									None
+								};
+								Tag {
+									id: tag.id.clone(),
+									name: tag.tag.clone(),
+									description: tag.description.clone(),
+									playlist,
+								}
 							})
 							.collect();
 						EventLogEntry {
@@ -858,15 +888,27 @@ pub async fn handle_event_update(
 				}
 				tag.id = cuid2::create_id();
 			}
+			let (playlist, playlist_title, playlist_shows_in_video_descriptions) =
+				if let Some(playlist) = tag.playlist.as_ref() {
+					(
+						Some(playlist.id.clone()),
+						Some(playlist.title.clone()),
+						Some(playlist.shows_in_video_descriptions),
+					)
+				} else {
+					(None, None, None)
+				};
 
 			let mut db_connection = db_connection.lock().await;
 			let tag_db = TagDb {
 				id: tag.id.clone(),
 				tag: tag.name.clone(),
 				description: tag.description.clone(),
-				playlist: tag.playlist.clone(),
 				for_event: event.id.clone(),
 				deleted: false,
+				playlist,
+				playlist_title,
+				playlist_shows_in_video_descriptions,
 			};
 			let db_result: QueryResult<bool> = db_connection.transaction(|db_connection| {
 				if new_tag {
@@ -1059,9 +1101,11 @@ pub async fn handle_event_update(
 						id: cuid2::create_id(),
 						tag: tag.tag.clone(),
 						description: tag.description.clone(),
-						playlist: String::new(),
 						for_event: event.id.clone(),
 						deleted: false,
+						playlist: None,
+						playlist_title: None,
+						playlist_shows_in_video_descriptions: None,
 					})
 					.collect();
 				diesel::insert_into(tags::table)

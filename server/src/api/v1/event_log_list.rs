@@ -8,7 +8,7 @@ use super::structures::entry_type::EntryType as EntryTypeApi;
 use super::structures::event_log_entry::{EndTimeData, EventLogEntry as EventLogEntryApi};
 use super::structures::event_log_response::EventLogResponse;
 use super::structures::event_log_tab::EventLogTab;
-use super::structures::tag::Tag as TagApi;
+use super::structures::tag::{Tag as TagApi, TagPlaylist};
 use super::structures::user::User as UserApi;
 use super::utils::check_application;
 use crate::models::{
@@ -231,17 +231,26 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 	let tags_by_id: HashMap<String, TagApi> = tags
 		.into_iter()
 		.map(|tag| {
+			let playlist = if let (Some(id), Some(title), Some(shows_in_video_descriptions)) = (
+				tag.playlist,
+				tag.playlist_title,
+				tag.playlist_shows_in_video_descriptions,
+			) {
+				Some(TagPlaylist {
+					id,
+					title,
+					shows_in_video_descriptions,
+				})
+			} else {
+				None
+			};
 			(
 				tag.id.clone(),
 				TagApi {
 					id: tag.id,
 					tag: tag.tag,
 					description: tag.description,
-					playlist: if tag.playlist.is_empty() {
-						None
-					} else {
-						Some(tag.playlist)
-					},
+					playlist,
 				},
 			)
 		})

@@ -23,7 +23,7 @@ use stream_log_shared::messages::event_log::{
 use stream_log_shared::messages::events::Event as EventWs;
 use stream_log_shared::messages::info_pages::InfoPage as InfoPageWs;
 use stream_log_shared::messages::permissions::PermissionLevel;
-use stream_log_shared::messages::tags::Tag as TagWs;
+use stream_log_shared::messages::tags::{Tag as TagWs, TagPlaylist};
 use stream_log_shared::messages::user::UserData;
 
 /// Permissions a user can have for an event, as stored in the database.
@@ -337,13 +337,19 @@ pub struct Tag {
 	pub tag: String,
 	/// A description of the tag's meaning and when it should be used
 	pub description: String,
-	/// The playlist ID of the playlist automatically populated from this tag.
-	/// For tags that do not populate a playlist, this is set to the empty string.
-	pub playlist: String,
 	/// Event ID of the event in which the tag can be used
 	pub for_event: String,
 	/// Whether the tag has been deleted
 	pub deleted: bool,
+	/// The playlist ID of the playlist automatically populated from this tag.
+	/// If any playlist fields are populated, all must be populated.
+	pub playlist: Option<String>,
+	/// The playlist title of the playlist automatically populated from this tag.
+	/// If any playlist fields are populated, all must be populated.
+	pub playlist_title: Option<String>,
+	/// Whether the playlist automatically populated from this tag should appear in video descriptions.
+	/// If any playlist fields are populated, all must be populated.
+	pub playlist_shows_in_video_descriptions: Option<bool>,
 }
 
 impl From<Tag> for TagWs {
@@ -351,7 +357,19 @@ impl From<Tag> for TagWs {
 		let id = value.id;
 		let name = value.tag;
 		let description = value.description;
-		let playlist = value.playlist;
+		let playlist = if let (Some(id), Some(title), Some(shows_in_video_descriptions)) = (
+			value.playlist,
+			value.playlist_title,
+			value.playlist_shows_in_video_descriptions,
+		) {
+			Some(TagPlaylist {
+				id,
+				title,
+				shows_in_video_descriptions,
+			})
+		} else {
+			None
+		};
 		Self {
 			id,
 			name,

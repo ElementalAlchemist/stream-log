@@ -11,5 +11,12 @@ pub struct Tag {
 	pub id: String,
 	pub name: String,
 	pub description: String,
-	pub playlist: String,
+	pub playlist: Option<TagPlaylist>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct TagPlaylist {
+	pub id: String,
+	pub title: String,
+	pub shows_in_video_descriptions: bool,
 }
