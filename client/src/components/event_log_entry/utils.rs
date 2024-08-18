@@ -49,9 +49,7 @@ pub fn get_duration_from_formatted(formatted_duration: &str) -> Result<Duration,
 			));
 		}
 
-		if hours == 0 {
-			minutes = -minutes;
-		}
+		minutes = -minutes;
 	}
 
 	let duration_minutes = hours * 60 + minutes;
