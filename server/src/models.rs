@@ -470,6 +470,25 @@ pub struct EventLogEntryChanges {
 	pub end_time_incomplete: Option<bool>,
 }
 
+impl EventLogEntryChanges {
+	pub fn has_changes(&self) -> bool {
+		self.start_time.is_some()
+			|| self.end_time.is_some()
+			|| self.entry_type.is_some()
+			|| self.description.is_some()
+			|| self.submitter_or_winner.is_some()
+			|| self.notes_to_editor.is_some()
+			|| self.editor.is_some()
+			|| self.parent.is_some()
+			|| self.manual_sort_key.is_some()
+			|| self.poster_moment.is_some()
+			|| self.video_edit_state.is_some()
+			|| self.marked_incomplete.is_some()
+			|| self.media_links.is_some()
+			|| self.end_time_incomplete.is_some()
+	}
+}
+
 /// A video editor for an event
 #[derive(Insertable, Queryable)]
 pub struct EventEditor {

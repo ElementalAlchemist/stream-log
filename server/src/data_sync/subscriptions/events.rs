@@ -829,10 +829,15 @@ pub async fn handle_event_update(
 						ModifiedEventLogEntryParts::Parent => changes.parent = Some(log_entry.parent.clone()),
 					}
 				}
-				diesel::update(event_log::table)
-					.filter(event_log::id.eq(&log_entry.id))
-					.set(changes)
-					.get_result(db_connection)
+
+				if changes.has_changes() {
+					diesel::update(event_log::table)
+						.filter(event_log::id.eq(&log_entry.id))
+						.set(changes)
+						.get_result(db_connection)
+				} else {
+					event_log::table.find(&log_entry.id).first(db_connection)
+				}
 			};
 			let update_result = log_entry_change(&mut db_connection, update_func, user.id.clone());
 
