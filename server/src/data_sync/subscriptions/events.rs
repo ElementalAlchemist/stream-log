@@ -1174,7 +1174,7 @@ fn log_entry_change(
 		let history_entry_tags: Vec<EventLogHistoryTag> = tags
 			.iter()
 			.map(|tag| EventLogHistoryTag {
-				tag: tag.tag.clone(),
+				tag: tag.id.clone(),
 				history_log_entry: history_entry.id.clone(),
 			})
 			.collect();
