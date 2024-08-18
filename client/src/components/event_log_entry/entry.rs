@@ -37,24 +37,6 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 	let entry_types_signal = props.event_subscription_data.entry_types.clone();
 	let log_entries = props.event_subscription_data.event_log_entries.clone();
 
-	let click_handler = if *can_edit.get() {
-		let entry = entry.clone();
-		let log_entries = log_entries.clone();
-		Some(move || {
-			let Some(current_entry) = log_entries
-				.get()
-				.iter()
-				.find(|log_entry| log_entry.id == entry.id)
-				.cloned()
-			else {
-				return;
-			};
-			props.editing_log_entry.set(Some(current_entry));
-			props.jump_highlight_row_id.set(String::new());
-		})
-	} else {
-		None
-	};
 	let event_log_entry_signal = create_memo(ctx, {
 		let log_entries = log_entries.clone();
 		let entry_id = entry.id.clone();
@@ -107,8 +89,8 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 		EventLogEntryRow(
 			entry=event_log_entry_signal,
 			event_subscription_data=row_event_subscription_data,
+			can_edit=can_edit,
 			entry_type=entry_type,
-			click_handler=click_handler,
 			jump_highlight_row_id=props.jump_highlight_row_id,
 			editing_log_entry=props.editing_log_entry,
 			editing_entry_parent=props.editing_entry_parent,

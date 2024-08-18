@@ -15,11 +15,11 @@ use sycamore::prelude::*;
 use web_sys::Event as WebEvent;
 
 #[derive(Prop)]
-pub struct EventLogEntryRowProps<'a, THandler: Fn()> {
+pub struct EventLogEntryRowProps<'a> {
 	entry: &'a ReadSignal<Option<EventLogEntry>>,
 	event_subscription_data: EventSubscriptionSignals,
+	can_edit: &'a ReadSignal<bool>,
 	entry_type: &'a ReadSignal<Option<EntryType>>,
-	click_handler: Option<THandler>,
 	jump_highlight_row_id: &'a Signal<String>,
 	editing_log_entry: &'a Signal<Option<EventLogEntry>>,
 	editing_entry_parent: &'a Signal<Option<EventLogEntry>>,
@@ -29,7 +29,7 @@ pub struct EventLogEntryRowProps<'a, THandler: Fn()> {
 }
 
 #[component]
-pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, mut props: EventLogEntryRowProps<'a, T>) -> View<G> {
+pub fn EventLogEntryRow<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryRowProps<'a>) -> View<G> {
 	let row_is_being_edited = create_memo(ctx, || {
 		match ((*props.entry.get()).as_ref(), (*props.editing_log_entry.get()).as_ref()) {
 			(Some(row_entry), Some(edit_entry)) => row_entry.id == edit_entry.id,
@@ -146,8 +146,6 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, mut props: Ev
 		}
 	});
 
-	let has_click_handler = props.click_handler.is_some();
-
 	let prevent_row_click_handler = |event: WebEvent| {
 		event.stop_propagation();
 	};
@@ -161,11 +159,10 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, mut props: Ev
 		ctx,
 		(if *row_is_visible.get() {
 			let event = props.event_subscription_data.event.clone();
-			let click_handler = props.click_handler.take();
 			let row_click_handler = move |_event: WebEvent| {
-				if let Some(click_handler) = &click_handler {
-					(*click_handler)();
-				}
+				let entry = (*props.entry.get()).clone();
+				props.editing_log_entry.set(entry);
+				props.jump_highlight_row_id.set(String::new());
 			};
 
 			view! {
@@ -197,7 +194,7 @@ pub fn EventLogEntryRow<'a, G: Html, T: Fn() + 'a>(ctx: Scope<'a>, mut props: Ev
 							row_class = format!("{} log_entry_end_highlight", row_class);
 						}
 
-						if has_click_handler {
+						if *props.can_edit.get() {
 							row_class = format!("{} click", row_class);
 						}
 
