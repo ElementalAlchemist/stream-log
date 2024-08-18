@@ -275,6 +275,10 @@ $event_log_editor_column_count: 17;
 	text-align: center;
 }
 
+.log_entry_media_link a {
+	display: block;
+}
+
 .log_entry_tag:not(:last-child)::after {
 	content: ", ";
 }
