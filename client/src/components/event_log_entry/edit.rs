@@ -26,7 +26,7 @@ use stream_log_shared::messages::FromClientMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use wasm_bindgen::JsCast;
-use web_sys::{Event as WebEvent, KeyboardEvent};
+use web_sys::{Event as WebEvent, HtmlElement, KeyboardEvent};
 
 #[derive(Prop)]
 pub struct EventLogEntryEditProps<'a> {
@@ -797,6 +797,9 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		insert_tab
 	});
 
+	let end_field_ref = create_node_ref(ctx);
+	let type_field_ref = create_node_ref(ctx);
+
 	let start_now = || {
 		let start_time_duration = Utc::now() - props.event.get().start_time;
 		let start_time_duration = format_duration(&start_time_duration);
@@ -805,6 +808,10 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 
 	let start_now_handler = move |_event: WebEvent| {
 		start_now();
+
+		let end_field_node: DomNode = end_field_ref.get();
+		let end_field: HtmlElement = end_field_node.unchecked_into();
+		let _ = end_field.focus();
 	};
 
 	let end_now = || {
@@ -815,6 +822,10 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 
 	let end_now_handler = move |_event: WebEvent| {
 		end_now();
+
+		let type_field_node: DomNode = type_field_ref.get();
+		let type_field: HtmlElement = type_field_node.unchecked_into();
+		let _ = type_field.focus();
 	};
 
 	let start_time_warning_confirmation = move |_event: WebEvent| {
@@ -1382,7 +1393,8 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 						placeholder="End",
 						bind:value=end_time_input,
 						class=if end_time_error.get().is_some() { "error" } else { "" },
-						title=(*end_time_error.get()).as_ref().unwrap_or(&String::new())
+						title=(*end_time_error.get()).as_ref().unwrap_or(&String::new()),
+						ref=end_field_ref
 					)
 					button(type="button", tabindex=-1, on:click=end_now_handler) { "Now" }
 				}
@@ -1393,7 +1405,8 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 						class=if entry_type_error.get().is_some() { "error" } else { "" },
 						title=(*entry_type_error.get()).as_ref().unwrap_or(&String::new()),
 						list="event_log_entry_edit_type_list",
-						on:blur=entry_type_lost_focus
+						on:blur=entry_type_lost_focus,
+						ref=type_field_ref
 					)
 				}
 				div(class="event_log_entry_edit_description") {
