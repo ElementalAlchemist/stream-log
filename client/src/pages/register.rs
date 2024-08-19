@@ -69,9 +69,7 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	});
 	let username_empty_signal = create_memo(ctx, || username_signal.get().is_empty());
 	let username_too_long_signal = create_memo(ctx, || username_signal.get().len() > USERNAME_LENGTH_LIMIT);
-	let username_field = create_node_ref(ctx);
 	let color_signal = create_signal(ctx, String::from("#7f7f7f"));
-	let submit_button_ref = create_node_ref(ctx);
 
 	// Username error signal collects all possible kinds of username errors
 	let username_error_signal = create_memo(ctx, || {
@@ -175,7 +173,7 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				label(for="register_username") {
 					"Username: "
 				}
-				input(id="register_username", type="text", class=if *username_error_signal.get() { "error" } else { "" }, bind:value=username_signal, ref=username_field)
+				input(id="register_username", type="text", class=if *username_error_signal.get() { "error" } else { "" }, bind:value=username_signal)
 				(
 					if *username_in_use_signal.get() {
 						view! {
@@ -215,7 +213,7 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 			}
 			ColorInputWithContrast(color=color_signal, username=username_signal, view_id="register_user")
 			div(id="register_contrast_help_notice") { "For best readability, it's recommended to choose a color with contrast values of at least 4.5." }
-			button(ref=submit_button_ref) {
+			button {
 				"Register"
 			}
 			a(id="register_switch_accounts", href="/logout", rel="external") {
