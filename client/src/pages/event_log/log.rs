@@ -410,49 +410,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		div(id="event_log_layout") {
 			div(id="event_log_header") {
 				h1(id="event_log_title") { (visible_event_signal.get().name) }
-				div(id="event_log_view_settings") {
-					div(id="event_log_view_settings_filter") {
-						div(class="event_log_view_settings_filter_menu") {
-							"Video Processing State Filter"
-							ul(class="event_log_view_settings_filter_dropdown") {
-								Keyed(
-									iterable=all_video_processing_state_filters,
-									key=|(state_name, _)| state_name.clone(),
-									view=|ctx, (state_name, filter_active)| {
-										view! {
-											ctx,
-											li {
-												label {
-													input(type="checkbox", bind:checked=filter_active)
-													(state_name)
-												}
-											}
-										}
-									}
-								)
-							}
-						}
-						div(class="event_log_view_settings_filter_menu") {
-							"Video Edit State Filter"
-							ul(class="event_log_view_settings_filter_dropdown") {
-								Keyed(
-									iterable=all_video_edit_state_filters,
-									key=|(state_name, _)| state_name.to_string(),
-									view=|ctx, (state_name, filter_active)| {
-										view! {
-											ctx,
-											li {
-												label {
-													input(type="checkbox", bind:checked=filter_active)
-													(state_name)
-												}
-											}
-										}
-									}
-								)
-							}
-						}
-					}
+				div(id="event_log_view_search") {
 					form(id="event_log_jump", on:submit=jump_handler) {
 						input(type="text", bind:value=jump_id_entry, placeholder="ID")
 						button(type="submit") { "Jump" }
@@ -506,7 +464,28 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 					div(class="event_log_header") { "Media link" }
 					div(class="event_log_header") { "Tags" }
 					div(class="event_log_header") { "Poster?" }
-					div(class="event_log_header") { }
+					div(class="event_log_header") {
+						div(class="event_log_column_filter_menu") {
+							img(src="images/filter.png", alt="Filter video edit states")
+							ul(class="event_log_column_filter_dropdown") {
+								Keyed(
+									iterable=all_video_edit_state_filters,
+									key=|(state_name, _)| state_name.to_string(),
+									view=|ctx, (state_name, filter_active)| {
+										view! {
+											ctx,
+											li {
+												label {
+													input(type="checkbox", bind:checked=filter_active)
+													span { (state_name) }
+												}
+											}
+										}
+									}
+								)
+							}
+						}
+					}
 					(if *use_editor_view.get() {
 						view! {
 							ctx,
@@ -528,7 +507,29 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 					(if *use_editor_view.get() {
 						view! {
 							ctx,
-							div(class="event_log_header") { "State" }
+							div(class="event_log_header") {
+								"State"
+								div(class="event_log_column_filter_menu") {
+									img(src="images/filter.png", alt="Filter video processing states")
+									ul(class="event_log_column_filter_dropdown") {
+										Keyed(
+											iterable=all_video_processing_state_filters,
+											key=|(state_name, _)| state_name.clone(),
+											view=|ctx, (state_name, filter_active)| {
+												view! {
+													ctx,
+													li {
+														label {
+															input(type="checkbox", bind:checked=filter_active)
+															span { (state_name) }
+														}
+													}
+												}
+											}
+										)
+									}
+								}
+							}
 							div(class="event_log_header") { "Video Errors" }
 						}
 					} else {
