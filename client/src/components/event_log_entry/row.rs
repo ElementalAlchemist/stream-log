@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_log::{EndTimeData, EventLogEntry, VideoEditState};
 use sycamore::prelude::*;
-use web_sys::Event as WebEvent;
+use web_sys::{window, Event as WebEvent};
 
 #[derive(Prop)]
 pub struct EventLogEntryRowProps<'a> {
@@ -160,6 +160,13 @@ pub fn EventLogEntryRow<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryRowProp
 		(if *row_is_visible.get() {
 			let event = props.event_subscription_data.event.clone();
 			let row_click_handler = move |_event: WebEvent| {
+				if let Some(window) = window() {
+					if let Ok(Some(selection)) = window.get_selection() {
+						if selection.type_() == "Range" {
+							return;
+						}
+					}
+				}
 				let entry = (*props.entry.get()).clone();
 				props.editing_log_entry.set(entry);
 				props.jump_highlight_row_id.set(String::new());

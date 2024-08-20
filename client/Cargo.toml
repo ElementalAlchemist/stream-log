@@ -38,6 +38,7 @@ features = [
 	"Node",
 	"ScrollIntoViewOptions",
 	"ScrollLogicalPosition",
+	"Selection",
 	"Url",
 	"Window"
 ]
