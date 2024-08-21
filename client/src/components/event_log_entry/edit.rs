@@ -1298,7 +1298,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 				}
 			)
 		}
-		form(class="event_log_entry_edit", on:submit=save_handler, on:keydown=key_handler) {
+		form(id="event_log_entry_edit", on:submit=save_handler, on:keydown=key_handler) {
 			(if let Some(entry) = (*props.editing_log_entry.get()).as_ref() {
 				let start_duration = entry.start_time - props.event.get().start_time;
 				let start_duration = format_duration(&start_duration);
@@ -1317,19 +1317,19 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 
 				view! {
 					ctx,
-					div(class="event_log_entry_edit_editing_info event_log_entry_edit_editing_info_existing") {
+					div(id="event_log_entry_edit_editing_info", class="event_log_entry_edit_editing_info_existing") {
 						(header_text)
 					}
 				}
 			} else {
 				view! {
 					ctx,
-					div(class="event_log_entry_edit_editing_info event_log_entry_edit_editing_info_new") {
+					div(id="event_log_entry_edit_editing_info", class="event_log_entry_edit_editing_info_new") {
 						"Creating new entry"
 					}
 				}
 			})
-			div(class="event_log_entry_edit_parent_info") {
+			div(id="event_log_entry_edit_parent_info") {
 				(if let Some(parent) = props.edit_parent_log_entry.get().as_ref() {
 					let start_time_duration = parent.start_time - props.event.get().start_time;
 					let event_entry_types = props.event_entry_types.get();
@@ -1362,18 +1362,19 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 							(description)
 						}
 						div {
-							img(class="event_log_entry_edit_parent_remove click", src="images/remove.png", on:click=remove_parent_handler)
+							img(id="event_log_entry_edit_parent_remove", class="click", src="images/remove.png", on:click=remove_parent_handler)
 						}
 					}
 				} else {
 					view! { ctx, }
 				})
 			}
-			div(class="event_log_entry_edit_basic_info") {
-				div(class="event_log_entry_edit_start_time") {
+			div(id="event_log_entry_edit_basic_info") {
+				div(id="event_log_entry_edit_start_time") {
 					input(
 						placeholder="Start",
 						bind:value=start_time_input,
+						id="event_log_entry_edit_start_time_field",
 						class=if start_time_error.get().is_some() { "error" } else { "" },
 						title=(*start_time_error.get()).as_ref().unwrap_or(&String::new())
 					)
@@ -1388,20 +1389,22 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 						}
 					)
 				}
-				div(class="event_log_entry_edit_end_time") {
+				div(id="event_log_entry_edit_end_time") {
 					input(
 						placeholder="End",
 						bind:value=end_time_input,
+						id="event_log_entry_edit_end_time_field",
 						class=if end_time_error.get().is_some() { "error" } else { "" },
 						title=(*end_time_error.get()).as_ref().unwrap_or(&String::new()),
 						ref=end_field_ref
 					)
 					button(type="button", tabindex=-1, on:click=end_now_handler) { "Now" }
 				}
-				div(class="event_log_entry_edit_type") {
+				div(id="event_log_entry_edit_type") {
 					input(
 						placeholder="Type",
 						bind:value=entry_type_name,
+						id="event_log_entry_edit_type_field",
 						class=if entry_type_error.get().is_some() { "error" } else { "" },
 						title=(*entry_type_error.get()).as_ref().unwrap_or(&String::new()),
 						list="event_log_entry_edit_type_list",
@@ -1409,16 +1412,16 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 						ref=type_field_ref
 					)
 				}
-				div(class="event_log_entry_edit_description") {
-					input(placeholder="Description", bind:value=description)
+				div(id="event_log_entry_edit_description") {
+					input(placeholder="Description", bind:value=description, id="event_log_entry_edit_description_field")
 				}
-				div(class="event_log_entry_edit_submitter_or_winner") {
-					input(bind:value=submitter_or_winner, placeholder="Submitter/winner")
+				div(id="event_log_entry_edit_submitter_or_winner") {
+					input(bind:value=submitter_or_winner, placeholder="Submitter/winner", id="event_log_entry_edit_submitter_or_winner_field")
 				}
 			}
-			div(class="event_log_entry_edit_media_links") {
+			div(id="event_log_entry_edit_media_links") {
 				label { "Media links:" }
-				div(class="event_log_entry_edit_media_links_fields") {
+				div(id="event_log_entry_edit_media_links_fields") {
 					Keyed(
 						iterable=media_links_with_index,
 						key=|(index, _)| *index,
@@ -1444,9 +1447,9 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 					}
 				}
 			}
-			div(class="event_log_entry_edit_tags") {
+			div(id="event_log_entry_edit_tags") {
 				label { "Tags:" }
-				div(class="event_log_entry_edit_tags_fields") {
+				div(id="event_log_entry_edit_tags_fields") {
 					Keyed(
 						iterable=tag_names_with_index,
 						key=|(index, _)| *index,
@@ -1482,14 +1485,14 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 					}
 				}
 			}
-			div(class="event_log_entry_edit_new_tags") {
+			div(id="event_log_entry_edit_new_tags") {
 				(if new_tag_names.get().is_empty() {
 					view! { ctx, }
 				} else {
 					view! {
 						ctx,
 						label { "New tags:" }
-						div(class="event_log_entry_edit_new_tags_fields") {
+						div(id="event_log_entry_edit_new_tags_fields") {
 							Indexed(
 								iterable=new_tag_names,
 								view=move |ctx, tag_name| {
@@ -1537,8 +1540,8 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 					}
 				})
 			}
-			div(class="event_log_entry_edit_misc_info") {
-				div(class="event_log_entry_edit_video_edit_state") {
+			div(id="event_log_entry_edit_misc_info") {
+				div(id="event_log_entry_edit_video_edit_state") {
 					button(
 						type="button",
 						class=if *video_edit_state_no_video.get() { "active_button_option" } else { "" },
@@ -1561,16 +1564,16 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 						"Done Editing"
 					}
 				}
-				div(class="event_log_entry_edit_poster_moment") {
+				div(id="event_log_entry_edit_poster_moment") {
 					label {
 						input(type="checkbox", bind:checked=poster_moment)
 						"Poster moment"
 					}
 				}
-				div(class="event_log_entry_edit_notes_to_editor") {
+				div(id="event_log_entry_edit_notes_to_editor") {
 					input(bind:value=notes_to_editor, placeholder="Notes to editor")
 				}
-				div(class="event_log_entry_edit_editor") {
+				div(id="event_log_entry_edit_editor") {
 					input(
 						bind:value=editor_entry,
 						placeholder="Editor",
@@ -1579,13 +1582,13 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 						title=(*editor_error.get()).as_ref().unwrap_or(&String::new())
 					)
 				}
-				div(class="event_log_entry_edit_incomplete") {
+				div(id="event_log_entry_edit_incomplete") {
 					label {
 						input(type="checkbox", bind:checked=marked_incomplete, disabled=*disable_marked_incomplete.get())
 						"Mark incomplete"
 					}
 				}
-				div(class="event_log_entry_edit_sort_key") {
+				div(id="event_log_entry_edit_sort_key") {
 					input(
 						bind:value=sort_key_entry,
 						placeholder="Sort",
@@ -1596,7 +1599,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 					)
 				}
 			}
-			div(class="event_log_entry_edit_close") {
+			div(id="event_log_entry_edit_close") {
 				(if *start_time_warning_active.get() {
 					view! {
 						ctx,
@@ -1625,7 +1628,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 				(if let Some(entry) = (*props.editing_log_entry.get()).clone() {
 					view! {
 						ctx,
-						div(class="event_log_entry_edit_delete") {
+						div(id="event_log_entry_edit_delete") {
 							(if entry.video_link.is_none() && *props.permission_level.get() == PermissionLevel::Supervisor {
 								if *delete_confirm_signal.get() {
 									view! {
@@ -1644,11 +1647,11 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 								view! { ctx, }
 							})
 						}
-						div(class="event_log_entry_id") {
+						div(id="event_log_entry_id") {
 							"ID: "
 							(entry.id)
 						}
-						div(class="event_log_entry_edit_close_buttons") {
+						div(id="event_log_entry_edit_close_buttons") {
 							button(disabled=*disable_save.get()) { "Save" }
 							button(on:click=cancel_handler) { "Cancel" }
 						}
@@ -1656,13 +1659,13 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 				} else {
 					view! {
 						ctx,
-						div(class="event_log_entry_edit_delete")
-						div(class="event_log_entry_edit_add_multi") {
+						div(id="event_log_entry_edit_delete")
+						div(id="event_log_entry_edit_add_multi") {
 							"Add "
-							input(type="number", min=1, max=u32::MAX, step=1, bind:value=add_count_entry_signal, class="event_log_entry_edit_add_count")
+							input(type="number", min=1, max=u32::MAX, step=1, bind:value=add_count_entry_signal, id="event_log_entry_edit_add_count")
 							" rows"
 						}
-						div(class="event_log_entry_edit_close_buttons") {
+						div(id="event_log_entry_edit_close_buttons") {
 							button(disabled=*disable_save.get()) { "Add" }
 							button(type="reset", on:click=reset_handler) { "Reset" }
 						}

@@ -147,11 +147,6 @@ $event_log_editor_column_count: 17;
 			max-content
 			150px;
 	}
-	
-	.event_log_entry_edit {
-		margin-bottom: 10px;
-		border-bottom: 1px solid var(--base-border-color);
-	}
 }
 
 .event_log_header {
@@ -366,15 +361,11 @@ $event_log_editor_column_count: 17;
 	display: contents;
 }
 
-.event_log_entry_edit {
-	@include span-whole-width;
-}
-
-.event_log_entry_edit > div > div {
+#event_log_entry_edit > div > div {
 	padding: 2px;
 }
 
-.event_log_entry_edit_editing_info {
+#event_log_entry_edit_editing_info {
 	font-size: 125%;
 	font-weight: 700;
 
@@ -388,7 +379,7 @@ $event_log_editor_column_count: 17;
 }
 
 @media (prefers-color-scheme: dark) {
-	.event_log_entry_edit_editing_info {
+	#event_log_entry_edit_editing_info {
 		&.event_log_entry_edit_editing_info_existing {
 			background: #850;
 		}
@@ -399,7 +390,7 @@ $event_log_editor_column_count: 17;
 	}
 }
 
-.event_log_entry_edit_parent_info {
+#event_log_entry_edit_parent_info {
 	display: flex;
 	align-items: flex-start;
 }
@@ -408,16 +399,16 @@ $event_log_editor_column_count: 17;
 	width: 16px;
 }
 
-.event_log_entry_edit_parent_remove {
+#event_log_entry_edit_parent_remove {
 	width: 16px;
 }
 
-.event_log_entry_edit_basic_info {
+#event_log_entry_edit_basic_info {
 	display: flex;
 	align-items: center;
 }
 
-.event_log_entry_edit_start_time, .event_log_entry_edit_end_time {
+#event_log_entry_edit_start_time, #event_log_entry_edit_end_time {
 	flex-basis: max-content;
 	
 	> input {
@@ -426,7 +417,7 @@ $event_log_editor_column_count: 17;
 	}
 }
 
-.event_log_entry_edit_type {
+#event_log_entry_edit_type {
 	flex-basis: min-content;
 	
 	> input {
@@ -435,7 +426,7 @@ $event_log_editor_column_count: 17;
 	}
 }
 
-.event_log_entry_edit_description {
+#event_log_entry_edit_description {
 	flex-basis: 200px;
 	flex-grow: 1;
 	
@@ -444,11 +435,11 @@ $event_log_editor_column_count: 17;
 	}
 }
 
-.event_log_entry_edit_submitter_or_winner {
+#event_log_entry_edit_submitter_or_winner {
 	flex-basis: 150px;
 }
 
-.event_log_entry_edit_media_links_fields {
+#event_log_entry_edit_media_links_fields {
 	display: inline-flex;
 
 	> div {
@@ -461,7 +452,7 @@ $event_log_editor_column_count: 17;
 	}
 }
 
-.event_log_entry_edit_tags_fields {
+#event_log_entry_edit_tags_fields {
 	display: inline-flex;
 
 	> div {
@@ -474,47 +465,7 @@ $event_log_editor_column_count: 17;
 	}
 }
 
-.event_log_entry_edit_misc_info {
-	display: flex;
-}
-
-.event_log_entry_edit_video_edit_state {
-	flex-basis: max-content;
-}
-
-.event_log_entry_edit_notes_to_editor {
-	flex-basis: min-content;
-	
-	> input {
-		width: 200px;
-	}
-}
-
-.event_log_entry_edit_editor {
-	flex-basis: min-content;
-
-	> input {
-		width: 150px;
-	}
-}
-
-.event_log_entry_edit_incomplete {
-	flex-basis: max-content;
-}
-
-.event_log_entry_edit_sort_key {
-	flex-basis: min-content;
-
-	> input {
-		width: 50px;
-	}
-}
-
-.event_log_entry_edit_add_count {
-	width: 50px;
-}
-
-.event_log_entry_edit_new_tags_fields {
+#event_log_entry_edit_new_tags_fields {
 	display: grid;
 	grid-template-columns: max-content 300px max-content;
 
@@ -527,7 +478,43 @@ $event_log_editor_column_count: 17;
 	display: contents;
 }
 
-.event_log_entry_edit_close {
+#event_log_entry_edit_misc_info {
+	display: flex;
+}
+
+#event_log_entry_edit_video_edit_state {
+	flex-basis: max-content;
+}
+
+#event_log_entry_edit_notes_to_editor {
+	flex-basis: min-content;
+	
+	> input {
+		width: 200px;
+	}
+}
+
+#event_log_entry_edit_editor {
+	flex-basis: min-content;
+
+	> input {
+		width: 150px;
+	}
+}
+
+#event_log_entry_edit_incomplete {
+	flex-basis: max-content;
+}
+
+#event_log_entry_edit_sort_key {
+	flex-basis: min-content;
+
+	> input {
+		width: 50px;
+	}
+}
+
+#event_log_entry_edit_close {
 	display: flex;
 	align-items: baseline;
 	gap: 10px;
@@ -549,7 +536,7 @@ $event_log_editor_column_count: 17;
 	}
 }
 
-.event_log_entry_edit_delete {
+#event_log_entry_edit_delete {
 	flex-basis: max-content;
 	flex-grow: 1;
 	color: var(--error-color);
@@ -557,6 +544,10 @@ $event_log_editor_column_count: 17;
 	> button {
 		margin-left: 4px;
 	}
+}
+
+#event_log_entry_edit_add_count {
+	width: 50px;
 }
 
 #event_log_new_entry {
