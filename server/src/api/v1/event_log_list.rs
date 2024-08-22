@@ -100,6 +100,7 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 			))
 			.load(&mut *db_connection)
 	};
+
 	let event_log: Vec<EventLogEntryDb> = match event_log {
 		Ok(event_log) => event_log,
 		Err(error) => {
@@ -110,6 +111,33 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 			));
 		}
 	};
+
+	let mut event_log_by_parent: HashMap<String, Vec<EventLogEntryDb>> = HashMap::new();
+	event_log_by_parent.insert(String::new(), Vec::new());
+	for entry in event_log.into_iter() {
+		let parent_id = entry.parent.clone().unwrap_or_default();
+		event_log_by_parent.entry(parent_id).or_default().push(entry);
+	}
+
+	let mut event_log = event_log_by_parent.remove("").unwrap();
+	let mut event_log_index = 0;
+	while event_log_index < event_log.len() {
+		let entry_id = &event_log[event_log_index].id;
+		if let Some(children) = event_log_by_parent.remove(entry_id) {
+			let insert_index = event_log_index + 1;
+			event_log.splice(insert_index..insert_index, children);
+		}
+		event_log_index += 1;
+	}
+
+	// If we only got entries modified since a time, we might have orphaned children. Since the order of the output
+	// matters less in that scenario, we'll just stuff all those at the end.
+	for mut child_entries in event_log_by_parent.into_values() {
+		event_log.append(&mut child_entries);
+	}
+
+	// Now that we've handled ordering child entries in the event log, it no longer needs to be mutable.
+	let event_log = event_log;
 
 	let event_log_tabs: QueryResult<Vec<EventLogTabDb>> = event_log_tabs::table
 		.filter(event_log_tabs::event.eq(&event_id))
@@ -271,6 +299,12 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 		})
 		.collect();
 
+	let mut id_to_entry: HashMap<String, EventLogEntryDb> = HashMap::new();
+	for log_entry in event_log.iter() {
+		id_to_entry.insert(log_entry.id.clone(), log_entry.clone());
+	}
+	let mut start_time_index: HashMap<String, DateTime<Utc>> = HashMap::new();
+
 	let event_log: Vec<EventLogEntryApi> = event_log
 		.into_iter()
 		.map(|entry| {
@@ -285,6 +319,40 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 				None
 			} else {
 				Some(editor_link)
+			};
+
+			let tab_start_time = if let Some(parent_id) = entry.parent.as_ref() {
+				let mut tab_start_time_entry = if let Some(parent_entry) = id_to_entry.get(parent_id) {
+					parent_entry.clone()
+				} else {
+					entry.clone()
+				};
+				let mut override_start_time: Option<DateTime<Utc>> = None;
+				while let Some(parent_id) = tab_start_time_entry.parent.as_ref() {
+					if let Some(start_time) = start_time_index.get(parent_id) {
+						override_start_time = Some(*start_time);
+						start_time_index.insert(entry.id.clone(), *start_time);
+						break;
+					}
+					if let Some(parent_entry) = id_to_entry.get(parent_id) {
+						tab_start_time_entry = parent_entry.clone();
+					} else {
+						let parent_entry: QueryResult<EventLogEntryDb> =
+							event_log::table.find(parent_id).first(&mut *db_connection);
+						let parent_entry = match parent_entry {
+							Ok(entry) => entry,
+							Err(_) => break, // We can't go any further or emit an error from here, so we'll just do our best
+						};
+						tab_start_time_entry = parent_entry;
+					}
+				}
+				if let Some(start_time) = override_start_time {
+					start_time
+				} else {
+					tab_start_time_entry.start_time
+				}
+			} else {
+				entry.start_time
 			};
 
 			EventLogEntryApi {
@@ -311,7 +379,7 @@ pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgCon
 				poster_moment: entry.poster_moment,
 				marked_incomplete: entry.marked_incomplete,
 				tab: event_log_tabs_by_start_time
-					.range(..=entry.start_time)
+					.range(..=tab_start_time)
 					.last()
 					.map(|(_, tab)| tab.clone())
 					.unwrap_or_else(|| default_event_tab.clone()),
