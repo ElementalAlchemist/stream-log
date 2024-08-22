@@ -12,7 +12,8 @@ use std::collections::HashMap;
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_log::{EndTimeData, EventLogEntry, VideoEditState};
 use sycamore::prelude::*;
-use web_sys::{window, Event as WebEvent};
+use wasm_bindgen::JsCast;
+use web_sys::{window, Event as WebEvent, HtmlElement};
 
 #[derive(Prop)]
 pub struct EventLogEntryRowProps<'a> {
@@ -159,17 +160,27 @@ pub fn EventLogEntryRow<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryRowProp
 		ctx,
 		(if *row_is_visible.get() {
 			let event = props.event_subscription_data.event.clone();
-			let row_click_handler = move |_event: WebEvent| {
-				if let Some(window) = window() {
-					if let Ok(Some(selection)) = window.get_selection() {
-						if selection.type_() == "Range" {
-							return;
+
+			let row_click_handler_for_id = move |focus_element_id: &str| {
+				let focus_element_id = focus_element_id.to_string();
+				move |_event: WebEvent| {
+					if any_text_is_selected() {
+						return;
+					}
+					let entry = (*props.entry.get()).clone();
+					props.editing_log_entry.set(entry);
+					props.jump_highlight_row_id.set(String::new());
+					if !focus_element_id.is_empty() {
+						if let Some(window) = window() {
+							if let Some(document) = window.document() {
+								if let Some(element) = document.get_element_by_id(&focus_element_id) {
+									let html_element: HtmlElement = element.unchecked_into();
+									let _ = html_element.focus();
+								}
+							}
 						}
 					}
 				}
-				let entry = (*props.entry.get()).clone();
-				props.editing_log_entry.set(entry);
-				props.jump_highlight_row_id.set(String::new());
 			};
 
 			view! {
@@ -218,8 +229,7 @@ pub fn EventLogEntryRow<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryRowProp
 						}
 
 						row_class
-					},
-					on:click=row_click_handler
+					}
 				) {
 					div(class="log_entry_number") {
 						({
@@ -240,11 +250,22 @@ pub fn EventLogEntryRow<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryRowProp
 						(child_indicators)
 						img(src="images/add.png", class="click", alt="Add child entry", title="Add child entry", on:click=parent_select_handler)
 					}
-					div(class="log_entry_start_time") { (start_time.get()) }
-					div(class="log_entry_end_time") { (end_time.get()) }
-					div(class="log_entry_type", style=entry_type_style.get(), title=entry_type_description.get()) { (entry_type_name.get()) }
-					div(class="log_entry_description") { ((*props.entry.get()).as_ref().map(|entry| entry.description.clone()).unwrap_or_default()) }
-					div(class="log_entry_submitter_winner") { ((*props.entry.get()).as_ref().map(|entry| entry.submitter_or_winner.clone()).unwrap_or_default()) }
+					div(class="log_entry_start_time", on:click=row_click_handler_for_id("event_log_entry_edit_start_time_field")) { (start_time.get()) }
+					div(class="log_entry_end_time", on:click=row_click_handler_for_id("event_log_entry_edit_end_time_field")) { (end_time.get()) }
+					div(
+						class="log_entry_type",
+						style=entry_type_style.get(),
+						title=entry_type_description.get(),
+						on:click=row_click_handler_for_id("event_log_entry_edit_type_field")
+					) {
+						(entry_type_name.get())
+					}
+					div(class="log_entry_description", on:click=row_click_handler_for_id("event_log_entry_edit_description_field")) {
+						((*props.entry.get()).as_ref().map(|entry| entry.description.clone()).unwrap_or_default())
+					}
+					div(class="log_entry_submitter_winner", on:click=row_click_handler_for_id("event_log_entry_edit_submitter_or_winner_field")) {
+						((*props.entry.get()).as_ref().map(|entry| entry.submitter_or_winner.clone()).unwrap_or_default())
+					}
 					div(class="log_entry_media_link") {
 						Keyed(
 							iterable=media_links,
@@ -260,7 +281,7 @@ pub fn EventLogEntryRow<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryRowProp
 							}
 						)
 					}
-					div(class="log_entry_tags") {
+					div(class="log_entry_tags", on:click=row_click_handler_for_id("event_log_entry_edit_add_tag_button")) {
 						Keyed(
 							iterable=tags_signal,
 							key=|tag| tag.id.clone(),
@@ -272,7 +293,7 @@ pub fn EventLogEntryRow<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryRowProp
 							}
 						)
 					}
-					div(class="log_entry_poster_moment") {
+					div(class="log_entry_poster_moment", on:click=row_click_handler_for_id("event_log_entry_edit_poster_moment_checkbox")) {
 						(if (*props.entry.get()).as_ref().map(|entry| entry.poster_moment).unwrap_or_default() {
 							"✔️"
 						} else {
@@ -289,7 +310,8 @@ pub fn EventLogEntryRow<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryRowProp
 								VideoEditState::DoneEditing => classes.push("log_entry_video_edit_state_edited")
 							}
 							classes.join(" ")
-						}
+						},
+						on:click=row_click_handler_for_id("event_log_entry_edit_video_edit_state_first_button")
 					) {
 						({
 							let video_edit_state = (*props.entry.get()).as_ref().map(|entry| entry.video_edit_state).unwrap_or_default();
@@ -360,7 +382,7 @@ pub fn EventLogEntryRow<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryRowProp
 					(if *props.use_editor_view.get() {
 						view! {
 							ctx,
-							div(class="log_entry_editor_user") {
+							div(class="log_entry_editor_user", on:click=row_click_handler_for_id("event_log_entry_edit_editor_field")) {
 								({
 									let editor = (*props.entry.get()).as_ref().and_then(|entry| entry.editor.clone());
 									if let Some(editor) = editor.as_ref() {
@@ -380,7 +402,7 @@ pub fn EventLogEntryRow<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryRowProp
 					} else {
 						view! { ctx, }
 					})
-					div(class="log_entry_notes_to_editor") {
+					div(class="log_entry_notes_to_editor", on:click=row_click_handler_for_id("event_log_entry_edit_notes_to_editor_field")) {
 						((*props.entry.get()).as_ref().map(|entry| entry.notes_to_editor.clone()).unwrap_or_default())
 					}
 					(if *props.use_editor_view.get() {
@@ -411,4 +433,16 @@ pub fn EventLogEntryRow<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryRowProp
 			view! { ctx, }
 		})
 	}
+}
+
+/// Checks whether any text in the DOM is selected
+fn any_text_is_selected() -> bool {
+	if let Some(window) = window() {
+		if let Ok(Some(selection)) = window.get_selection() {
+			if selection.type_() == "Range" {
+				return true;
+			}
+		}
+	}
+	false
 }

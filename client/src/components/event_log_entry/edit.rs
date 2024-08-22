@@ -1479,7 +1479,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 						}
 					)
 					div {
-						button(type="button", on:click=add_tag_handler) {
+						button(type="button", id="event_log_entry_edit_add_tag_button", on:click=add_tag_handler) {
 							"Add Tag"
 						}
 					}
@@ -1545,7 +1545,8 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 					button(
 						type="button",
 						class=if *video_edit_state_no_video.get() { "active_button_option" } else { "" },
-						on:click=video_edit_state_set_no_video
+						on:click=video_edit_state_set_no_video,
+						id="event_log_entry_edit_video_edit_state_first_button"
 					) {
 						"No Video"
 					}
@@ -1566,18 +1567,19 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 				}
 				div(id="event_log_entry_edit_poster_moment") {
 					label {
-						input(type="checkbox", bind:checked=poster_moment)
+						input(type="checkbox", id="event_log_entry_edit_poster_moment_checkbox", bind:checked=poster_moment)
 						"Poster moment"
 					}
 				}
 				div(id="event_log_entry_edit_notes_to_editor") {
-					input(bind:value=notes_to_editor, placeholder="Notes to editor")
+					input(id="event_log_entry_edit_notes_to_editor_field", bind:value=notes_to_editor, placeholder="Notes to editor")
 				}
 				div(id="event_log_entry_edit_editor") {
 					input(
 						bind:value=editor_entry,
 						placeholder="Editor",
 						list="event_log_entry_edit_editors_list",
+						id="event_log_entry_edit_editor_field",
 						class=if editor_error.get().is_some() { "error" } else { "" },
 						title=(*editor_error.get()).as_ref().unwrap_or(&String::new())
 					)
