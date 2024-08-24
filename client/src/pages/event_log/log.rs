@@ -8,6 +8,7 @@ use crate::components::event_log_entry::edit::EventLogEntryEdit;
 use crate::components::event_log_entry::entry::EventLogEntry as EventLogEntryView;
 use crate::components::event_log_entry::typing::EventLogEntryTyping;
 use crate::components::event_log_entry::UserTypingData;
+use crate::page_utils::set_page_title;
 use crate::subscriptions::errors::ErrorData;
 use crate::subscriptions::manager::SubscriptionManager;
 use crate::subscriptions::DataSignals;
@@ -92,6 +93,15 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		}
 	})
 	.await;
+
+	create_effect(ctx, {
+		let event_signal = event_subscription_data.event.clone();
+		move || {
+			let event = event_signal.get();
+			let page_title = format!("{} - Log | Stream Log", event.name);
+			set_page_title(&page_title);
+		}
+	});
 
 	let entries_by_parent_signal = create_memo(ctx, {
 		let event_log_entries = event_subscription_data.event_log_entries.clone();

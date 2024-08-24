@@ -4,6 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use crate::page_utils::set_page_title;
 use crate::subscriptions::errors::ErrorData;
 use crate::subscriptions::manager::SubscriptionManager;
 use crate::subscriptions::DataSignals;
@@ -22,6 +23,8 @@ use web_sys::Event as WebEvent;
 
 #[component]
 async fn AdminApplicationsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
+	set_page_title("Manage Applications | Stream Log");
+
 	let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 	let mut ws = ws_context.lock().await;
 

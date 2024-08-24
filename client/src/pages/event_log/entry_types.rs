@@ -6,6 +6,7 @@
 
 use crate::color_utils::rgb_str_from_color;
 use crate::entry_type_colors::use_white_foreground;
+use crate::page_utils::set_page_title;
 use crate::subscriptions::errors::ErrorData;
 use crate::subscriptions::manager::SubscriptionManager;
 use crate::websocket::WebSocketSendStream;
@@ -62,6 +63,21 @@ async fn EventLogEntryTypesLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogEn
 		}
 	})
 	.await;
+
+	let page_title = format!(
+		"{} - Entry Types | Stream Log",
+		event_subscription_data.event.get().name
+	);
+	set_page_title(&page_title);
+
+	create_effect(ctx, {
+		let event_signal = event_subscription_data.event.clone();
+		move || {
+			let event = event_signal.get();
+			let page_title = format!("{} - Entry Types | Stream Log", event.name);
+			set_page_title(&page_title);
+		}
+	});
 
 	let event_entry_types = create_memo(ctx, move || (*event_subscription_data.entry_types.get()).clone());
 

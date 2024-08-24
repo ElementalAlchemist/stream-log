@@ -4,6 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use crate::page_utils::set_page_title;
 use crate::subscriptions::DataSignals;
 use stream_log_shared::messages::user::UserData;
 use sycamore::futures::spawn_local_scoped;
@@ -12,6 +13,8 @@ use sycamore_router::navigate;
 
 #[component]
 pub fn EventSelectionView<G: Html>(ctx: Scope<'_>) -> View<G> {
+	set_page_title("Events | Stream Log");
+
 	{
 		let user_signal: &Signal<Option<UserData>> = use_context(ctx);
 		if user_signal.get().is_none() {

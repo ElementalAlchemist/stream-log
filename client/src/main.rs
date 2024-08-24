@@ -20,11 +20,13 @@ mod color_utils;
 mod components;
 mod entry_type_colors;
 mod entry_utils;
+mod page_utils;
 mod pages;
 mod subscriptions;
 mod websocket;
 use components::error_display::ErrorDisplay;
 use components::user_info_bar::{EventId, UserInfoBar};
+use page_utils::set_page_title;
 use pages::admin::assign_entry_types::AdminManageEntryTypesForEventsView;
 use pages::admin::assign_groups::AssignUsersToGroupsView;
 use pages::admin::manage_applications::AdminApplicationsView;
@@ -201,6 +203,10 @@ async fn App<G: Html>(ctx: Scope<'_>) -> View<G> {
 					UserInfoBar {} // This must remain in the router so its links can be handled by the router
 					({
 						log::info!("Navigating to route: {:?}", route.get());
+
+						// Default the window title in case the page doesn't support/set it
+						set_page_title("Stream Log");
+
 						match route.get().as_ref() {
 							AppRoutes::EventLog(id) | AppRoutes::EventLogTags(id) | AppRoutes::EventLogEntryTypes(id) | AppRoutes::EventLogInfoPage(id, _) => current_event_id.set(Some(EventId::new(id.clone()))),
 							_ => current_event_id.set(None)

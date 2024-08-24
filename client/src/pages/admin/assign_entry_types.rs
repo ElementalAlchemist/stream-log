@@ -6,6 +6,7 @@
 
 use crate::color_utils::rgb_str_from_color;
 use crate::entry_type_colors::use_white_foreground;
+use crate::page_utils::set_page_title;
 use crate::subscriptions::errors::ErrorData;
 use crate::subscriptions::manager::SubscriptionManager;
 use crate::subscriptions::DataSignals;
@@ -26,6 +27,8 @@ use web_sys::Event as WebEvent;
 
 #[component]
 async fn AdminManageEntryTypesForEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
+	set_page_title("Assign Entry Types to Events | Stream Log");
+
 	let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 	let mut ws = ws_context.lock().await;
 	let data: &DataSignals = use_context(ctx);

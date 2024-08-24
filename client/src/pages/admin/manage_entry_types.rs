@@ -6,6 +6,7 @@
 
 use crate::color_utils::{color_from_rgb_str, rgb_str_from_color};
 use crate::entry_type_colors::{use_white_foreground, BLACK, WHITE};
+use crate::page_utils::set_page_title;
 use crate::subscriptions::errors::ErrorData;
 use crate::subscriptions::manager::SubscriptionManager;
 use crate::subscriptions::DataSignals;
@@ -28,6 +29,8 @@ const DEFAULT_COLOR: &str = "#ffffff";
 
 #[component]
 async fn AdminManageEntryTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
+	set_page_title("Manage Entry Types | Stream Log");
+
 	let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 	let mut ws = ws_context.lock().await;
 	let data: &DataSignals = use_context(ctx);

@@ -4,6 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use crate::page_utils::set_page_title;
 use crate::subscriptions::errors::ErrorData;
 use crate::subscriptions::manager::SubscriptionManager;
 use crate::subscriptions::DataSignals;
@@ -122,6 +123,15 @@ async fn EventLogTagsLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogTagsProp
 
 	let new_event_signal = event_signal.clone();
 	let copy_event_signal = event_signal.clone();
+
+	create_effect(ctx, {
+		let event_signal = event_signal.clone();
+		move || {
+			let event = event_signal.get();
+			let page_title = format!("{} - Tags | Stream Log", event.name);
+			set_page_title(&page_title);
+		}
+	});
 
 	view! {
 		ctx,

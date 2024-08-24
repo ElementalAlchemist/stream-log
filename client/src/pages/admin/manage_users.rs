@@ -6,6 +6,7 @@
 
 use crate::color_utils::{color_from_rgb_str, rgb_str_from_color};
 use crate::components::color_input_with_contrast::ColorInputWithContrast;
+use crate::page_utils::set_page_title;
 use crate::subscriptions::errors::ErrorData;
 use crate::subscriptions::manager::SubscriptionManager;
 use crate::subscriptions::DataSignals;
@@ -23,6 +24,8 @@ use web_sys::Event as WebEvent;
 
 #[component]
 async fn AdminManageUsersLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
+	set_page_title("Manage Users | Stream Log");
+
 	let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 	let mut ws = ws_context.lock().await;
 	let data: &DataSignals = use_context(ctx);

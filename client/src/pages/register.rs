@@ -6,6 +6,7 @@
 
 use crate::color_utils::color_from_rgb_str;
 use crate::components::color_input_with_contrast::ColorInputWithContrast;
+use crate::page_utils::set_page_title;
 use crate::subscriptions::errors::ErrorData;
 use crate::subscriptions::DataSignals;
 use crate::websocket::WebSocketSendStream;
@@ -23,6 +24,8 @@ use web_sys::Event as WebEvent;
 
 #[component]
 pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
+	set_page_title("Register Account | Stream Log");
+
 	{
 		let user_signal: &Signal<Option<UserData>> = use_context(ctx);
 		if user_signal.get().is_some() {

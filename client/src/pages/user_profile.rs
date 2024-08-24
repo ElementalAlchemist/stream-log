@@ -6,6 +6,7 @@
 
 use crate::color_utils::{color_from_rgb_str, rgb_str_from_color};
 use crate::components::color_input_with_contrast::ColorInputWithContrast;
+use crate::page_utils::set_page_title;
 use crate::subscriptions::errors::ErrorData;
 use crate::subscriptions::DataSignals;
 use crate::websocket::WebSocketSendStream;
@@ -20,6 +21,8 @@ use web_sys::Event as WebEvent;
 
 #[component]
 pub fn UserProfileView<G: Html>(ctx: Scope<'_>) -> View<G> {
+	set_page_title("Profile | Stream Log");
+
 	let user_signal: &Signal<Option<UserData>> = use_context(ctx);
 	let user_data = match (*user_signal.get()).clone() {
 		Some(data) => data,
