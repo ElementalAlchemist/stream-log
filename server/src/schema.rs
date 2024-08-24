@@ -210,6 +210,7 @@ diesel::table! {
 		color_red -> Int4,
 		color_green -> Int4,
 		color_blue -> Int4,
+		use_spell_check -> Bool,
 	}
 }
 

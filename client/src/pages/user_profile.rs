@@ -38,6 +38,7 @@ pub fn UserProfileView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 	let color_signal = create_signal(ctx, default_color);
 	let username_signal = create_signal(ctx, user_data.username.clone());
+	let use_spell_check_signal = create_signal(ctx, user_data.use_spell_check);
 
 	let submit_profile_handler = {
 		let user_data = user_data.clone();
@@ -56,7 +57,12 @@ pub fn UserProfileView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				}
 			};
 
-			let message = FromClientMessage::UpdateProfile(UpdateUser { color: new_color });
+			let use_spell_check = *use_spell_check_signal.get();
+
+			let message = FromClientMessage::UpdateProfile(UpdateUser {
+				color: new_color,
+				use_spell_check,
+			});
 			let message_json = match serde_json::to_string(&message) {
 				Ok(msg) => msg,
 				Err(error) => {
@@ -98,6 +104,12 @@ pub fn UserProfileView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		h1 { (user_data.username) }
 		form(id="user_profile_edit", on:submit=submit_profile_handler) {
 			ColorInputWithContrast(color=color_signal, username=username_signal, view_id="user_profile")
+			div {
+				label {
+					input(type="checkbox", bind:checked=use_spell_check_signal)
+					"Use spell check"
+				}
+			}
 			button(type="submit") { "Update" }
 		}
 	}

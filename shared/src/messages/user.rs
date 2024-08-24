@@ -23,6 +23,7 @@ pub struct SelfUserData {
 	pub username: String,
 	pub color: RGB8,
 	pub is_admin: bool,
+	pub use_spell_check: bool,
 }
 
 impl From<SelfUserData> for PublicUserData {
@@ -39,6 +40,7 @@ impl From<SelfUserData> for PublicUserData {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct UpdateUser {
 	pub color: RGB8,
+	pub use_spell_check: bool,
 }
 
 /// An update sent from the server any time a user's session information changes, including changes to the user data

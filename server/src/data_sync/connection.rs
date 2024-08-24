@@ -96,6 +96,7 @@ pub async fn handle_connection(
 			username: user.name.clone(),
 			is_admin: user.is_admin,
 			color,
+			use_spell_check: user.use_spell_check,
 		}
 	});
 

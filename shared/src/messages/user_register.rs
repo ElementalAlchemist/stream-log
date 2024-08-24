@@ -22,6 +22,7 @@ pub enum UserRegistration {
 pub struct UserRegistrationFinalize {
 	pub name: String,
 	pub color: RGB8,
+	pub use_spell_check: bool,
 }
 
 /// Response data from the server related to registration

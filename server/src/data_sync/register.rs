@@ -98,6 +98,7 @@ pub async fn register_user(
 					color_red,
 					color_green,
 					color_blue,
+					use_spell_check: registration_data.use_spell_check,
 				};
 
 				let user_record: User = diesel::insert_into(users::table)
@@ -119,6 +120,7 @@ pub async fn register_user(
 					username: new_user.name.clone(),
 					is_admin: new_user.is_admin,
 					color,
+					use_spell_check: new_user.use_spell_check,
 				};
 				*user = Some(user_data.clone());
 

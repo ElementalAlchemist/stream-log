@@ -160,6 +160,9 @@ pub struct User {
 	pub color_green: i32,
 	/// The blue color value for a user's color
 	pub color_blue: i32,
+	/// Whether the user wants their entries to be spell-checked. If true, Stream Log will hint to the browser that
+	/// spell-checking should occur in certain fields
+	pub use_spell_check: bool,
 }
 
 impl User {
@@ -198,11 +201,14 @@ impl From<User> for SelfUserData {
 		let b: u8 = value.color_blue.try_into().unwrap();
 		let color = RGB8::new(r, g, b);
 
+		let use_spell_check = value.use_spell_check;
+
 		Self {
 			id,
 			username,
 			is_admin,
 			color,
+			use_spell_check,
 		}
 	}
 }

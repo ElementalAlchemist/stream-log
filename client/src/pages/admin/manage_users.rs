@@ -78,7 +78,8 @@ async fn AdminManageUsersLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 									id: user.id.clone(),
 									username: (*username_signal.get()).clone(),
 									color: new_color,
-									is_admin: *is_admin_signal.get()
+									is_admin: *is_admin_signal.get(),
+									use_spell_check: user.use_spell_check
 								};
 
 								spawn_local_scoped(ctx, async move {

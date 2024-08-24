@@ -21,7 +21,7 @@ use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::subscriptions::SubscriptionTargetUpdate;
 use stream_log_shared::messages::tags::Tag;
-use stream_log_shared::messages::user::PublicUserData;
+use stream_log_shared::messages::user::{PublicUserData, SelfUserData};
 use stream_log_shared::messages::FromClientMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
@@ -1260,6 +1260,11 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		}
 	};
 
+	let user: &Signal<Option<SelfUserData>> = use_context(ctx);
+	let use_spell_check = create_memo(ctx, move || {
+		(*user.get()).as_ref().map(|user| user.use_spell_check).unwrap_or(false)
+	});
+
 	view! {
 		ctx,
 		datalist(id="event_log_entry_edit_type_list") {
@@ -1413,7 +1418,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 					)
 				}
 				div(id="event_log_entry_edit_description") {
-					input(placeholder="Description", bind:value=description, id="event_log_entry_edit_description_field")
+					input(placeholder="Description", bind:value=description, id="event_log_entry_edit_description_field", spellcheck={use_spell_check.get()})
 				}
 				div(id="event_log_entry_edit_submitter_or_winner") {
 					input(bind:value=submitter_or_winner, placeholder="Submitter/winner", id="event_log_entry_edit_submitter_or_winner_field")
@@ -1572,7 +1577,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 					}
 				}
 				div(id="event_log_entry_edit_notes_to_editor") {
-					input(id="event_log_entry_edit_notes_to_editor_field", bind:value=notes_to_editor, placeholder="Notes to editor")
+					input(id="event_log_entry_edit_notes_to_editor_field", bind:value=notes_to_editor, placeholder="Notes to editor", spellcheck={use_spell_check.get()})
 				}
 				div(id="event_log_entry_edit_editor") {
 					input(

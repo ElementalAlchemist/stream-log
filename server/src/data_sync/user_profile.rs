@@ -29,6 +29,7 @@ pub async fn handle_profile_update(
 				users::color_red.eq(red),
 				users::color_green.eq(green),
 				users::color_blue.eq(blue),
+				users::use_spell_check.eq(update_data.use_spell_check),
 			))
 			.execute(&mut *db_connection)
 	};
@@ -40,6 +41,7 @@ pub async fn handle_profile_update(
 	let mut subscription_manager = subscription_manager.lock().await;
 	let mut new_user = user.clone();
 	new_user.color = update_data.color;
+	new_user.use_spell_check = update_data.use_spell_check;
 
 	let user_update = UserDataUpdate::User(new_user.clone());
 	subscription_manager.send_message_to_user(&user.id, user_update).await;
