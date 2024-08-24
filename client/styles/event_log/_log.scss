@@ -11,7 +11,7 @@ $event_log_editor_column_count: 17;
 @mixin span-whole-width {
 	grid-column: 1 / span $event_log_column_count;
 
-	.event_log_data_editor & {
+	.event_log_data_editor &, .event_log_new_entry_typing_editor & {
 		grid-column: 1 / span $event_log_editor_column_count;
 	}
 }
