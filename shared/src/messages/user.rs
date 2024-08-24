@@ -9,20 +9,37 @@ use rgb::RGB8;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
-pub struct UserData {
+pub struct PublicUserData {
 	pub id: String,
 	pub username: String,
-	pub is_admin: bool,
 	pub color: RGB8,
 }
 
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct SelfUserData {
+	pub id: String,
+	pub username: String,
+	pub color: RGB8,
+	pub is_admin: bool,
+}
+
+impl From<SelfUserData> for PublicUserData {
+	fn from(value: SelfUserData) -> Self {
+		Self {
+			id: value.id,
+			username: value.username,
+			color: value.color,
+		}
+	}
+}
+
 #[derive(Debug, Deserialize, Serialize)]
-pub enum UpdateUser {
-	UpdateColor(RGB8),
+pub struct UpdateUser {
+	pub color: RGB8,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct UserSubscriptionUpdate {
-	pub user: UserData,
+	pub user: SelfUserData,
 	pub available_events: Vec<Event>,
 }

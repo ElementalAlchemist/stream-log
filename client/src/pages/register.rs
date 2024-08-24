@@ -12,7 +12,7 @@ use crate::subscriptions::DataSignals;
 use crate::websocket::WebSocketSendStream;
 use futures::lock::Mutex;
 use gloo_net::websocket::Message;
-use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::user::SelfUserData;
 use stream_log_shared::messages::user_register::{
 	RegistrationFinalizeResponse, UserRegistration, UserRegistrationFinalize, USERNAME_LENGTH_LIMIT,
 };
@@ -27,7 +27,7 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	set_page_title("Register Account | Stream Log");
 
 	{
-		let user_signal: &Signal<Option<UserData>> = use_context(ctx);
+		let user_signal: &Signal<Option<SelfUserData>> = use_context(ctx);
 		if user_signal.get().is_some() {
 			spawn_local_scoped(ctx, async {
 				navigate("/");
@@ -42,7 +42,7 @@ pub fn RegistrationView<G: Html>(ctx: Scope<'_>) -> View<G> {
 		if let Some(reg_data) = registration_data.as_ref() {
 			match reg_data {
 				RegistrationFinalizeResponse::Success(data) => {
-					let user_signal: &Signal<Option<UserData>> = use_context(ctx);
+					let user_signal: &Signal<Option<SelfUserData>> = use_context(ctx);
 					user_signal.set(Some(data.clone()));
 					navigate("/register_complete");
 				}

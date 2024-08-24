@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use super::events::Event;
-use super::user::UserData;
+use super::user::SelfUserData;
 use crate::SYNC_VERSION;
 use serde::{Deserialize, Serialize};
 
@@ -26,7 +26,7 @@ impl InitialMessage {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub enum UserDataLoad {
-	User(UserData, Vec<Event>),
+	User(SelfUserData, Vec<Event>),
 	NewUser,
 	MissingId,
 	Error,

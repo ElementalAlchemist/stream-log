@@ -17,7 +17,7 @@ use stream_log_shared::messages::admin::AdminEventLogTabsUpdate;
 use stream_log_shared::messages::event_log::EventLogTab;
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::subscriptions::{SubscriptionTargetUpdate, SubscriptionType};
-use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::user::SelfUserData;
 use stream_log_shared::messages::FromClientMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
@@ -294,7 +294,7 @@ async fn AdminManageEventLogTabsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 #[component]
 pub fn AdminManageEventLogTabsView<G: Html>(ctx: Scope<'_>) -> View<G> {
-	let user_signal: &Signal<Option<UserData>> = use_context(ctx);
+	let user_signal: &Signal<Option<SelfUserData>> = use_context(ctx);
 	match user_signal.get().as_ref() {
 		Some(user) => {
 			if !user.is_admin {

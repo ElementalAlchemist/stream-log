@@ -15,14 +15,14 @@ use diesel::prelude::*;
 use stream_log_shared::messages::subscriptions::{
 	InitialSubscriptionLoadData, SubscriptionData, SubscriptionFailureInfo, SubscriptionType,
 };
-use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::user::SelfUserData;
 use stream_log_shared::messages::{DataError, FromServerMessage};
 
 pub async fn subscribe_to_admin_users(
 	db_connection: Arc<Mutex<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
 	connection_id: &str,
-	user: &UserData,
+	user: &SelfUserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 ) -> Result<(), HandleConnectionError> {
 	if !user.is_admin {
@@ -56,7 +56,7 @@ pub async fn subscribe_to_admin_users(
 		.add_admin_user_subscription(connection_id, conn_update_tx.clone())
 		.await;
 
-	let all_user_data: Vec<UserData> = all_users.into_iter().map(|user| user.into()).collect();
+	let all_user_data: Vec<SelfUserData> = all_users.into_iter().map(|user| user.into()).collect();
 	let message =
 		FromServerMessage::InitialSubscriptionLoad(Box::new(InitialSubscriptionLoadData::AdminUsers(all_user_data)));
 	conn_update_tx
@@ -69,9 +69,9 @@ pub async fn subscribe_to_admin_users(
 pub async fn handle_admin_users_message(
 	db_connection: Arc<Mutex<PgConnection>>,
 	connection_id: &str,
-	user: &UserData,
+	user: &SelfUserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
-	modified_user: &UserData,
+	modified_user: &SelfUserData,
 ) {
 	if !user.is_admin {
 		return;

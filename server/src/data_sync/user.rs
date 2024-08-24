@@ -6,10 +6,10 @@
 
 use crate::models::Permission;
 use stream_log_shared::messages::events::Event;
-use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::user::SelfUserData;
 
 #[derive(Clone)]
 pub enum UserDataUpdate {
-	User(UserData),
+	User(SelfUserData),
 	EventPermissions(Event, Option<Permission>),
 }

@@ -21,7 +21,7 @@ use std::collections::HashMap;
 use stream_log_shared::messages::event_log::{EventLogEntry, EventLogTab, VideoEditState, VideoProcessingState};
 use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::subscriptions::SubscriptionType;
-use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::user::SelfUserData;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use sycamore::suspense::Suspense;
@@ -170,7 +170,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		let permission_signal = permission_signal.clone();
 		let available_editors = available_editors.clone();
 		move || {
-			let user: &Signal<Option<UserData>> = use_context(ctx);
+			let user: &Signal<Option<SelfUserData>> = use_context(ctx);
 			let user = user.get();
 			let permission = permission_signal.get();
 			let editors = available_editors.get();
@@ -726,7 +726,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 #[component]
 pub fn EventLogView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> View<G> {
 	// At a minimum, you need to have a user account to see this page, so we'll verify that exists
-	let user_signal: &Signal<Option<UserData>> = use_context(ctx);
+	let user_signal: &Signal<Option<SelfUserData>> = use_context(ctx);
 	if user_signal.get().is_none() {
 		spawn_local_scoped(ctx, async {
 			navigate("/");

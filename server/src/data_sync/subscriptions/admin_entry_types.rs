@@ -21,14 +21,14 @@ use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::subscriptions::{
 	InitialSubscriptionLoadData, SubscriptionData, SubscriptionFailureInfo, SubscriptionType,
 };
-use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::user::SelfUserData;
 use stream_log_shared::messages::{DataError, FromServerMessage};
 
 pub async fn subscribe_to_admin_entry_types(
 	db_connection: Arc<Mutex<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
 	connection_id: &str,
-	user: &UserData,
+	user: &SelfUserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 ) -> Result<(), HandleConnectionError> {
 	if !user.is_admin {
@@ -80,7 +80,7 @@ pub async fn subscribe_to_admin_entry_types(
 pub async fn handle_admin_entry_type_message(
 	db_connection: Arc<Mutex<PgConnection>>,
 	connection_id: &str,
-	user: &UserData,
+	user: &SelfUserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	update_message: AdminEntryTypeUpdate,
 ) {
@@ -189,7 +189,7 @@ pub async fn subscribe_to_admin_entry_types_events(
 	db_connection: Arc<Mutex<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
 	connection_id: &str,
-	user: &UserData,
+	user: &SelfUserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 ) -> Result<(), HandleConnectionError> {
 	if !user.is_admin {
@@ -306,7 +306,7 @@ pub async fn subscribe_to_admin_entry_types_events(
 pub async fn handle_admin_entry_type_event_message(
 	db_connection: Arc<Mutex<PgConnection>>,
 	connection_id: &str,
-	user: &UserData,
+	user: &SelfUserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	update_message: AdminEntryTypeEventUpdate,
 ) {

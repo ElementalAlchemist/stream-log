@@ -19,7 +19,7 @@ use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::subscriptions::{SubscriptionTargetUpdate, SubscriptionType};
 use stream_log_shared::messages::tags::{Tag, TagPlaylist};
-use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::user::SelfUserData;
 use stream_log_shared::messages::FromClientMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
@@ -33,7 +33,7 @@ pub struct EventLogTagsProps {
 
 #[component]
 async fn EventLogTagsLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogTagsProps) -> View<G> {
-	let user: &Signal<Option<UserData>> = use_context(ctx);
+	let user: &Signal<Option<SelfUserData>> = use_context(ctx);
 	let user_is_admin_signal = create_memo(ctx, || {
 		let user = user.get();
 		match user.as_ref() {

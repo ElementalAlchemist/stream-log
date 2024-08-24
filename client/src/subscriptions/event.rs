@@ -14,7 +14,7 @@ use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::info_pages::InfoPage;
 use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::tags::Tag;
-use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::user::PublicUserData;
 use sycamore::prelude::*;
 
 pub struct EventSubscriptionSignalsInitData {
@@ -22,7 +22,7 @@ pub struct EventSubscriptionSignalsInitData {
 	pub permission: PermissionLevel,
 	pub entry_types: Vec<EntryType>,
 	pub tags: Vec<Tag>,
-	pub editors: Vec<UserData>,
+	pub editors: Vec<PublicUserData>,
 	pub info_pages: Vec<InfoPage>,
 	pub event_log_tabs: Vec<EventLogTab>,
 	pub event_log_entries: Vec<EventLogEntry>,
@@ -34,7 +34,7 @@ pub struct EventSubscriptionSignals {
 	pub permission: RcSignal<PermissionLevel>,
 	pub entry_types: RcSignal<Vec<EntryType>>,
 	pub tags: RcSignal<Vec<Tag>>,
-	pub editors: RcSignal<Vec<UserData>>,
+	pub editors: RcSignal<Vec<PublicUserData>>,
 	pub info_pages: RcSignal<Vec<InfoPage>>,
 	pub event_log_tabs: RcSignal<Vec<EventLogTab>>,
 	pub event_log_entries: RcSignal<Vec<EventLogEntry>>,
@@ -101,7 +101,7 @@ pub enum TypingTarget {
 #[derive(Clone, Debug)]
 pub struct TypingEvent {
 	pub event_log_entry: Option<EventLogEntry>,
-	pub user: UserData,
+	pub user: PublicUserData,
 	pub target_field: TypingTarget,
 	pub data: String,
 	pub time_received: DateTime<Utc>,

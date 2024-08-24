@@ -24,7 +24,7 @@ use stream_log_shared::messages::events::Event as EventWs;
 use stream_log_shared::messages::info_pages::InfoPage as InfoPageWs;
 use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::tags::{Tag as TagWs, TagPlaylist};
-use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::user::{PublicUserData, SelfUserData};
 
 /// Permissions a user can have for an event, as stored in the database.
 #[derive(Clone, Copy, DbEnum, Debug, Eq, PartialEq)]
@@ -144,7 +144,7 @@ impl From<VideoProcessingState> for VideoProcessingStateWs {
 }
 
 /// Database information about a user
-#[derive(Insertable, Queryable)]
+#[derive(Clone, Insertable, Queryable)]
 pub struct User {
 	/// User's database ID
 	pub id: String,
@@ -173,7 +173,21 @@ impl User {
 	}
 }
 
-impl From<User> for UserData {
+impl From<User> for PublicUserData {
+	fn from(value: User) -> Self {
+		let id = value.id;
+		let username = value.name;
+
+		let r: u8 = value.color_red.try_into().unwrap();
+		let g: u8 = value.color_green.try_into().unwrap();
+		let b: u8 = value.color_blue.try_into().unwrap();
+		let color = RGB8::new(r, g, b);
+
+		Self { id, username, color }
+	}
+}
+
+impl From<User> for SelfUserData {
 	fn from(value: User) -> Self {
 		let id = value.id;
 		let username = value.name;

@@ -9,7 +9,7 @@ use super::event_log::EventLogTab;
 use super::events::Event;
 use super::info_pages::InfoPage;
 use super::permissions::PermissionLevel;
-use super::user::UserData;
+use super::user::PublicUserData;
 use serde::{Deserialize, Serialize};
 
 /// An update to an event from the admin events page
@@ -72,7 +72,7 @@ pub enum AdminEventEditorUpdate {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct EditorEventAssociation {
-	pub editor: UserData,
+	pub editor: PublicUserData,
 	pub event: Event,
 }
 
@@ -90,7 +90,7 @@ pub enum AdminUserPermissionGroupUpdate {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct UserPermissionGroupAssociation {
-	pub user: UserData,
+	pub user: PublicUserData,
 	pub permission_group: PermissionGroup,
 }
 

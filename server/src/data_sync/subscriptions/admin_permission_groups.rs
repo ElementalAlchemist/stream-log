@@ -22,14 +22,14 @@ use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::subscriptions::{
 	InitialSubscriptionLoadData, SubscriptionData, SubscriptionFailureInfo, SubscriptionType,
 };
-use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::user::{PublicUserData, SelfUserData};
 use stream_log_shared::messages::{DataError, FromServerMessage};
 
 pub async fn subscribe_to_admin_permission_groups(
 	db_connection: Arc<Mutex<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
 	connection_id: &str,
-	user: &UserData,
+	user: &SelfUserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 ) -> Result<(), HandleConnectionError> {
 	if !user.is_admin {
@@ -97,7 +97,7 @@ pub async fn subscribe_to_admin_permission_groups(
 pub async fn handle_admin_permission_groups_message(
 	db_connection: Arc<Mutex<PgConnection>>,
 	connection_id: &str,
-	user: &UserData,
+	user: &SelfUserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	update_message: AdminPermissionGroupUpdate,
 ) {
@@ -285,7 +285,7 @@ pub async fn subscribe_to_admin_permission_groups_users(
 	db_connection: Arc<Mutex<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
 	connection_id: &str,
-	user: &UserData,
+	user: &SelfUserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 ) -> Result<(), HandleConnectionError> {
 	if !user.is_admin {
@@ -336,7 +336,7 @@ pub async fn subscribe_to_admin_permission_groups_users(
 
 	let users = match users {
 		Ok(users) => {
-			let user_map: HashMap<String, UserData> =
+			let user_map: HashMap<String, PublicUserData> =
 				users.into_iter().map(|user| (user.id.clone(), user.into())).collect();
 			user_map
 		}
@@ -408,7 +408,7 @@ pub async fn subscribe_to_admin_permission_groups_users(
 pub async fn handle_admin_permission_group_users_message(
 	db_connection: Arc<Mutex<PgConnection>>,
 	connection_id: &str,
-	user: &UserData,
+	user: &SelfUserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	update_message: AdminUserPermissionGroupUpdate,
 ) {

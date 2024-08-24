@@ -9,7 +9,7 @@ use futures::future::poll_fn;
 use futures::task::{Context, Poll, Waker};
 use std::collections::HashMap;
 use std::fmt;
-use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::user::SelfUserData;
 use sycamore::prelude::*;
 use sycamore::suspense::Suspense;
 
@@ -30,7 +30,7 @@ impl fmt::Display for EventId {
 
 #[component]
 pub fn UserInfoBar<G: Html>(ctx: Scope) -> View<G> {
-	let user_signal: &Signal<Option<UserData>> = use_context(ctx);
+	let user_signal: &Signal<Option<SelfUserData>> = use_context(ctx);
 	let event_id_signal: &Signal<Option<EventId>> = use_context(ctx);
 	view! {
 		ctx,

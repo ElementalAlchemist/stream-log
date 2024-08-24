@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use super::user::UserData;
+use super::user::SelfUserData;
 use rgb::RGB8;
 use serde::{Deserialize, Serialize};
 
@@ -41,7 +41,7 @@ pub struct UsernameCheckResponse {
 /// Response data from the server for a full registration attempt
 #[derive(Deserialize, Serialize)]
 pub enum RegistrationFinalizeResponse {
-	Success(UserData),
+	Success(SelfUserData),
 	UsernameInUse,
 	UsernameTooLong,
 	NoUsernameSpecified,

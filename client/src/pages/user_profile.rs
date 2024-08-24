@@ -12,7 +12,7 @@ use crate::subscriptions::DataSignals;
 use crate::websocket::WebSocketSendStream;
 use futures::lock::Mutex;
 use gloo_net::websocket::Message;
-use stream_log_shared::messages::user::{UpdateUser, UserData};
+use stream_log_shared::messages::user::{SelfUserData, UpdateUser};
 use stream_log_shared::messages::FromClientMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
@@ -23,7 +23,7 @@ use web_sys::Event as WebEvent;
 pub fn UserProfileView<G: Html>(ctx: Scope<'_>) -> View<G> {
 	set_page_title("Profile | Stream Log");
 
-	let user_signal: &Signal<Option<UserData>> = use_context(ctx);
+	let user_signal: &Signal<Option<SelfUserData>> = use_context(ctx);
 	let user_data = match (*user_signal.get()).clone() {
 		Some(data) => data,
 		None => {
@@ -56,7 +56,7 @@ pub fn UserProfileView<G: Html>(ctx: Scope<'_>) -> View<G> {
 				}
 			};
 
-			let message = FromClientMessage::UpdateProfile(UpdateUser::UpdateColor(new_color));
+			let message = FromClientMessage::UpdateProfile(UpdateUser { color: new_color });
 			let message_json = match serde_json::to_string(&message) {
 				Ok(msg) => msg,
 				Err(error) => {

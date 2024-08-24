@@ -17,7 +17,7 @@ use std::collections::HashMap;
 use stream_log_shared::messages::admin::AdminEntryTypeUpdate;
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::subscriptions::{SubscriptionTargetUpdate, SubscriptionType};
-use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::user::SelfUserData;
 use stream_log_shared::messages::FromClientMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
@@ -306,7 +306,7 @@ async fn AdminManageEntryTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 #[component]
 pub fn AdminManageEntryTypesView<G: Html>(ctx: Scope<'_>) -> View<G> {
-	let user_signal: &Signal<Option<UserData>> = use_context(ctx);
+	let user_signal: &Signal<Option<SelfUserData>> = use_context(ctx);
 
 	if let Some(user_data) = user_signal.get().as_ref() {
 		if !user_data.is_admin {

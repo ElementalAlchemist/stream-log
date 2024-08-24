@@ -37,7 +37,7 @@ use std::collections::HashMap;
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::initial::{InitialMessage, UserDataLoad};
 use stream_log_shared::messages::subscriptions::{SubscriptionData, SubscriptionTargetUpdate, SubscriptionType};
-use stream_log_shared::messages::user::{UserData, UserSubscriptionUpdate};
+use stream_log_shared::messages::user::{SelfUserData, UserSubscriptionUpdate};
 use stream_log_shared::messages::user_register::UserRegistration;
 use stream_log_shared::messages::{FromClientMessage, FromServerMessage};
 use tide::Request;
@@ -91,7 +91,7 @@ pub async fn handle_connection(
 			user.color_green.try_into().unwrap(),
 			user.color_blue.try_into().unwrap(),
 		);
-		UserData {
+		SelfUserData {
 			id: user.id.clone(),
 			username: user.name.clone(),
 			is_admin: user.is_admin,
@@ -181,7 +181,7 @@ pub async fn handle_connection(
 async fn process_messages(
 	db_connection: Arc<Mutex<PgConnection>>,
 	stream: &mut WebSocketConnection,
-	mut user: Option<UserData>,
+	mut user: Option<SelfUserData>,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	openid_user_id: &str,
 	mut event_permission_cache: HashMap<Event, Option<Permission>>,
@@ -225,7 +225,7 @@ async fn process_messages(
 struct ProcessMessageParams<'a> {
 	db_connection: &'a Arc<Mutex<PgConnection>>,
 	stream: &'a mut WebSocketConnection,
-	user: &'a mut Option<UserData>,
+	user: &'a mut Option<SelfUserData>,
 	connection_id: &'a str,
 	subscription_manager: &'a Arc<Mutex<SubscriptionManager>>,
 	openid_user_id: &'a str,
@@ -263,7 +263,7 @@ async fn process_message(args: ProcessMessageParams<'_>) -> Result<(), HandleCon
 
 fn process_connection_update(
 	conn_update_result: Result<ConnectionUpdate, RecvError>,
-	user: &mut Option<UserData>,
+	user: &mut Option<SelfUserData>,
 	event_permission_cache: &mut HashMap<Event, Option<Permission>>,
 ) -> Result<Option<Box<dyn Serialize + Send + Sync>>, HandleConnectionError> {
 	match conn_update_result {
@@ -300,7 +300,7 @@ struct ProcessIncomingMessageParams<'a> {
 	recv_msg_result: Result<String, WebSocketRecvError>,
 	db_connection: &'a Arc<Mutex<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
-	user: &'a mut Option<UserData>,
+	user: &'a mut Option<SelfUserData>,
 	connection_id: &'a str,
 	subscription_manager: &'a Arc<Mutex<SubscriptionManager>>,
 	openid_user_id: &'a str,

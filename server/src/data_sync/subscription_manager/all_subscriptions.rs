@@ -12,7 +12,7 @@ use futures::future::join_all;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use stream_log_shared::messages::subscriptions::{SubscriptionData, SubscriptionType};
-use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::user::SelfUserData;
 
 /// A manager for all the subscriptions we need to track
 pub struct SubscriptionManager {
@@ -136,7 +136,7 @@ impl SubscriptionManager {
 	pub async fn subscribe_to_self_user(
 		&mut self,
 		connection_id: &str,
-		user: &UserData,
+		user: &SelfUserData,
 		conn_update_tx: Sender<ConnectionUpdate>,
 	) {
 		match self.user_subscriptions.entry(user.id.clone()) {

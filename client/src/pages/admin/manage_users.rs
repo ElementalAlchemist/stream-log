@@ -14,7 +14,7 @@ use crate::websocket::WebSocketSendStream;
 use futures::lock::Mutex;
 use gloo_net::websocket::Message;
 use stream_log_shared::messages::subscriptions::{SubscriptionTargetUpdate, SubscriptionType};
-use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::user::SelfUserData;
 use stream_log_shared::messages::FromClientMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
@@ -74,7 +74,7 @@ async fn AdminManageUsersLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 								let Ok(new_color) = color_from_rgb_str(&color_signal.get()) else {
 									return;
 								};
-								let updated_user = UserData {
+								let updated_user = SelfUserData {
 									id: user.id.clone(),
 									username: (*username_signal.get()).clone(),
 									color: new_color,
@@ -126,7 +126,7 @@ async fn AdminManageUsersLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 #[component]
 pub fn AdminManageUsersView<G: Html>(ctx: Scope<'_>) -> View<G> {
-	let user_signal: &Signal<Option<UserData>> = use_context(ctx);
+	let user_signal: &Signal<Option<SelfUserData>> = use_context(ctx);
 	match user_signal.get().as_ref() {
 		Some(user) => {
 			if !user.is_admin {

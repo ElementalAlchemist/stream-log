@@ -34,14 +34,14 @@ use stream_log_shared::messages::subscriptions::{
 	SubscriptionType,
 };
 use stream_log_shared::messages::tags::{Tag, TagPlaylist};
-use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::user::{PublicUserData, SelfUserData};
 use stream_log_shared::messages::{DataError, FromServerMessage};
 
 pub async fn subscribe_to_event(
 	db_connection: Arc<Mutex<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
 	connection_id: &str,
-	user: &UserData,
+	user: &SelfUserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	event_id: &str,
 	event_permission_cache: &mut HashMap<Event, Option<Permission>>,
@@ -379,15 +379,7 @@ pub async fn subscribe_to_event(
 		}
 	};
 
-	let available_editors_list: Vec<UserData> = editors
-		.iter()
-		.map(|user| UserData {
-			id: user.id.clone(),
-			username: user.name.clone(),
-			is_admin: user.is_admin,
-			color: user.color(),
-		})
-		.collect();
+	let available_editors_list: Vec<PublicUserData> = editors.iter().cloned().map(|user| user.into()).collect();
 	let editors: HashMap<String, User> = editors.into_iter().map(|user| (user.id.clone(), user)).collect();
 
 	let info_pages: Vec<InfoPageDb> = match info_pages::table
@@ -445,14 +437,9 @@ pub async fn subscribe_to_event(
 	for log_entry in log_entries.iter() {
 		let end_time = log_entry.end_time_data();
 		let tags = tags_by_log_entry.remove(&log_entry.id).unwrap_or_default();
-		let editor: Option<UserData> = match &log_entry.editor {
+		let editor: Option<PublicUserData> = match &log_entry.editor {
 			Some(editor) => match editors.get(editor) {
-				Some(editor) => Some(UserData {
-					id: editor.id.clone(),
-					username: editor.name.clone(),
-					is_admin: editor.is_admin,
-					color: editor.color(),
-				}),
+				Some(editor) => Some(editor.clone().into()),
 				None => {
 					tide::log::error!(
 						"Editor {} found for log entry {} but not in users table (database constraint violation!)",
@@ -523,7 +510,7 @@ pub async fn handle_event_update(
 	db_connection: Arc<Mutex<PgConnection>>,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	event: &Event,
-	user: &UserData,
+	user: &SelfUserData,
 	event_permission_cache: &HashMap<Event, Option<Permission>>,
 	message: Box<EventSubscriptionUpdate>,
 ) -> Result<(), HandleConnectionError> {
@@ -708,7 +695,7 @@ pub async fn handle_event_update(
 					}
 				};
 
-				new_entry_messages.push(EventSubscriptionData::NewLogEntry(new_log_entry, user.clone()));
+				new_entry_messages.push(EventSubscriptionData::NewLogEntry(new_log_entry, user.clone().into()));
 			}
 			new_entry_messages
 		}
@@ -849,15 +836,13 @@ pub async fn handle_event_update(
 				}
 			};
 
-			vec![EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone()))]
+			vec![EventSubscriptionData::UpdateLogEntry(
+				log_entry,
+				Some(user.clone().into()),
+			)]
 		}
 		EventSubscriptionUpdate::Typing(typing_data) => {
-			let user_data = UserData {
-				id: user.id.clone(),
-				username: user.username.clone(),
-				is_admin: user.is_admin,
-				color: user.color,
-			};
+			let user_data: PublicUserData = user.clone().into();
 			let typing_data = match typing_data {
 				NewTypingData::Parent(log_entry, parent_entry_id) => {
 					TypingData::Parent(log_entry, parent_entry_id, user_data)
@@ -1028,7 +1013,7 @@ pub async fn handle_event_update(
 					let editor = match log_entry.editor.as_ref() {
 						Some(editor) => {
 							let editor: User = users::table.find(editor).first(db_connection)?;
-							let editor: UserData = editor.into();
+							let editor: PublicUserData = editor.into();
 							Some(editor)
 						}
 						None => None,
@@ -1072,7 +1057,10 @@ pub async fn handle_event_update(
 			};
 			let mut send_messages: Vec<EventSubscriptionData> = Vec::with_capacity(log_entries.len() + 1);
 			for log_entry in log_entries.into_iter() {
-				send_messages.push(EventSubscriptionData::UpdateLogEntry(log_entry, Some(user.clone())));
+				send_messages.push(EventSubscriptionData::UpdateLogEntry(
+					log_entry,
+					Some(user.clone().into()),
+				));
 			}
 			send_messages.push(EventSubscriptionData::RemoveTag(tag));
 

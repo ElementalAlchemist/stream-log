@@ -13,7 +13,7 @@ use futures::lock::Mutex;
 use gloo_net::websocket::Message;
 use stream_log_shared::messages::admin::{AdminApplicationUpdate, Application};
 use stream_log_shared::messages::subscriptions::{SubscriptionTargetUpdate, SubscriptionType};
-use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::user::SelfUserData;
 use stream_log_shared::messages::FromClientMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
@@ -308,7 +308,7 @@ async fn AdminApplicationsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 #[component]
 pub fn AdminApplicationsView<G: Html>(ctx: Scope<'_>) -> View<G> {
-	let user: &Signal<Option<UserData>> = use_context(ctx);
+	let user: &Signal<Option<SelfUserData>> = use_context(ctx);
 	match user.get().as_ref() {
 		Some(user) => {
 			if !user.is_admin {

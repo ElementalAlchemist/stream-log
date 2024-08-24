@@ -14,7 +14,7 @@ use diesel::prelude::*;
 use diesel::result::DatabaseErrorKind;
 use rgb::RGB8;
 use stream_log_shared::messages::subscriptions::SubscriptionData;
-use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::user::SelfUserData;
 use stream_log_shared::messages::user_register::{
 	RegistrationFinalizeResponse, RegistrationResponse, UserRegistrationFinalize, UsernameCheckResponse,
 	USERNAME_LENGTH_LIMIT,
@@ -63,7 +63,7 @@ pub async fn register_user(
 	connection_id: &str,
 	openid_user_id: &str,
 	registration_data: UserRegistrationFinalize,
-	user: &mut Option<UserData>,
+	user: &mut Option<SelfUserData>,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 ) -> Result<(), HandleConnectionError> {
 	let response = if registration_data.name.is_empty() {
@@ -114,7 +114,7 @@ pub async fn register_user(
 					color_green.try_into().unwrap(),
 					color_blue.try_into().unwrap(),
 				);
-				let user_data = UserData {
+				let user_data = SelfUserData {
 					id: new_user.id.clone(),
 					username: new_user.name.clone(),
 					is_admin: new_user.is_admin,

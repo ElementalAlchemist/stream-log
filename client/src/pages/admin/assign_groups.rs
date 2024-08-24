@@ -17,7 +17,7 @@ use stream_log_shared::messages::admin::{
 	AdminUserPermissionGroupUpdate, PermissionGroup, UserPermissionGroupAssociation,
 };
 use stream_log_shared::messages::subscriptions::{SubscriptionTargetUpdate, SubscriptionType};
-use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::user::SelfUserData;
 use stream_log_shared::messages::FromClientMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
@@ -152,7 +152,7 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 										let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 										let mut ws = ws_context.lock().await;
 
-										let user_group_association = UserPermissionGroupAssociation { user: user.clone(), permission_group: group };
+										let user_group_association = UserPermissionGroupAssociation { user: user.clone().into(), permission_group: group };
 										let user_group_message = if *user_in_group.get() {
 											AdminUserPermissionGroupUpdate::RemoveUserFromGroup(user_group_association)
 										} else {
@@ -213,7 +213,7 @@ async fn AssignUsersToGroupsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 #[component]
 pub fn AssignUsersToGroupsView<G: Html>(ctx: Scope<'_>) -> View<G> {
-	let user: &Signal<Option<UserData>> = use_context(ctx);
+	let user: &Signal<Option<SelfUserData>> = use_context(ctx);
 	match user.get().as_ref() {
 		Some(user) => {
 			if !user.is_admin {

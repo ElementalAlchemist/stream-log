@@ -30,7 +30,7 @@ use stream_log_shared::messages::initial::{InitialMessage, UserDataLoad};
 use stream_log_shared::messages::subscriptions::{
 	InitialSubscriptionLoadData, SubscriptionData, SubscriptionFailureInfo, SubscriptionType,
 };
-use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::user::{PublicUserData, SelfUserData};
 use stream_log_shared::messages::user_register::RegistrationResponse;
 use stream_log_shared::messages::{DataError, FromServerMessage};
 use stream_log_shared::SYNC_VERSION;
@@ -70,7 +70,7 @@ pub struct DataSignals {
 	pub available_events: RcSignal<Vec<Event>>,
 
 	/// List of all users registered.
-	pub all_users: RcSignal<Vec<UserData>>,
+	pub all_users: RcSignal<Vec<SelfUserData>>,
 
 	/// List of all events that exist.
 	pub all_events: RcSignal<Vec<Event>>,
@@ -337,7 +337,7 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 									}
 								}
 								EventSubscriptionData::Typing(typing_data) => {
-									let user: &Signal<Option<UserData>> = use_context(ctx);
+									let user: &Signal<Option<SelfUserData>> = use_context(ctx);
 									// If we're not logged in, we shouldn't be receiving typing data.
 									let user = user.get();
 									let Some(user) = user.as_ref() else {
@@ -542,7 +542,7 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 							}
 						}
 						SubscriptionData::UserUpdate(user_update) => {
-							let user_signal: &Signal<Option<UserData>> = use_context(ctx);
+							let user_signal: &Signal<Option<SelfUserData>> = use_context(ctx);
 							user_signal.set(Some(user_update.user));
 							let mut available_events = user_update.available_events;
 							available_events.sort_unstable_by(|a, b| a.start_time.cmp(&b.start_time).reverse());
@@ -872,7 +872,7 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 								break;
 							}
 						};
-						let user_signal: &Signal<Option<UserData>> = use_context(ctx);
+						let user_signal: &Signal<Option<SelfUserData>> = use_context(ctx);
 						user_signal.set(user_data);
 						data_signals.available_events.set(available_events.unwrap_or_default());
 
@@ -913,7 +913,7 @@ fn handle_typing_data(
 	event_data: &EventSubscriptionSignals,
 	event_log_entry: Option<EventLogEntry>,
 	typed_data: String,
-	typing_user: UserData,
+	typing_user: PublicUserData,
 	target_field: TypingTarget,
 ) {
 	let mut typing_events = event_data.typing_events.modify();

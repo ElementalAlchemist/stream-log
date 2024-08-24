@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_log::{EndTimeData, EventLogEntry};
 use stream_log_shared::messages::events::Event;
-use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::user::PublicUserData;
 use sycamore::prelude::*;
 
 #[derive(Prop)]
@@ -29,7 +29,7 @@ type TypingStringData = (Option<String>, String, String, String, String, String,
 #[component]
 pub fn EventLogEntryTyping<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryTypingProps<'a>) -> View<G> {
 	let user_typing_data = create_memo(ctx, || {
-		let mut typing_data: Vec<(UserData, TypingStringData)> = props
+		let mut typing_data: Vec<(PublicUserData, TypingStringData)> = props
 			.typing_data
 			.get()
 			.values()

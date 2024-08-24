@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use super::tags::Tag;
-use super::user::UserData;
+use super::user::PublicUserData;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -30,7 +30,7 @@ pub struct EventLogEntry {
 	pub submitter_or_winner: String,
 	pub tags: Vec<Tag>,
 	pub notes_to_editor: String,
-	pub editor: Option<UserData>,
+	pub editor: Option<PublicUserData>,
 	pub video_link: Option<String>,
 	pub parent: Option<String>,
 	pub created_at: DateTime<Utc>,

@@ -17,7 +17,7 @@ use std::collections::HashSet;
 use stream_log_shared::messages::admin::AdminEventUpdate;
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::subscriptions::{SubscriptionTargetUpdate, SubscriptionType};
-use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::user::SelfUserData;
 use stream_log_shared::messages::FromClientMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
@@ -246,7 +246,7 @@ async fn AdminManageEventsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 #[component]
 pub fn AdminManageEventsView<G: Html>(ctx: Scope<'_>) -> View<G> {
-	let user_signal: &Signal<Option<UserData>> = use_context(ctx);
+	let user_signal: &Signal<Option<SelfUserData>> = use_context(ctx);
 	match user_signal.get().as_ref() {
 		Some(user) => {
 			if !user.is_admin {

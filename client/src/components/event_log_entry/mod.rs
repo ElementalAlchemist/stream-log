@@ -6,7 +6,7 @@
 
 use crate::subscriptions::event::TypingTarget;
 use std::collections::HashMap;
-use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::user::PublicUserData;
 
 pub mod edit;
 pub mod entry;
@@ -14,4 +14,4 @@ pub mod row;
 pub mod typing;
 mod utils;
 
-pub type UserTypingData = (UserData, HashMap<TypingTarget, String>);
+pub type UserTypingData = (PublicUserData, HashMap<TypingTarget, String>);

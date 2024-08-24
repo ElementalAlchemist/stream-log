@@ -16,7 +16,7 @@ use std::collections::{HashMap, HashSet};
 use stream_log_shared::messages::admin::{AdminEventEditorUpdate, EditorEventAssociation};
 use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::subscriptions::{SubscriptionTargetUpdate, SubscriptionType};
-use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::user::SelfUserData;
 use stream_log_shared::messages::FromClientMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
@@ -147,7 +147,7 @@ async fn AdminManageEditorsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 										Some(event) => event.clone(),
 										None => return
 									};
-									let editor_event_association = EditorEventAssociation { event: selected_event, editor: user.clone() };
+									let editor_event_association = EditorEventAssociation { event: selected_event, editor: user.clone().into() };
 									let editor_update_message = if *is_editor.get() {
 										AdminEventEditorUpdate::RemoveEditor(editor_event_association)
 									} else {
@@ -213,7 +213,7 @@ async fn AdminManageEditorsLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 
 #[component]
 pub fn AdminManageEditorsView<G: Html>(ctx: Scope<'_>) -> View<G> {
-	let user_signal: &Signal<Option<UserData>> = use_context(ctx);
+	let user_signal: &Signal<Option<SelfUserData>> = use_context(ctx);
 
 	if let Some(user_data) = user_signal.get().as_ref() {
 		if !user_data.is_admin {

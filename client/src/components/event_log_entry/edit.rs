@@ -21,7 +21,7 @@ use stream_log_shared::messages::events::Event;
 use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::subscriptions::SubscriptionTargetUpdate;
 use stream_log_shared::messages::tags::Tag;
-use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::user::PublicUserData;
 use stream_log_shared::messages::FromClientMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
@@ -34,7 +34,7 @@ pub struct EventLogEntryEditProps<'a> {
 	permission_level: &'a ReadSignal<PermissionLevel>,
 	event_entry_types: &'a ReadSignal<Vec<EntryType>>,
 	event_tags: &'a ReadSignal<Vec<Tag>>,
-	event_editors: &'a ReadSignal<Vec<UserData>>,
+	event_editors: &'a ReadSignal<Vec<PublicUserData>>,
 	event_log_tabs: &'a ReadSignal<Vec<EventLogTab>>,
 	current_tab: &'a ReadSignal<Option<EventLogTab>>,
 	event_log_entries: &'a ReadSignal<Vec<EventLogEntry>>,
@@ -81,7 +81,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		tag_index
 	});
 	let event_editors_name_index = create_memo(ctx, || {
-		let editor_index: HashMap<String, UserData> = props
+		let editor_index: HashMap<String, PublicUserData> = props
 			.event_editors
 			.get()
 			.iter()

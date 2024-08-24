@@ -17,14 +17,14 @@ use stream_log_shared::messages::admin::{AdminApplicationData, AdminApplicationU
 use stream_log_shared::messages::subscriptions::{
 	InitialSubscriptionLoadData, SubscriptionData, SubscriptionFailureInfo, SubscriptionType,
 };
-use stream_log_shared::messages::user::UserData;
+use stream_log_shared::messages::user::SelfUserData;
 use stream_log_shared::messages::{DataError, FromServerMessage};
 
 pub async fn subscribe_to_admin_applications(
 	db_connection: Arc<Mutex<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
 	connection_id: &str,
-	user: &UserData,
+	user: &SelfUserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 ) -> Result<(), HandleConnectionError> {
 	if !user.is_admin {
@@ -78,7 +78,7 @@ pub async fn subscribe_to_admin_applications(
 pub async fn handle_admin_applications_message(
 	db_connection: Arc<Mutex<PgConnection>>,
 	connection_id: &str,
-	user: &UserData,
+	user: &SelfUserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	update_message: AdminApplicationUpdate,
 	conn_update_tx: Sender<ConnectionUpdate>,

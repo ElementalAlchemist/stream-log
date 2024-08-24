@@ -19,7 +19,7 @@ use crate::messages::events::Event;
 use crate::messages::info_pages::InfoPage;
 use crate::messages::permissions::PermissionLevel;
 use crate::messages::tags::Tag;
-use crate::messages::user::{UserData, UserSubscriptionUpdate};
+use crate::messages::user::{PublicUserData, SelfUserData, UserSubscriptionUpdate};
 use crate::messages::DataError;
 use serde::{Deserialize, Serialize};
 
@@ -61,7 +61,7 @@ pub struct InitialEventSubscriptionLoadData {
 	/// The tags that can be used for the event
 	pub tags: Vec<Tag>,
 	/// The list of users that can be entered as editors
-	pub editors: Vec<UserData>,
+	pub editors: Vec<PublicUserData>,
 	/// The list of info pages that can be read for this event
 	pub info_pages: Vec<InfoPage>,
 	/// The event log tabs
@@ -83,7 +83,7 @@ pub enum InitialSubscriptionLoadData {
 	/// - The event log section headers
 	/// - The event log entries that have already been created
 	Event(Box<InitialEventSubscriptionLoadData>),
-	AdminUsers(Vec<UserData>),
+	AdminUsers(Vec<SelfUserData>),
 	AdminEvents(Vec<Event>),
 	AdminPermissionGroups(Vec<PermissionGroup>, Vec<PermissionGroupEventAssociation>),
 	AdminPermissionGroupUsers(Vec<UserPermissionGroupAssociation>),
@@ -104,7 +104,7 @@ pub enum SubscriptionData {
 	AdminEntryTypesUpdate(AdminEntryTypeData),
 	AdminEntryTypesEventsUpdate(AdminEntryTypeEventData),
 	AdminPermissionGroupsUpdate(AdminPermissionGroupData),
-	AdminUsersUpdate(UserData),
+	AdminUsersUpdate(SelfUserData),
 	AdminEventEditorsUpdate(AdminEventEditorData),
 	AdminUserPermissionGroupsUpdate(AdminUserPermissionGroupData),
 	AdminEventLogTabsUpdate(AdminEventLogTabsData),
@@ -127,7 +127,7 @@ pub enum SubscriptionTargetUpdate {
 	AdminEntryTypesUpdate(AdminEntryTypeUpdate),
 	AdminEntryTypesEventsUpdate(AdminEntryTypeEventUpdate),
 	AdminPermissionGroupsUpdate(AdminPermissionGroupUpdate),
-	AdminUserUpdate(UserData),
+	AdminUserUpdate(SelfUserData),
 	AdminEventEditorsUpdate(AdminEventEditorUpdate),
 	AdminUserPermissionGroupsUpdate(AdminUserPermissionGroupUpdate),
 	AdminEventLogTabsUpdate(AdminEventLogTabsUpdate),

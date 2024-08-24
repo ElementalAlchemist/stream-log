@@ -9,22 +9,22 @@ use super::event_log::{EventLogEntry, EventLogTab};
 use super::events::Event;
 use super::info_pages::InfoPage;
 use super::tags::Tag;
-use super::user::UserData;
+use super::user::PublicUserData;
 use serde::{Deserialize, Serialize};
 
 /// Event subscription data sent by the server to subscribed clients with information about what changes were made.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum EventSubscriptionData {
 	UpdateEvent,
-	NewLogEntry(EventLogEntry, UserData),
+	NewLogEntry(EventLogEntry, PublicUserData),
 	DeleteLogEntry(EventLogEntry),
-	UpdateLogEntry(EventLogEntry, Option<UserData>),
+	UpdateLogEntry(EventLogEntry, Option<PublicUserData>),
 	Typing(TypingData),
 	AddEntryType(EntryType),
 	UpdateEntryType(EntryType),
 	DeleteEntryType(EntryType),
-	AddEditor(UserData),
-	RemoveEditor(UserData),
+	AddEditor(PublicUserData),
+	RemoveEditor(PublicUserData),
 	UpdateInfoPage(InfoPage),
 	DeleteInfoPage(InfoPage),
 	UpdateTab(EventLogTab),
@@ -37,15 +37,15 @@ pub enum EventSubscriptionData {
 /// data by other users.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum TypingData {
-	Parent(Option<EventLogEntry>, String, UserData),
-	StartTime(Option<EventLogEntry>, String, UserData),
-	EndTime(Option<EventLogEntry>, String, UserData),
-	EntryType(Option<EventLogEntry>, String, UserData),
-	Description(Option<EventLogEntry>, String, UserData),
-	MediaLinks(Option<EventLogEntry>, String, UserData),
-	SubmitterWinner(Option<EventLogEntry>, String, UserData),
-	NotesToEditor(Option<EventLogEntry>, String, UserData),
-	Clear(Option<EventLogEntry>, UserData),
+	Parent(Option<EventLogEntry>, String, PublicUserData),
+	StartTime(Option<EventLogEntry>, String, PublicUserData),
+	EndTime(Option<EventLogEntry>, String, PublicUserData),
+	EntryType(Option<EventLogEntry>, String, PublicUserData),
+	Description(Option<EventLogEntry>, String, PublicUserData),
+	MediaLinks(Option<EventLogEntry>, String, PublicUserData),
+	SubmitterWinner(Option<EventLogEntry>, String, PublicUserData),
+	NotesToEditor(Option<EventLogEntry>, String, PublicUserData),
+	Clear(Option<EventLogEntry>, PublicUserData),
 }
 
 /// Event subscription update sent by the client to the server.
