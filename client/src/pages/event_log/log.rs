@@ -221,12 +221,35 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 			let mut entries_by_tab: HashMap<String, Vec<EventLogEntry>> = HashMap::new();
 			let mut current_tab: Option<&EventLogTab> = None;
 
+			let add_entry_to_tab = |entries_by_tab: &mut HashMap<String, Vec<EventLogEntry>>,
+			                        tab_id: String,
+			                        entry: EventLogEntry,
+			                        entries_by_parent: &HashMap<String, Vec<EventLogEntry>>| {
+				let entry_id = entry.id.clone();
+				let tab_entry = entries_by_tab.entry(tab_id).or_default();
+				tab_entry.push(entry);
+				let mut remaining_child_entries: Vec<EventLogEntry> = entries_by_parent
+					.get(&entry_id)
+					.as_ref()
+					.map(|entries| entries.iter().rev().cloned().collect())
+					.unwrap_or_default();
+				while let Some(entry) = remaining_child_entries.pop() {
+					let entry_id = entry.id.clone();
+					tab_entry.push(entry);
+					if let Some(child_entries) = entries_by_parent.get(&entry_id) {
+						for child_entry in child_entries.iter().rev() {
+							remaining_child_entries.push(child_entry.clone());
+						}
+					}
+				}
+			};
+
 			loop {
 				match (next_entry, next_tab) {
 					(Some(entry), Some(tab)) => {
 						if entry.start_time < tab.start_time {
 							let tab_id = current_tab.as_ref().map(|tab| tab.id.clone()).unwrap_or_default();
-							entries_by_tab.entry(tab_id).or_default().push(entry.clone());
+							add_entry_to_tab(&mut entries_by_tab, tab_id, entry.clone(), &entries_by_parent);
 							next_entry = entries_iter.next();
 						} else {
 							current_tab = next_tab;
@@ -235,7 +258,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 					}
 					(Some(entry), None) => {
 						let tab_id = current_tab.as_ref().map(|tab| tab.id.clone()).unwrap_or_default();
-						entries_by_tab.entry(tab_id).or_default().push(entry.clone());
+						add_entry_to_tab(&mut entries_by_tab, tab_id, entry.clone(), &entries_by_parent);
 						next_entry = entries_iter.next();
 					}
 					(None, _) => break,
@@ -250,7 +273,9 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		let selected_tab = selected_tab.get();
 		let tab_id = (*selected_tab).as_ref().map(|tab| tab.id.as_str()).unwrap_or("");
 		let entries = log_entries_by_tab.get().get(tab_id).cloned().unwrap_or_default();
-		entries
+		let top_level_entries: Vec<EventLogEntry> =
+			entries.into_iter().filter(|entry| entry.parent.is_none()).collect();
+		top_level_entries
 	});
 
 	let tabs_by_entry_id = create_memo(ctx, move || {
