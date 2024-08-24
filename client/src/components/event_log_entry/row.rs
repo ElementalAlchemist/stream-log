@@ -410,11 +410,8 @@ pub fn EventLogEntryRow<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryRowProp
 							ctx,
 							div(class="log_entry_video_processing_state") {
 								({
-									let video_processing_state = (*props.entry.get()).as_ref().and_then(|entry| entry.video_processing_state);
-									match video_processing_state {
-										Some(state) => format!("{}", state),
-										None => String::new()
-									}
+									let video_processing_state = (*props.entry.get()).as_ref().map(|entry| entry.video_processing_state).unwrap_or_default();
+									format!("{}", video_processing_state)
 								})
 							}
 							div(class="log_entry_video_errors") {

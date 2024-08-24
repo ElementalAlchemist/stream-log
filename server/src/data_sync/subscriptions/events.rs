@@ -9,7 +9,7 @@ use crate::data_sync::{HandleConnectionError, SubscriptionManager};
 use crate::models::{
 	AvailableEntryType, EditSource, EntryType as EntryTypeDb, Event as EventDb, EventLogEntry as EventLogEntryDb,
 	EventLogEntryChanges, EventLogHistoryEntry, EventLogHistoryTag, EventLogTab as EventLogTabDb, EventLogTag,
-	InfoPage as InfoPageDb, Permission, PermissionEvent, Tag as TagDb, User,
+	InfoPage as InfoPageDb, Permission, PermissionEvent, Tag as TagDb, User, VideoProcessingState,
 };
 use crate::schema::{
 	available_entry_types_for_event, entry_types, event_editors, event_log, event_log_history, event_log_history_tags,
@@ -478,7 +478,7 @@ pub async fn subscribe_to_event(
 			parent: log_entry.parent.clone(),
 			created_at: log_entry.created_at,
 			manual_sort_key: log_entry.manual_sort_key,
-			video_processing_state: log_entry.video_processing_state.map(|state| state.into()),
+			video_processing_state: log_entry.video_processing_state.into(),
 			video_errors: log_entry.video_errors.clone(),
 			poster_moment: log_entry.poster_moment,
 			video_edit_state: log_entry.video_edit_state.into(),
@@ -570,7 +570,7 @@ pub async fn handle_event_update(
 					deleted_by: None,
 					created_at: create_time,
 					manual_sort_key: log_entry_data.manual_sort_key,
-					video_processing_state: None,
+					video_processing_state: VideoProcessingState::default(),
 					video_errors: String::new(),
 					poster_moment: false,
 					video_edit_state: log_entry_data.video_edit_state.into(),
@@ -683,7 +683,7 @@ pub async fn handle_event_update(
 							parent: entry.parent,
 							created_at: entry.created_at,
 							manual_sort_key: entry.manual_sort_key,
-							video_processing_state: entry.video_processing_state.map(|state| state.into()),
+							video_processing_state: entry.video_processing_state.into(),
 							video_errors: entry.video_errors,
 							poster_moment: entry.poster_moment,
 							marked_incomplete: entry.marked_incomplete,
@@ -1034,9 +1034,7 @@ pub async fn handle_event_update(
 						parent: log_entry.parent.clone(),
 						created_at: log_entry.created_at,
 						manual_sort_key: log_entry.manual_sort_key,
-						video_processing_state: log_entry
-							.video_processing_state
-							.map(|video_processing_state| video_processing_state.into()),
+						video_processing_state: log_entry.video_processing_state.into(),
 						video_errors: log_entry.video_errors.clone(),
 						poster_moment: log_entry.poster_moment,
 						video_edit_state: log_entry.video_edit_state.into(),
@@ -1195,7 +1193,7 @@ fn log_entry_change(
 			parent: log_entry.parent,
 			created_at: log_entry.created_at,
 			manual_sort_key: log_entry.manual_sort_key,
-			video_processing_state: log_entry.video_processing_state.map(|state| state.into()),
+			video_processing_state: log_entry.video_processing_state.into(),
 			video_errors: log_entry.video_errors,
 			poster_moment: log_entry.poster_moment,
 			video_edit_state: log_entry.video_edit_state.into(),

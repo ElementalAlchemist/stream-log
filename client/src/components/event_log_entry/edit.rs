@@ -13,7 +13,9 @@ use futures::lock::Mutex;
 use gloo_net::websocket::Message;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use stream_log_shared::messages::entry_types::EntryType;
-use stream_log_shared::messages::event_log::{EndTimeData, EventLogEntry, EventLogTab, VideoEditState};
+use stream_log_shared::messages::event_log::{
+	EndTimeData, EventLogEntry, EventLogTab, VideoEditState, VideoProcessingState,
+};
 use stream_log_shared::messages::event_subscription::{
 	EventSubscriptionUpdate, ModifiedEventLogEntryParts, NewTypingData,
 };
@@ -1066,7 +1068,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 					.map(|entry| entry.id.clone()),
 				created_at: Utc::now(),
 				manual_sort_key: *manual_sort_key.get(),
-				video_processing_state: None,
+				video_processing_state: VideoProcessingState::default(),
 				video_errors: String::new(),
 				poster_moment: *poster_moment.get(),
 				video_edit_state: *video_edit_state.get(),

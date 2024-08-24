@@ -55,7 +55,7 @@ pub struct EventLogEntry {
 	/// The currently selected edit state for the video. This state is determined by user entry.
 	pub video_edit_state: VideoEditState,
 	/// The current state of the video processing for the entry, if set
-	pub video_processing_state: Option<VideoProcessingState>,
+	pub video_processing_state: VideoProcessingState,
 	/// Video errors for this entry; if empty, no video errors are set for this entry
 	pub video_errors: String,
 	/// Whether this entry is marked as a poster moment

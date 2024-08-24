@@ -41,7 +41,7 @@ pub struct EventSubscriptionSignals {
 	pub typing_events: RcSignal<Vec<TypingEvent>>,
 	_typing_expire_interval: Rc<Interval>,
 	pub video_edit_state_filters: RcSignal<HashSet<VideoEditState>>,
-	pub video_processing_state_filters: RcSignal<HashSet<Option<VideoProcessingState>>>,
+	pub video_processing_state_filters: RcSignal<HashSet<VideoProcessingState>>,
 }
 
 impl EventSubscriptionSignals {

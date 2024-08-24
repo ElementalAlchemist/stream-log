@@ -339,17 +339,11 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		}
 	});
 
-	let mut all_video_processing_states = vec![None];
-	for video_processing_state in VideoProcessingState::all_states() {
-		all_video_processing_states.push(Some(video_processing_state));
-	}
+	let all_video_processing_states = VideoProcessingState::all_states();
 	let all_video_processing_state_filters: Vec<(String, &Signal<bool>)> = all_video_processing_states
 		.into_iter()
 		.map(|processing_state| {
-			let state_name = match processing_state {
-				Some(state) => format!("{}", state),
-				None => String::from("(empty)"),
-			};
+			let state_name = format!("{}", processing_state);
 			let active_signal = create_signal(ctx, video_processing_state_filters.get().contains(&processing_state));
 
 			create_effect(ctx, {

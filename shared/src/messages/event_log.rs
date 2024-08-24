@@ -35,7 +35,7 @@ pub struct EventLogEntry {
 	pub parent: Option<String>,
 	pub created_at: DateTime<Utc>,
 	pub manual_sort_key: Option<i32>,
-	pub video_processing_state: Option<VideoProcessingState>,
+	pub video_processing_state: VideoProcessingState,
 	pub video_errors: String,
 	pub poster_moment: bool,
 	pub video_edit_state: VideoEditState,
@@ -73,6 +73,12 @@ impl VideoProcessingState {
 			Self::Modified,
 			Self::Unlisted,
 		]
+	}
+}
+
+impl Default for VideoProcessingState {
+	fn default() -> Self {
+		Self::Unedited
 	}
 }
 

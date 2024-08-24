@@ -113,6 +113,12 @@ pub enum VideoProcessingState {
 	Unlisted,
 }
 
+impl Default for VideoProcessingState {
+	fn default() -> Self {
+		Self::Unedited
+	}
+}
+
 impl From<VideoProcessingStateWs> for VideoProcessingState {
 	fn from(value: VideoProcessingStateWs) -> Self {
 		match value {
@@ -433,8 +439,6 @@ pub struct EventLogEntry {
 	/// An arbitrary number used to sort entries with the same start time. Entries with numbers sort first in numerical
 	/// order, followed by entries with no entered sort key.
 	pub manual_sort_key: Option<i32>,
-	/// The video processing state for the entry
-	pub video_processing_state: Option<VideoProcessingState>,
 	/// A human-readable description of errors that occurred with the video
 	pub video_errors: String,
 	/// Whether the entry has been marked as a poster moment
@@ -448,6 +452,8 @@ pub struct EventLogEntry {
 	pub media_links: Vec<Option<String>>,
 	/// Whether the end time is yet to be entered
 	pub end_time_incomplete: bool,
+	/// The video processing state for the entry
+	pub video_processing_state: VideoProcessingState,
 }
 
 impl EventLogEntry {
@@ -587,13 +593,13 @@ pub struct EventLogHistoryEntry {
 	pub deleted_by: Option<String>,
 	pub created_at: DateTime<Utc>,
 	pub manual_sort_key: Option<i32>,
-	pub video_processing_state: Option<VideoProcessingState>,
 	pub video_errors: String,
 	pub poster_moment: bool,
 	pub video_edit_state: VideoEditState,
 	pub marked_incomplete: bool,
 	pub media_links: Vec<Option<String>>,
 	pub end_time_incomplete: bool,
+	pub video_processing_state: VideoProcessingState,
 }
 
 /// The source of an edit

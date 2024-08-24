@@ -53,8 +53,8 @@ diesel::table! {
 
 diesel::table! {
 	use diesel::sql_types::*;
-	use super::sql_types::VideoProcessingState;
 	use super::sql_types::VideoEditState;
+	use super::sql_types::VideoProcessingState;
 
 	event_log (id) {
 		id -> Text,
@@ -71,20 +71,20 @@ diesel::table! {
 		deleted_by -> Nullable<Text>,
 		created_at -> Timestamptz,
 		manual_sort_key -> Nullable<Int4>,
-		video_processing_state -> Nullable<VideoProcessingState>,
 		video_errors -> Text,
 		poster_moment -> Bool,
 		video_edit_state -> VideoEditState,
 		marked_incomplete -> Bool,
 		media_links -> Array<Nullable<Text>>,
 		end_time_incomplete -> Bool,
+		video_processing_state -> VideoProcessingState,
 	}
 }
 
 diesel::table! {
 	use diesel::sql_types::*;
-	use super::sql_types::VideoProcessingState;
 	use super::sql_types::VideoEditState;
+	use super::sql_types::VideoProcessingState;
 
 	event_log_history (id) {
 		id -> Text,
@@ -104,13 +104,13 @@ diesel::table! {
 		deleted_by -> Nullable<Text>,
 		created_at -> Timestamptz,
 		manual_sort_key -> Nullable<Int4>,
-		video_processing_state -> Nullable<VideoProcessingState>,
 		video_errors -> Text,
 		poster_moment -> Bool,
 		video_edit_state -> VideoEditState,
 		marked_incomplete -> Bool,
 		media_links -> Array<Nullable<Text>>,
 		end_time_incomplete -> Bool,
+		video_processing_state -> VideoProcessingState,
 	}
 }
 
