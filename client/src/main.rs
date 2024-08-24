@@ -15,7 +15,6 @@ use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use sycamore::suspense::Suspense;
 use sycamore_router::{HistoryIntegration, Route, Router};
-use websocket::websocket_endpoint;
 
 mod color_utils;
 mod components;
@@ -47,7 +46,7 @@ use pages::register_complete::RegistrationCompleteView;
 use pages::user_profile::UserProfileView;
 use subscriptions::manager::SubscriptionManager;
 use subscriptions::{initial_events_sort, process_messages, DataSignals};
-use websocket::{read_websocket, WebSocketSendStream};
+use websocket::{read_websocket, websocket_endpoint, WebSocketSendStream};
 
 #[derive(Debug, Route)]
 enum AppRoutes {
