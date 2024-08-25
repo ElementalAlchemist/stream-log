@@ -127,6 +127,8 @@ pub fn EventLogEntryRow<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryRowProp
 		}
 	});
 
+	let is_secure_context = window().map(|window| window.is_secure_context()).unwrap_or(false);
+
 	let row_is_visible = create_memo(ctx, {
 		let video_edit_state_filters = props.event_subscription_data.video_edit_state_filters.clone();
 		let video_processing_state_filters = props.event_subscription_data.video_processing_state_filters.clone();
@@ -368,11 +370,34 @@ pub fn EventLogEntryRow<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryRowProp
 							let video_link = (*props.entry.get()).as_ref().and_then(|entry| entry.video_link.clone());
 							if let Some(link) = video_link.as_ref() {
 								let link = link.clone();
+								let copy_link = link.clone();
 								view! {
 									ctx,
 									a(href=link, target="_blank", rel="noopener") {
 										img(src="/images/youtube.png", alt="Video", title="Open video")
 									}
+									(if is_secure_context {
+										let video_copy_click_handler = {
+											let copy_link = copy_link.clone();
+											move |_event: WebEvent| {
+												let clipboard = if let Some(window) = window() {
+													window.navigator().clipboard()
+												} else {
+													return;
+												};
+												// The JS Promise will handle itself, and we don't need to handle it here
+												let _ = clipboard.write_text(&copy_link);
+											}
+										};
+										view! {
+											ctx,
+											a(class="click", on:click=video_copy_click_handler) {
+												img(src="/images/copy.png", alt="Copy Video Link", title="Copy link")
+											}
+										}
+									} else {
+										view! { ctx, }
+									})
 								}
 							} else {
 								view! { ctx, }
