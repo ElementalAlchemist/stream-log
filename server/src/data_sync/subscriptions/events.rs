@@ -4,6 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use super::send_lost_db_connection_subscription_response;
 use crate::data_sync::connection::ConnectionUpdate;
 use crate::data_sync::{HandleConnectionError, SubscriptionManager};
 use crate::models::{
@@ -18,8 +19,8 @@ use crate::schema::{
 use async_std::channel::Sender;
 use async_std::sync::{Arc, Mutex};
 use chrono::prelude::*;
-use diesel::pg::PgConnection;
 use diesel::prelude::*;
+use diesel::r2d2::{ConnectionManager, Pool};
 use std::collections::{HashMap, HashSet};
 use stream_log_shared::messages::entry_types::EntryType;
 use stream_log_shared::messages::event_log::{EndTimeData, EventLogEntry, EventLogTab};
@@ -38,7 +39,7 @@ use stream_log_shared::messages::user::{PublicUserData, SelfUserData};
 use stream_log_shared::messages::{DataError, FromServerMessage};
 
 pub async fn subscribe_to_event(
-	db_connection: Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
 	connection_id: &str,
 	user: &SelfUserData,
@@ -46,7 +47,18 @@ pub async fn subscribe_to_event(
 	event_id: &str,
 	event_permission_cache: &mut HashMap<Event, Option<Permission>>,
 ) -> Result<(), HandleConnectionError> {
-	let mut db_connection = db_connection.lock().await;
+	let mut db_connection = match db_connection_pool.get() {
+		Ok(connection) => connection,
+		Err(error) => {
+			send_lost_db_connection_subscription_response(
+				error,
+				&conn_update_tx,
+				SubscriptionType::EventLogData(event_id.to_string()),
+			)
+			.await?;
+			return Ok(());
+		}
+	};
 	let mut event: Vec<EventDb> = match events::table.filter(events::id.eq(event_id)).load(&mut *db_connection) {
 		Ok(ev) => ev,
 		Err(error) => {
@@ -507,7 +519,7 @@ pub async fn subscribe_to_event(
 }
 
 pub async fn handle_event_update(
-	db_connection: Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	event: &Event,
 	user: &SelfUserData,
@@ -606,7 +618,13 @@ pub async fn handle_event_update(
 					})
 					.collect();
 
-				let mut db_connection = db_connection.lock().await;
+				let mut db_connection = match db_connection_pool.get() {
+					Ok(connection) => connection,
+					Err(error) => {
+						tide::log::error!("Database connection error adding an event log entry: {}", error);
+						return Ok(());
+					}
+				};
 				let insert_result: QueryResult<(EventLogEntryDb, Vec<TagDb>, Option<User>)> = db_connection
 					.transaction(|db_connection| {
 						let matching_entry_types: Vec<AvailableEntryType> = available_entry_types_for_event::table
@@ -705,7 +723,13 @@ pub async fn handle_event_update(
 				return Ok(());
 			}
 
-			let mut db_connection = db_connection.lock().await;
+			let mut db_connection = match db_connection_pool.get() {
+				Ok(connection) => connection,
+				Err(error) => {
+					tide::log::error!("Database connection error deleting an event log entry: {}", error);
+					return Ok(());
+				}
+			};
 			let delete_result: QueryResult<()> = db_connection.transaction(|db_connection| {
 				let deleted_entry: EventLogEntryDb = diesel::update(event_log::table)
 					.filter(
@@ -746,7 +770,13 @@ pub async fn handle_event_update(
 			vec![EventSubscriptionData::DeleteLogEntry(deleted_log_entry)]
 		}
 		EventSubscriptionUpdate::UpdateLogEntry(log_entry, modified_parts) => {
-			let mut db_connection = db_connection.lock().await;
+			let mut db_connection = match db_connection_pool.get() {
+				Ok(connection) => connection,
+				Err(error) => {
+					tide::log::error!("Database connection error updating a log entry: {}", error);
+					return Ok(());
+				}
+			};
 			let update_func = |db_connection: &mut PgConnection| {
 				let mut changes = EventLogEntryChanges::default();
 				for part in modified_parts.iter() {
@@ -831,7 +861,7 @@ pub async fn handle_event_update(
 			let log_entry = match update_result {
 				Ok(entry) => entry,
 				Err(error) => {
-					tide::log::error!("Database error updating log entry: {}", error);
+					tide::log::error!("Database error updating a log entry: {}", error);
 					return Ok(());
 				}
 			};
@@ -889,7 +919,13 @@ pub async fn handle_event_update(
 					(None, None, None)
 				};
 
-			let mut db_connection = db_connection.lock().await;
+			let mut db_connection = match db_connection_pool.get() {
+				Ok(connection) => connection,
+				Err(error) => {
+					tide::log::error!("Database connection error updating a tag: {}", error);
+					return Ok(());
+				}
+			};
 			let tag_db = TagDb {
 				id: tag.id.clone(),
 				tag: tag.name.clone(),
@@ -933,7 +969,13 @@ pub async fn handle_event_update(
 			if *permission_level != Some(Permission::Supervisor) {
 				return Ok(());
 			}
-			let mut db_connection = db_connection.lock().await;
+			let mut db_connection = match db_connection_pool.get() {
+				Ok(connection) => connection,
+				Err(error) => {
+					tide::log::error!("Database connection error removing a tag: {}", error);
+					return Ok(());
+				}
+			};
 			let delete_result: QueryResult<bool> = db_connection.transaction(|db_connection| {
 				let this_tag: TagDb = tags::table.find(&tag.id).first(db_connection)?;
 				if this_tag.for_event != event.id {
@@ -960,7 +1002,13 @@ pub async fn handle_event_update(
 			if *permission_level != Some(Permission::Supervisor) {
 				return Ok(());
 			}
-			let mut db_connection = db_connection.lock().await;
+			let mut db_connection = match db_connection_pool.get() {
+				Ok(connection) => connection,
+				Err(error) => {
+					tide::log::error!("Database connection error replacing a tag: {}", error);
+					return Ok(());
+				}
+			};
 			let replace_result: QueryResult<(bool, Vec<EventLogEntry>)> = db_connection.transaction(|db_connection| {
 				let original_tag: TagDb = tags::table.find(&tag.id).first(db_connection)?;
 				let replacement: TagDb = tags::table.find(&replacement_tag.id).first(db_connection)?;
@@ -1069,7 +1117,13 @@ pub async fn handle_event_update(
 				return Ok(());
 			}
 
-			let mut db_connection = db_connection.lock().await;
+			let mut db_connection = match db_connection_pool.get() {
+				Ok(connection) => connection,
+				Err(error) => {
+					tide::log::error!("Database connection error copying event tags: {}", error);
+					return Ok(());
+				}
+			};
 			let added_tags: QueryResult<Vec<TagDb>> = db_connection.transaction(|db_connection| {
 				let event_tags: Vec<TagDb> = tags::table
 					.filter(tags::for_event.eq(copy_from_event.id).and(tags::deleted.eq(false)))

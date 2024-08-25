@@ -11,15 +11,16 @@ use super::structures::event_log_tab::EventLogTab;
 use super::structures::tag::{Tag as TagApi, TagPlaylist};
 use super::structures::user::User as UserApi;
 use super::utils::check_application;
+use crate::database::handle_lost_db_connection;
 use crate::models::{
 	EntryType as EntryTypeDb, Event as EventDb, EventLogEntry as EventLogEntryDb, EventLogTab as EventLogTabDb,
 	EventLogTag, Tag as TagDb, User as UserDb,
 };
 use crate::schema::{entry_types, event_log, event_log_history, event_log_tabs, event_log_tags, events, tags, users};
-use async_std::sync::{Arc, Mutex};
 use chrono::{DateTime, Utc};
 use diesel::dsl::max;
 use diesel::prelude::*;
+use diesel::r2d2::{ConnectionManager, Pool};
 use http_types::mime;
 use serde::Deserialize;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -36,10 +37,16 @@ struct QueryParams {
 /// [EventLogResponse] object. If the `since` query argument is passed with an ISO 8601 timestamp, only
 /// entries last updated on or after that timestamp are included in the list. The timestamp provided in the response
 /// may be used in subsequent queries to get exactly all of the changes made since the response was generated.
-pub async fn event_log_list(request: Request<()>, db_connection: Arc<Mutex<PgConnection>>) -> tide::Result {
+pub async fn event_log_list(
+	request: Request<()>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
+) -> tide::Result {
 	let query_params: QueryParams = request.query()?;
 
-	let mut db_connection = db_connection.lock().await;
+	let mut db_connection = match db_connection_pool.get() {
+		Ok(connection) => connection,
+		Err(error) => return handle_lost_db_connection(error),
+	};
 	let application = check_application(&request, &mut db_connection).await?;
 	if !application.read_log {
 		return Err(tide::Error::new(

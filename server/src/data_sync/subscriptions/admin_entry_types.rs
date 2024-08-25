@@ -4,12 +4,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use super::send_lost_db_connection_subscription_response;
 use crate::data_sync::{ConnectionUpdate, HandleConnectionError, SubscriptionManager};
 use crate::models::{AvailableEntryType, EntryType as EntryTypeDb, Event as EventDb};
 use crate::schema::{available_entry_types_for_event, entry_types, events};
 use async_std::channel::Sender;
 use async_std::sync::{Arc, Mutex};
 use diesel::prelude::*;
+use diesel::r2d2::{ConnectionManager, Pool};
 use std::collections::HashMap;
 use stream_log_shared::messages::admin::{
 	AdminEntryTypeData, AdminEntryTypeEventData, AdminEntryTypeEventUpdate, AdminEntryTypeUpdate,
@@ -25,7 +27,7 @@ use stream_log_shared::messages::user::SelfUserData;
 use stream_log_shared::messages::{DataError, FromServerMessage};
 
 pub async fn subscribe_to_admin_entry_types(
-	db_connection: Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
 	connection_id: &str,
 	user: &SelfUserData,
@@ -42,7 +44,14 @@ pub async fn subscribe_to_admin_entry_types(
 		return Ok(());
 	}
 
-	let mut db_connection = db_connection.lock().await;
+	let mut db_connection = match db_connection_pool.get() {
+		Ok(connection) => connection,
+		Err(error) => {
+			send_lost_db_connection_subscription_response(error, &conn_update_tx, SubscriptionType::AdminEntryTypes)
+				.await?;
+			return Ok(());
+		}
+	};
 	let entry_types: QueryResult<Vec<EntryTypeDb>> = entry_types::table.load(&mut *db_connection);
 
 	let entry_types: Vec<EntryType> = match entry_types {
@@ -78,7 +87,7 @@ pub async fn subscribe_to_admin_entry_types(
 }
 
 pub async fn handle_admin_entry_type_message(
-	db_connection: Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	connection_id: &str,
 	user: &SelfUserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
@@ -99,7 +108,13 @@ pub async fn handle_admin_entry_type_message(
 	match update_message {
 		AdminEntryTypeUpdate::UpdateEntryType(mut entry_type) => {
 			let (update_result, event_data_result) = {
-				let mut db_connection = db_connection.lock().await;
+				let mut db_connection = match db_connection_pool.get() {
+					Ok(connection) => connection,
+					Err(error) => {
+						tide::log::error!("A database connection error occurred updating an entry type: {}", error);
+						return;
+					}
+				};
 				let update_result = if entry_type.id.is_empty() {
 					entry_type.id = cuid2::create_id();
 					let db_entry_type = EntryTypeDb {
@@ -186,7 +201,7 @@ pub async fn handle_admin_entry_type_message(
 }
 
 pub async fn subscribe_to_admin_entry_types_events(
-	db_connection: Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
 	connection_id: &str,
 	user: &SelfUserData,
@@ -203,7 +218,18 @@ pub async fn subscribe_to_admin_entry_types_events(
 		return Ok(());
 	}
 
-	let mut db_connection = db_connection.lock().await;
+	let mut db_connection = match db_connection_pool.get() {
+		Ok(connection) => connection,
+		Err(error) => {
+			send_lost_db_connection_subscription_response(
+				error,
+				&conn_update_tx,
+				SubscriptionType::AdminEntryTypesEvents,
+			)
+			.await?;
+			return Ok(());
+		}
+	};
 	let entry_type_events: QueryResult<Vec<AvailableEntryType>> =
 		available_entry_types_for_event::table.load(&mut *db_connection);
 	let entry_type_events = match entry_type_events {
@@ -304,7 +330,7 @@ pub async fn subscribe_to_admin_entry_types_events(
 }
 
 pub async fn handle_admin_entry_type_event_message(
-	db_connection: Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	connection_id: &str,
 	user: &SelfUserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
@@ -324,7 +350,16 @@ pub async fn handle_admin_entry_type_event_message(
 
 	let (admin_message, event_id, event_message) = match update_message {
 		AdminEntryTypeEventUpdate::AddTypeToEvent(association) => {
-			let mut db_connection = db_connection.lock().await;
+			let mut db_connection = match db_connection_pool.get() {
+				Ok(connection) => connection,
+				Err(error) => {
+					tide::log::error!(
+						"A database connection error occurred adding event type + entry association: {}",
+						error
+					);
+					return;
+				}
+			};
 			let available_entry_type = AvailableEntryType {
 				entry_type: association.entry_type.id.clone(),
 				event_id: association.event.id.clone(),
@@ -351,7 +386,16 @@ pub async fn handle_admin_entry_type_event_message(
 			(admin_message, event_id, event_message)
 		}
 		AdminEntryTypeEventUpdate::RemoveTypeFromEvent(association) => {
-			let mut db_connection = db_connection.lock().await;
+			let mut db_connection = match db_connection_pool.get() {
+				Ok(connection) => connection,
+				Err(error) => {
+					tide::log::error!(
+						"A database connection error occurred deleting event type + entry association: {}",
+						error
+					);
+					return;
+				}
+			};
 			let delete_result = diesel::delete(available_entry_types_for_event::table)
 				.filter(
 					available_entry_types_for_event::entry_type

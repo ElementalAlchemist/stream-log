@@ -13,8 +13,8 @@ mod user_profile;
 
 pub use subscription_manager::SubscriptionManager;
 
-use crate::data_sync::connection::ConnectionUpdate;
 use async_std::channel::SendError;
+use connection::ConnectionUpdate;
 use user::UserDataUpdate;
 
 pub enum HandleConnectionError {

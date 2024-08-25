@@ -52,8 +52,8 @@ async fn main() -> miette::Result<()> {
 
 	let config = Arc::new(parse_config(&args.config).await?);
 
-	let mut db_connection = connect_db(&config)?;
-	run_embedded_migrations(&mut db_connection)?;
+	let db_connection_pool = connect_db(&config)?;
+	run_embedded_migrations(&db_connection_pool)?;
 
 	if args.migrations_only {
 		return Ok(());
@@ -61,14 +61,13 @@ async fn main() -> miette::Result<()> {
 
 	tide::log::start();
 
-	let db_connection = Arc::new(Mutex::new(db_connection));
 	let subscription_manager = Arc::new(Mutex::new(SubscriptionManager::new()));
 
 	let mut app = tide::new();
 
 	let session_middleware = {
 		let session_secret = fs::read(&config.session_secret_key_file).await.into_diagnostic()?;
-		SessionMiddleware::new(DatabaseSessionStore::new(Arc::clone(&db_connection)), &session_secret)
+		SessionMiddleware::new(DatabaseSessionStore::new(db_connection_pool.clone()), &session_secret)
 			.with_same_site_policy(SameSite::Lax)
 	};
 	app.with(session_middleware);
@@ -82,14 +81,14 @@ async fn main() -> miette::Result<()> {
 	};
 	app.with(OpenIdConnectMiddleware::new(&openid_config).await);
 
-	api::add_routes(&mut app, Arc::clone(&db_connection), Arc::clone(&subscription_manager))?;
+	api::add_routes(&mut app, db_connection_pool.clone(), Arc::clone(&subscription_manager))?;
 
 	app.at("/ws").authenticated().get(WebSocket::new({
 		let subscription_manager = Arc::clone(&subscription_manager);
 		move |request, stream| {
-			let db_connection = Arc::clone(&db_connection);
+			let db_connection_pool = db_connection_pool.clone();
 			let subscription_manager = Arc::clone(&subscription_manager);
-			async move { handle_connection(db_connection, request, stream, subscription_manager).await }
+			async move { handle_connection(db_connection_pool.clone(), request, stream, subscription_manager).await }
 		}
 	}));
 

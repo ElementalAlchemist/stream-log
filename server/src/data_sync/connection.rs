@@ -23,13 +23,14 @@ use super::subscriptions::events::{handle_event_update, subscribe_to_event};
 use super::user_profile::handle_profile_update;
 use super::HandleConnectionError;
 use crate::data_sync::{SubscriptionManager, UserDataUpdate};
+use crate::database::handle_lost_db_connection;
 use crate::models::{Event as EventDb, Permission, PermissionEvent, User};
 use crate::schema::{events, permission_events, user_permissions, users};
 use crate::websocket_msg::{recv_msg, WebSocketRecvError};
 use async_std::channel::{unbounded, Receiver, RecvError, Sender};
 use async_std::sync::{Arc, Mutex};
-use diesel::pg::PgConnection;
 use diesel::prelude::*;
+use diesel::r2d2::{ConnectionManager, Pool};
 use erased_serde::Serialize;
 use futures::{select, FutureExt};
 use rgb::RGB8;
@@ -51,7 +52,7 @@ pub enum ConnectionUpdate {
 
 /// Runs the WebSocket connection with the user
 pub async fn handle_connection(
-	db_connection: Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	request: Request<()>,
 	mut stream: WebSocketConnection,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
@@ -62,10 +63,13 @@ pub async fn handle_connection(
 		return Ok(());
 	};
 
-	let mut db_conn = db_connection.lock().await;
+	let mut db_connection = match db_connection_pool.get() {
+		Ok(connection) => connection,
+		Err(error) => return handle_lost_db_connection(error).map(|_| ()),
+	};
 	let results: QueryResult<Vec<User>> = users::table
 		.filter(users::openid_user_id.eq(&openid_user_id))
-		.load(&mut *db_conn);
+		.load(&mut *db_connection);
 
 	let user = match results {
 		Ok(mut users) => {
@@ -109,7 +113,7 @@ pub async fn handle_connection(
 						.select(user_permissions::permission_group),
 				),
 			)
-			.load(&mut *db_conn);
+			.load(&mut *db_connection);
 		let permission_events = match permission_events {
 			Ok(permission_events) => permission_events,
 			Err(error) => {
@@ -123,7 +127,10 @@ pub async fn handle_connection(
 			.iter()
 			.map(|permission_event| permission_event.event.clone())
 			.collect();
-		let events: Vec<EventDb> = match events::table.filter(events::id.eq_any(&event_ids)).load(&mut *db_conn) {
+		let events: Vec<EventDb> = match events::table
+			.filter(events::id.eq_any(&event_ids))
+			.load(&mut *db_connection)
+		{
 			Ok(events) => events,
 			Err(error) => {
 				tide::log::error!("Failed to retrieve events from database: {}", error);
@@ -147,7 +154,7 @@ pub async fn handle_connection(
 		HashMap::new()
 	};
 
-	drop(db_conn);
+	drop(db_connection);
 
 	let initial_message = match user_data.as_ref() {
 		Some(user) => {
@@ -163,7 +170,7 @@ pub async fn handle_connection(
 	stream.send_json(&initial_message).await?;
 
 	let process_messages_result = process_messages(
-		Arc::clone(&db_connection),
+		db_connection_pool.clone(),
 		&mut stream,
 		user_data,
 		Arc::clone(&subscription_manager),
@@ -180,7 +187,7 @@ pub async fn handle_connection(
 
 /// Handles messages from a user throughout the connection
 async fn process_messages(
-	db_connection: Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	stream: &mut WebSocketConnection,
 	mut user: Option<SelfUserData>,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
@@ -199,7 +206,7 @@ async fn process_messages(
 
 	let result = loop {
 		let args = ProcessMessageParams {
-			db_connection: &db_connection,
+			db_connection_pool: db_connection_pool.clone(),
 			stream,
 			user: &mut user,
 			connection_id: &connection_id,
@@ -224,7 +231,7 @@ async fn process_messages(
 }
 
 struct ProcessMessageParams<'a> {
-	db_connection: &'a Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	stream: &'a mut WebSocketConnection,
 	user: &'a mut Option<SelfUserData>,
 	connection_id: &'a str,
@@ -242,7 +249,7 @@ async fn process_message(args: ProcessMessageParams<'_>) -> Result<(), HandleCon
 		select! {
 			conn_update_result = conn_update_future => process_connection_update(conn_update_result, args.user, args.event_permission_cache),
 			recv_msg_result = recv_msg_future => {
-				let incoming_msg_params = ProcessIncomingMessageParams { recv_msg_result, db_connection: args.db_connection, conn_update_tx: args.conn_update_tx, user: args.user, connection_id: args.connection_id, subscription_manager: args.subscription_manager, openid_user_id: args.openid_user_id, event_permission_cache: args.event_permission_cache };
+				let incoming_msg_params = ProcessIncomingMessageParams { recv_msg_result, db_connection_pool: args.db_connection_pool, conn_update_tx: args.conn_update_tx, user: args.user, connection_id: args.connection_id, subscription_manager: args.subscription_manager, openid_user_id: args.openid_user_id, event_permission_cache: args.event_permission_cache };
 				match process_incoming_message(incoming_msg_params).await {
 					Ok(_) => Ok(None),
 					Err(error) => Err(error)
@@ -299,7 +306,7 @@ fn process_connection_update(
 
 struct ProcessIncomingMessageParams<'a> {
 	recv_msg_result: Result<String, WebSocketRecvError>,
-	db_connection: &'a Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
 	user: &'a mut Option<SelfUserData>,
 	connection_id: &'a str,
@@ -334,7 +341,7 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 			match subscription_type {
 				SubscriptionType::EventLogData(event_id) => {
 					subscribe_to_event(
-						Arc::clone(args.db_connection),
+						args.db_connection_pool.clone(),
 						args.conn_update_tx,
 						args.connection_id,
 						user,
@@ -346,7 +353,7 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 				}
 				SubscriptionType::AdminUsers => {
 					subscribe_to_admin_users(
-						Arc::clone(args.db_connection),
+						args.db_connection_pool.clone(),
 						args.conn_update_tx,
 						args.connection_id,
 						user,
@@ -356,7 +363,7 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 				}
 				SubscriptionType::AdminEvents => {
 					subscribe_to_admin_events(
-						Arc::clone(args.db_connection),
+						args.db_connection_pool.clone(),
 						args.conn_update_tx,
 						args.connection_id,
 						user,
@@ -366,7 +373,7 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 				}
 				SubscriptionType::AdminPermissionGroups => {
 					subscribe_to_admin_permission_groups(
-						Arc::clone(args.db_connection),
+						args.db_connection_pool.clone(),
 						args.conn_update_tx,
 						args.connection_id,
 						user,
@@ -376,7 +383,7 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 				}
 				SubscriptionType::AdminPermissionGroupUsers => {
 					subscribe_to_admin_permission_groups_users(
-						Arc::clone(args.db_connection),
+						args.db_connection_pool.clone(),
 						args.conn_update_tx,
 						args.connection_id,
 						user,
@@ -386,7 +393,7 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 				}
 				SubscriptionType::AdminEntryTypes => {
 					subscribe_to_admin_entry_types(
-						Arc::clone(args.db_connection),
+						args.db_connection_pool.clone(),
 						args.conn_update_tx,
 						args.connection_id,
 						user,
@@ -396,7 +403,7 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 				}
 				SubscriptionType::AdminEntryTypesEvents => {
 					subscribe_to_admin_entry_types_events(
-						Arc::clone(args.db_connection),
+						args.db_connection_pool.clone(),
 						args.conn_update_tx,
 						args.connection_id,
 						user,
@@ -406,7 +413,7 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 				}
 				SubscriptionType::AdminEventEditors => {
 					subscribe_to_admin_editors(
-						Arc::clone(args.db_connection),
+						args.db_connection_pool.clone(),
 						args.conn_update_tx,
 						args.connection_id,
 						user,
@@ -416,7 +423,7 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 				}
 				SubscriptionType::AdminEventLogTabs => {
 					subscribe_to_admin_event_log_tabs(
-						Arc::clone(args.db_connection),
+						args.db_connection_pool.clone(),
 						args.conn_update_tx,
 						args.connection_id,
 						user,
@@ -426,7 +433,7 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 				}
 				SubscriptionType::AdminApplications => {
 					subscribe_to_admin_applications(
-						Arc::clone(args.db_connection),
+						args.db_connection_pool.clone(),
 						args.conn_update_tx,
 						args.connection_id,
 						user,
@@ -436,7 +443,7 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 				}
 				SubscriptionType::AdminInfoPages => {
 					subscribe_to_admin_info_pages(
-						Arc::clone(args.db_connection),
+						args.db_connection_pool.clone(),
 						args.conn_update_tx,
 						args.connection_id,
 						user,
@@ -513,7 +520,7 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 			match *subscription_update {
 				SubscriptionTargetUpdate::EventUpdate(event, update_data) => {
 					handle_event_update(
-						Arc::clone(args.db_connection),
+						args.db_connection_pool.clone(),
 						Arc::clone(args.subscription_manager),
 						&event,
 						user,
@@ -524,7 +531,7 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 				}
 				SubscriptionTargetUpdate::AdminEventsUpdate(update_data) => {
 					handle_admin_event_message(
-						Arc::clone(args.db_connection),
+						args.db_connection_pool.clone(),
 						args.connection_id,
 						user,
 						Arc::clone(args.subscription_manager),
@@ -534,7 +541,7 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 				}
 				SubscriptionTargetUpdate::AdminEntryTypesUpdate(update_data) => {
 					handle_admin_entry_type_message(
-						Arc::clone(args.db_connection),
+						args.db_connection_pool.clone(),
 						args.connection_id,
 						user,
 						Arc::clone(args.subscription_manager),
@@ -544,7 +551,7 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 				}
 				SubscriptionTargetUpdate::AdminEntryTypesEventsUpdate(update_data) => {
 					handle_admin_entry_type_event_message(
-						Arc::clone(args.db_connection),
+						args.db_connection_pool.clone(),
 						args.connection_id,
 						user,
 						Arc::clone(args.subscription_manager),
@@ -554,7 +561,7 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 				}
 				SubscriptionTargetUpdate::AdminPermissionGroupsUpdate(update_data) => {
 					handle_admin_permission_groups_message(
-						Arc::clone(args.db_connection),
+						args.db_connection_pool.clone(),
 						args.connection_id,
 						user,
 						Arc::clone(args.subscription_manager),
@@ -564,7 +571,7 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 				}
 				SubscriptionTargetUpdate::AdminUserUpdate(modified_user) => {
 					handle_admin_users_message(
-						Arc::clone(args.db_connection),
+						args.db_connection_pool.clone(),
 						args.connection_id,
 						user,
 						Arc::clone(args.subscription_manager),
@@ -574,7 +581,7 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 				}
 				SubscriptionTargetUpdate::AdminEventEditorsUpdate(update_data) => {
 					handle_admin_editors_message(
-						Arc::clone(args.db_connection),
+						args.db_connection_pool.clone(),
 						args.connection_id,
 						user,
 						Arc::clone(args.subscription_manager),
@@ -584,7 +591,7 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 				}
 				SubscriptionTargetUpdate::AdminUserPermissionGroupsUpdate(update_data) => {
 					handle_admin_permission_group_users_message(
-						Arc::clone(args.db_connection),
+						args.db_connection_pool.clone(),
 						args.connection_id,
 						user,
 						Arc::clone(args.subscription_manager),
@@ -594,7 +601,7 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 				}
 				SubscriptionTargetUpdate::AdminEventLogTabsUpdate(update_data) => {
 					handle_admin_event_log_tabs_message(
-						Arc::clone(args.db_connection),
+						args.db_connection_pool.clone(),
 						args.connection_id,
 						user,
 						Arc::clone(args.subscription_manager),
@@ -604,7 +611,7 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 				}
 				SubscriptionTargetUpdate::AdminApplicationsUpdate(update_data) => {
 					handle_admin_applications_message(
-						Arc::clone(args.db_connection),
+						args.db_connection_pool.clone(),
 						args.connection_id,
 						user,
 						Arc::clone(args.subscription_manager),
@@ -615,7 +622,7 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 				}
 				SubscriptionTargetUpdate::AdminInfoPagesUpdate(update_data) => {
 					handle_admin_info_pages_message(
-						Arc::clone(args.db_connection),
+						args.db_connection_pool.clone(),
 						args.connection_id,
 						user,
 						Arc::clone(args.subscription_manager),
@@ -629,11 +636,11 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 			if args.user.is_none() {
 				match registration_data {
 					UserRegistration::CheckUsername(username) => {
-						check_username(Arc::clone(args.db_connection), args.conn_update_tx, &username).await?
+						check_username(args.db_connection_pool.clone(), args.conn_update_tx, &username).await?
 					}
 					UserRegistration::Finalize(registration_data) => {
 						register_user(
-							Arc::clone(args.db_connection),
+							args.db_connection_pool.clone(),
 							args.conn_update_tx,
 							args.connection_id,
 							args.openid_user_id,
@@ -649,7 +656,7 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 		FromClientMessage::UpdateProfile(profile_data) => {
 			if let Some(user) = args.user.as_ref() {
 				handle_profile_update(
-					Arc::clone(args.db_connection),
+					args.db_connection_pool.clone(),
 					user,
 					Arc::clone(args.subscription_manager),
 					profile_data,

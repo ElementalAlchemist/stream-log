@@ -4,6 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use super::send_lost_db_connection_subscription_response;
 use crate::data_sync::connection::ConnectionUpdate;
 use crate::data_sync::UserDataUpdate;
 use crate::data_sync::{HandleConnectionError, SubscriptionManager};
@@ -12,6 +13,7 @@ use crate::schema::users;
 use async_std::channel::Sender;
 use async_std::sync::{Arc, Mutex};
 use diesel::prelude::*;
+use diesel::r2d2::{ConnectionManager, Pool};
 use stream_log_shared::messages::subscriptions::{
 	InitialSubscriptionLoadData, SubscriptionData, SubscriptionFailureInfo, SubscriptionType,
 };
@@ -19,7 +21,7 @@ use stream_log_shared::messages::user::SelfUserData;
 use stream_log_shared::messages::{DataError, FromServerMessage};
 
 pub async fn subscribe_to_admin_users(
-	db_connection: Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
 	connection_id: &str,
 	user: &SelfUserData,
@@ -34,7 +36,13 @@ pub async fn subscribe_to_admin_users(
 		return Ok(());
 	}
 
-	let mut db_connection = db_connection.lock().await;
+	let mut db_connection = match db_connection_pool.get() {
+		Ok(connection) => connection,
+		Err(error) => {
+			send_lost_db_connection_subscription_response(error, &conn_update_tx, SubscriptionType::AdminUsers).await?;
+			return Ok(());
+		}
+	};
 	let all_users: QueryResult<Vec<User>> = users::table.load(&mut *db_connection);
 	let all_users = match all_users {
 		Ok(users) => users,
@@ -67,7 +75,7 @@ pub async fn subscribe_to_admin_users(
 }
 
 pub async fn handle_admin_users_message(
-	db_connection: Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	connection_id: &str,
 	user: &SelfUserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
@@ -89,7 +97,13 @@ pub async fn handle_admin_users_message(
 	let color_green: i32 = modified_user.color.g.into();
 	let color_blue: i32 = modified_user.color.b.into();
 	{
-		let mut db_connection = db_connection.lock().await;
+		let mut db_connection = match db_connection_pool.get() {
+			Ok(connection) => connection,
+			Err(error) => {
+				tide::log::error!("A database connection error occurred updating a user: {}", error);
+				return;
+			}
+		};
 		let db_result = diesel::update(users::table)
 			.filter(users::id.eq(&modified_user.id))
 			.set((

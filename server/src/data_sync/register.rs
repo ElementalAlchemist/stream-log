@@ -11,6 +11,7 @@ use crate::schema::users;
 use async_std::channel::Sender;
 use async_std::sync::{Arc, Mutex};
 use diesel::prelude::*;
+use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::result::DatabaseErrorKind;
 use rgb::RGB8;
 use stream_log_shared::messages::subscriptions::SubscriptionData;
@@ -23,7 +24,7 @@ use stream_log_shared::messages::FromServerMessage;
 
 /// Checks whether the username being queried is already registered
 pub async fn check_username(
-	db_connection: Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
 	username: &str,
 ) -> Result<(), HandleConnectionError> {
@@ -39,7 +40,16 @@ pub async fn check_username(
 		return Ok(());
 	}
 	let check_results: QueryResult<Vec<User>> = {
-		let mut db_connection = db_connection.lock().await;
+		let mut db_connection = match db_connection_pool.get() {
+			Ok(connection) => connection,
+			Err(error) => {
+				tide::log::error!(
+					"A database connection error occurred checking username availability: {}",
+					error
+				);
+				return Ok(());
+			}
+		};
 		users::table.filter(users::name.eq(username)).load(&mut *db_connection)
 	};
 	if let Ok(data) = check_results {
@@ -58,7 +68,7 @@ pub async fn check_username(
 
 /// Registers the user if the registration is valid
 pub async fn register_user(
-	db_connection: Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
 	connection_id: &str,
 	openid_user_id: &str,
@@ -81,7 +91,13 @@ pub async fn register_user(
 		let color_blue: i32 = registration_data.color.b.into();
 
 		let registration_result: QueryResult<User> = {
-			let mut db_connection = db_connection.lock().await;
+			let mut db_connection = match db_connection_pool.get() {
+				Ok(connection) => connection,
+				Err(error) => {
+					tide::log::error!("A database connection error occurred registering a new user: {}", error);
+					return Ok(());
+				}
+			};
 			db_connection.transaction(|db_connection| {
 				let initial_user_check: Vec<String> = users::table.select(users::id).limit(1).load(db_connection)?;
 				let has_users = !initial_user_check.is_empty();

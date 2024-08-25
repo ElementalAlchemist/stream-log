@@ -4,12 +4,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use super::send_lost_db_connection_subscription_response;
 use crate::data_sync::{ConnectionUpdate, HandleConnectionError, SubscriptionManager};
 use crate::models::{Event as EventDb, InfoPage as InfoPageDb};
 use crate::schema::{events, info_pages};
 use async_std::channel::Sender;
 use async_std::sync::{Arc, Mutex};
 use diesel::prelude::*;
+use diesel::r2d2::{ConnectionManager, Pool};
 use std::collections::HashMap;
 use stream_log_shared::messages::admin::{AdminInfoPageData, AdminInfoPageUpdate};
 use stream_log_shared::messages::event_subscription::EventSubscriptionData;
@@ -22,7 +24,7 @@ use stream_log_shared::messages::user::SelfUserData;
 use stream_log_shared::messages::{DataError, FromServerMessage};
 
 pub async fn subscribe_to_admin_info_pages(
-	db_connection: Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
 	connection_id: &str,
 	user: &SelfUserData,
@@ -40,7 +42,14 @@ pub async fn subscribe_to_admin_info_pages(
 	}
 
 	let query_result: QueryResult<(Vec<EventDb>, Vec<InfoPageDb>)> = {
-		let mut db_connection = db_connection.lock().await;
+		let mut db_connection = match db_connection_pool.get() {
+			Ok(connection) => connection,
+			Err(error) => {
+				send_lost_db_connection_subscription_response(error, &conn_update_tx, SubscriptionType::AdminInfoPages)
+					.await?;
+				return Ok(());
+			}
+		};
 		db_connection.transaction(|db_connection| {
 			let info_pages: Vec<InfoPageDb> = info_pages::table.load(db_connection)?;
 			let events: Vec<EventDb> = events::table.load(db_connection)?;
@@ -96,7 +105,7 @@ pub async fn subscribe_to_admin_info_pages(
 }
 
 pub async fn handle_admin_info_pages_message(
-	db_connection: Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	connection_id: &str,
 	user: &SelfUserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
@@ -119,7 +128,13 @@ pub async fn handle_admin_info_pages_message(
 		AdminInfoPageUpdate::UpdateInfoPage(info_page) => {
 			let info_page: InfoPage =
 				{
-					let mut db_connection = db_connection.lock().await;
+					let mut db_connection = match db_connection_pool.get() {
+						Ok(connection) => connection,
+						Err(error) => {
+							tide::log::error!("A dtaabase connection occurred updating an info page: {}", error);
+							return;
+						}
+					};
 					let db_result: QueryResult<InfoPageDb> = if info_page.id.is_empty() {
 						let new_info_page = InfoPageDb {
 							id: cuid2::create_id(),
@@ -186,7 +201,13 @@ pub async fn handle_admin_info_pages_message(
 		}
 		AdminInfoPageUpdate::DeleteInfoPage(info_page) => {
 			let delete_result: QueryResult<EventDb> = {
-				let mut db_connection = db_connection.lock().await;
+				let mut db_connection = match db_connection_pool.get() {
+					Ok(connection) => connection,
+					Err(error) => {
+						tide::log::error!("A database connection error occurred deleting an info page: {}", error);
+						return;
+					}
+				};
 				db_connection.transaction(|db_connection| {
 					let page: InfoPageDb = diesel::delete(info_pages::table)
 						.filter(info_pages::id.eq(&info_page.id))

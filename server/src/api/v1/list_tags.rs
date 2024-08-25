@@ -6,18 +6,25 @@
 
 use super::structures::tag::{Tag as TagApi, TagPlaylist};
 use super::utils::check_application;
+use crate::database::handle_lost_db_connection;
 use crate::models::{Event as EventDb, Tag as TagDb};
 use crate::schema::{events, tags};
-use async_std::sync::{Arc, Mutex};
 use diesel::prelude::*;
+use diesel::r2d2::{ConnectionManager, Pool};
 use http_types::mime;
 use tide::{Request, Response, StatusCode};
 
 /// GET /api/v1/event/:id/tags
 ///
 /// Gets the list of tags available for an event. Responds with the list of [Tag](TagApi) objects as an array.
-pub async fn list_tags(request: Request<()>, db_connection: Arc<Mutex<PgConnection>>) -> tide::Result {
-	let mut db_connection = db_connection.lock().await;
+pub async fn list_tags(
+	request: Request<()>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
+) -> tide::Result {
+	let mut db_connection = match db_connection_pool.get() {
+		Ok(connection) => connection,
+		Err(error) => return handle_lost_db_connection(error),
+	};
 	let application = check_application(&request, &mut db_connection).await?;
 	if !application.read_log {
 		return Err(tide::Error::new(

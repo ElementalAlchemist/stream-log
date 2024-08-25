@@ -6,19 +6,19 @@
 
 use crate::models::Session as SessionDb;
 use crate::schema::sessions;
-use async_std::sync::{Arc, Mutex};
 use diesel::prelude::*;
+use diesel::r2d2::{ConnectionManager, Pool};
 use tide::sessions::{Session, SessionStore};
 use tide::utils::async_trait;
 
 #[derive(Clone)]
 pub struct DatabaseSessionStore {
-	db_connection: Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 }
 
 impl DatabaseSessionStore {
-	pub fn new(db_connection: Arc<Mutex<PgConnection>>) -> Self {
-		Self { db_connection }
+	pub fn new(db_connection_pool: Pool<ConnectionManager<PgConnection>>) -> Self {
+		Self { db_connection_pool }
 	}
 }
 
@@ -31,7 +31,7 @@ impl std::fmt::Debug for DatabaseSessionStore {
 #[async_trait]
 impl SessionStore for DatabaseSessionStore {
 	async fn load_session(&self, cookie_value: String) -> anyhow::Result<Option<Session>> {
-		let mut db_connection = self.db_connection.lock().await;
+		let mut db_connection = self.db_connection_pool.get()?;
 		let session_id = Session::id_from_cookie_value(&cookie_value)?;
 		let session: Option<SessionDb> = sessions::table
 			.find(&session_id)
@@ -47,7 +47,7 @@ impl SessionStore for DatabaseSessionStore {
 	}
 
 	async fn store_session(&self, session: Session) -> anyhow::Result<Option<String>> {
-		let mut db_connection = self.db_connection.lock().await;
+		let mut db_connection = self.db_connection_pool.get()?;
 		let session_row: SessionDb = SessionDb {
 			id: session.id().to_string(),
 			data: serde_json::to_string(&session)?,
@@ -62,7 +62,7 @@ impl SessionStore for DatabaseSessionStore {
 	}
 
 	async fn destroy_session(&self, session: Session) -> anyhow::Result<()> {
-		let mut db_connection = self.db_connection.lock().await;
+		let mut db_connection = self.db_connection_pool.get()?;
 		diesel::delete(sessions::table)
 			.filter(sessions::id.eq(session.id()))
 			.execute(&mut *db_connection)?;
@@ -70,7 +70,7 @@ impl SessionStore for DatabaseSessionStore {
 	}
 
 	async fn clear_store(&self) -> anyhow::Result<()> {
-		let mut db_connection = self.db_connection.lock().await;
+		let mut db_connection = self.db_connection_pool.get()?;
 		diesel::delete(sessions::table).execute(&mut *db_connection)?;
 		Ok(())
 	}

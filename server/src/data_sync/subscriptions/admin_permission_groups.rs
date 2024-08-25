@@ -4,6 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use super::send_lost_db_connection_subscription_response;
 use crate::data_sync::user::UserDataUpdate;
 use crate::data_sync::{ConnectionUpdate, HandleConnectionError, SubscriptionManager};
 use crate::models::{
@@ -13,6 +14,7 @@ use crate::schema::{events, permission_events, permission_groups, user_permissio
 use async_std::channel::Sender;
 use async_std::sync::{Arc, Mutex};
 use diesel::prelude::*;
+use diesel::r2d2::{ConnectionManager, Pool};
 use std::collections::HashMap;
 use stream_log_shared::messages::admin::{
 	AdminPermissionGroupData, AdminPermissionGroupUpdate, AdminUserPermissionGroupData, AdminUserPermissionGroupUpdate,
@@ -26,7 +28,7 @@ use stream_log_shared::messages::user::{PublicUserData, SelfUserData};
 use stream_log_shared::messages::{DataError, FromServerMessage};
 
 pub async fn subscribe_to_admin_permission_groups(
-	db_connection: Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
 	connection_id: &str,
 	user: &SelfUserData,
@@ -44,7 +46,18 @@ pub async fn subscribe_to_admin_permission_groups(
 	}
 
 	let (permission_groups, permission_group_events) = {
-		let mut db_connection = db_connection.lock().await;
+		let mut db_connection = match db_connection_pool.get() {
+			Ok(connection) => connection,
+			Err(error) => {
+				send_lost_db_connection_subscription_response(
+					error,
+					&conn_update_tx,
+					SubscriptionType::AdminPermissionGroups,
+				)
+				.await?;
+				return Ok(());
+			}
+		};
 		let permission_groups: QueryResult<Vec<PermissionGroupDb>> = permission_groups::table.load(&mut *db_connection);
 		let permission_group_events: QueryResult<Vec<PermissionEvent>> =
 			permission_events::table.load(&mut *db_connection);
@@ -95,7 +108,7 @@ pub async fn subscribe_to_admin_permission_groups(
 }
 
 pub async fn handle_admin_permission_groups_message(
-	db_connection: Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	connection_id: &str,
 	user: &SelfUserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
@@ -116,7 +129,16 @@ pub async fn handle_admin_permission_groups_message(
 	match update_message {
 		AdminPermissionGroupUpdate::UpdateGroup(mut group) => {
 			{
-				let mut db_connection = db_connection.lock().await;
+				let mut db_connection = match db_connection_pool.get() {
+					Ok(connection) => connection,
+					Err(error) => {
+						tide::log::error!(
+							"A database connection error occurred adding a new permission group: {}",
+							error
+						);
+						return;
+					}
+				};
 				if group.id.is_empty() {
 					group.id = cuid2::create_id();
 					let group_db = PermissionGroupDb {
@@ -153,7 +175,13 @@ pub async fn handle_admin_permission_groups_message(
 		}
 		AdminPermissionGroupUpdate::SetEventPermissionForGroup(event_group_association) => {
 			let (user_permissions, event) = {
-				let mut db_connection = db_connection.lock().await;
+				let mut db_connection = match db_connection_pool.get() {
+					Ok(connection) => connection,
+					Err(error) => {
+						tide::log::error!("A database connection error occurred setting permissions for an event in a permission group: {}", error);
+						return;
+					}
+				};
 				let permission_event = PermissionEvent {
 					permission_group: event_group_association.group.clone(),
 					event: event_group_association.event.clone(),
@@ -223,33 +251,41 @@ pub async fn handle_admin_permission_groups_message(
 			}
 		}
 		AdminPermissionGroupUpdate::RemoveEventFromGroup(group, event) => {
-			let user_permissions: QueryResult<Vec<(String, Option<Permission>)>> = {
-				let mut db_connection = db_connection.lock().await;
-				let db_result = diesel::delete(permission_events::table)
-					.filter(
-						permission_events::permission_group
-							.eq(&group.id)
-							.and(permission_events::event.eq(&event.id)),
-					)
-					.execute(&mut *db_connection);
-				if let Err(error) = db_result {
-					tide::log::error!(
-						"A database error occurred removing an event from a permission group: {}",
-						error
-					);
-					return;
-				}
+			let user_permissions: QueryResult<Vec<(String, Option<Permission>)>> =
+				{
+					let mut db_connection =
+						match db_connection_pool.get() {
+							Ok(connection) => connection,
+							Err(error) => {
+								tide::log::error!("A database connection error occurred removing an event from a permission group: {}", error);
+								return;
+							}
+						};
+					let db_result = diesel::delete(permission_events::table)
+						.filter(
+							permission_events::permission_group
+								.eq(&group.id)
+								.and(permission_events::event.eq(&event.id)),
+						)
+						.execute(&mut *db_connection);
+					if let Err(error) = db_result {
+						tide::log::error!(
+							"A database error occurred removing an event from a permission group: {}",
+							error
+						);
+						return;
+					}
 
-				user_permissions::table
-					.filter(user_permissions::permission_group.eq(&event.id))
-					.left_outer_join(
-						permission_events::table
-							.on(user_permissions::permission_group.eq(permission_events::permission_group)),
-					)
-					.filter(permission_events::event.eq(&event.id))
-					.select((user_permissions::user_id, permission_events::level.nullable()))
-					.load(&mut *db_connection)
-			};
+					user_permissions::table
+						.filter(user_permissions::permission_group.eq(&event.id))
+						.left_outer_join(
+							permission_events::table
+								.on(user_permissions::permission_group.eq(permission_events::permission_group)),
+						)
+						.filter(permission_events::event.eq(&event.id))
+						.select((user_permissions::user_id, permission_events::level.nullable()))
+						.load(&mut *db_connection)
+				};
 
 			let mut subscription_manager = subscription_manager.lock().await;
 			let admin_message = SubscriptionData::AdminPermissionGroupsUpdate(
@@ -282,7 +318,7 @@ pub async fn handle_admin_permission_groups_message(
 }
 
 pub async fn subscribe_to_admin_permission_groups_users(
-	db_connection: Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
 	connection_id: &str,
 	user: &SelfUserData,
@@ -299,7 +335,18 @@ pub async fn subscribe_to_admin_permission_groups_users(
 		return Ok(());
 	}
 
-	let mut db_connection = db_connection.lock().await;
+	let mut db_connection = match db_connection_pool.get() {
+		Ok(connection) => connection,
+		Err(error) => {
+			send_lost_db_connection_subscription_response(
+				error,
+				&conn_update_tx,
+				SubscriptionType::AdminPermissionGroupUsers,
+			)
+			.await?;
+			return Ok(());
+		}
+	};
 	let permission_group_users: QueryResult<Vec<UserPermission>> = user_permissions::table.load(&mut *db_connection);
 
 	let permission_group_users = match permission_group_users {
@@ -406,7 +453,7 @@ pub async fn subscribe_to_admin_permission_groups_users(
 }
 
 pub async fn handle_admin_permission_group_users_message(
-	db_connection: Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	connection_id: &str,
 	user: &SelfUserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
@@ -427,7 +474,16 @@ pub async fn handle_admin_permission_group_users_message(
 	match update_message {
 		AdminUserPermissionGroupUpdate::AddUserToGroup(user_group_association) => {
 			let user_event_permissions = {
-				let mut db_connection = db_connection.lock().await;
+				let mut db_connection = match db_connection_pool.get() {
+					Ok(connection) => connection,
+					Err(error) => {
+						tide::log::error!(
+							"A database connection error occurred adding a user to a permission group: {}",
+							error
+						);
+						return;
+					}
+				};
 
 				let user_event_permissions: QueryResult<Vec<(Event, Option<Permission>)>> =
 					db_connection.transaction(|db_connection| {
@@ -532,7 +588,16 @@ pub async fn handle_admin_permission_group_users_message(
 		}
 		AdminUserPermissionGroupUpdate::RemoveUserFromGroup(user_group_association) => {
 			let user_event_permissions = {
-				let mut db_connection = db_connection.lock().await;
+				let mut db_connection = match db_connection_pool.get() {
+					Ok(connection) => connection,
+					Err(error) => {
+						tide::log::error!(
+							"A database connection error occurred removing a user from a permission group: {}",
+							error
+						);
+						return;
+					}
+				};
 
 				let user_event_permissions: QueryResult<Vec<(Event, Option<Permission>)>> =
 					db_connection.transaction(|db_connection| {

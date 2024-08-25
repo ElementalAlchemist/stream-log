@@ -4,12 +4,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use super::send_lost_db_connection_subscription_response;
 use crate::data_sync::{ConnectionUpdate, HandleConnectionError, SubscriptionManager};
 use crate::models::{Event as EventDb, EventLogTab as EventLogTabDb};
 use crate::schema::{event_log_tabs, events};
 use async_std::channel::Sender;
 use async_std::sync::{Arc, Mutex};
 use diesel::prelude::*;
+use diesel::r2d2::{ConnectionManager, Pool};
 use std::collections::HashMap;
 use stream_log_shared::messages::admin::{AdminEventLogTabsData, AdminEventLogTabsUpdate};
 use stream_log_shared::messages::event_log::EventLogTab;
@@ -22,7 +24,7 @@ use stream_log_shared::messages::user::SelfUserData;
 use stream_log_shared::messages::{DataError, FromServerMessage};
 
 pub async fn subscribe_to_admin_event_log_tabs(
-	db_connection: Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
 	connection_id: &str,
 	user: &SelfUserData,
@@ -39,7 +41,14 @@ pub async fn subscribe_to_admin_event_log_tabs(
 		return Ok(());
 	}
 
-	let mut db_connection = db_connection.lock().await;
+	let mut db_connection = match db_connection_pool.get() {
+		Ok(connection) => connection,
+		Err(error) => {
+			send_lost_db_connection_subscription_response(error, &conn_update_tx, SubscriptionType::AdminEventLogTabs)
+				.await?;
+			return Ok(());
+		}
+	};
 	let db_data: QueryResult<(Vec<EventLogTabDb>, Vec<EventDb>)> = db_connection.transaction(|db_connection| {
 		let tabs = event_log_tabs::table.load(db_connection)?;
 		let events = events::table.load(db_connection)?;
@@ -96,7 +105,7 @@ pub async fn subscribe_to_admin_event_log_tabs(
 }
 
 pub async fn handle_admin_event_log_tabs_message(
-	db_connection: Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	connection_id: &str,
 	user: &SelfUserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
@@ -124,7 +133,16 @@ pub async fn handle_admin_event_log_tabs_message(
 				start_time: tab.start_time,
 			};
 			let db_result: QueryResult<_> = {
-				let mut db_connection = db_connection.lock().await;
+				let mut db_connection = match db_connection_pool.get() {
+					Ok(connection) => connection,
+					Err(error) => {
+						tide::log::error!(
+							"A database connection error occurred adding an event log tab: {}",
+							error
+						);
+						return;
+					}
+				};
 				diesel::insert_into(event_log_tabs::table)
 					.values(new_tab)
 					.execute(&mut *db_connection)
@@ -154,7 +172,16 @@ pub async fn handle_admin_event_log_tabs_message(
 		}
 		AdminEventLogTabsUpdate::UpdateTab(tab) => {
 			let db_result: QueryResult<EventDb> = {
-				let mut db_connection = db_connection.lock().await;
+				let mut db_connection = match db_connection_pool.get() {
+					Ok(connection) => connection,
+					Err(error) => {
+						tide::log::error!(
+							"A database connection error occurred updating an event log tab: {}",
+							error
+						);
+						return;
+					}
+				};
 				db_connection.transaction(|db_connection| {
 					let db_tab: EventLogTabDb = diesel::update(event_log_tabs::table)
 						.filter(event_log_tabs::id.eq(&tab.id))
@@ -195,7 +222,16 @@ pub async fn handle_admin_event_log_tabs_message(
 		}
 		AdminEventLogTabsUpdate::DeleteTab(tab) => {
 			let db_result: QueryResult<EventDb> = {
-				let mut db_connection = db_connection.lock().await;
+				let mut db_connection = match db_connection_pool.get() {
+					Ok(connection) => connection,
+					Err(error) => {
+						tide::log::error!(
+							"A database connection error occurred deleting an event log tab: {}",
+							error
+						);
+						return;
+					}
+				};
 				db_connection.transaction(|db_connection| {
 					let db_section: EventLogTabDb = diesel::delete(event_log_tabs::table)
 						.filter(event_log_tabs::id.eq(&tab.id))
@@ -207,7 +243,7 @@ pub async fn handle_admin_event_log_tabs_message(
 			let event: Event = match db_result {
 				Ok(event) => event.into(),
 				Err(error) => {
-					tide::log::error!("A database error occurred deleting an event log section: {}", error);
+					tide::log::error!("A database error occurred deleting an event log tab: {}", error);
 					return;
 				}
 			};
@@ -220,7 +256,7 @@ pub async fn handle_admin_event_log_tabs_message(
 				.broadcast_event_message(&event_id, event_message)
 				.await;
 			if let Err(error) = send_result {
-				tide::log::error!("Failed to send event update for deleting event log section: {}", error);
+				tide::log::error!("Failed to send event update for deleting event log tab: {}", error);
 			}
 			let admin_message = SubscriptionData::AdminEventLogTabsUpdate(AdminEventLogTabsData::DeleteTab(tab));
 			let send_result = subscription_manager

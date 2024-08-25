@@ -4,12 +4,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use super::send_lost_db_connection_subscription_response;
 use crate::data_sync::{ConnectionUpdate, HandleConnectionError, SubscriptionManager};
 use crate::models::{Event as EventDb, EventEditor, User};
 use crate::schema::{event_editors, events, users};
 use async_std::channel::Sender;
 use async_std::sync::{Arc, Mutex};
 use diesel::prelude::*;
+use diesel::r2d2::{ConnectionManager, Pool};
 use std::collections::HashMap;
 use stream_log_shared::messages::admin::{AdminEventEditorData, AdminEventEditorUpdate, EditorEventAssociation};
 use stream_log_shared::messages::event_subscription::EventSubscriptionData;
@@ -21,7 +23,7 @@ use stream_log_shared::messages::user::{PublicUserData, SelfUserData};
 use stream_log_shared::messages::{DataError, FromServerMessage};
 
 pub async fn subscribe_to_admin_editors(
-	db_connection: Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
 	connection_id: &str,
 	user: &SelfUserData,
@@ -38,7 +40,14 @@ pub async fn subscribe_to_admin_editors(
 		return Ok(());
 	}
 
-	let mut db_connection = db_connection.lock().await;
+	let mut db_connection = match db_connection_pool.get() {
+		Ok(connection) => connection,
+		Err(error) => {
+			send_lost_db_connection_subscription_response(error, &conn_update_tx, SubscriptionType::AdminEventEditors)
+				.await?;
+			return Ok(());
+		}
+	};
 	let event_editors: QueryResult<Vec<EventEditor>> = event_editors::table.load(&mut *db_connection);
 	let event_editor_ids = match event_editors {
 		Ok(ids) => ids,
@@ -141,7 +150,7 @@ pub async fn subscribe_to_admin_editors(
 }
 
 pub async fn handle_admin_editors_message(
-	db_connection: Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	connection_id: &str,
 	user: &SelfUserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
@@ -162,7 +171,16 @@ pub async fn handle_admin_editors_message(
 	match update_message {
 		AdminEventEditorUpdate::AddEditor(editor_data) => {
 			{
-				let mut db_connection = db_connection.lock().await;
+				let mut db_connection = match db_connection_pool.get() {
+					Ok(connection) => connection,
+					Err(error) => {
+						tide::log::error!(
+							"A database connection error occurred adding an editor for an event: {}",
+							error
+						);
+						return;
+					}
+				};
 				let event_editor = EventEditor {
 					event: editor_data.event.id.clone(),
 					editor: editor_data.editor.id.clone(),
@@ -198,7 +216,16 @@ pub async fn handle_admin_editors_message(
 		}
 		AdminEventEditorUpdate::RemoveEditor(editor_data) => {
 			{
-				let mut db_connection = db_connection.lock().await;
+				let mut db_connection = match db_connection_pool.get() {
+					Ok(connection) => connection,
+					Err(error) => {
+						tide::log::error!(
+							"A database connection error occurred removing an editor from an event: {}",
+							error
+						);
+						return;
+					}
+				};
 				let db_result = diesel::delete(event_editors::table)
 					.filter(
 						event_editors::event

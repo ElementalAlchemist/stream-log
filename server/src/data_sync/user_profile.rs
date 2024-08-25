@@ -9,11 +9,12 @@ use super::{HandleConnectionError, SubscriptionManager};
 use crate::schema::users;
 use async_std::sync::{Arc, Mutex};
 use diesel::prelude::*;
+use diesel::r2d2::{ConnectionManager, Pool};
 use stream_log_shared::messages::subscriptions::SubscriptionData;
 use stream_log_shared::messages::user::{SelfUserData, UpdateUser};
 
 pub async fn handle_profile_update(
-	db_connection: Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	user: &SelfUserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 	update_data: UpdateUser,
@@ -23,7 +24,16 @@ pub async fn handle_profile_update(
 	let blue: i32 = update_data.color.b.into();
 
 	let update_result = {
-		let mut db_connection = db_connection.lock().await;
+		let mut db_connection = match db_connection_pool.get() {
+			Ok(connection) => connection,
+			Err(error) => {
+				tide::log::error!(
+					"A database connection error occurred updating a user profile: {}",
+					error
+				);
+				return Ok(());
+			}
+		};
 		diesel::update(users::table.filter(users::id.eq(&user.id)))
 			.set((
 				users::color_red.eq(red),
@@ -34,7 +44,7 @@ pub async fn handle_profile_update(
 			.execute(&mut *db_connection)
 	};
 	if let Err(error) = update_result {
-		tide::log::error!("Database error updating user color: {}", error);
+		tide::log::error!("Database error updating a user profile: {}", error);
 		return Err(HandleConnectionError::ConnectionClosed);
 	}
 

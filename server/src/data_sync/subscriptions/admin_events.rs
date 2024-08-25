@@ -4,12 +4,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use super::send_lost_db_connection_subscription_response;
 use crate::data_sync::{ConnectionUpdate, HandleConnectionError, SubscriptionManager};
 use crate::models::Event as EventDb;
 use crate::schema::events;
 use async_std::channel::Sender;
 use async_std::sync::{Arc, Mutex};
 use diesel::prelude::*;
+use diesel::r2d2::{ConnectionManager, Pool};
 use stream_log_shared::messages::admin::{AdminEventData, AdminEventUpdate};
 use stream_log_shared::messages::event_subscription::EventSubscriptionData;
 use stream_log_shared::messages::events::Event;
@@ -20,7 +22,7 @@ use stream_log_shared::messages::user::SelfUserData;
 use stream_log_shared::messages::{DataError, FromServerMessage};
 
 pub async fn subscribe_to_admin_events(
-	db_connection: Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
 	connection_id: &str,
 	user: &SelfUserData,
@@ -35,7 +37,14 @@ pub async fn subscribe_to_admin_events(
 		return Ok(());
 	}
 
-	let mut db_connection = db_connection.lock().await;
+	let mut db_connection = match db_connection_pool.get() {
+		Ok(connection) => connection,
+		Err(error) => {
+			send_lost_db_connection_subscription_response(error, &conn_update_tx, SubscriptionType::AdminEvents)
+				.await?;
+			return Ok(());
+		}
+	};
 	let events: QueryResult<Vec<EventDb>> = events::table.load(&mut *db_connection);
 	let events: Vec<Event> = match events {
 		Ok(events) => events.into_iter().map(|event| event.into()).collect(),
@@ -67,7 +76,7 @@ pub async fn subscribe_to_admin_events(
 }
 
 pub async fn handle_admin_event_message(
-	db_connection: Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	connection_id: &str,
 	user: &SelfUserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
@@ -88,7 +97,13 @@ pub async fn handle_admin_event_message(
 	match update_message {
 		AdminEventUpdate::UpdateEvent(mut event) => {
 			let db_result = {
-				let mut db_connection = db_connection.lock().await;
+				let mut db_connection = match db_connection_pool.get() {
+					Ok(connection) => connection,
+					Err(error) => {
+						tide::log::error!("A database connection error occurred updating event data: {}", error);
+						return;
+					}
+				};
 				if event.id.is_empty() {
 					event.id = cuid2::create_id();
 					let event_db = EventDb {

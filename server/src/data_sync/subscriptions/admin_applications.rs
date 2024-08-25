@@ -4,6 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use super::send_lost_db_connection_subscription_response;
 use crate::data_sync::{ConnectionUpdate, HandleConnectionError, SubscriptionManager};
 use crate::models::Application as ApplicationDb;
 use crate::schema::applications;
@@ -12,6 +13,7 @@ use async_std::sync::{Arc, Mutex};
 use base64::engine::general_purpose::STANDARD_NO_PAD as base64_engine;
 use base64::Engine;
 use diesel::prelude::*;
+use diesel::r2d2::{ConnectionManager, Pool};
 use rand::random;
 use stream_log_shared::messages::admin::{AdminApplicationData, AdminApplicationUpdate, Application};
 use stream_log_shared::messages::subscriptions::{
@@ -21,7 +23,7 @@ use stream_log_shared::messages::user::SelfUserData;
 use stream_log_shared::messages::{DataError, FromServerMessage};
 
 pub async fn subscribe_to_admin_applications(
-	db_connection: Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
 	connection_id: &str,
 	user: &SelfUserData,
@@ -38,7 +40,14 @@ pub async fn subscribe_to_admin_applications(
 		return Ok(());
 	}
 
-	let mut db_connection = db_connection.lock().await;
+	let mut db_connection = match db_connection_pool.get() {
+		Ok(connection) => connection,
+		Err(error) => {
+			send_lost_db_connection_subscription_response(error, &conn_update_tx, SubscriptionType::AdminApplications)
+				.await?;
+			return Ok(());
+		}
+	};
 	let applications: QueryResult<Vec<ApplicationDb>> = applications::table
 		.filter(applications::auth_key.is_not_null())
 		.load(&mut *db_connection);
@@ -76,7 +85,7 @@ pub async fn subscribe_to_admin_applications(
 }
 
 pub async fn handle_admin_applications_message(
-	db_connection: Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	connection_id: &str,
 	user: &SelfUserData,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
@@ -110,7 +119,16 @@ pub async fn handle_admin_applications_message(
 				};
 
 				let insert_result: QueryResult<_> = {
-					let mut db_connection = db_connection.lock().await;
+					let mut db_connection = match db_connection_pool.get() {
+						Ok(connection) => connection,
+						Err(error) => {
+							tide::log::error!(
+								"A database connection error occurred adding a new application: {}",
+								error
+							);
+							return;
+						}
+					};
 					diesel::insert_into(applications::table)
 						.values(db_application)
 						.execute(&mut *db_connection)
@@ -139,7 +157,16 @@ pub async fn handle_admin_applications_message(
 				}
 			} else {
 				let update_result: QueryResult<_> = {
-					let mut db_connection = db_connection.lock().await;
+					let mut db_connection = match db_connection_pool.get() {
+						Ok(connection) => connection,
+						Err(error) => {
+							tide::log::error!(
+								"A database connection error occurred updating an application: {}",
+								error
+							);
+							return;
+						}
+					};
 					diesel::update(applications::table)
 						.filter(applications::id.eq(&application.id))
 						.set((
@@ -166,7 +193,16 @@ pub async fn handle_admin_applications_message(
 		AdminApplicationUpdate::ResetAuthToken(application) => {
 			let new_auth_key = generate_application_auth_key();
 			let update_result = {
-				let mut db_connection = db_connection.lock().await;
+				let mut db_connection = match db_connection_pool.get() {
+					Ok(connection) => connection,
+					Err(error) => {
+						tide::log::error!(
+							"A database connection error occurred resetting an application auth key: {}",
+							error
+						);
+						return;
+					}
+				};
 				diesel::update(applications::table)
 					.filter(applications::id.eq(&application.id))
 					.set(applications::auth_key.eq(&new_auth_key))
@@ -187,7 +223,16 @@ pub async fn handle_admin_applications_message(
 		}
 		AdminApplicationUpdate::RevokeApplication(application) => {
 			let update_result = {
-				let mut db_connection = db_connection.lock().await;
+				let mut db_connection = match db_connection_pool.get() {
+					Ok(connection) => connection,
+					Err(error) => {
+						tide::log::error!(
+							"A database connection error occurred revoking an application: {}",
+							error
+						);
+						return;
+					}
+				};
 				let null_auth_key: Option<String> = None;
 				diesel::update(applications::table)
 					.filter(applications::id.eq(&application.id))

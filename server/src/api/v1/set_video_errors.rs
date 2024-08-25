@@ -6,10 +6,12 @@
 
 use super::utils::{check_application, update_history};
 use crate::data_sync::SubscriptionManager;
+use crate::database::handle_lost_db_connection;
 use crate::models::{Event as EventDb, EventLogEntry as EventLogEntryDb, Tag as TagDb, User};
 use crate::schema::{event_log, event_log_tags, events, tags, users};
 use async_std::sync::{Arc, Mutex};
 use diesel::prelude::*;
+use diesel::r2d2::{ConnectionManager, Pool};
 use stream_log_shared::messages::event_log::EventLogEntry;
 use stream_log_shared::messages::event_subscription::EventSubscriptionData;
 use stream_log_shared::messages::events::Event;
@@ -22,10 +24,13 @@ use tide::{Request, Response, StatusCode};
 /// the error string for the entry.
 pub async fn set_video_errors(
 	mut request: Request<()>,
-	db_connection: Arc<Mutex<PgConnection>>,
+	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
 ) -> tide::Result {
-	let mut db_connection = db_connection.lock().await;
+	let mut db_connection = match db_connection_pool.get() {
+		Ok(connection) => connection,
+		Err(error) => return handle_lost_db_connection(error),
+	};
 	let application = check_application(&request, &mut db_connection).await?;
 	if !application.write_links {
 		return Err(tide::Error::new(
