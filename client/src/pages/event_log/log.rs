@@ -495,7 +495,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 					div(class="event_log_header") { "Poster?" }
 					div(class="event_log_header") {
 						div(class="event_log_column_filter_menu") {
-							img(src="images/filter.png", alt="Filter video edit states")
+							img(src="images/filter.png", alt="Filter video edit states", class="event_log_header_filter_icon")
 							ul(class="event_log_column_filter_dropdown") {
 								Keyed(
 									iterable=all_video_edit_state_filters,
@@ -539,7 +539,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 							div(class="event_log_header") {
 								"State"
 								div(class="event_log_column_filter_menu") {
-									img(src="images/filter.png", alt="Filter video processing states")
+									img(src="images/filter.png", alt="Filter video processing states", class="event_log_header_filter_icon")
 									ul(class="event_log_column_filter_dropdown") {
 										Keyed(
 											iterable=all_video_processing_state_filters,
