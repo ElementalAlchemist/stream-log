@@ -53,7 +53,10 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 		let entry = event_log_entry_signal.get();
 		let entry_types = entry_types_signal.get();
 		if let Some(entry) = entry.as_ref() {
-			entry_types.iter().find(|et| et.id == entry.entry_type).cloned()
+			entry
+				.entry_type
+				.as_ref()
+				.and_then(|entry_type| entry_types.iter().find(|et| et.id == *entry_type).cloned())
 		} else {
 			None
 		}

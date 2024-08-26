@@ -418,8 +418,6 @@ pub struct EventLogEntry {
 	/// End time for the entry. None if the entry has no end time or the end time was not entered yet; to distinguish
 	/// between those, see [Self::end_time_incomplete].
 	pub end_time: Option<DateTime<Utc>>,
-	/// ID of the entry type
-	pub entry_type: String,
 	/// Entry's description
 	pub description: String,
 	/// The name of the submitter or winner related to the entry
@@ -454,6 +452,8 @@ pub struct EventLogEntry {
 	pub end_time_incomplete: bool,
 	/// The video processing state for the entry
 	pub video_processing_state: VideoProcessingState,
+	/// ID of the entry type
+	pub entry_type: Option<String>,
 }
 
 impl EventLogEntry {
@@ -482,7 +482,7 @@ pub struct EventLogTag {
 pub struct EventLogEntryChanges {
 	pub start_time: Option<DateTime<Utc>>,
 	pub end_time: Option<Option<DateTime<Utc>>>,
-	pub entry_type: Option<String>,
+	pub entry_type: Option<Option<String>>,
 	pub description: Option<String>,
 	pub submitter_or_winner: Option<String>,
 	pub notes_to_editor: Option<String>,
@@ -583,7 +583,6 @@ pub struct EventLogHistoryEntry {
 	pub edit_application: Option<String>,
 	pub start_time: DateTime<Utc>,
 	pub end_time: Option<DateTime<Utc>>,
-	pub entry_type: String,
 	pub description: String,
 	pub submitter_or_winner: String,
 	pub notes_to_editor: String,
@@ -600,6 +599,7 @@ pub struct EventLogHistoryEntry {
 	pub media_links: Vec<Option<String>>,
 	pub end_time_incomplete: bool,
 	pub video_processing_state: VideoProcessingState,
+	pub entry_type: Option<String>,
 }
 
 /// The source of an edit

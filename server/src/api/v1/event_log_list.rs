@@ -164,8 +164,9 @@ pub async fn event_log_list(
 		.map(|tab| (tab.start_time, (*tab).clone().into()))
 		.collect();
 
-	let entry_type_ids: HashSet<String> = event_log.iter().map(|log_entry| log_entry.entry_type.clone()).collect();
-	let entry_type_ids: Vec<String> = entry_type_ids.into_iter().collect();
+	let entry_type_ids: HashSet<Option<String>> =
+		event_log.iter().map(|log_entry| log_entry.entry_type.clone()).collect();
+	let entry_type_ids: Vec<String> = entry_type_ids.into_iter().flatten().collect();
 	let entry_types: HashMap<String, EntryTypeApi> = if entry_type_ids.is_empty() {
 		HashMap::new()
 	} else {
@@ -362,11 +363,16 @@ pub async fn event_log_list(
 				entry.start_time
 			};
 
+			let entry_type = entry
+				.entry_type
+				.as_ref()
+				.map(|entry_type_id| (entry_types.get(entry_type_id).unwrap()).clone());
+
 			EventLogEntryApi {
 				id: entry.id.clone(),
 				start_time: entry.start_time,
 				end_time,
-				entry_type: (*entry_types.get(&entry.entry_type).unwrap()).clone(),
+				entry_type,
 				description: entry.description.clone(),
 				media_links: entry.media_links.iter().filter_map(|link| link.clone()).collect(),
 				submitter_or_winner: entry.submitter_or_winner.clone(),

@@ -627,16 +627,18 @@ pub async fn handle_event_update(
 				};
 				let insert_result: QueryResult<(EventLogEntryDb, Vec<TagDb>, Option<User>)> = db_connection
 					.transaction(|db_connection| {
-						let matching_entry_types: Vec<AvailableEntryType> = available_entry_types_for_event::table
-							.filter(
-								available_entry_types_for_event::event_id
-									.eq(&event.id)
-									.and(available_entry_types_for_event::entry_type.eq(&db_entry.entry_type)),
-							)
-							.limit(1)
-							.load(db_connection)?;
-						if matching_entry_types.is_empty() {
-							return Err(diesel::result::Error::RollbackTransaction);
+						if let Some(db_entry_type) = db_entry.entry_type.as_ref() {
+							let matching_entry_types: Vec<AvailableEntryType> = available_entry_types_for_event::table
+								.filter(
+									available_entry_types_for_event::event_id
+										.eq(&event.id)
+										.and(available_entry_types_for_event::entry_type.eq(db_entry_type)),
+								)
+								.limit(1)
+								.load(db_connection)?;
+							if matching_entry_types.is_empty() {
+								return Err(diesel::result::Error::RollbackTransaction);
+							}
 						}
 						let new_row: EventLogEntryDb = diesel::insert_into(event_log::table)
 							.values(db_entry)

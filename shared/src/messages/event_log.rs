@@ -24,7 +24,7 @@ pub struct EventLogEntry {
 	pub id: String,
 	pub start_time: DateTime<Utc>,
 	pub end_time: EndTimeData,
-	pub entry_type: String,
+	pub entry_type: Option<String>,
 	pub description: String,
 	pub media_links: Vec<String>,
 	pub submitter_or_winner: String,

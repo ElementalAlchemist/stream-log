@@ -181,7 +181,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 	let initial_entry_type_id = (*props.editing_log_entry.get())
 		.as_ref()
 		.map(|entry| entry.entry_type.clone());
-	let initial_entry_type_name = if let Some(entry_type_id) = initial_entry_type_id.as_ref() {
+	let initial_entry_type_name = if let Some(Some(entry_type_id)) = initial_entry_type_id.as_ref() {
 		if let Some(entry_type) = event_entry_types_id_index.get().get(entry_type_id) {
 			entry_type.name.clone()
 		} else {
@@ -398,7 +398,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			end_time_value.set(EndTimeData::NotEntered);
 			modified_entry_data.modify().insert(ModifiedEventLogEntryParts::EndTime);
 		} else if end_time_input.chars().all(|c| c == '-') {
-			let entry_type = event_entry_types_id_index.get(&*entry_type_id);
+			let entry_type = event_entry_types_id_index.get((*entry_type_id).as_deref().unwrap_or(""));
 			if entry_type
 				.map(|entry_type| entry_type.require_end_time)
 				.unwrap_or(false)
@@ -462,10 +462,11 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 	create_effect(ctx, || {
 		let name = entry_type_name.get();
 		if name.is_empty() {
-			entry_type_error.set(Some(String::from("An entry type is required")));
+			entry_type_error.set(None);
+			entry_type_id.set(None);
 		} else if let Some(entry_type) = event_entry_types_name_index.get().get(&*name) {
 			entry_type_error.set(None);
-			entry_type_id.set(entry_type.id.clone());
+			entry_type_id.set(Some(entry_type.id.clone()));
 
 			modified_entry_data
 				.modify()
@@ -896,10 +897,15 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 				EndTimeData::NotEntered => String::new(),
 				EndTimeData::NoTime => String::from("-"),
 			};
-			let entry_type = event_entry_types_id_index
-				.get()
-				.get(&entry.entry_type)
-				.map(|entry_type| entry_type.name.clone())
+			let entry_type = entry
+				.entry_type
+				.as_ref()
+				.and_then(|entry_type| {
+					event_entry_types_id_index
+						.get()
+						.get(entry_type)
+						.map(|entry_type| entry_type.name.clone())
+				})
 				.unwrap_or_default();
 			let parent_entry = entry.parent.as_ref().and_then(|parent_id| {
 				props
@@ -1322,7 +1328,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 					EndTimeData::NoTime => String::from("—")
 				};
 				let entry_type_id_index = event_entry_types_id_index.get();
-				let entry_type = entry_type_id_index.get(&entry.entry_type);
+				let entry_type = entry.entry_type.as_ref().and_then(|entry_type| entry_type_id_index.get(entry_type));
 				let entry_type_name = entry_type.map(|entry_type| entry_type.name.clone()).unwrap_or_default();
 				let header_text = format!("Editing entry: {} / {} / {} / {}", start_duration, end_duration, entry_type_name, entry.description);
 
@@ -1344,8 +1350,14 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 				(if let Some(parent) = props.edit_parent_log_entry.get().as_ref() {
 					let start_time_duration = parent.start_time - props.event.get().start_time;
 					let event_entry_types = props.event_entry_types.get();
-					let Some(entry_type) = event_entry_types.iter().find(|entry_type| entry_type.id == parent.entry_type) else { return view! { ctx, }};
-					let entry_type_name = entry_type.name.clone();
+					let entry_type_name = parent.entry_type
+						.as_ref()
+						.and_then(|parent_entry_type| event_entry_types
+							.iter()
+							.find(|entry_type| entry_type.id == *parent_entry_type)
+						)
+						.map(|entry_type| entry_type.name.clone())
+						.unwrap_or_default();
 					let description = parent.description.clone();
 
 					let start_time = format_duration(&start_time_duration);

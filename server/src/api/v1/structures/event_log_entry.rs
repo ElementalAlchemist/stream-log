@@ -31,7 +31,7 @@ pub struct EventLogEntry {
 	/// The end time of the entry, if entered
 	pub end_time: EndTimeData,
 	/// The entry type this entry has
-	pub entry_type: EntryType,
+	pub entry_type: Option<EntryType>,
 	/// The entry description
 	pub description: String,
 	/// The media link associated with the entry

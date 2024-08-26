@@ -90,8 +90,16 @@ pub fn EventLogEntryTyping<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryTypi
 							if let Some(parent) = parent {
 								let event = event.clone();
 								let start_time_duration = parent.start_time - event.start_time;
-								let Some(entry_type) = event_entry_types.iter().find(|entry_type| entry_type.id == parent.entry_type) else { return view! { ctx, } };
-								let entry_type_name = entry_type.name.clone();
+								let entry_type = parent.entry_type
+									.as_ref()
+									.and_then(|entry_type_id| event_entry_types
+										.iter()
+										.find(|entry_type| entry_type.id == *entry_type_id)
+									);
+								let entry_type_name = entry_type
+									.as_ref()
+									.map(|entry_type| entry_type.name.clone())
+									.unwrap_or_default();
 								let description = parent.description.clone();
 
 								let start_time = format_duration(&start_time_duration);

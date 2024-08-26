@@ -4,5 +4,6 @@
 -- License, v. 2.0. If a copy of the MPL was not distributed with this
 -- file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
--- Type values can't be removed, so no downgrade code is possible
+-- There's not a good migration that makes a nullable foreign key column non-nullable again, so for the downward
+-- migration, we'll just ignore the nullability of the column.
 SELECT 1;
