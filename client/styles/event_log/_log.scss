@@ -228,7 +228,7 @@ $event_log_editor_column_count: 17;
 	}
 }
 
-.log_entry_highlight {
+.log_entry_missing_giveaway_highlight {
 	background: #ff0;
 
 	&:hover {
@@ -237,7 +237,7 @@ $event_log_editor_column_count: 17;
 }
 
 @media (prefers-color-scheme: dark) {
-	.log_entry_highlight {
+	.log_entry_missing_giveaway_highlight {
 		background: #660;
 
 		&:hover {

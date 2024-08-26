@@ -384,7 +384,7 @@ pub async fn event_log_list(
 				video_processing_state: entry.video_processing_state.into(),
 				video_errors: entry.video_errors.clone(),
 				poster_moment: entry.poster_moment,
-				marked_incomplete: entry.marked_incomplete,
+				missing_giveaway_information: entry.missing_giveaway_information,
 				tab: event_log_tabs_by_start_time
 					.range(..=tab_start_time)
 					.last()

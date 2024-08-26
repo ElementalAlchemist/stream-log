@@ -101,7 +101,7 @@ pub async fn set_video_processing_state(
 			video_errors: entry.video_errors,
 			poster_moment: entry.poster_moment,
 			video_edit_state: entry.video_edit_state.into(),
-			marked_incomplete: entry.marked_incomplete,
+			missing_giveaway_information: entry.missing_giveaway_information,
 		};
 
 		Ok((event, entry))

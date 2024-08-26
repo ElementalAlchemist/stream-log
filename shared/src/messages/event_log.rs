@@ -39,7 +39,7 @@ pub struct EventLogEntry {
 	pub video_errors: String,
 	pub poster_moment: bool,
 	pub video_edit_state: VideoEditState,
-	pub marked_incomplete: bool,
+	pub missing_giveaway_information: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]

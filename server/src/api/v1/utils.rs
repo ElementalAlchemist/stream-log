@@ -80,7 +80,7 @@ pub fn update_history(db_connection: &mut PgConnection, entry: EventLogEntry, ap
 		video_errors: entry.video_errors,
 		poster_moment: entry.poster_moment,
 		video_edit_state: entry.video_edit_state,
-		marked_incomplete: entry.marked_incomplete,
+		missing_giveaway_information: entry.missing_giveaway_information,
 		end_time_incomplete: entry.end_time_incomplete,
 	};
 	let history_tags: Vec<EventLogHistoryTag> = tags

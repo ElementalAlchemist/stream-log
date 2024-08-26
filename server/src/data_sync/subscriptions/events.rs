@@ -494,7 +494,7 @@ pub async fn subscribe_to_event(
 			video_errors: log_entry.video_errors.clone(),
 			poster_moment: log_entry.poster_moment,
 			video_edit_state: log_entry.video_edit_state.into(),
-			marked_incomplete: log_entry.marked_incomplete,
+			missing_giveaway_information: log_entry.missing_giveaway_information,
 		};
 		event_log_entries.push(send_entry);
 	}
@@ -586,7 +586,7 @@ pub async fn handle_event_update(
 					video_errors: String::new(),
 					poster_moment: false,
 					video_edit_state: log_entry_data.video_edit_state.into(),
-					marked_incomplete: log_entry_data.marked_incomplete,
+					missing_giveaway_information: log_entry_data.missing_giveaway_information,
 					end_time_incomplete,
 				};
 
@@ -704,7 +704,7 @@ pub async fn handle_event_update(
 							video_processing_state: entry.video_processing_state.into(),
 							video_errors: entry.video_errors,
 							poster_moment: entry.poster_moment,
-							marked_incomplete: entry.marked_incomplete,
+							missing_giveaway_information: entry.missing_giveaway_information,
 						}
 					}
 					Err(error) => {
@@ -837,8 +837,8 @@ pub async fn handle_event_update(
 						ModifiedEventLogEntryParts::Editor => {
 							changes.editor = Some(log_entry.editor.as_ref().map(|user| user.id.clone()))
 						}
-						ModifiedEventLogEntryParts::MarkedIncomplete => {
-							changes.marked_incomplete = Some(log_entry.marked_incomplete)
+						ModifiedEventLogEntryParts::MissingGiveawayInfo => {
+							changes.missing_giveaway_information = Some(log_entry.missing_giveaway_information)
 						}
 						ModifiedEventLogEntryParts::SortKey => {
 							changes.manual_sort_key = Some(log_entry.manual_sort_key)
@@ -1086,7 +1086,7 @@ pub async fn handle_event_update(
 						video_errors: log_entry.video_errors.clone(),
 						poster_moment: log_entry.poster_moment,
 						video_edit_state: log_entry.video_edit_state.into(),
-						marked_incomplete: log_entry.marked_incomplete,
+						missing_giveaway_information: log_entry.missing_giveaway_information,
 					};
 					output_log_entries.push(updated_entry);
 				}
@@ -1251,7 +1251,7 @@ fn log_entry_change(
 			video_errors: log_entry.video_errors,
 			poster_moment: log_entry.poster_moment,
 			video_edit_state: log_entry.video_edit_state.into(),
-			marked_incomplete: log_entry.marked_incomplete,
+			missing_giveaway_information: log_entry.missing_giveaway_information,
 		};
 		Ok(log_entry)
 	})

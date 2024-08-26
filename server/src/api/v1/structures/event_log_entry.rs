@@ -60,8 +60,8 @@ pub struct EventLogEntry {
 	pub video_errors: String,
 	/// Whether this entry is marked as a poster moment
 	pub poster_moment: bool,
-	/// Whether this entry is marked as incomplete
-	pub marked_incomplete: bool,
+	/// Whether this entry is marked as needing giveaway information to be entered
+	pub missing_giveaway_information: bool,
 	/// The tab this entry is in, if any. Note that, for endpoints for which it's relevant when an entry changed,
 	/// changes to tab data do not count as changes to the individual affected entries.
 	pub tab: EventLogTab,

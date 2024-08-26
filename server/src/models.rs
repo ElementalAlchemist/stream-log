@@ -445,9 +445,9 @@ pub struct EventLogEntry {
 	pub poster_moment: bool,
 	/// The video edit state for the entry
 	pub video_edit_state: VideoEditState,
-	/// Whether the entry was marked incomplete. Incomplete entries can be unmarked by a supervisor or are completed
-	/// automatically with the entry of an end time and submitter/winner.
-	pub marked_incomplete: bool,
+	/// Whether the entry was marked as missing giveaway information. Entries missing giveaway information can be
+	/// unmarked by a supervisor or are completed automatically with the entry of an end time and submitter/winner.
+	pub missing_giveaway_information: bool,
 	/// Any media links associated with the entry. All values in the Vec should have values.
 	pub media_links: Vec<Option<String>>,
 	/// Whether the end time is yet to be entered
@@ -491,7 +491,7 @@ pub struct EventLogEntryChanges {
 	pub manual_sort_key: Option<Option<i32>>,
 	pub poster_moment: Option<bool>,
 	pub video_edit_state: Option<VideoEditState>,
-	pub marked_incomplete: Option<bool>,
+	pub missing_giveaway_information: Option<bool>,
 	pub media_links: Option<Vec<Option<String>>>,
 	pub end_time_incomplete: Option<bool>,
 }
@@ -509,7 +509,7 @@ impl EventLogEntryChanges {
 			|| self.manual_sort_key.is_some()
 			|| self.poster_moment.is_some()
 			|| self.video_edit_state.is_some()
-			|| self.marked_incomplete.is_some()
+			|| self.missing_giveaway_information.is_some()
 			|| self.media_links.is_some()
 			|| self.end_time_incomplete.is_some()
 	}
@@ -596,7 +596,7 @@ pub struct EventLogHistoryEntry {
 	pub video_errors: String,
 	pub poster_moment: bool,
 	pub video_edit_state: VideoEditState,
-	pub marked_incomplete: bool,
+	pub missing_giveaway_information: bool,
 	pub media_links: Vec<Option<String>>,
 	pub end_time_incomplete: bool,
 	pub video_processing_state: VideoProcessingState,
@@ -641,7 +641,7 @@ impl EventLogHistoryEntry {
 			video_errors: entry.video_errors.clone(),
 			poster_moment: entry.poster_moment,
 			video_edit_state: entry.video_edit_state,
-			marked_incomplete: entry.marked_incomplete,
+			missing_giveaway_information: entry.missing_giveaway_information,
 			end_time_incomplete: entry.end_time_incomplete,
 		}
 	}

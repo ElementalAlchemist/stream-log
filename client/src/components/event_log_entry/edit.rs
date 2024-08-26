@@ -306,15 +306,15 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			.unwrap_or_default(),
 	);
 
-	let marked_incomplete = create_signal(
+	let missing_giveaway_information = create_signal(
 		ctx,
 		(*props.editing_log_entry.get())
 			.as_ref()
-			.map(|entry| entry.marked_incomplete)
+			.map(|entry| entry.missing_giveaway_information)
 			.unwrap_or_default(),
 	);
 
-	let disable_marked_incomplete = create_signal(ctx, false);
+	let disable_missing_giveaway_info = create_signal(ctx, false);
 
 	let manual_sort_key = create_signal(
 		ctx,
@@ -715,30 +715,32 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 	});
 
 	create_effect(ctx, || {
-		marked_incomplete.track();
+		missing_giveaway_information.track();
 		modified_entry_data
 			.modify()
-			.insert(ModifiedEventLogEntryParts::MarkedIncomplete);
+			.insert(ModifiedEventLogEntryParts::MissingGiveawayInfo);
 	});
 
 	create_effect(ctx, || {
 		let entered_end_time = end_time_input.get();
 		let entered_submitter_or_winner = submitter_or_winner.get();
 		let permission_level = props.permission_level.get();
-		let entry_marked_incomplete = marked_incomplete.get();
+		let entry_marked_missing_giveaway_info = missing_giveaway_information.get();
 		let editing_existing_entry = props.editing_log_entry.get().is_some();
 
 		if !entered_end_time.is_empty()
 			&& !entered_end_time.chars().all(|c| c == '-')
 			&& !entered_submitter_or_winner.is_empty()
 		{
-			marked_incomplete.set(false);
-			disable_marked_incomplete.set(true);
-		} else if editing_existing_entry && *entry_marked_incomplete && *permission_level != PermissionLevel::Supervisor
+			missing_giveaway_information.set(false);
+			disable_missing_giveaway_info.set(true);
+		} else if editing_existing_entry
+			&& *entry_marked_missing_giveaway_info
+			&& *permission_level != PermissionLevel::Supervisor
 		{
-			disable_marked_incomplete.set(true);
+			disable_missing_giveaway_info.set(true);
 		} else {
-			disable_marked_incomplete.set(false);
+			disable_missing_giveaway_info.set(false);
 		}
 	});
 
@@ -924,7 +926,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 					.map(|editor| editor.username.clone())
 					.unwrap_or_default(),
 			);
-			marked_incomplete.set(entry.marked_incomplete);
+			missing_giveaway_information.set(entry.missing_giveaway_information);
 			sort_key_entry.set(entry.manual_sort_key.map(|key| key.to_string()).unwrap_or_default());
 			props.edit_parent_log_entry.set(parent_entry);
 		} else {
@@ -938,7 +940,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			video_edit_state.set(VideoEditState::default());
 			notes_to_editor.set(String::new());
 			editor_entry.set(String::new());
-			marked_incomplete.set(false);
+			missing_giveaway_information.set(false);
 			sort_key_entry.set(String::new());
 			props.edit_parent_log_entry.set(None);
 		}
@@ -962,7 +964,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		video_edit_state.set(VideoEditState::default());
 		notes_to_editor.set(String::new());
 		editor_entry.set(String::new());
-		marked_incomplete.set(false);
+		missing_giveaway_information.set(false);
 		sort_key_entry.set(String::new());
 		add_count_entry_signal.set(String::from("1"));
 
@@ -1003,7 +1005,9 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 						entry.notes_to_editor.clone_from(&(*notes_to_editor.get()))
 					}
 					ModifiedEventLogEntryParts::Editor => entry.editor.clone_from(&(*editor_value.get())),
-					ModifiedEventLogEntryParts::MarkedIncomplete => entry.marked_incomplete = *marked_incomplete.get(),
+					ModifiedEventLogEntryParts::MissingGiveawayInfo => {
+						entry.missing_giveaway_information = *missing_giveaway_information.get()
+					}
 					ModifiedEventLogEntryParts::SortKey => entry.manual_sort_key = *manual_sort_key.get(),
 					ModifiedEventLogEntryParts::Parent => {
 						entry.parent = (*props.edit_parent_log_entry.get())
@@ -1072,7 +1076,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 				video_errors: String::new(),
 				poster_moment: *poster_moment.get(),
 				video_edit_state: *video_edit_state.get(),
-				marked_incomplete: *marked_incomplete.get(),
+				missing_giveaway_information: *missing_giveaway_information.get(),
 			};
 			let add_count = *add_count_signal.get();
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
@@ -1254,8 +1258,8 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			}
 			"e" => end_now(),
 			"i" => {
-				if !*disable_marked_incomplete.get() {
-					marked_incomplete.set(!*marked_incomplete.get());
+				if !*disable_missing_giveaway_info.get() {
+					missing_giveaway_information.set(!*missing_giveaway_information.get());
 				}
 			}
 			_ => (),
@@ -1593,8 +1597,8 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 				}
 				div(id="event_log_entry_edit_incomplete") {
 					label {
-						input(type="checkbox", bind:checked=marked_incomplete, disabled=*disable_marked_incomplete.get())
-						"Mark incomplete"
+						input(type="checkbox", bind:checked=missing_giveaway_information, disabled=*disable_missing_giveaway_info.get())
+						"Needs giveaway results"
 					}
 				}
 				div(id="event_log_entry_edit_sort_key") {

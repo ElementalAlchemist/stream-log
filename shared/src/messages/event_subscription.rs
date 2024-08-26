@@ -87,7 +87,7 @@ pub enum ModifiedEventLogEntryParts {
 	PosterMoment,
 	NotesToEditor,
 	Editor,
-	MarkedIncomplete,
+	MissingGiveawayInfo,
 	SortKey,
 	Parent,
 }

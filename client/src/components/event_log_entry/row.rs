@@ -202,10 +202,10 @@ pub fn EventLogEntryRow<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryRowProp
 						let mut row_class = String::from("event_log_entry");
 						if (*props.entry.get())
 							.as_ref()
-							.map(|entry| entry.marked_incomplete)
+							.map(|entry| entry.missing_giveaway_information)
 							.unwrap_or(false)
 						{
-							row_class = format!("{} log_entry_highlight", row_class);
+							row_class = format!("{} log_entry_missing_giveaway_highlight", row_class);
 						} else if (*props.entry.get())
 							.as_ref()
 							.map(|entry| entry.end_time == EndTimeData::NotEntered)
