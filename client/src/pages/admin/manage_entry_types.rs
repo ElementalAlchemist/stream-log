@@ -259,7 +259,7 @@ async fn AdminManageEntryTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 								input(bind:value=description_signal, placeholder="Description", class="admin_entry_type_description_field")
 							}
 							div {
-								button(on:click=require_end_time_toggle_handler) {
+								button(type="button", on:click=require_end_time_toggle_handler) {
 									(if *require_end_time_signal.get() {
 										"End Time Required [Toggle]"
 									} else {
@@ -288,7 +288,7 @@ async fn AdminManageEntryTypesLoadedView<G: Html>(ctx: Scope<'_>) -> View<G> {
 					input(bind:value=new_type_description_signal, placeholder="Description", class="admin_entry_type_description_field")
 				}
 				div {
-					button(on:click=new_type_require_end_time_toggle_handler) {
+					button(type="button", on:click=new_type_require_end_time_toggle_handler) {
 						(if *new_type_require_end_time.get() {
 							"End Time Required [Toggle]"
 						} else {
