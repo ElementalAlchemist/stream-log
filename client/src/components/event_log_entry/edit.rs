@@ -1647,6 +1647,10 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 					}
 				})
 				(if let Some(entry) = (*props.editing_log_entry.get()).clone() {
+					let visible_creation_time = {
+						let creation_duration = entry.created_at - props.event.get().start_time;
+						format_duration(&creation_duration)
+					};
 					view! {
 						ctx,
 						div(id="event_log_entry_edit_delete") {
@@ -1668,9 +1672,11 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 								view! { ctx, }
 							})
 						}
-						div(id="event_log_entry_id") {
+						div(id="event_log_entry_id_info") {
 							"ID: "
 							(entry.id)
+							" Created: "
+							(visible_creation_time)
 						}
 						div(id="event_log_entry_edit_close_buttons") {
 							button(disabled=*disable_save.get()) { "Save" }
