@@ -122,7 +122,7 @@ $event_log_editor_column_count: 17;
 		minmax(min-content, 150px)
 		max-content
 		max-content
-		38px
+		40px
 		minmax(min-content, 200px);
 	font-size: 12px;
 	margin-bottom: 800px;
@@ -141,7 +141,7 @@ $event_log_editor_column_count: 17;
 			max-content
 			max-content
 			20px
-			38px
+			40px
 			max-content
 			minmax(min-content, 200px)
 			max-content
@@ -343,6 +343,10 @@ $event_log_editor_column_count: 17;
 
 .log_entry_video_link img {
 	width: 16px;
+}
+
+.log_entry_video_link > *:first-child {
+	margin-right: 2px;
 }
 
 .log_entry_video_errors:not(:empty) {
