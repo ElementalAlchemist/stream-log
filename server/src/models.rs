@@ -423,7 +423,7 @@ pub struct EventLogEntry {
 	/// The name of the submitter or winner related to the entry
 	pub submitter_or_winner: String,
 	/// Notes to the video editor for this entry
-	pub notes_to_editor: String,
+	pub notes: String,
 	/// ID of the user selected as an editor for this entry
 	pub editor: Option<String>,
 	/// The published video link
@@ -485,7 +485,7 @@ pub struct EventLogEntryChanges {
 	pub entry_type: Option<Option<String>>,
 	pub description: Option<String>,
 	pub submitter_or_winner: Option<String>,
-	pub notes_to_editor: Option<String>,
+	pub notes: Option<String>,
 	pub editor: Option<Option<String>>,
 	pub parent: Option<Option<String>>,
 	pub manual_sort_key: Option<Option<i32>>,
@@ -503,7 +503,7 @@ impl EventLogEntryChanges {
 			|| self.entry_type.is_some()
 			|| self.description.is_some()
 			|| self.submitter_or_winner.is_some()
-			|| self.notes_to_editor.is_some()
+			|| self.notes.is_some()
 			|| self.editor.is_some()
 			|| self.parent.is_some()
 			|| self.manual_sort_key.is_some()
@@ -585,7 +585,7 @@ pub struct EventLogHistoryEntry {
 	pub end_time: Option<DateTime<Utc>>,
 	pub description: String,
 	pub submitter_or_winner: String,
-	pub notes_to_editor: String,
+	pub notes: String,
 	pub editor: Option<String>,
 	pub video_link: Option<String>,
 	pub parent: Option<String>,
@@ -630,7 +630,7 @@ impl EventLogHistoryEntry {
 			description: entry.description.clone(),
 			media_links: entry.media_links.clone(),
 			submitter_or_winner: entry.submitter_or_winner.clone(),
-			notes_to_editor: entry.notes_to_editor.clone(),
+			notes: entry.notes.clone(),
 			editor: entry.editor.clone(),
 			video_link: entry.video_link.clone(),
 			parent: entry.parent.clone(),

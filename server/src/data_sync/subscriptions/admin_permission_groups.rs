@@ -214,14 +214,16 @@ pub async fn handle_admin_permission_groups_message(
 				let event: QueryResult<EventDb> = events::table
 					.find(&event_group_association.event)
 					.first(&mut *db_connection);
-				let event =
-					match event {
-						Ok(event) => event,
-						Err(error) => {
-							tide::log::error!("A database error occurred getting the event associated with a permission group update: {}", error);
-							return;
-						}
-					};
+				let event = match event {
+					Ok(event) => event,
+					Err(error) => {
+						tide::log::error!(
+							"A database error occurred getting the event associated with a permission group update: {}",
+							error
+						);
+						return;
+					}
+				};
 
 				(user_permissions, event)
 			};

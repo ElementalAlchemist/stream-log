@@ -29,7 +29,7 @@ pub struct EventLogEntry {
 	pub media_links: Vec<String>,
 	pub submitter_or_winner: String,
 	pub tags: Vec<Tag>,
-	pub notes_to_editor: String,
+	pub notes: String,
 	pub editor: Option<PublicUserData>,
 	pub video_link: Option<String>,
 	pub parent: Option<String>,

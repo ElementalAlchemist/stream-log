@@ -427,8 +427,8 @@ pub fn EventLogEntryRow<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryRowProp
 					} else {
 						view! { ctx, }
 					})
-					div(class="log_entry_notes_to_editor", on:click=row_click_handler_for_id("event_log_entry_edit_notes_to_editor_field")) {
-						((*props.entry.get()).as_ref().map(|entry| entry.notes_to_editor.clone()).unwrap_or_default())
+					div(class="log_entry_notes", on:click=row_click_handler_for_id("event_log_entry_edit_notes_field")) {
+						((*props.entry.get()).as_ref().map(|entry| entry.notes.clone()).unwrap_or_default())
 					}
 					(if *props.use_editor_view.get() {
 						view! {

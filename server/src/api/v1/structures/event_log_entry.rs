@@ -41,7 +41,7 @@ pub struct EventLogEntry {
 	/// The tags associated with the entry
 	pub tags: Vec<Tag>,
 	/// The notes about this entry to the editor
-	pub notes_to_editor: String,
+	pub notes: String,
 	/// The link to the editor for this entry
 	pub editor_link: Option<String>,
 	/// The editor assigned to this entry

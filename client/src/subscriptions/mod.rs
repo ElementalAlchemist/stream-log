@@ -426,14 +426,14 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 												);
 											}
 										}
-										TypingData::NotesToEditor(event_log_entry, typed_notes, typing_user) => {
+										TypingData::Notes(event_log_entry, typed_notes, typing_user) => {
 											if user.id != typing_user.id {
 												handle_typing_data(
 													event_data,
 													event_log_entry,
 													typed_notes,
 													typing_user,
-													TypingTarget::NotesToEditor,
+													TypingTarget::Notes,
 												);
 											}
 										}

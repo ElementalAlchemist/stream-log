@@ -44,7 +44,7 @@ pub enum TypingData {
 	Description(Option<EventLogEntry>, String, PublicUserData),
 	MediaLinks(Option<EventLogEntry>, String, PublicUserData),
 	SubmitterWinner(Option<EventLogEntry>, String, PublicUserData),
-	NotesToEditor(Option<EventLogEntry>, String, PublicUserData),
+	Notes(Option<EventLogEntry>, String, PublicUserData),
 	Clear(Option<EventLogEntry>, PublicUserData),
 }
 
@@ -70,7 +70,7 @@ pub enum NewTypingData {
 	Description(Option<EventLogEntry>, String),
 	MediaLinks(Option<EventLogEntry>, String),
 	SubmitterWinner(Option<EventLogEntry>, String),
-	NotesToEditor(Option<EventLogEntry>, String),
+	Notes(Option<EventLogEntry>, String),
 	Clear(Option<EventLogEntry>),
 }
 
@@ -85,7 +85,7 @@ pub enum ModifiedEventLogEntryParts {
 	Tags,
 	VideoEditState,
 	PosterMoment,
-	NotesToEditor,
+	Notes,
 	Editor,
 	MissingGiveawayInfo,
 	SortKey,

@@ -91,7 +91,7 @@ pub async fn set_video_processing_state(
 			media_links: entry.media_links.into_iter().flatten().collect(),
 			submitter_or_winner: entry.submitter_or_winner,
 			tags: tags.into_iter().map(|tag| tag.into()).collect(),
-			notes_to_editor: entry.notes_to_editor,
+			notes: entry.notes,
 			editor: editor.map(|editor| editor.into()),
 			video_link: entry.video_link,
 			parent: entry.parent,

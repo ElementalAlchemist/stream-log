@@ -532,7 +532,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 					} else {
 						view! { ctx, }
 					})
-					div(class="event_log_header") { "Notes to editor" }
+					div(class="event_log_header") { "Notes" }
 					(if *use_editor_view.get() {
 						view! {
 							ctx,

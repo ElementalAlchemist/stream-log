@@ -53,7 +53,7 @@ pub fn EventLogEntryTyping<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryTypi
 						TypingTarget::Description => typing_values.4.clone_from(value),
 						TypingTarget::SubmitterWinner => typing_values.5.clone_from(value),
 						TypingTarget::MediaLink => typing_values.6.clone_from(value),
-						TypingTarget::NotesToEditor => typing_values.7.clone_from(value),
+						TypingTarget::Notes => typing_values.7.clone_from(value),
 					};
 				}
 				(user.clone(), typing_values)
@@ -69,7 +69,7 @@ pub fn EventLogEntryTyping<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryTypi
 			iterable=user_typing_data,
 			key=|data| data.clone(),
 			view=move |ctx, (user, typing_events)| {
-				let (parent_id, typed_start_time, typed_end_time, typed_entry_type, typed_description, typed_submitter_or_winner, typed_media_link, typed_notes_to_editor) = typing_events;
+				let (parent_id, typed_start_time, typed_end_time, typed_entry_type, typed_description, typed_submitter_or_winner, typed_media_link, typed_notes) = typing_events;
 
 				let user_color = rgb_str_from_color(user.color);
 				let username_style = format!("color: {}", user_color);
@@ -180,7 +180,7 @@ pub fn EventLogEntryTyping<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryTypi
 						} else {
 							view! { ctx, }
 						})
-						div { (typed_notes_to_editor) }
+						div { (typed_notes) }
 						(if *props.use_editor_view.get() {
 							view! {
 								ctx,

@@ -484,7 +484,7 @@ pub async fn subscribe_to_event(
 			media_links: log_entry.media_links.iter().filter_map(|link| link.clone()).collect(),
 			submitter_or_winner: log_entry.submitter_or_winner.clone(),
 			tags,
-			notes_to_editor: log_entry.notes_to_editor.clone(),
+			notes: log_entry.notes.clone(),
 			editor,
 			video_link: log_entry.video_link.clone(),
 			parent: log_entry.parent.clone(),
@@ -575,7 +575,7 @@ pub async fn handle_event_update(
 						.map(|link| Some(link.clone()))
 						.collect(),
 					submitter_or_winner: log_entry_data.submitter_or_winner.clone(),
-					notes_to_editor: log_entry_data.notes_to_editor.clone(),
+					notes: log_entry_data.notes.clone(),
 					editor: log_entry_data.editor.clone().map(|editor| editor.id),
 					video_link: None,
 					parent: log_entry_data.parent.clone(),
@@ -697,7 +697,7 @@ pub async fn handle_event_update(
 							submitter_or_winner: entry.submitter_or_winner,
 							tags,
 							video_edit_state: entry.video_edit_state.into(),
-							notes_to_editor: entry.notes_to_editor,
+							notes: entry.notes,
 							editor: editor.map(|user| user.into()),
 							video_link: entry.video_link,
 							parent: entry.parent,
@@ -833,9 +833,7 @@ pub async fn handle_event_update(
 						ModifiedEventLogEntryParts::PosterMoment => {
 							changes.poster_moment = Some(log_entry.poster_moment)
 						}
-						ModifiedEventLogEntryParts::NotesToEditor => {
-							changes.notes_to_editor = Some(log_entry.notes_to_editor.clone())
-						}
+						ModifiedEventLogEntryParts::Notes => changes.notes = Some(log_entry.notes.clone()),
 						ModifiedEventLogEntryParts::Editor => {
 							changes.editor = Some(log_entry.editor.as_ref().map(|user| user.id.clone()))
 						}
@@ -895,8 +893,8 @@ pub async fn handle_event_update(
 				NewTypingData::SubmitterWinner(log_entry, submitter_or_winner) => {
 					TypingData::SubmitterWinner(log_entry, submitter_or_winner, user_data)
 				}
-				NewTypingData::NotesToEditor(log_entry, notes_to_editor) => {
-					TypingData::NotesToEditor(log_entry, notes_to_editor, user_data)
+				NewTypingData::Notes(log_entry, notes_to_editor) => {
+					TypingData::Notes(log_entry, notes_to_editor, user_data)
 				}
 				NewTypingData::Clear(log_entry) => TypingData::Clear(log_entry, user_data),
 			};
@@ -1078,7 +1076,7 @@ pub async fn handle_event_update(
 						media_links: log_entry.media_links.iter().filter_map(|link| link.clone()).collect(),
 						submitter_or_winner: log_entry.submitter_or_winner.clone(),
 						tags,
-						notes_to_editor: log_entry.notes_to_editor.clone(),
+						notes: log_entry.notes.clone(),
 						editor,
 						video_link: log_entry.video_link.clone(),
 						parent: log_entry.parent.clone(),
@@ -1243,7 +1241,7 @@ fn log_entry_change(
 			media_links: log_entry.media_links.into_iter().flatten().collect(),
 			submitter_or_winner: log_entry.submitter_or_winner,
 			tags,
-			notes_to_editor: log_entry.notes_to_editor,
+			notes: log_entry.notes,
 			editor,
 			video_link: log_entry.video_link,
 			parent: log_entry.parent,

@@ -276,11 +276,11 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			.insert(ModifiedEventLogEntryParts::VideoEditState);
 	};
 
-	let notes_to_editor = create_signal(
+	let notes = create_signal(
 		ctx,
 		(*props.editing_log_entry.get())
 			.as_ref()
-			.map(|entry| entry.notes_to_editor.clone())
+			.map(|entry| entry.notes.clone())
 			.unwrap_or_default(),
 	);
 
@@ -650,13 +650,11 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 	});
 
 	create_effect(ctx, || {
-		notes_to_editor.track();
-		modified_entry_data
-			.modify()
-			.insert(ModifiedEventLogEntryParts::NotesToEditor);
+		notes.track();
+		modified_entry_data.modify().insert(ModifiedEventLogEntryParts::Notes);
 	});
 	create_effect(ctx, move || {
-		notes_to_editor.track();
+		notes.track();
 		if *suppress_typing_notifications.get_untracked() {
 			return;
 		}
@@ -666,9 +664,9 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
 				(*props.event.get()).clone(),
-				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::NotesToEditor(
+				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::Notes(
 					(*props.editing_log_entry.get()).clone(),
-					(*notes_to_editor.get()).clone(),
+					(*notes.get()).clone(),
 				))),
 			)));
 			let message_json = match serde_json::to_string(&message) {
@@ -924,7 +922,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			submitter_or_winner.set(entry.submitter_or_winner.clone());
 			tags.set(entry.tags.clone());
 			video_edit_state.set(entry.video_edit_state);
-			notes_to_editor.set(entry.notes_to_editor.clone());
+			notes.set(entry.notes.clone());
 			editor_entry.set(
 				entry
 					.editor
@@ -944,7 +942,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			submitter_or_winner.set(String::new());
 			tags.set(Vec::new());
 			video_edit_state.set(VideoEditState::default());
-			notes_to_editor.set(String::new());
+			notes.set(String::new());
 			editor_entry.set(String::new());
 			missing_giveaway_information.set(false);
 			sort_key_entry.set(String::new());
@@ -968,7 +966,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		submitter_or_winner.set(String::new());
 		tags.set(Vec::new());
 		video_edit_state.set(VideoEditState::default());
-		notes_to_editor.set(String::new());
+		notes.set(String::new());
 		editor_entry.set(String::new());
 		missing_giveaway_information.set(false);
 		sort_key_entry.set(String::new());
@@ -1007,9 +1005,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 					}
 					ModifiedEventLogEntryParts::VideoEditState => entry.video_edit_state = *video_edit_state.get(),
 					ModifiedEventLogEntryParts::PosterMoment => entry.poster_moment = *poster_moment.get(),
-					ModifiedEventLogEntryParts::NotesToEditor => {
-						entry.notes_to_editor.clone_from(&(*notes_to_editor.get()))
-					}
+					ModifiedEventLogEntryParts::Notes => entry.notes.clone_from(&(*notes.get())),
 					ModifiedEventLogEntryParts::Editor => entry.editor.clone_from(&(*editor_value.get())),
 					ModifiedEventLogEntryParts::MissingGiveawayInfo => {
 						entry.missing_giveaway_information = *missing_giveaway_information.get()
@@ -1070,7 +1066,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 					.collect(),
 				submitter_or_winner: (*submitter_or_winner.get()).clone(),
 				tags: (*tags.get()).clone(),
-				notes_to_editor: (*notes_to_editor.get()).clone(),
+				notes: (*notes.get()).clone(),
 				editor: (*editor_value.get()).clone(),
 				video_link: None,
 				parent: (*props.edit_parent_log_entry.get())
@@ -1594,8 +1590,8 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 						"Poster moment"
 					}
 				}
-				div(id="event_log_entry_edit_notes_to_editor") {
-					input(id="event_log_entry_edit_notes_to_editor_field", bind:value=notes_to_editor, placeholder="Notes to editor", spellcheck={use_spell_check.get()})
+				div(id="event_log_entry_edit_notes") {
+					input(id="event_log_entry_edit_notes_field", bind:value=notes, placeholder="Notes", spellcheck={use_spell_check.get()})
 				}
 				div(id="event_log_entry_edit_editor") {
 					input(

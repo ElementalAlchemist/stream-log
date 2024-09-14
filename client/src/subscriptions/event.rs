@@ -95,7 +95,7 @@ pub enum TypingTarget {
 	Description,
 	MediaLink,
 	SubmitterWinner,
-	NotesToEditor,
+	Notes,
 }
 
 #[derive(Clone, Debug)]
