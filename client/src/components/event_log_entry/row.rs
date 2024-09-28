@@ -255,7 +255,9 @@ pub fn EventLogEntryRow<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryRowProp
 					div(class="log_entry_select_parent", on:click=prevent_row_click_handler) {
 						(child_indicators)
 						({
-							if (*props.entry.get()).as_ref().map(|entry| entry.start_time.is_some()).unwrap_or(false) {
+							let entry = props.entry.get();
+							let editing_log_entry = props.editing_log_entry.get();
+							if (*entry).as_ref().map(|entry| entry.start_time.is_some()).unwrap_or(false) && editing_log_entry.is_some() {
 								view! {
 									ctx,
 									img(src="images/add.png", class="click", alt="Add child entry", title="Add child entry", on:click=parent_select_handler)
