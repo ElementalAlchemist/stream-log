@@ -185,6 +185,7 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 											info_pages: event_load_data.info_pages,
 											event_log_tabs: event_load_data.tabs,
 											event_log_entries: event_load_data.entries,
+											new_event_log_entries: event_load_data.new_entries,
 										};
 										event_entry.insert(EventSubscriptionSignals::new(signal_data));
 									}
@@ -267,57 +268,17 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 							};
 							match *update_data {
 								EventSubscriptionData::UpdateEvent => event_data.event.set(event),
-								EventSubscriptionData::NewLogEntry(log_entry, creating_user) => {
-									let mut event_log_entries = event_data.event_log_entries.modify();
-									match event_log_entries.last() {
-										Some(last_entry) => {
-											if log_entry.start_time >= last_entry.start_time {
-												event_log_entries.push(log_entry);
-											} else {
-												let insert_index =
-													entry_insertion_index(&event_log_entries, &log_entry);
-												event_log_entries.insert(insert_index, log_entry);
-											}
-										}
-										None => event_log_entries.push(log_entry),
-									};
-
-									let mut typing_events = event_data.typing_events.modify();
-									*typing_events = typing_events
-										.iter()
-										.filter(|typing_event| {
-											typing_event.user.id != creating_user.id
-												|| typing_event.event_log_entry.is_some()
-										})
-										.cloned()
-										.collect();
-								}
-								EventSubscriptionData::DeleteLogEntry(log_entry) => {
-									let mut log_entries = event_data.event_log_entries.modify();
-									let log_index = log_entries
-										.iter()
-										.enumerate()
-										.find(|(_, entry)| log_entry.id == entry.id)
-										.map(|(index, _)| index);
-									if let Some(log_index) = log_index {
-										log_entries.remove(log_index);
-									}
-								}
 								EventSubscriptionData::UpdateLogEntry(log_entry, update_user) => {
 									if let Some(update_user) = update_user {
 										let mut typing_events = event_data.typing_events.modify();
-										*typing_events = typing_events
-											.iter()
-											.filter(|typing_event| {
-												typing_event.user.id != update_user.id
-													|| typing_event.event_log_entry.as_ref().map(|entry| &entry.id)
-														!= Some(&log_entry.id)
-											})
-											.cloned()
-											.collect();
+										typing_events.retain(|typing_event| {
+											typing_event.user.id != update_user.id
+												|| typing_event.event_log_entry.id != log_entry.id
+										});
 									}
 
 									let mut log_entries = event_data.event_log_entries.modify();
+									let mut new_log_entries = event_data.new_event_log_entries.modify();
 									let existing_entry_index = log_entries
 										.iter_mut()
 										.enumerate()
@@ -334,6 +295,36 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 										} else {
 											log_entries[index] = log_entry;
 										}
+									} else if log_entry.start_time.is_some() {
+										new_log_entries.retain(|entry| entry.id != log_entry.id);
+										match log_entries.last() {
+											Some(last_entry) => {
+												if log_entry.start_time >= last_entry.start_time {
+													log_entries.push(log_entry);
+												} else {
+													let insert_index = entry_insertion_index(&log_entries, &log_entry);
+													log_entries.insert(insert_index, log_entry);
+												}
+											}
+											None => log_entries.push(log_entry),
+										}
+									} else if let Some(entry) =
+										new_log_entries.iter_mut().find(|entry| entry.id == log_entry.id)
+									{
+										*entry = log_entry;
+									} else {
+										new_log_entries.push(log_entry);
+									}
+								}
+								EventSubscriptionData::DeleteLogEntry(log_entry) => {
+									let mut log_entries = event_data.event_log_entries.modify();
+									let log_index = log_entries
+										.iter()
+										.enumerate()
+										.find(|(_, entry)| log_entry.id == entry.id)
+										.map(|(index, _)| index);
+									if let Some(log_index) = log_index {
+										log_entries.remove(log_index);
 									}
 								}
 								EventSubscriptionData::Typing(typing_data) => {
@@ -911,7 +902,7 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 
 fn handle_typing_data(
 	event_data: &EventSubscriptionSignals,
-	event_log_entry: Option<EventLogEntry>,
+	event_log_entry: EventLogEntry,
 	typed_data: String,
 	typing_user: PublicUserData,
 	target_field: TypingTarget,
@@ -922,8 +913,7 @@ fn handle_typing_data(
 			.iter()
 			.enumerate()
 			.find(|(_, typing_event)| {
-				typing_event.event_log_entry.as_ref().map(|entry| &entry.id)
-					== event_log_entry.as_ref().map(|entry| &entry.id)
+				typing_event.event_log_entry.id == event_log_entry.id
 					&& typing_event.user.id == typing_user.id
 					&& typing_event.target_field == target_field
 			})
@@ -934,10 +924,7 @@ fn handle_typing_data(
 	} else {
 		let mut found_exact_event = false;
 		for typing_event in typing_events.iter_mut() {
-			if typing_event.event_log_entry.as_ref().map(|entry| &entry.id)
-				== event_log_entry.as_ref().map(|entry| &entry.id)
-				&& typing_event.user.id == typing_user.id
-			{
+			if typing_event.event_log_entry.id == event_log_entry.id && typing_event.user.id == typing_user.id {
 				typing_event.time_received = Utc::now();
 
 				if typing_event.target_field == target_field {

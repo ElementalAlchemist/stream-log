@@ -5,6 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 pub mod connection;
+pub mod new_event_entries;
 mod register;
 mod subscription_manager;
 mod subscriptions;

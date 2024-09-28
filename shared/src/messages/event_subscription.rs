@@ -16,9 +16,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum EventSubscriptionData {
 	UpdateEvent,
-	NewLogEntry(EventLogEntry, PublicUserData),
-	DeleteLogEntry(EventLogEntry),
 	UpdateLogEntry(EventLogEntry, Option<PublicUserData>),
+	DeleteLogEntry(EventLogEntry),
 	Typing(TypingData),
 	AddEntryType(EntryType),
 	UpdateEntryType(EntryType),
@@ -37,23 +36,22 @@ pub enum EventSubscriptionData {
 /// data by other users.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum TypingData {
-	Parent(Option<EventLogEntry>, String, PublicUserData),
-	StartTime(Option<EventLogEntry>, String, PublicUserData),
-	EndTime(Option<EventLogEntry>, String, PublicUserData),
-	EntryType(Option<EventLogEntry>, String, PublicUserData),
-	Description(Option<EventLogEntry>, String, PublicUserData),
-	MediaLinks(Option<EventLogEntry>, String, PublicUserData),
-	SubmitterWinner(Option<EventLogEntry>, String, PublicUserData),
-	Notes(Option<EventLogEntry>, String, PublicUserData),
-	Clear(Option<EventLogEntry>, PublicUserData),
+	Parent(EventLogEntry, String, PublicUserData),
+	StartTime(EventLogEntry, String, PublicUserData),
+	EndTime(EventLogEntry, String, PublicUserData),
+	EntryType(EventLogEntry, String, PublicUserData),
+	Description(EventLogEntry, String, PublicUserData),
+	MediaLinks(EventLogEntry, String, PublicUserData),
+	SubmitterWinner(EventLogEntry, String, PublicUserData),
+	Notes(EventLogEntry, String, PublicUserData),
+	Clear(EventLogEntry, PublicUserData),
 }
 
 /// Event subscription update sent by the client to the server.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum EventSubscriptionUpdate {
-	NewLogEntry(EventLogEntry, u8),
-	DeleteLogEntry(EventLogEntry),
 	UpdateLogEntry(EventLogEntry, Vec<ModifiedEventLogEntryParts>),
+	DeleteLogEntry(EventLogEntry),
 	Typing(NewTypingData),
 	UpdateTag(Tag),
 	RemoveTag(Tag),
@@ -61,17 +59,17 @@ pub enum EventSubscriptionUpdate {
 	CopyTagsFromEvent(Event),
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum NewTypingData {
-	Parent(Option<EventLogEntry>, String),
-	StartTime(Option<EventLogEntry>, String),
-	EndTime(Option<EventLogEntry>, String),
-	EntryType(Option<EventLogEntry>, String),
-	Description(Option<EventLogEntry>, String),
-	MediaLinks(Option<EventLogEntry>, String),
-	SubmitterWinner(Option<EventLogEntry>, String),
-	Notes(Option<EventLogEntry>, String),
-	Clear(Option<EventLogEntry>),
+	Parent(EventLogEntry, String),
+	StartTime(EventLogEntry, String),
+	EndTime(EventLogEntry, String),
+	EntryType(EventLogEntry, String),
+	Description(EventLogEntry, String),
+	MediaLinks(EventLogEntry, String),
+	SubmitterWinner(EventLogEntry, String),
+	Notes(EventLogEntry, String),
+	Clear(EventLogEntry),
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]

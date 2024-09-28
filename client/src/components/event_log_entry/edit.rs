@@ -13,9 +13,7 @@ use futures::lock::Mutex;
 use gloo_net::websocket::Message;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use stream_log_shared::messages::entry_types::EntryType;
-use stream_log_shared::messages::event_log::{
-	EndTimeData, EventLogEntry, EventLogTab, VideoEditState, VideoProcessingState,
-};
+use stream_log_shared::messages::event_log::{EndTimeData, EventLogEntry, EventLogTab, VideoEditState};
 use stream_log_shared::messages::event_subscription::{
 	EventSubscriptionUpdate, ModifiedEventLogEntryParts, NewTypingData,
 };
@@ -42,10 +40,13 @@ pub struct EventLogEntryEditProps<'a> {
 	event_log_entries: &'a ReadSignal<Vec<EventLogEntry>>,
 	editing_log_entry: &'a Signal<Option<EventLogEntry>>,
 	edit_parent_log_entry: &'a Signal<Option<EventLogEntry>>,
+	save_message_queue: &'a Signal<Vec<FromClientMessage>>,
 }
 
 #[component]
 pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditProps<'a>) -> View<G> {
+	let editing_log_entry = create_memo(ctx, || (*props.editing_log_entry.get()).clone().unwrap_or_default());
+
 	let event_entry_types_name_index = create_memo(ctx, {
 		let event_entry_types = (*props.event_entry_types.get()).clone();
 		move || {
@@ -111,7 +112,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
 				(*props.event.get()).clone(),
 				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::Parent(
-					(*props.editing_log_entry.get()).clone(),
+					(*editing_log_entry.get()).clone(),
 					parent_entry_id,
 				))),
 			)));
@@ -137,20 +138,27 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		});
 	});
 
-	let start_time_warning_base = (*props.editing_log_entry.get()).as_ref().map(|entry| entry.start_time);
+	let start_time_warning_base = (*props.editing_log_entry.get())
+		.as_ref()
+		.and_then(|entry| entry.start_time);
 	let start_time_warning_active = create_signal(ctx, false);
 	let start_time_input = if let Some(entry) = props.editing_log_entry.get().as_ref() {
-		let initial_start_time_duration = entry.start_time - props.event.get().start_time;
-		create_signal(ctx, format_duration(&initial_start_time_duration))
+		if let Some(start_time) = entry.start_time {
+			let initial_start_time_duration = start_time - props.event.get().start_time;
+			format_duration(&initial_start_time_duration)
+		} else {
+			String::new()
+		}
 	} else {
-		create_signal(ctx, String::new())
+		String::new()
 	};
+	let start_time_input = create_signal(ctx, start_time_input);
 	let start_time_value = create_signal(
 		ctx,
 		if let Some(entry) = props.editing_log_entry.get().as_ref() {
 			entry.start_time
 		} else {
-			Utc::now()
+			None
 		},
 	);
 	let start_time_error: &Signal<Option<String>> = create_signal(ctx, None);
@@ -327,29 +335,42 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		manual_sort_key.get().map(|key| key.to_string()).unwrap_or_default(),
 	);
 
-	let add_count_entry_signal = create_signal(ctx, String::from("1"));
-	let add_count_signal = create_memo(ctx, || {
-		let count: u8 = add_count_entry_signal.get().parse().unwrap_or(1);
-		count
-	});
-
 	create_effect(ctx, move || {
-		let start_time_result = get_duration_from_formatted(&start_time_input.get());
+		let editing_log_entry = editing_log_entry.get();
+		let start_time_input = start_time_input.get();
 		let event_start = props.event.get().start_time;
-		match start_time_result {
-			Ok(duration) => {
+
+		if start_time_input.is_empty() {
+			if editing_log_entry.start_time.is_some() {
+				start_time_error.set(Some(String::from(
+					"Start time cannot be cleared from an entry that already has one",
+				)));
+			} else {
 				start_time_error.set(None);
-				let new_start_time = event_start + duration;
-				start_time_value.set(new_start_time);
-
-				let warning_start_time = start_time_warning_base.unwrap_or_else(Utc::now);
-				start_time_warning_active.set((new_start_time - warning_start_time).num_minutes().abs() >= 60);
-
-				modified_entry_data
-					.modify()
-					.insert(ModifiedEventLogEntryParts::StartTime);
 			}
-			Err(error) => start_time_error.set(Some(error)),
+			start_time_value.set(None);
+			start_time_warning_active.set(false);
+
+			modified_entry_data
+				.modify()
+				.insert(ModifiedEventLogEntryParts::StartTime);
+		} else {
+			let start_time_result = get_duration_from_formatted(&start_time_input);
+			match start_time_result {
+				Ok(duration) => {
+					start_time_error.set(None);
+					let new_start_time = event_start + duration;
+					start_time_value.set(Some(new_start_time));
+
+					let warning_start_time = start_time_warning_base.unwrap_or_else(Utc::now);
+					start_time_warning_active.set((new_start_time - warning_start_time).num_minutes().abs() >= 60);
+
+					modified_entry_data
+						.modify()
+						.insert(ModifiedEventLogEntryParts::StartTime);
+				}
+				Err(error) => start_time_error.set(Some(error)),
+			}
 		}
 	});
 	create_effect(ctx, move || {
@@ -364,7 +385,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
 				(*props.event.get()).clone(),
 				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::StartTime(
-					(*props.editing_log_entry.get()).clone(),
+					(*editing_log_entry.get()).clone(),
 					(*start_time_input.get()).clone(),
 				))),
 			)));
@@ -435,7 +456,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
 				(*props.event.get()).clone(),
 				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::EndTime(
-					(*props.editing_log_entry.get()).clone(),
+					(*editing_log_entry.get()).clone(),
 					(*end_time_input.get()).clone(),
 				))),
 			)));
@@ -487,7 +508,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
 				(*props.event.get()).clone(),
 				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::EntryType(
-					(*props.editing_log_entry.get()).clone(),
+					(*editing_log_entry.get()).clone(),
 					(*entry_type_name.get()).clone(),
 				))),
 			)));
@@ -529,7 +550,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
 				(*props.event.get_untracked()).clone(),
 				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::Description(
-					(*props.editing_log_entry.get_untracked()).clone(),
+					(*editing_log_entry.get_untracked()).clone(),
 					(*description.get()).clone(),
 				))),
 			)));
@@ -571,7 +592,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
 				(*props.event.get()).clone(),
 				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::MediaLinks(
-					(*props.editing_log_entry.get()).clone(),
+					(*editing_log_entry.get()).clone(),
 					media_links,
 				))),
 			)));
@@ -613,7 +634,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
 				(*props.event.get()).clone(),
 				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::SubmitterWinner(
-					(*props.editing_log_entry.get()).clone(),
+					(*editing_log_entry.get()).clone(),
 					(*submitter_or_winner.get()).clone(),
 				))),
 			)));
@@ -665,7 +686,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
 				(*props.event.get()).clone(),
 				Box::new(EventSubscriptionUpdate::Typing(NewTypingData::Notes(
-					(*props.editing_log_entry.get()).clone(),
+					(*editing_log_entry.get()).clone(),
 					(*notes.get()).clone(),
 				))),
 			)));
@@ -788,16 +809,18 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 	let insert_to_tab = create_memo(ctx, || {
 		let tabs = props.event_log_tabs.get();
 		let insert_time = insert_position_time.get();
-		let mut insert_tab: Option<EventLogTab> = None;
-		for tab in tabs.iter() {
-			if *insert_time >= tab.start_time {
-				insert_tab = Some(tab.clone());
-			} else {
-				break;
+		insert_time.map(|insert_time| {
+			let mut insert_tab: Option<EventLogTab> = None;
+			for tab in tabs.iter() {
+				if insert_time >= tab.start_time {
+					insert_tab = Some(tab.clone());
+				} else {
+					break;
+				}
 			}
-		}
 
-		insert_tab
+			insert_tab
+		})
 	});
 
 	let end_field_ref = create_node_ref(ctx);
@@ -885,8 +908,12 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 
 		if let Some(entry) = editing_log_entry.as_ref() {
 			let event_start_time = props.event.get_untracked().start_time;
-			let start_duration = entry.start_time - event_start_time;
-			let start_duration = format_duration(&start_duration);
+			let start_duration = if let Some(start_time) = entry.start_time {
+				let duration = start_time - event_start_time;
+				format_duration(&duration)
+			} else {
+				String::new()
+			};
 			let end_duration = match entry.end_time {
 				EndTimeData::Time(time) => {
 					let duration = time - event_start_time;
@@ -949,34 +976,13 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			props.edit_parent_log_entry.set(None);
 		}
 
-		add_count_entry_signal.set(String::from("1"));
 		start_time_warning_active.set(false);
 		modified_entry_data.modify().clear();
 		suppress_typing_notifications.set(false);
 	});
 
 	let reset_data = move || {
-		suppress_typing_notifications.set(true);
-		start_time_input.set(String::new());
-		start_time_value.set(Utc::now());
-		end_time_input.set(String::new());
-		entry_type_name.set(String::new());
-		description.set(String::new());
-		media_links.set(Vec::new());
-		submitter_or_winner.set(String::new());
-		tags.set(Vec::new());
-		video_edit_state.set(VideoEditState::default());
-		notes.set(String::new());
-		editor_entry.set(String::new());
-		missing_giveaway_information.set(false);
-		sort_key_entry.set(String::new());
-		add_count_entry_signal.set(String::from("1"));
-
-		props.edit_parent_log_entry.set(None);
 		props.editing_log_entry.set(None);
-		start_time_warning_active.set(false);
-		modified_entry_data.modify().clear();
-		suppress_typing_notifications.set(false);
 	};
 
 	let save_handler = move |event: WebEvent| {
@@ -1027,89 +1033,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 				)),
 			)));
 
-			spawn_local_scoped(ctx, async move {
-				let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
-				let mut ws = ws_context.lock().await;
-
-				let message_json = match serde_json::to_string(&message) {
-					Ok(msg) => msg,
-					Err(error) => {
-						let data: &DataSignals = use_context(ctx);
-						data.errors.modify().push(ErrorData::new_with_error(
-							"Failed to serialize event log entry update.",
-							error,
-						));
-						return;
-					}
-				};
-
-				let send_result = ws.send(Message::Text(message_json)).await;
-				if let Err(error) = send_result {
-					let data: &DataSignals = use_context(ctx);
-					data.errors.modify().push(ErrorData::new_with_error(
-						"Failed to send event log entry update.",
-						error,
-					));
-				}
-			});
-		} else {
-			let new_entry = EventLogEntry {
-				id: String::new(),
-				start_time: *start_time_value.get(),
-				end_time: *end_time_value.get(),
-				entry_type: (*entry_type_id.get()).clone(),
-				description: (*description.get()).clone(),
-				media_links: (*media_links.get())
-					.iter()
-					.filter(|link| !link.is_empty())
-					.cloned()
-					.collect(),
-				submitter_or_winner: (*submitter_or_winner.get()).clone(),
-				tags: (*tags.get()).clone(),
-				notes: (*notes.get()).clone(),
-				editor: (*editor_value.get()).clone(),
-				video_link: None,
-				parent: (*props.edit_parent_log_entry.get())
-					.as_ref()
-					.map(|entry| entry.id.clone()),
-				created_at: Utc::now(),
-				manual_sort_key: *manual_sort_key.get(),
-				video_processing_state: VideoProcessingState::default(),
-				video_errors: String::new(),
-				poster_moment: *poster_moment.get(),
-				video_edit_state: *video_edit_state.get(),
-				missing_giveaway_information: *missing_giveaway_information.get(),
-			};
-			let add_count = *add_count_signal.get();
-			let message = FromClientMessage::SubscriptionMessage(Box::new(SubscriptionTargetUpdate::EventUpdate(
-				(*props.event.get()).clone(),
-				Box::new(EventSubscriptionUpdate::NewLogEntry(new_entry, add_count)),
-			)));
-			spawn_local_scoped(ctx, async move {
-				let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
-				let mut ws = ws_context.lock().await;
-
-				let message_json = match serde_json::to_string(&message) {
-					Ok(msg) => msg,
-					Err(error) => {
-						let data: &DataSignals = use_context(ctx);
-						data.errors.modify().push(ErrorData::new_with_error(
-							"Failed to serialize new event log entry message.",
-							error,
-						));
-						return;
-					}
-				};
-
-				let send_result = ws.send(Message::Text(message_json)).await;
-				if let Err(error) = send_result {
-					let data: &DataSignals = use_context(ctx);
-					data.errors.modify().push(ErrorData::new_with_error(
-						"Failed to send new event log entry message.",
-						error,
-					));
-				}
-			});
+			props.save_message_queue.modify().push(message);
 		}
 
 		reset_data();
@@ -1119,7 +1043,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		event.prevent_default();
 
 		let event = (*props.event.get()).clone();
-		let editing_log_entry = (*props.editing_log_entry.get()).clone();
+		let editing_log_entry = (*editing_log_entry.get()).clone();
 		spawn_local_scoped(ctx, async move {
 			let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
@@ -1199,7 +1123,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 
 	let reset_handler = move |_event: WebEvent| {
 		let event = (*props.event.get()).clone();
-		let editing_log_entry = (*props.editing_log_entry.get()).clone();
+		let editing_log_entry = (*editing_log_entry.get()).clone();
 		spawn_local_scoped(ctx, async move {
 			let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
 			let mut ws = ws_context.lock().await;
@@ -1313,8 +1237,13 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 		}
 		form(id="event_log_entry_edit", on:submit=save_handler, on:keydown=key_handler) {
 			(if let Some(entry) = (*props.editing_log_entry.get()).as_ref() {
-				let start_duration = entry.start_time - props.event.get().start_time;
-				let start_duration = format_duration(&start_duration);
+				let event_start_time = props.event.get().start_time;
+				let start_duration = if let Some(start_time) = entry.start_time {
+					let duration = start_time - event_start_time;
+					format_duration(&duration)
+				} else {
+					String::new()
+				};
 				let end_duration = match entry.end_time {
 					EndTimeData::Time(time) => {
 						let duration = time - props.event.get().start_time;
@@ -1344,7 +1273,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 			})
 			div(id="event_log_entry_edit_parent_info") {
 				(if let Some(parent) = props.edit_parent_log_entry.get().as_ref() {
-					let start_time_duration = parent.start_time - props.event.get().start_time;
+					let event_start_time = props.event.get().start_time;
 					let event_entry_types = props.event_entry_types.get();
 					let entry_type_name = parent.entry_type
 						.as_ref()
@@ -1356,7 +1285,12 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 						.unwrap_or_default();
 					let description = parent.description.clone();
 
-					let start_time = format_duration(&start_time_duration);
+					let start_time = if let Some(start_time) = parent.start_time {
+						let start_time_duration = start_time - event_start_time;
+						format_duration(&start_time_duration)
+					} else {
+						String::new()
+					};
 					let end_time = match parent.end_time {
 						EndTimeData::Time(time) => {
 							let duration = time - props.event.get().start_time;
@@ -1397,16 +1331,7 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 						class=if start_time_error.get().is_some() { "error" } else { "" },
 						title=(*start_time_error.get()).as_ref().unwrap_or(&String::new())
 					)
-					(
-						if props.editing_log_entry.get().is_none() {
-							view! {
-								ctx,
-								button(type="button", tabindex=-1, on:click=start_now_handler) { "Now" }
-							}
-						} else {
-							view! { ctx, }
-						}
-					)
+					button(type="button", tabindex=-1, on:click=start_now_handler) { "Now" }
 				}
 				div(id="event_log_entry_edit_end_time") {
 					input(
@@ -1633,24 +1558,24 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 					}
 				} else {
 					let insert_tab = insert_to_tab.get();
-					if insert_tab != props.current_tab.get() {
-						let insert_tab_name = (*insert_tab).as_ref().map(|tab| tab.name.clone()).unwrap_or_else(|| props.event.get().first_tab_name.clone());
-						let display_error = format!("This entry will be added to a different tab: {}", insert_tab_name);
-						view! {
-							ctx,
-							div(class="event_log_entry_edit_tab_warning") {
-								(display_error)
+					if let Some(insert_tab) = (*insert_tab).as_ref() {
+						if *insert_tab != *props.current_tab.get() {
+							let insert_tab_name = (*insert_tab).as_ref().map(|tab| tab.name.clone()).unwrap_or_else(|| props.event.get().first_tab_name.clone());
+							let display_error = format!("This entry will be added to a different tab: {}", insert_tab_name);
+							view! {
+								ctx,
+								div(class="event_log_entry_edit_tab_warning") {
+									(display_error)
+								}
 							}
+						} else {
+							view! { ctx, }
 						}
 					} else {
 						view! { ctx, }
 					}
 				})
 				(if let Some(entry) = (*props.editing_log_entry.get()).clone() {
-					let visible_creation_time = {
-						let creation_duration = entry.created_at - props.event.get().start_time;
-						format_duration(&creation_duration)
-					};
 					view! {
 						ctx,
 						div(id="event_log_entry_edit_delete") {
@@ -1675,8 +1600,21 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 						div(id="event_log_entry_id_info") {
 							"ID: "
 							(entry.id)
-							" Created: "
-							(visible_creation_time)
+							({
+								if entry.start_time.is_some() {
+									let visible_creation_time = {
+										let creation_duration = entry.created_at - props.event.get().start_time;
+										format_duration(&creation_duration)
+									};
+									view! {
+										ctx,
+										" Created: "
+										(visible_creation_time)
+									}
+								} else {
+									view! { ctx, }
+								}
+							})
 						}
 						div(id="event_log_entry_edit_close_buttons") {
 							button(disabled=*disable_save.get()) { "Save" }
@@ -1687,11 +1625,6 @@ pub fn EventLogEntryEdit<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryEditPr
 					view! {
 						ctx,
 						div(id="event_log_entry_edit_delete")
-						div(id="event_log_entry_edit_add_multi") {
-							"Add "
-							input(type="number", min=1, max=u32::MAX, step=1, bind:value=add_count_entry_signal, id="event_log_entry_edit_add_count")
-							" rows"
-						}
 						div(id="event_log_entry_edit_close_buttons") {
 							button(disabled=*disable_save.get()) { "Add" }
 							button(type="reset", on:click=reset_handler) { "Reset" }

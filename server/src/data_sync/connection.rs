@@ -4,6 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+use super::new_event_entries::NewEventEntries;
 use super::register::{check_username, register_user};
 use super::subscriptions::admin_applications::{handle_admin_applications_message, subscribe_to_admin_applications};
 use super::subscriptions::admin_editors::{handle_admin_editors_message, subscribe_to_admin_editors};
@@ -19,7 +20,7 @@ use super::subscriptions::admin_permission_groups::{
 };
 use super::subscriptions::admin_tabs::{handle_admin_event_log_tabs_message, subscribe_to_admin_event_log_tabs};
 use super::subscriptions::admin_users::{handle_admin_users_message, subscribe_to_admin_users};
-use super::subscriptions::events::{handle_event_update, subscribe_to_event};
+use super::subscriptions::events::{handle_event_update, subscribe_to_event, SubscribeToEventArgs};
 use super::user_profile::handle_profile_update;
 use super::HandleConnectionError;
 use crate::data_sync::{SubscriptionManager, UserDataUpdate};
@@ -56,6 +57,7 @@ pub async fn handle_connection(
 	request: Request<()>,
 	mut stream: WebSocketConnection,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
+	new_entries: Arc<Mutex<NewEventEntries>>,
 ) -> tide::Result<()> {
 	let Some(openid_user_id) = request.user_id() else {
 		let message = InitialMessage::new(UserDataLoad::MissingId);
@@ -174,6 +176,7 @@ pub async fn handle_connection(
 		&mut stream,
 		user_data,
 		Arc::clone(&subscription_manager),
+		Arc::clone(&new_entries),
 		&openid_user_id,
 		event_permission_cache,
 	)
@@ -191,6 +194,7 @@ async fn process_messages(
 	stream: &mut WebSocketConnection,
 	mut user: Option<SelfUserData>,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
+	new_entries: Arc<Mutex<NewEventEntries>>,
 	openid_user_id: &str,
 	mut event_permission_cache: HashMap<Event, Option<Permission>>,
 ) -> Result<(), HandleConnectionError> {
@@ -211,6 +215,7 @@ async fn process_messages(
 			user: &mut user,
 			connection_id: &connection_id,
 			subscription_manager: &subscription_manager,
+			new_entries: &new_entries,
 			openid_user_id,
 			event_permission_cache: &mut event_permission_cache,
 			conn_update_tx: conn_update_tx.clone(),
@@ -236,6 +241,7 @@ struct ProcessMessageParams<'a> {
 	user: &'a mut Option<SelfUserData>,
 	connection_id: &'a str,
 	subscription_manager: &'a Arc<Mutex<SubscriptionManager>>,
+	new_entries: &'a Arc<Mutex<NewEventEntries>>,
 	openid_user_id: &'a str,
 	event_permission_cache: &'a mut HashMap<Event, Option<Permission>>,
 	conn_update_tx: Sender<ConnectionUpdate>,
@@ -249,7 +255,17 @@ async fn process_message(args: ProcessMessageParams<'_>) -> Result<(), HandleCon
 		select! {
 			conn_update_result = conn_update_future => process_connection_update(conn_update_result, args.user, args.event_permission_cache),
 			recv_msg_result = recv_msg_future => {
-				let incoming_msg_params = ProcessIncomingMessageParams { recv_msg_result, db_connection_pool: args.db_connection_pool, conn_update_tx: args.conn_update_tx, user: args.user, connection_id: args.connection_id, subscription_manager: args.subscription_manager, openid_user_id: args.openid_user_id, event_permission_cache: args.event_permission_cache };
+				let incoming_msg_params = ProcessIncomingMessageParams {
+					recv_msg_result,
+					db_connection_pool: args.db_connection_pool,
+					conn_update_tx: args.conn_update_tx,
+					user: args.user,
+					connection_id: args.connection_id,
+					subscription_manager: args.subscription_manager,
+					new_entries: args.new_entries,
+					openid_user_id: args.openid_user_id,
+					event_permission_cache: args.event_permission_cache
+				};
 				match process_incoming_message(incoming_msg_params).await {
 					Ok(_) => Ok(None),
 					Err(error) => Err(error)
@@ -311,6 +327,7 @@ struct ProcessIncomingMessageParams<'a> {
 	user: &'a mut Option<SelfUserData>,
 	connection_id: &'a str,
 	subscription_manager: &'a Arc<Mutex<SubscriptionManager>>,
+	new_entries: &'a Arc<Mutex<NewEventEntries>>,
 	openid_user_id: &'a str,
 	event_permission_cache: &'a mut HashMap<Event, Option<Permission>>,
 }
@@ -340,16 +357,17 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 			}; // Only logged-in users can subscribe
 			match subscription_type {
 				SubscriptionType::EventLogData(event_id) => {
-					subscribe_to_event(
-						args.db_connection_pool.clone(),
-						args.conn_update_tx,
-						args.connection_id,
+					let subscribe_args = SubscribeToEventArgs {
+						db_connection_pool: args.db_connection_pool.clone(),
+						conn_update_tx: args.conn_update_tx,
+						connection_id: args.connection_id,
 						user,
-						Arc::clone(args.subscription_manager),
-						&event_id,
-						args.event_permission_cache,
-					)
-					.await?
+						subscription_manager: Arc::clone(args.subscription_manager),
+						new_entries: Arc::clone(args.new_entries),
+						event_id: &event_id,
+						event_permission_cache: args.event_permission_cache,
+					};
+					subscribe_to_event(subscribe_args).await?
 				}
 				SubscriptionType::AdminUsers => {
 					subscribe_to_admin_users(
@@ -522,6 +540,7 @@ async fn process_incoming_message(args: ProcessIncomingMessageParams<'_>) -> Res
 					handle_event_update(
 						args.db_connection_pool.clone(),
 						Arc::clone(args.subscription_manager),
+						Arc::clone(args.new_entries),
 						&event,
 						user,
 						args.event_permission_cache,

@@ -17,11 +17,13 @@ use chrono::Utc;
 use futures::future::poll_fn;
 use futures::lock::Mutex;
 use futures::task::{Context, Poll, Waker};
+use gloo_net::websocket::Message;
 use std::collections::HashMap;
 use stream_log_shared::messages::event_log::{EventLogEntry, EventLogTab, VideoEditState, VideoProcessingState};
 use stream_log_shared::messages::permissions::PermissionLevel;
 use stream_log_shared::messages::subscriptions::SubscriptionType;
 use stream_log_shared::messages::user::SelfUserData;
+use stream_log_shared::messages::FromClientMessage;
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use sycamore::suspense::Suspense;
@@ -138,6 +140,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 	let entry_types_signal = event_subscription_data.entry_types.clone();
 	let tags_signal = event_subscription_data.tags.clone();
 	let log_entries = event_subscription_data.event_log_entries.clone();
+	let new_log_entries = event_subscription_data.new_event_log_entries.clone();
 	let available_editors = event_subscription_data.editors.clone();
 
 	let read_event_signal = create_memo(ctx, {
@@ -160,6 +163,10 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 	let read_log_entries = create_memo(ctx, {
 		let log_entries = log_entries.clone();
 		move || (*log_entries.get()).clone()
+	});
+	let read_new_log_entries = create_memo(ctx, {
+		let new_log_entries = new_log_entries.clone();
+		move || (*new_log_entries.get()).clone()
 	});
 	let read_available_editors = create_memo(ctx, {
 		let available_editors = available_editors.clone();
@@ -247,7 +254,7 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 			loop {
 				match (next_entry, next_tab) {
 					(Some(entry), Some(tab)) => {
-						if entry.start_time < tab.start_time {
+						if entry.start_time.unwrap() < tab.start_time {
 							let tab_id = current_tab.as_ref().map(|tab| tab.id.clone()).unwrap_or_default();
 							add_entry_to_tab(&mut entries_by_tab, tab_id, entry.clone(), &entries_by_parent);
 							next_entry = entries_iter.next();
@@ -310,10 +317,13 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		let log_entries = log_entries.clone();
 		move || {
 			let log_entries = log_entries.get();
+			let new_log_entries = new_log_entries.get();
 			let editing_entry = editing_log_entry.get_untracked();
 			let editing_entry_id = (*editing_entry).as_ref().map(|entry| entry.id.clone());
 			if let Some(id) = editing_entry_id {
-				if !log_entries.iter().any(|entry| entry.id == id) {
+				if !log_entries.iter().any(|entry| entry.id == id)
+					&& !new_log_entries.iter().any(|entry| entry.id == id)
+				{
 					editing_log_entry.set(None);
 				}
 			}
@@ -325,10 +335,14 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		move || {
 			let mut typing_data: HashMap<String, UserTypingData> = HashMap::new();
 			let editing_entry = editing_log_entry.get();
+			let editing_entry_id = (*editing_entry)
+				.as_ref()
+				.map(|entry| entry.id.clone())
+				.unwrap_or_default();
 			for typing_event in typing_events
 				.get()
 				.iter()
-				.filter(|typing_event| typing_event.event_log_entry == *editing_entry)
+				.filter(|typing_event| typing_event.event_log_entry.id == editing_entry_id)
 			{
 				let (_, user_typing_data) = typing_data
 					.entry(typing_event.user.id.clone())
@@ -424,6 +438,41 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 		}
 	};
 
+	let save_message_queue: &Signal<Vec<FromClientMessage>> = create_signal(ctx, Vec::new());
+	create_effect(ctx, move || {
+		save_message_queue.track();
+		let mut message_queue = save_message_queue.modify();
+		let messages = std::mem::take(&mut *message_queue);
+
+		spawn_local_scoped(ctx, async move {
+			let ws_context: &Mutex<WebSocketSendStream> = use_context(ctx);
+			let mut ws = ws_context.lock().await;
+
+			for message in messages {
+				let message_json = match serde_json::to_string(&message) {
+					Ok(msg) => msg,
+					Err(error) => {
+						let data: &DataSignals = use_context(ctx);
+						data.errors.modify().push(ErrorData::new_with_error(
+							"Failed to serialize event log entry update.",
+							error,
+						));
+						continue;
+					}
+				};
+
+				let send_result = ws.send(Message::Text(message_json)).await;
+				if let Err(error) = send_result {
+					let data: &DataSignals = use_context(ctx);
+					data.errors.modify().push(ErrorData::new_with_error(
+						"Failed to send event log entry update.",
+						error,
+					));
+				}
+			}
+		});
+	});
+
 	let visible_event_signal = event_signal.clone();
 	let typing_event = event_signal.clone();
 	let typing_event_log = log_entries.clone();
@@ -433,6 +482,8 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 	};
 
 	log::debug!("Created signals and handlers for event {}", props.id);
+
+	let new_entries_event_subscription_data = event_subscription_data.clone();
 
 	view! {
 		ctx,
@@ -591,6 +642,33 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 							}
 						}
 					)
+					Keyed(
+						iterable=read_new_log_entries,
+						key=|entry| entry.id.clone(),
+						view={
+							let event_subscription_data = new_entries_event_subscription_data.clone();
+							move |ctx, entry| {
+								let event_subscription_data = event_subscription_data.clone();
+
+								view! {
+									ctx,
+									EventLogEntryView(
+										entry=entry,
+										jump_highlight_row_id=jump_highlight_row_id,
+										event_subscription_data=event_subscription_data,
+										can_edit=can_edit,
+										editing_log_entry=editing_log_entry,
+										read_entry_types_signal=read_entry_types_signal,
+										editing_entry_parent=editing_entry_parent,
+										entries_by_parent=entries_by_parent_signal,
+										child_depth=0,
+										entry_numbers=entry_numbers_signal,
+										use_editor_view=use_editor_view
+									)
+								}
+							}
+						}
+					)
 				}
 			}
 			(if *can_edit.get() {
@@ -657,18 +735,28 @@ async fn EventLogLoadedView<G: Html>(ctx: Scope<'_>, props: EventLogProps) -> Vi
 								}
 							}
 						})
-						EventLogEntryEdit(
-							event=read_event_signal,
-							permission_level=read_permission_signal,
-							event_entry_types=read_entry_types_signal,
-							event_tags=read_tags_signal,
-							event_editors=read_available_editors,
-							event_log_tabs=read_event_tabs_signal,
-							current_tab=selected_tab,
-							event_log_entries=read_log_entries,
-							editing_log_entry=editing_log_entry,
-							edit_parent_log_entry=editing_entry_parent
-						)
+						({
+							if editing_log_entry.get().is_some() {
+								view! {
+									ctx,
+									EventLogEntryEdit(
+										event=read_event_signal,
+										permission_level=read_permission_signal,
+										event_entry_types=read_entry_types_signal,
+										event_tags=read_tags_signal,
+										event_editors=read_available_editors,
+										event_log_tabs=read_event_tabs_signal,
+										current_tab=selected_tab,
+										event_log_entries=read_log_entries,
+										editing_log_entry=editing_log_entry,
+										edit_parent_log_entry=editing_entry_parent,
+										save_message_queue=save_message_queue
+									)
+								}
+							} else {
+								view! { ctx, }
+							}
+						})
 					}
 				}
 			} else {

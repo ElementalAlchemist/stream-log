@@ -68,6 +68,8 @@ pub struct InitialEventSubscriptionLoadData {
 	pub tabs: Vec<EventLogTab>,
 	/// The event log entries that have already been created
 	pub entries: Vec<EventLogEntry>,
+	/// Placeholder data for new entries that haven't yet been created
+	pub new_entries: Vec<EventLogEntry>,
 }
 
 /// Sent to the client when a new subscription is created.
@@ -120,7 +122,7 @@ pub enum SubscriptionFailureInfo {
 }
 
 /// A client-initiated description detailing for what subscriptions it'd like to send updates
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum SubscriptionTargetUpdate {
 	EventUpdate(Event, Box<EventSubscriptionUpdate>),
 	AdminEventsUpdate(AdminEventUpdate),

@@ -26,6 +26,7 @@ pub struct EventSubscriptionSignalsInitData {
 	pub info_pages: Vec<InfoPage>,
 	pub event_log_tabs: Vec<EventLogTab>,
 	pub event_log_entries: Vec<EventLogEntry>,
+	pub new_event_log_entries: Vec<EventLogEntry>,
 }
 
 #[derive(Clone)]
@@ -38,6 +39,7 @@ pub struct EventSubscriptionSignals {
 	pub info_pages: RcSignal<Vec<InfoPage>>,
 	pub event_log_tabs: RcSignal<Vec<EventLogTab>>,
 	pub event_log_entries: RcSignal<Vec<EventLogEntry>>,
+	pub new_event_log_entries: RcSignal<Vec<EventLogEntry>>,
 	pub typing_events: RcSignal<Vec<TypingEvent>>,
 	_typing_expire_interval: Rc<Interval>,
 	pub video_edit_state_filters: RcSignal<HashSet<VideoEditState>>,
@@ -65,6 +67,7 @@ impl EventSubscriptionSignals {
 		let info_pages = create_rc_signal(init_data.info_pages);
 		let event_log_tabs = create_rc_signal(init_data.event_log_tabs);
 		let event_log_entries = create_rc_signal(init_data.event_log_entries);
+		let new_event_log_entries = create_rc_signal(init_data.new_event_log_entries);
 
 		let video_edit_state_filters = create_rc_signal(HashSet::new());
 		let video_processing_state_filters = create_rc_signal(HashSet::new());
@@ -78,6 +81,7 @@ impl EventSubscriptionSignals {
 			info_pages,
 			event_log_tabs,
 			event_log_entries,
+			new_event_log_entries,
 			typing_events,
 			_typing_expire_interval,
 			video_edit_state_filters,
@@ -100,7 +104,7 @@ pub enum TypingTarget {
 
 #[derive(Clone, Debug)]
 pub struct TypingEvent {
-	pub event_log_entry: Option<EventLogEntry>,
+	pub event_log_entry: EventLogEntry,
 	pub user: PublicUserData,
 	pub target_field: TypingTarget,
 	pub data: String,

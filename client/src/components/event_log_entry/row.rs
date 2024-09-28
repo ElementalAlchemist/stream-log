@@ -54,8 +54,12 @@ pub fn EventLogEntryRow<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryRowProp
 			let Some(entry) = (*props.entry.get()).clone() else {
 				return String::new();
 			};
-			let start_time_duration = entry.start_time - event_start;
-			format_duration(&start_time_duration)
+			if let Some(start_time) = entry.start_time {
+				let start_time_duration = start_time - event_start;
+				format_duration(&start_time_duration)
+			} else {
+				String::new()
+			}
 		}
 	});
 
@@ -250,7 +254,16 @@ pub fn EventLogEntryRow<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryRowProp
 					}
 					div(class="log_entry_select_parent", on:click=prevent_row_click_handler) {
 						(child_indicators)
-						img(src="images/add.png", class="click", alt="Add child entry", title="Add child entry", on:click=parent_select_handler)
+						({
+							if (*props.entry.get()).as_ref().map(|entry| entry.start_time.is_some()).unwrap_or(false) {
+								view! {
+									ctx,
+									img(src="images/add.png", class="click", alt="Add child entry", title="Add child entry", on:click=parent_select_handler)
+								}
+							} else {
+								view! { ctx, }
+							}
+						})
 					}
 					div(class="log_entry_start_time", on:click=row_click_handler_for_id("event_log_entry_edit_start_time_field")) { (start_time.get()) }
 					div(class="log_entry_end_time", on:click=row_click_handler_for_id("event_log_entry_edit_end_time_field")) { (end_time.get()) }

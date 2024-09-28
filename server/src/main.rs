@@ -26,6 +26,7 @@ use config::parse_config;
 
 mod data_sync;
 use data_sync::connection::handle_connection;
+use data_sync::new_event_entries::NewEventEntries;
 use data_sync::SubscriptionManager;
 
 mod database;
@@ -62,6 +63,7 @@ async fn main() -> miette::Result<()> {
 	tide::log::start();
 
 	let subscription_manager = Arc::new(Mutex::new(SubscriptionManager::new()));
+	let new_entries = Arc::new(Mutex::new(NewEventEntries::default()));
 
 	let mut app = tide::new();
 
@@ -85,10 +87,21 @@ async fn main() -> miette::Result<()> {
 
 	app.at("/ws").authenticated().get(WebSocket::new({
 		let subscription_manager = Arc::clone(&subscription_manager);
+		let new_entries = Arc::clone(&new_entries);
 		move |request, stream| {
 			let db_connection_pool = db_connection_pool.clone();
 			let subscription_manager = Arc::clone(&subscription_manager);
-			async move { handle_connection(db_connection_pool.clone(), request, stream, subscription_manager).await }
+			let new_entries = Arc::clone(&new_entries);
+			async move {
+				handle_connection(
+					db_connection_pool.clone(),
+					request,
+					stream,
+					subscription_manager,
+					new_entries,
+				)
+				.await
+			}
 		}
 	}));
 

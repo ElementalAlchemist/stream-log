@@ -89,7 +89,6 @@ pub fn EventLogEntryTyping<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryTypi
 
 							if let Some(parent) = parent {
 								let event = event.clone();
-								let start_time_duration = parent.start_time - event.start_time;
 								let entry_type = parent.entry_type
 									.as_ref()
 									.and_then(|entry_type_id| event_entry_types
@@ -102,7 +101,12 @@ pub fn EventLogEntryTyping<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryTypi
 									.unwrap_or_default();
 								let description = parent.description.clone();
 
-								let start_time = format_duration(&start_time_duration);
+								let start_time = if let Some(parent_start_time) = parent.start_time {
+									let start_time_duration = parent_start_time - event.start_time;
+									format_duration(&start_time_duration)
+								} else {
+									String::new()
+								};
 								let end_time = match parent.end_time {
 									EndTimeData::Time(time) => {
 										let duration = time - event.start_time;

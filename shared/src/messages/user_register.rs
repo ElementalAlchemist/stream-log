@@ -11,14 +11,14 @@ use serde::{Deserialize, Serialize};
 pub const USERNAME_LENGTH_LIMIT: usize = 64;
 
 /// Request data from the client while registering
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub enum UserRegistration {
 	CheckUsername(String),
 	Finalize(UserRegistrationFinalize),
 }
 
 /// Data from the client when trying to register an account
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct UserRegistrationFinalize {
 	pub name: String,
 	pub color: RGB8,

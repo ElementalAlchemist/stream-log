@@ -41,7 +41,7 @@ impl fmt::Display for DataError {
 	}
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub enum FromClientMessage {
 	StartSubscription(SubscriptionType),
 	EndSubscription(SubscriptionType),

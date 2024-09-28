@@ -19,10 +19,16 @@ pub enum EndTimeData {
 	NoTime,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+impl Default for EndTimeData {
+	fn default() -> Self {
+		Self::NotEntered
+	}
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct EventLogEntry {
 	pub id: String,
-	pub start_time: DateTime<Utc>,
+	pub start_time: Option<DateTime<Utc>>,
 	pub end_time: EndTimeData,
 	pub entry_type: Option<String>,
 	pub description: String,

@@ -36,16 +36,25 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 	let event_signal = props.event_subscription_data.event.clone();
 	let entry_types_signal = props.event_subscription_data.entry_types.clone();
 	let log_entries = props.event_subscription_data.event_log_entries.clone();
+	let new_log_entries = props.event_subscription_data.new_event_log_entries.clone();
 
 	let event_log_entry_signal = create_memo(ctx, {
 		let log_entries = log_entries.clone();
+		let new_log_entries = new_log_entries.clone();
 		let entry_id = entry.id.clone();
 		move || {
+			let log_entries = log_entries.get();
+			let new_log_entries = new_log_entries.get();
 			log_entries
-				.get()
 				.iter()
 				.find(|log_entry| log_entry.id == entry_id)
 				.cloned()
+				.or_else(|| {
+					new_log_entries
+						.iter()
+						.find(|log_entry| log_entry.id == entry_id)
+						.cloned()
+				})
 		}
 	});
 
@@ -74,10 +83,15 @@ pub fn EventLogEntry<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryProps<'a>)
 	let typing_events_signal = props.event_subscription_data.typing_events.clone();
 	let typing_data = create_memo(ctx, move || {
 		let mut typing_data: HashMap<String, UserTypingData> = HashMap::new();
-		for typing_value in typing_events_signal.get().iter().filter(|typing_event| {
-			typing_event.event_log_entry.as_ref().map(|entry| &entry.id)
-				== (*event_log_entry_signal.get()).as_ref().map(|entry| &entry.id)
-		}) {
+		let event_log_entry_id = (*event_log_entry_signal.get())
+			.as_ref()
+			.map(|entry| entry.id.clone())
+			.unwrap_or_default();
+		for typing_value in typing_events_signal
+			.get()
+			.iter()
+			.filter(|typing_event| typing_event.event_log_entry.id == event_log_entry_id)
+		{
 			let user = typing_value.user.clone();
 			let (_, user_typing_data) = typing_data.entry(user.id.clone()).or_insert((user, HashMap::new()));
 			user_typing_data.insert(typing_value.target_field, typing_value.data.clone());

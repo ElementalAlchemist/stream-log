@@ -113,7 +113,7 @@ async fn update_video_link(
 
 		let entry = EventLogEntry {
 			id: entry.id,
-			start_time: entry.start_time,
+			start_time: Some(entry.start_time),
 			end_time,
 			entry_type: entry.entry_type,
 			description: entry.description,

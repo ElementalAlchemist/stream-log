@@ -37,7 +37,7 @@ impl From<SelfUserData> for PublicUserData {
 }
 
 /// Update information sent when a user updates their profile settings.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct UpdateUser {
 	pub color: RGB8,
 	pub use_spell_check: bool,

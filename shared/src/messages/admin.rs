@@ -13,7 +13,7 @@ use super::user::PublicUserData;
 use serde::{Deserialize, Serialize};
 
 /// An update to an event from the admin events page
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum AdminEventUpdate {
 	UpdateEvent(Event),
 }
@@ -25,7 +25,7 @@ pub enum AdminEventData {
 }
 
 /// An update to an entry type from the admin entry types page
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum AdminEntryTypeUpdate {
 	UpdateEntryType(EntryType),
 }
@@ -50,7 +50,7 @@ pub struct PermissionGroupEventAssociation {
 	pub permission: PermissionLevel,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum AdminPermissionGroupUpdate {
 	UpdateGroup(PermissionGroup),
 	SetEventPermissionForGroup(PermissionGroupEventAssociation),
@@ -64,7 +64,7 @@ pub enum AdminPermissionGroupData {
 	RemoveEventFromGroup(PermissionGroup, Event),
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum AdminEventEditorUpdate {
 	AddEditor(EditorEventAssociation),
 	RemoveEditor(EditorEventAssociation),
@@ -82,7 +82,7 @@ pub enum AdminEventEditorData {
 	RemoveEditor(EditorEventAssociation),
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum AdminUserPermissionGroupUpdate {
 	AddUserToGroup(UserPermissionGroupAssociation),
 	RemoveUserFromGroup(UserPermissionGroupAssociation),
@@ -100,7 +100,7 @@ pub enum AdminUserPermissionGroupData {
 	RemoveUserFromGroup(UserPermissionGroupAssociation),
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum AdminEntryTypeEventUpdate {
 	AddTypeToEvent(EntryTypeEventAssociation),
 	RemoveTypeFromEvent(EntryTypeEventAssociation),

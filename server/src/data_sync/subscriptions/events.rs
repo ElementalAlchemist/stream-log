@@ -6,6 +6,7 @@
 
 use super::send_lost_db_connection_subscription_response;
 use crate::data_sync::connection::ConnectionUpdate;
+use crate::data_sync::new_event_entries::{NewEventEntries, NEW_ENTRY_COUNT};
 use crate::data_sync::{HandleConnectionError, SubscriptionManager};
 use crate::models::{
 	AvailableEntryType, EditSource, EntryType as EntryTypeDb, Event as EventDb, EventLogEntry as EventLogEntryDb,
@@ -38,15 +39,29 @@ use stream_log_shared::messages::tags::{Tag, TagPlaylist};
 use stream_log_shared::messages::user::{PublicUserData, SelfUserData};
 use stream_log_shared::messages::{DataError, FromServerMessage};
 
-pub async fn subscribe_to_event(
-	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
-	conn_update_tx: Sender<ConnectionUpdate>,
-	connection_id: &str,
-	user: &SelfUserData,
-	subscription_manager: Arc<Mutex<SubscriptionManager>>,
-	event_id: &str,
-	event_permission_cache: &mut HashMap<Event, Option<Permission>>,
-) -> Result<(), HandleConnectionError> {
+pub struct SubscribeToEventArgs<'a> {
+	pub db_connection_pool: Pool<ConnectionManager<PgConnection>>,
+	pub conn_update_tx: Sender<ConnectionUpdate>,
+	pub connection_id: &'a str,
+	pub user: &'a SelfUserData,
+	pub subscription_manager: Arc<Mutex<SubscriptionManager>>,
+	pub new_entries: Arc<Mutex<NewEventEntries>>,
+	pub event_id: &'a str,
+	pub event_permission_cache: &'a mut HashMap<Event, Option<Permission>>,
+}
+
+pub async fn subscribe_to_event(args: SubscribeToEventArgs<'_>) -> Result<(), HandleConnectionError> {
+	let SubscribeToEventArgs {
+		db_connection_pool,
+		conn_update_tx,
+		connection_id,
+		user,
+		subscription_manager,
+		new_entries,
+		event_id,
+		event_permission_cache,
+	} = args;
+
 	let mut db_connection = match db_connection_pool.get() {
 		Ok(connection) => connection,
 		Err(error) => {
@@ -477,7 +492,7 @@ pub async fn subscribe_to_event(
 		};
 		let send_entry = EventLogEntry {
 			id: log_entry.id.clone(),
-			start_time: log_entry.start_time,
+			start_time: Some(log_entry.start_time),
 			end_time,
 			entry_type: log_entry.entry_type.clone(),
 			description: log_entry.description.clone(),
@@ -499,6 +514,24 @@ pub async fn subscribe_to_event(
 		event_log_entries.push(send_entry);
 	}
 
+	let new_entries = {
+		let mut new_entries = new_entries.lock().await;
+		let new_event_entries_entry = new_entries
+			.new_entries_by_event_id
+			.entry(event.id.clone())
+			.or_insert_with(|| {
+				let mut entries = Vec::with_capacity(NEW_ENTRY_COUNT);
+				for _ in 0..NEW_ENTRY_COUNT {
+					entries.push(EventLogEntry {
+						id: cuid2::create_id(),
+						..Default::default()
+					});
+				}
+				entries
+			});
+		new_event_entries_entry.clone()
+	};
+
 	let message = FromServerMessage::InitialSubscriptionLoad(Box::new(InitialSubscriptionLoadData::Event(Box::new(
 		InitialEventSubscriptionLoadData {
 			event,
@@ -509,6 +542,7 @@ pub async fn subscribe_to_event(
 			info_pages,
 			tabs: event_log_tabs,
 			entries: event_log_entries,
+			new_entries,
 		},
 	))));
 	conn_update_tx
@@ -521,6 +555,7 @@ pub async fn subscribe_to_event(
 pub async fn handle_event_update(
 	db_connection_pool: Pool<ConnectionManager<PgConnection>>,
 	subscription_manager: Arc<Mutex<SubscriptionManager>>,
+	new_entries: Arc<Mutex<NewEventEntries>>,
 	event: &Event,
 	user: &SelfUserData,
 	event_permission_cache: &HashMap<Event, Option<Permission>>,
@@ -539,185 +574,361 @@ pub async fn handle_event_update(
 	}
 
 	let event_subscription_data = match *message {
-		EventSubscriptionUpdate::NewLogEntry(log_entry_data, count) => {
-			let mut new_entry_messages: Vec<EventSubscriptionData> = Vec::new();
-			for _ in 0..count {
-				let mut log_entry_data = log_entry_data.clone();
-				let new_id = cuid2::create_id();
-
-				// Store times with minute granularity
-				let mut start_time = log_entry_data.start_time;
-
-				start_time = start_time.with_second(0).unwrap();
-				start_time = start_time.with_nanosecond(0).unwrap();
-				let (end_time, end_time_incomplete) = match log_entry_data.end_time {
-					EndTimeData::Time(mut end) => {
-						end = end.with_second(0).unwrap();
-						end = end.with_nanosecond(0).unwrap();
-						(Some(end), false)
-					}
-					EndTimeData::NotEntered => (None, true),
-					EndTimeData::NoTime => (None, false),
-				};
-
-				let create_time = Utc::now();
-
-				let db_entry = EventLogEntryDb {
-					id: new_id.clone(),
-					event: event.id.clone(),
-					start_time,
-					end_time,
-					entry_type: log_entry_data.entry_type.clone(),
-					description: log_entry_data.description.clone(),
-					media_links: log_entry_data
-						.media_links
+		EventSubscriptionUpdate::UpdateLogEntry(log_entry, modified_parts) => {
+			let new_entry_subscription_data = {
+				let mut entry_messages: Vec<EventSubscriptionData> = Vec::new();
+				let mut new_entries = new_entries.lock().await;
+				if let Some(event_new_entries) = new_entries.new_entries_by_event_id.get_mut(&event.id) {
+					if let Some(new_entry_index) = event_new_entries
 						.iter()
-						.map(|link| Some(link.clone()))
-						.collect(),
-					submitter_or_winner: log_entry_data.submitter_or_winner.clone(),
-					notes: log_entry_data.notes.clone(),
-					editor: log_entry_data.editor.clone().map(|editor| editor.id),
-					video_link: None,
-					parent: log_entry_data.parent.clone(),
-					deleted_by: None,
-					created_at: create_time,
-					manual_sort_key: log_entry_data.manual_sort_key,
-					video_processing_state: VideoProcessingState::default(),
-					video_errors: String::new(),
-					poster_moment: false,
-					video_edit_state: log_entry_data.video_edit_state.into(),
-					missing_giveaway_information: log_entry_data.missing_giveaway_information,
-					end_time_incomplete,
-				};
+						.enumerate()
+						.find(|(_, entry)| entry.id == log_entry.id)
+						.map(|(index, _)| index)
+					{
+						let new_entry = &mut event_new_entries[new_entry_index];
+						for part in modified_parts.iter() {
+							match part {
+								ModifiedEventLogEntryParts::StartTime => new_entry.start_time = log_entry.start_time,
+								ModifiedEventLogEntryParts::EndTime => new_entry.end_time = log_entry.end_time,
+								ModifiedEventLogEntryParts::EntryType => {
+									new_entry.entry_type = log_entry.entry_type.clone()
+								}
+								ModifiedEventLogEntryParts::Description => {
+									new_entry.description = log_entry.description.clone()
+								}
+								ModifiedEventLogEntryParts::MediaLinks => {
+									new_entry.media_links = log_entry.media_links.clone()
+								}
+								ModifiedEventLogEntryParts::SubmitterOrWinner => {
+									new_entry.submitter_or_winner = log_entry.submitter_or_winner.clone()
+								}
+								ModifiedEventLogEntryParts::Tags => new_entry.tags = log_entry.tags.clone(),
+								ModifiedEventLogEntryParts::VideoEditState => {
+									new_entry.video_edit_state = log_entry.video_edit_state
+								}
+								ModifiedEventLogEntryParts::PosterMoment => {
+									new_entry.poster_moment = log_entry.poster_moment
+								}
+								ModifiedEventLogEntryParts::Notes => new_entry.notes = log_entry.notes.clone(),
+								ModifiedEventLogEntryParts::Editor => new_entry.editor = log_entry.editor.clone(),
+								ModifiedEventLogEntryParts::MissingGiveawayInfo => {
+									new_entry.missing_giveaway_information = log_entry.missing_giveaway_information
+								}
+								ModifiedEventLogEntryParts::SortKey => {
+									new_entry.manual_sort_key = log_entry.manual_sort_key
+								}
+								ModifiedEventLogEntryParts::Parent => new_entry.parent = log_entry.parent.clone(),
+							}
+						}
 
-				let history_entry = EventLogHistoryEntry::new_from_event_log_entry(
-					&db_entry,
-					Utc::now(),
-					EditSource::User(user.id.clone()),
-				);
+						if let Some(mut start_time) = new_entry.start_time {
+							// Store times with minute granularity
+							start_time = start_time.with_second(0).unwrap();
+							start_time = start_time.with_nanosecond(0).unwrap();
+							let (end_time, end_time_incomplete) = match new_entry.end_time {
+								EndTimeData::Time(mut end) => {
+									end = end.with_second(0).unwrap();
+									end = end.with_nanosecond(0).unwrap();
+									(Some(end), false)
+								}
+								EndTimeData::NotEntered => (None, true),
+								EndTimeData::NoTime => (None, false),
+							};
 
-				let saved_tags: HashMap<String, Tag> = log_entry_data
-					.tags
-					.iter()
-					.map(|tag| (tag.id.clone(), tag.clone()))
-					.collect();
+							let create_time = Utc::now();
 
-				let db_tags: Vec<EventLogTag> = saved_tags
-					.values()
-					.map(|tag| EventLogTag {
-						tag: tag.id.clone(),
-						log_entry: new_id.clone(),
-					})
-					.collect();
-				log_entry_data.tags = saved_tags.values().cloned().collect();
-				let history_tags: Vec<EventLogHistoryTag> = db_tags
-					.iter()
-					.map(|tag| EventLogHistoryTag {
-						tag: tag.tag.clone(),
-						history_log_entry: history_entry.id.clone(),
-					})
-					.collect();
+							let db_entry = EventLogEntryDb {
+								id: new_entry.id.clone(),
+								event: event.id.clone(),
+								start_time,
+								end_time,
+								entry_type: new_entry.entry_type.clone(),
+								description: new_entry.description.clone(),
+								media_links: new_entry.media_links.iter().map(|link| Some(link.clone())).collect(),
+								submitter_or_winner: new_entry.submitter_or_winner.clone(),
+								notes: new_entry.notes.clone(),
+								editor: new_entry.editor.clone().map(|editor| editor.id),
+								video_link: None,
+								parent: new_entry.parent.clone(),
+								deleted_by: None,
+								created_at: create_time,
+								manual_sort_key: new_entry.manual_sort_key,
+								video_processing_state: VideoProcessingState::default(),
+								video_errors: String::new(),
+								poster_moment: false,
+								video_edit_state: new_entry.video_edit_state.into(),
+								missing_giveaway_information: new_entry.missing_giveaway_information,
+								end_time_incomplete,
+							};
 
+							let history_entry = EventLogHistoryEntry::new_from_event_log_entry(
+								&db_entry,
+								Utc::now(),
+								EditSource::User(user.id.clone()),
+							);
+
+							let saved_tags: HashMap<String, Tag> =
+								new_entry.tags.iter().map(|tag| (tag.id.clone(), tag.clone())).collect();
+
+							let db_tags: Vec<EventLogTag> = saved_tags
+								.values()
+								.map(|tag| EventLogTag {
+									tag: tag.id.clone(),
+									log_entry: new_entry.id.clone(),
+								})
+								.collect();
+							new_entry.tags = saved_tags.values().cloned().collect();
+							let history_tags: Vec<EventLogHistoryTag> = db_tags
+								.iter()
+								.map(|tag| EventLogHistoryTag {
+									tag: tag.tag.clone(),
+									history_log_entry: history_entry.id.clone(),
+								})
+								.collect();
+
+							let mut db_connection = match db_connection_pool.get() {
+								Ok(connection) => connection,
+								Err(error) => {
+									tide::log::error!("Database connection error adding an event log entry: {}", error);
+									return Ok(());
+								}
+							};
+							let insert_result: QueryResult<(EventLogEntryDb, Vec<TagDb>, Option<User>)> = db_connection
+								.transaction(|db_connection| {
+									if let Some(db_entry_type) = db_entry.entry_type.as_ref() {
+										let matching_entry_types: Vec<AvailableEntryType> =
+											available_entry_types_for_event::table
+												.filter(
+													available_entry_types_for_event::event_id.eq(&event.id).and(
+														available_entry_types_for_event::entry_type.eq(db_entry_type),
+													),
+												)
+												.limit(1)
+												.load(db_connection)?;
+										if matching_entry_types.is_empty() {
+											return Err(diesel::result::Error::RollbackTransaction);
+										}
+									}
+									let new_row: EventLogEntryDb = diesel::insert_into(event_log::table)
+										.values(db_entry)
+										.get_result(db_connection)?;
+									let new_row_tags: Vec<EventLogTag> = diesel::insert_into(event_log_tags::table)
+										.values(db_tags)
+										.get_results(db_connection)?;
+									let tag_ids: Vec<String> = new_row_tags.iter().map(|tag| tag.tag.clone()).collect();
+									let tags: Vec<TagDb> =
+										tags::table.filter(tags::id.eq_any(tag_ids)).load(db_connection)?;
+									let editor: Option<User> = match new_row.editor.as_ref() {
+										Some(editor) => Some(users::table.find(editor).first(db_connection)?),
+										None => None,
+									};
+									diesel::insert_into(event_log_history::table)
+										.values(history_entry)
+										.execute(db_connection)?;
+									diesel::insert_into(event_log_history_tags::table)
+										.values(history_tags)
+										.execute(db_connection)?;
+									Ok((new_row, tags, editor))
+								});
+							let new_log_entry = match insert_result {
+								Ok((entry, entry_tags, editor)) => {
+									let end_time = entry.end_time_data();
+									let tags: Vec<Tag> = entry_tags
+										.iter()
+										.map(|tag| {
+											let playlist =
+												if let (Some(id), Some(title), Some(shows_in_video_descriptions)) = (
+													tag.playlist.clone(),
+													tag.playlist_title.clone(),
+													tag.playlist_shows_in_video_descriptions,
+												) {
+													Some(TagPlaylist {
+														id,
+														title,
+														shows_in_video_descriptions,
+													})
+												} else {
+													None
+												};
+											Tag {
+												id: tag.id.clone(),
+												name: tag.tag.clone(),
+												description: tag.description.clone(),
+												playlist,
+											}
+										})
+										.collect();
+									EventLogEntry {
+										id: entry.id,
+										start_time: Some(entry.start_time),
+										end_time,
+										entry_type: entry.entry_type,
+										description: entry.description,
+										media_links: entry.media_links.into_iter().flatten().collect(),
+										submitter_or_winner: entry.submitter_or_winner,
+										tags,
+										video_edit_state: entry.video_edit_state.into(),
+										notes: entry.notes,
+										editor: editor.map(|user| user.into()),
+										video_link: entry.video_link,
+										parent: entry.parent,
+										created_at: entry.created_at,
+										manual_sort_key: entry.manual_sort_key,
+										video_processing_state: entry.video_processing_state.into(),
+										video_errors: entry.video_errors,
+										poster_moment: entry.poster_moment,
+										missing_giveaway_information: entry.missing_giveaway_information,
+									}
+								}
+								Err(error) => {
+									tide::log::error!("Database error adding an event log entry: {}", error);
+									return Ok(());
+								}
+							};
+
+							event_new_entries.remove(new_entry_index);
+							let mut new_new_entries = Vec::new();
+							while event_new_entries.len() < NEW_ENTRY_COUNT {
+								let new_entry = EventLogEntry {
+									id: cuid2::create_id(),
+									..Default::default()
+								};
+								new_new_entries.push(new_entry.clone());
+								event_new_entries.push(new_entry);
+							}
+
+							entry_messages.push(EventSubscriptionData::UpdateLogEntry(
+								new_log_entry,
+								Some(user.clone().into()),
+							));
+							for entry in new_new_entries {
+								entry_messages.push(EventSubscriptionData::UpdateLogEntry(entry, None));
+							}
+
+							Some(entry_messages)
+						} else {
+							Some(vec![EventSubscriptionData::UpdateLogEntry(
+								new_entry.clone(),
+								Some(user.clone().into()),
+							)])
+						}
+					} else {
+						None
+					}
+				} else {
+					None
+				}
+			};
+
+			if let Some(subscription_data) = new_entry_subscription_data {
+				// We handled everything with the new entry stuff
+				subscription_data
+			} else if log_entry.start_time.is_none() && modified_parts.contains(&ModifiedEventLogEntryParts::StartTime)
+			{
+				// Clearing the start time from an existing entry is not allowed, so we simply ignore this update
+				Vec::new()
+			} else {
 				let mut db_connection = match db_connection_pool.get() {
 					Ok(connection) => connection,
 					Err(error) => {
-						tide::log::error!("Database connection error adding an event log entry: {}", error);
+						tide::log::error!("Database connection error updating a log entry: {}", error);
 						return Ok(());
 					}
 				};
-				let insert_result: QueryResult<(EventLogEntryDb, Vec<TagDb>, Option<User>)> = db_connection
-					.transaction(|db_connection| {
-						if let Some(db_entry_type) = db_entry.entry_type.as_ref() {
-							let matching_entry_types: Vec<AvailableEntryType> = available_entry_types_for_event::table
-								.filter(
-									available_entry_types_for_event::event_id
-										.eq(&event.id)
-										.and(available_entry_types_for_event::entry_type.eq(db_entry_type)),
-								)
-								.limit(1)
-								.load(db_connection)?;
-							if matching_entry_types.is_empty() {
-								return Err(diesel::result::Error::RollbackTransaction);
+				let update_func = |db_connection: &mut PgConnection| {
+					let mut changes = EventLogEntryChanges::default();
+					for part in modified_parts.iter() {
+						match part {
+							ModifiedEventLogEntryParts::StartTime => {
+								changes.start_time = Some(log_entry.start_time.unwrap())
 							}
-						}
-						let new_row: EventLogEntryDb = diesel::insert_into(event_log::table)
-							.values(db_entry)
-							.get_result(db_connection)?;
-						let new_row_tags: Vec<EventLogTag> = diesel::insert_into(event_log_tags::table)
-							.values(db_tags)
-							.get_results(db_connection)?;
-						let tag_ids: Vec<String> = new_row_tags.iter().map(|tag| tag.tag.clone()).collect();
-						let tags: Vec<TagDb> = tags::table.filter(tags::id.eq_any(tag_ids)).load(db_connection)?;
-						let editor: Option<User> = match new_row.editor.as_ref() {
-							Some(editor) => Some(users::table.find(editor).first(db_connection)?),
-							None => None,
-						};
-						diesel::insert_into(event_log_history::table)
-							.values(history_entry)
-							.execute(db_connection)?;
-						diesel::insert_into(event_log_history_tags::table)
-							.values(history_tags)
-							.execute(db_connection)?;
-						Ok((new_row, tags, editor))
-					});
-				let new_log_entry = match insert_result {
-					Ok((entry, entry_tags, editor)) => {
-						let end_time = entry.end_time_data();
-						let tags: Vec<Tag> = entry_tags
-							.iter()
-							.map(|tag| {
-								let playlist = if let (Some(id), Some(title), Some(shows_in_video_descriptions)) = (
-									tag.playlist.clone(),
-									tag.playlist_title.clone(),
-									tag.playlist_shows_in_video_descriptions,
-								) {
-									Some(TagPlaylist {
-										id,
-										title,
-										shows_in_video_descriptions,
-									})
-								} else {
-									None
-								};
-								Tag {
-									id: tag.id.clone(),
-									name: tag.tag.clone(),
-									description: tag.description.clone(),
-									playlist,
+							ModifiedEventLogEntryParts::EndTime => match log_entry.end_time {
+								EndTimeData::Time(time) => {
+									changes.end_time = Some(Some(time));
+									changes.end_time_incomplete = Some(false);
 								}
-							})
-							.collect();
-						EventLogEntry {
-							id: entry.id,
-							start_time: entry.start_time,
-							end_time,
-							entry_type: entry.entry_type,
-							description: entry.description,
-							media_links: entry.media_links.into_iter().flatten().collect(),
-							submitter_or_winner: entry.submitter_or_winner,
-							tags,
-							video_edit_state: entry.video_edit_state.into(),
-							notes: entry.notes,
-							editor: editor.map(|user| user.into()),
-							video_link: entry.video_link,
-							parent: entry.parent,
-							created_at: entry.created_at,
-							manual_sort_key: entry.manual_sort_key,
-							video_processing_state: entry.video_processing_state.into(),
-							video_errors: entry.video_errors,
-							poster_moment: entry.poster_moment,
-							missing_giveaway_information: entry.missing_giveaway_information,
+								EndTimeData::NotEntered => {
+									changes.end_time = Some(None);
+									changes.end_time_incomplete = Some(true);
+								}
+								EndTimeData::NoTime => {
+									changes.end_time = Some(None);
+									changes.end_time_incomplete = Some(false);
+								}
+							},
+							ModifiedEventLogEntryParts::EntryType => {
+								changes.entry_type = Some(log_entry.entry_type.clone())
+							}
+							ModifiedEventLogEntryParts::Description => {
+								changes.description = Some(log_entry.description.clone())
+							}
+							ModifiedEventLogEntryParts::MediaLinks => {
+								changes.media_links =
+									Some(log_entry.media_links.iter().map(|link| Some(link.clone())).collect())
+							}
+							ModifiedEventLogEntryParts::SubmitterOrWinner => {
+								changes.submitter_or_winner = Some(log_entry.submitter_or_winner.clone())
+							}
+							ModifiedEventLogEntryParts::Tags => {
+								let updated_tags: Vec<EventLogTag> = log_entry
+									.tags
+									.iter()
+									.map(|tag| EventLogTag {
+										tag: tag.id.clone(),
+										log_entry: log_entry.id.clone(),
+									})
+									.collect();
+								diesel::delete(event_log_tags::table)
+									.filter(event_log_tags::log_entry.eq(&log_entry.id))
+									.execute(db_connection)?;
+								diesel::insert_into(event_log_tags::table)
+									.values(updated_tags)
+									.execute(db_connection)?;
+							}
+							ModifiedEventLogEntryParts::VideoEditState => {
+								changes.video_edit_state = Some(log_entry.video_edit_state.into())
+							}
+							ModifiedEventLogEntryParts::PosterMoment => {
+								changes.poster_moment = Some(log_entry.poster_moment)
+							}
+							ModifiedEventLogEntryParts::Notes => changes.notes = Some(log_entry.notes.clone()),
+							ModifiedEventLogEntryParts::Editor => {
+								changes.editor = Some(log_entry.editor.as_ref().map(|user| user.id.clone()))
+							}
+							ModifiedEventLogEntryParts::MissingGiveawayInfo => {
+								changes.missing_giveaway_information = Some(log_entry.missing_giveaway_information)
+							}
+							ModifiedEventLogEntryParts::SortKey => {
+								changes.manual_sort_key = Some(log_entry.manual_sort_key)
+							}
+							ModifiedEventLogEntryParts::Parent => changes.parent = Some(log_entry.parent.clone()),
 						}
 					}
+
+					if changes.has_changes() {
+						diesel::update(event_log::table)
+							.filter(event_log::id.eq(&log_entry.id))
+							.set(changes)
+							.get_result(db_connection)
+					} else {
+						event_log::table.find(&log_entry.id).first(db_connection)
+					}
+				};
+				let update_result = log_entry_change(&mut db_connection, update_func, user.id.clone());
+
+				let log_entry = match update_result {
+					Ok(entry) => entry,
 					Err(error) => {
-						tide::log::error!("Database error adding an event log entry: {}", error);
+						tide::log::error!("Database error updating a log entry: {}", error);
 						return Ok(());
 					}
 				};
 
-				new_entry_messages.push(EventSubscriptionData::NewLogEntry(new_log_entry, user.clone().into()));
+				vec![EventSubscriptionData::UpdateLogEntry(
+					log_entry,
+					Some(user.clone().into()),
+				)]
 			}
-			new_entry_messages
 		}
 		EventSubscriptionUpdate::DeleteLogEntry(deleted_log_entry) => {
 			// Deleting an entry requires supervisor permissions, so we'll ignore requests from non-supervisors.
@@ -770,106 +981,6 @@ pub async fn handle_event_update(
 			}
 
 			vec![EventSubscriptionData::DeleteLogEntry(deleted_log_entry)]
-		}
-		EventSubscriptionUpdate::UpdateLogEntry(log_entry, modified_parts) => {
-			let mut db_connection = match db_connection_pool.get() {
-				Ok(connection) => connection,
-				Err(error) => {
-					tide::log::error!("Database connection error updating a log entry: {}", error);
-					return Ok(());
-				}
-			};
-			let update_func = |db_connection: &mut PgConnection| {
-				let mut changes = EventLogEntryChanges::default();
-				for part in modified_parts.iter() {
-					match part {
-						ModifiedEventLogEntryParts::StartTime => changes.start_time = Some(log_entry.start_time),
-						ModifiedEventLogEntryParts::EndTime => match log_entry.end_time {
-							EndTimeData::Time(time) => {
-								changes.end_time = Some(Some(time));
-								changes.end_time_incomplete = Some(false);
-							}
-							EndTimeData::NotEntered => {
-								changes.end_time = Some(None);
-								changes.end_time_incomplete = Some(true);
-							}
-							EndTimeData::NoTime => {
-								changes.end_time = Some(None);
-								changes.end_time_incomplete = Some(false);
-							}
-						},
-						ModifiedEventLogEntryParts::EntryType => {
-							changes.entry_type = Some(log_entry.entry_type.clone())
-						}
-						ModifiedEventLogEntryParts::Description => {
-							changes.description = Some(log_entry.description.clone())
-						}
-						ModifiedEventLogEntryParts::MediaLinks => {
-							changes.media_links =
-								Some(log_entry.media_links.iter().map(|link| Some(link.clone())).collect())
-						}
-						ModifiedEventLogEntryParts::SubmitterOrWinner => {
-							changes.submitter_or_winner = Some(log_entry.submitter_or_winner.clone())
-						}
-						ModifiedEventLogEntryParts::Tags => {
-							let updated_tags: Vec<EventLogTag> = log_entry
-								.tags
-								.iter()
-								.map(|tag| EventLogTag {
-									tag: tag.id.clone(),
-									log_entry: log_entry.id.clone(),
-								})
-								.collect();
-							diesel::delete(event_log_tags::table)
-								.filter(event_log_tags::log_entry.eq(&log_entry.id))
-								.execute(db_connection)?;
-							diesel::insert_into(event_log_tags::table)
-								.values(updated_tags)
-								.execute(db_connection)?;
-						}
-						ModifiedEventLogEntryParts::VideoEditState => {
-							changes.video_edit_state = Some(log_entry.video_edit_state.into())
-						}
-						ModifiedEventLogEntryParts::PosterMoment => {
-							changes.poster_moment = Some(log_entry.poster_moment)
-						}
-						ModifiedEventLogEntryParts::Notes => changes.notes = Some(log_entry.notes.clone()),
-						ModifiedEventLogEntryParts::Editor => {
-							changes.editor = Some(log_entry.editor.as_ref().map(|user| user.id.clone()))
-						}
-						ModifiedEventLogEntryParts::MissingGiveawayInfo => {
-							changes.missing_giveaway_information = Some(log_entry.missing_giveaway_information)
-						}
-						ModifiedEventLogEntryParts::SortKey => {
-							changes.manual_sort_key = Some(log_entry.manual_sort_key)
-						}
-						ModifiedEventLogEntryParts::Parent => changes.parent = Some(log_entry.parent.clone()),
-					}
-				}
-
-				if changes.has_changes() {
-					diesel::update(event_log::table)
-						.filter(event_log::id.eq(&log_entry.id))
-						.set(changes)
-						.get_result(db_connection)
-				} else {
-					event_log::table.find(&log_entry.id).first(db_connection)
-				}
-			};
-			let update_result = log_entry_change(&mut db_connection, update_func, user.id.clone());
-
-			let log_entry = match update_result {
-				Ok(entry) => entry,
-				Err(error) => {
-					tide::log::error!("Database error updating a log entry: {}", error);
-					return Ok(());
-				}
-			};
-
-			vec![EventSubscriptionData::UpdateLogEntry(
-				log_entry,
-				Some(user.clone().into()),
-			)]
 		}
 		EventSubscriptionUpdate::Typing(typing_data) => {
 			let user_data: PublicUserData = user.clone().into();
@@ -1069,7 +1180,7 @@ pub async fn handle_event_update(
 
 					let updated_entry = EventLogEntry {
 						id: log_entry.id.clone(),
-						start_time: log_entry.start_time,
+						start_time: Some(log_entry.start_time),
 						end_time,
 						entry_type: log_entry.entry_type.clone(),
 						description: log_entry.description.clone(),
@@ -1234,7 +1345,7 @@ fn log_entry_change(
 
 		let log_entry = EventLogEntry {
 			id: log_entry.id,
-			start_time: log_entry.start_time,
+			start_time: Some(log_entry.start_time),
 			end_time,
 			entry_type: log_entry.entry_type,
 			description: log_entry.description,
