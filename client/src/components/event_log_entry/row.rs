@@ -212,7 +212,7 @@ pub fn EventLogEntryRow<'a, G: Html>(ctx: Scope<'a>, props: EventLogEntryRowProp
 							row_class = format!("{} log_entry_missing_giveaway_highlight", row_class);
 						} else if (*props.entry.get())
 							.as_ref()
-							.map(|entry| entry.end_time == EndTimeData::NotEntered)
+							.map(|entry| entry.end_time == EndTimeData::NotEntered && entry.start_time.is_some())
 							.unwrap_or(false)
 						{
 							row_class = format!("{} log_entry_end_highlight", row_class);
