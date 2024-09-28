@@ -183,6 +183,7 @@ $event_log_editor_column_count: 17;
 	> div {
 		padding: 2px;
 		background: inherit;
+		min-height: 1em;
 
 		&:not(:last-child) {
 			border-right: 1px solid var(--base-border-color);
