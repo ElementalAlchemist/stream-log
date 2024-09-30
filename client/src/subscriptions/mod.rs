@@ -296,7 +296,7 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 											log_entries[index] = log_entry;
 										}
 									} else if log_entry.start_time.is_some() {
-										new_log_entries.retain(|entry| entry.id != log_entry.id);
+										let log_entry_id = log_entry.id.clone();
 										match log_entries.last() {
 											Some(last_entry) => {
 												if log_entry.start_time >= last_entry.start_time {
@@ -308,6 +308,10 @@ pub async fn process_messages(ctx: Scope<'_>, mut ws_read: SplitStream<WebSocket
 											}
 											None => log_entries.push(log_entry),
 										}
+										// Force flushing modifications to log_entries before updating new_log_entries;
+										// otherwise the new entry won't exist briefly while it's transferred
+										drop(log_entries);
+										new_log_entries.retain(|entry| entry.id != log_entry_id);
 									} else if let Some(entry) =
 										new_log_entries.iter_mut().find(|entry| entry.id == log_entry.id)
 									{
